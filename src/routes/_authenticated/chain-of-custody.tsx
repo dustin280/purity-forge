@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ClipboardList } from "lucide-react";
@@ -225,6 +225,3 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     </Dialog>
   );
 }
-
-// Avoid unused import warning for DialogTrigger (kept for future inline triggers)
-void DialogTrigger;
