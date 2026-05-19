@@ -65,10 +65,10 @@ export const getSampleDetail = createServerFn({ method: "GET" })
     if (!sample) throw new Error("Sample not found");
     const { data: tests } = await supabase.from("tests").select("*").eq("sample_id", sample.id);
     const testIds = (tests ?? []).map(t => t.id);
-    const { data: results } = testIds.length
-      ? await supabase.from("results").select("*").in("test_id", testIds)
-      : { data: [] as Array<Record<string, unknown>> };
-    return { sample, tests: tests ?? [], results: results ?? [] };
+    const results = testIds.length
+      ? (await supabase.from("results").select("*").in("test_id", testIds)).data ?? []
+      : [];
+    return { sample, tests: tests ?? [], results };
   });
 
 export const updateSampleStatus = createServerFn({ method: "POST" })
