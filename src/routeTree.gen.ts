@@ -27,6 +27,7 @@ import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/logs/standard-preparations/index'
+import { Route as AuthenticatedLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as AuthenticatedLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/logs/standard-preparations/new'
 import { Route as AuthenticatedLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/logs/standard-preparations/$id'
@@ -130,6 +131,12 @@ const AuthenticatedLogsStandardPreparationsIndexRoute =
     path: '/logs/standard-preparations/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLogsDailyBackpressureIndexRoute =
+  AuthenticatedLogsDailyBackpressureIndexRouteImport.update({
+    id: '/logs/daily-backpressure/',
+    path: '/logs/daily-backpressure/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   id: '/api/public/exports/$batchId',
   path: '/api/public/exports/$batchId',
@@ -168,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
   '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/logs/daily-backpressure/': typeof AuthenticatedLogsDailyBackpressureIndexRoute
   '/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -190,6 +198,7 @@ export interface FileRoutesByTo {
   '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
   '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/logs/daily-backpressure': typeof AuthenticatedLogsDailyBackpressureIndexRoute
   '/logs/standard-preparations': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesById {
@@ -214,6 +223,7 @@ export interface FileRoutesById {
   '/_authenticated/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
   '/_authenticated/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/_authenticated/logs/daily-backpressure/': typeof AuthenticatedLogsDailyBackpressureIndexRoute
   '/_authenticated/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRouteTypes {
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/logs/standard-preparations/$id'
     | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
+    | '/logs/daily-backpressure/'
     | '/logs/standard-preparations/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -260,6 +271,7 @@ export interface FileRouteTypes {
     | '/logs/standard-preparations/$id'
     | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
+    | '/logs/daily-backpressure'
     | '/logs/standard-preparations'
   id:
     | '__root__'
@@ -283,6 +295,7 @@ export interface FileRouteTypes {
     | '/_authenticated/logs/standard-preparations/$id'
     | '/_authenticated/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
+    | '/_authenticated/logs/daily-backpressure/'
     | '/_authenticated/logs/standard-preparations/'
   fileRoutesById: FileRoutesById
 }
@@ -420,6 +433,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/logs/daily-backpressure/': {
+      id: '/_authenticated/logs/daily-backpressure/'
+      path: '/logs/daily-backpressure'
+      fullPath: '/logs/daily-backpressure/'
+      preLoaderRoute: typeof AuthenticatedLogsDailyBackpressureIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/exports/$batchId': {
       id: '/api/public/exports/$batchId'
       path: '/api/public/exports/$batchId'
@@ -462,6 +482,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedLogsStandardPreparationsIdRoute: typeof AuthenticatedLogsStandardPreparationsIdRoute
   AuthenticatedLogsStandardPreparationsNewRoute: typeof AuthenticatedLogsStandardPreparationsNewRoute
+  AuthenticatedLogsDailyBackpressureIndexRoute: typeof AuthenticatedLogsDailyBackpressureIndexRoute
   AuthenticatedLogsStandardPreparationsIndexRoute: typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 
@@ -486,6 +507,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLogsStandardPreparationsIdRoute,
   AuthenticatedLogsStandardPreparationsNewRoute:
     AuthenticatedLogsStandardPreparationsNewRoute,
+  AuthenticatedLogsDailyBackpressureIndexRoute:
+    AuthenticatedLogsDailyBackpressureIndexRoute,
   AuthenticatedLogsStandardPreparationsIndexRoute:
     AuthenticatedLogsStandardPreparationsIndexRoute,
 }
@@ -502,3 +525,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
