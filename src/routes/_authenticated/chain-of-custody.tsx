@@ -308,16 +308,28 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   });
 
   const activeFields = useMemo(() => fields.filter(f => f.is_active), [fields]);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string | string[]>>({});
+
+  const listParams = useServerFn(listParameters);
+  const { data: allParams = [] } = useQuery({
+    queryKey: ["test_parameters"],
+    queryFn: () => listParams(),
+    enabled: open,
+  });
+  const activeParams = allParams.filter((p: { is_active: boolean }) => p.is_active);
 
   // Reset values when dialog opens or data loads
   const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
   useEffect(() => {
     if (!open) return;
-    const init: Record<string, string> = {};
+    const init: Record<string, string | string[]> = {};
     activeFields.forEach(f => {
       const v = existing?.data?.[f.field_key];
-      init[f.field_key] = v == null ? "" : String(v);
+      if (f.field_type === "multiselect") {
+        init[f.field_key] = Array.isArray(v) ? v : [];
+      } else {
+        init[f.field_key] = v == null ? "" : String(v);
+      }
     });
     setValues(init);
   // eslint-disable-next-line react-hooks/exhaustive-deps
