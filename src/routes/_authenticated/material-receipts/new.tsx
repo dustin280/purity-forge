@@ -14,8 +14,10 @@ export const Route = createFileRoute("/_authenticated/material-receipts/new")({
 
 function NewReceipt() {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
-  const defaultName = profileDisplayName(profile, user?.email) || user?.email || "";
+  const { profile } = useAuth();
+  // Only prefill when we actually have a human name on the profile —
+  // never fall back to email for the Receiver field.
+  const defaultName = profileDisplayName(profile, null);
   const create = useServerFn(createMaterialReceipt);
 
   const mut = useMutation({
