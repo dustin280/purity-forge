@@ -369,13 +369,56 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
 
+  function MultiselectField({ fieldKey, selected, options, onToggle }: {
+    fieldKey: string;
+    selected: string[];
+    options: { id: string; name: string }[];
+    onToggle: (name: string) => void;
+  }) {
+    const [filter, setFilter] = useState("");
+    const filtered = options.filter(p =>
+      p.name.toLowerCase().includes(filter.toLowerCase())
+    );
+    return (
+      <div className="space-y-2" key={fieldKey}>
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selected.map(name => (
+              <Badge key={name} variant="secondary" className="gap-1">
+                {name}
+                <button type="button" onClick={() => onToggle(name)} className="hover:text-destructive">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <Input
+          placeholder={`Filter ${options.length} parameters…`}
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="h-8"
+        />
+        <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-xs text-muted-foreground">No parameters available.</div>
+          ) : filtered.map(p => {
+            const checked = selected.includes(p.name);
+            return (
+              <label key={p.id} className="flex items-center gap-2.5 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40">
+                <Checkbox checked={checked} onCheckedChange={() => onToggle(p.name)} />
+                <span>{p.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function renderField(f: CocField) {
     if (f.field_type === "multiselect") {
       const selected = (values[f.field_key] as string[]) ?? [];
-      const [filter, setFilter] = useState("");
-      const filtered = activeParams.filter((p: { name: string }) =>
-        p.name.toLowerCase().includes(filter.toLowerCase())
-      );
       function toggleParam(name: string) {
         setValues(prev => {
           const arr = new Set((prev[f.field_key] as string[]) ?? []);
@@ -384,39 +427,12 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
         });
       }
       return (
-        <div className="space-y-2">
-          {selected.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {selected.map(name => (
-                <Badge key={name} variant="secondary" className="gap-1">
-                  {name}
-                  <button type="button" onClick={() => toggleParam(name)} className="hover:text-destructive">
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-          )}
-          <Input
-            placeholder={`Filter ${activeParams.length} parameters…`}
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            className="h-8"
-          />
-          <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
-            {filtered.length === 0 ? (
-              <div className="p-3 text-xs text-muted-foreground">No parameters available.</div>
-            ) : filtered.map((p: { id: string; name: string }) => {
-              const checked = selected.includes(p.name);
-              return (
-                <label key={p.id} className="flex items-center gap-2.5 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40">
-                  <Checkbox checked={checked} onCheckedChange={() => toggleParam(p.name)} />
-                  <span>{p.name}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
+        <MultiselectField
+          fieldKey={f.field_key}
+          selected={selected}
+          options={activeParams}
+          onToggle={toggleParam}
+        />
       );
     }
     const v = values[f.field_key] as string ?? "";
