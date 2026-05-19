@@ -9,50 +9,230 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
+import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
+import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
+import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 
-const IndexRoute = IndexRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedIntegrationsRoute =
+  AuthenticatedIntegrationsRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplesIndexRoute =
+  AuthenticatedSamplesIndexRouteImport.update({
+    id: '/samples/',
+    path: '/samples/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
+  id: '/samples/new',
+  path: '/samples/new',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSamplesBatchIdRoute =
+  AuthenticatedSamplesBatchIdRouteImport.update({
+    id: '/samples/$batchId',
+    path: '/samples/$batchId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
+  id: '/api/public/exports/$batchId',
+  path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/login': typeof LoginRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/users': typeof AuthenticatedUsersRoute
+  '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
+  '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/users': typeof AuthenticatedUsersRoute
+  '/': typeof AuthenticatedIndexRoute
+  '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
+  '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
+  '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/integrations'
+    | '/users'
+    | '/samples/$batchId'
+    | '/samples/new'
+    | '/samples/'
+    | '/api/public/exports/$batchId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/login'
+    | '/integrations'
+    | '/users'
+    | '/'
+    | '/samples/$batchId'
+    | '/samples/new'
+    | '/samples'
+    | '/api/public/exports/$batchId'
+  id:
+    | '__root__'
+    | '/_authenticated'
+    | '/login'
+    | '/_authenticated/integrations'
+    | '/_authenticated/users'
+    | '/_authenticated/'
+    | '/_authenticated/samples/$batchId'
+    | '/_authenticated/samples/new'
+    | '/_authenticated/samples/'
+    | '/api/public/exports/$batchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/integrations': {
+      id: '/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/samples/': {
+      id: '/_authenticated/samples/'
+      path: '/samples'
+      fullPath: '/samples/'
+      preLoaderRoute: typeof AuthenticatedSamplesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/samples/new': {
+      id: '/_authenticated/samples/new'
+      path: '/samples/new'
+      fullPath: '/samples/new'
+      preLoaderRoute: typeof AuthenticatedSamplesNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/samples/$batchId': {
+      id: '/_authenticated/samples/$batchId'
+      path: '/samples/$batchId'
+      fullPath: '/samples/$batchId'
+      preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/exports/$batchId': {
+      id: '/api/public/exports/$batchId'
+      path: '/api/public/exports/$batchId'
+      fullPath: '/api/public/exports/$batchId'
+      preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
 
+interface AuthenticatedRouteChildren {
+  AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
+  AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
+  AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+}
+
+const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
+  AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
+  AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+}
+
+const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
+  AuthenticatedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
