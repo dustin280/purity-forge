@@ -1,4 +1,5 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarNav } from "@/components/lims/sidebar-nav";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,10 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthedLayout() {
   const { loading, user } = useAuth();
+  const nav = useNavigate();
+  useEffect(() => {
+    if (!loading && !user) nav({ to: "/login" });
+  }, [loading, user, nav]);
   if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
   if (!user) return <div className="min-h-screen grid place-items-center text-muted-foreground">Redirecting…</div>;
   return (
