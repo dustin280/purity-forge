@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
 const TILES = [
   { to: "/admin/parameters", title: "Test Parameters", desc: "Manage the list of compounds available during sample intake.", icon: FlaskConical },
+  { to: "/admin/coc-fields", title: "Chain of Custody Fields", desc: "Add, edit, reorder, or remove fields on the Chain of Custody form.", icon: ClipboardList },
   { to: "/users", title: "Users & Roles", desc: "Grant or revoke admin, reviewer, and tech roles.", icon: Users },
 ] as const;
 
