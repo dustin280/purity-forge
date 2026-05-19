@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
-  createCocRecord, updateCocRecord, deleteCocRecord,
+  updateCocRecord, deleteCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
@@ -293,7 +293,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const qc = useQueryClient();
   const listFields = useServerFn(listCocFields);
   const getRec = useServerFn(getCocRecord);
-  const create = useServerFn(createCocRecord);
+  const submit = useServerFn(submitCocWithSamples);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
 
@@ -310,6 +310,13 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
 
   const activeFields = useMemo(() => fields.filter(f => f.is_active), [fields]);
   const [values, setValues] = useState<Record<string, string | string[]>>({});
+  type LineItem = {
+    compound: string; lot: string; catalog: string; manufacturer: string;
+    quantity: string; storage: string; requested_tests: string[];
+  };
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] },
+  ]);
 
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
@@ -337,6 +344,17 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       init.sample_id = existing.sample_id;
     }
     setValues(init);
+    // Hydrate line items
+    const existingItems = (existing as unknown as { line_items?: LineItem[] } | undefined)?.line_items;
+    if (existingItems && existingItems.length) {
+      setLineItems(existingItems.map(li => ({
+        compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
+        manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
+        storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
+      })));
+    } else {
+      setLineItems([{ compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }]);
+    }
     // Autofill new invoice # when creating
     if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
@@ -370,12 +388,18 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
       } else {
-        await create({ data: { sample_id: sampleIdVal, data } });
+        const cleaned = lineItems
+          .map(li => ({ ...li, compound: li.compound.trim() }))
+          .filter(li => li.compound.length > 0);
+        if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
+        await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } });
       }
     },
     onSuccess: () => {
-      toast.success(recordId ? "Record updated" : "Record created");
+      toast.success(recordId ? "Record updated" : "CoC submitted — samples added to Intake queue");
       qc.invalidateQueries({ queryKey: ["coc_records"] });
+      qc.invalidateQueries({ queryKey: ["intake_queue"] });
+      qc.invalidateQueries({ queryKey: ["samples"] });
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
@@ -493,10 +517,80 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
               <div className="mt-1">{renderField(f)}</div>
             </div>
           ))}
+
+          <div className="sm:col-span-2 border-t border-border pt-4 mt-2">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <Label className="text-sm font-semibold">Compounds / Lots</Label>
+                <p className="text-xs text-muted-foreground">One row per sample. Each row creates a unique Sample ID on submit.</p>
+              </div>
+              {!recordId && (
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => setLineItems(prev => [...prev, { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }])}>
+                  <Plus className="size-3.5 mr-1" /> Add row
+                </Button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {lineItems.map((li, idx) => (
+                <div key={idx} className="rounded-md border border-border p-3 bg-muted/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      Sample {String(idx + 1).padStart(2, "0")}
+                    </Badge>
+                    {!recordId && lineItems.length > 1 && (
+                      <Button type="button" size="icon" variant="ghost" className="size-6 ml-auto text-muted-foreground hover:text-destructive"
+                        onClick={() => setLineItems(prev => prev.filter((_, i) => i !== idx))}>
+                        <Trash className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Compound *</Label>
+                      <Input className="h-8 mt-1" value={li.compound} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, compound: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Lot / Batch</Label>
+                      <Input className="h-8 mt-1" value={li.lot} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, lot: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Catalog #</Label>
+                      <Input className="h-8 mt-1" value={li.catalog} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, catalog: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Manufacturer</Label>
+                      <Input className="h-8 mt-1" value={li.manufacturer} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, manufacturer: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Qty / Units</Label>
+                      <Input className="h-8 mt-1" value={li.quantity} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
+                      <Input className="h-8 mt-1" value={li.storage} disabled={!!recordId}
+                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, storage: e.target.value } : x))} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {recordId && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Line items are locked after submission to keep Sample IDs stable. Edits to individual samples happen in Intake / Samples.
+              </p>
+            )}
+          </div>
+
           <DialogFooter className="sm:col-span-2 mt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button type="submit" disabled={saveMut.isPending}>
-              {saveMut.isPending ? "Saving…" : recordId ? "Save changes" : "Create record"}
+              {saveMut.isPending ? "Saving…" : recordId ? "Save changes" : "Submit & stage samples"}
             </Button>
           </DialogFooter>
         </form>

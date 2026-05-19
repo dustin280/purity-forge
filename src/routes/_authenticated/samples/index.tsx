@@ -20,7 +20,7 @@ function SamplesList() {
 
   const filtered = (data ?? []).filter(s => {
     if (filter !== "all" && s.status !== filter) return false;
-    if (q && !`${s.batch_id} ${s.client} ${s.project ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
+    if (q && !`${s.batch_id} ${s.client} ${s.project ?? ""} ${(s as { compound?: string | null }).compound ?? ""} ${(s as { lot?: string | null }).lot ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
 
@@ -38,7 +38,7 @@ function SamplesList() {
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search batch ID, client…" value={q} onChange={e => setQ(e.target.value)} className="pl-9" />
+            <Input placeholder="Search Sample ID, client, compound…" value={q} onChange={e => setQ(e.target.value)} className="pl-9" />
           </div>
           <div className="flex gap-1.5 text-xs">
             {(["all", ...Object.keys(STATUS_LABEL)] as const).map(f => (
@@ -55,22 +55,29 @@ function SamplesList() {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="text-left px-4 py-3 font-semibold">Batch ID</th>
+              <th className="text-left px-4 py-3 font-semibold">Sample ID</th>
+              <th className="text-left px-4 py-3 font-semibold">Compound / Lot</th>
               <th className="text-left px-4 py-3 font-semibold">Client / Project</th>
               <th className="text-left px-4 py-3 font-semibold">Received</th>
               <th className="text-left px-4 py-3 font-semibold">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
+            {isLoading && <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
             {!isLoading && filtered.length === 0 && (
-              <tr><td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No samples match.</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No samples match.</td></tr>
             )}
             {filtered.map(s => (
               <tr key={s.id} className="hover:bg-muted/30 cursor-pointer">
                 <td className="px-4 py-3">
                   <Link to="/samples/$batchId" params={{ batchId: s.batch_id }}
                     className="font-mono font-semibold text-primary hover:underline">{s.batch_id}</Link>
+                </td>
+                <td className="px-4 py-3">
+                  <div>{(s as { compound?: string | null }).compound ?? "—"}</div>
+                  {(s as { lot?: string | null }).lot && (
+                    <div className="text-xs text-muted-foreground font-mono">Lot {(s as { lot?: string | null }).lot}</div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <div>{s.client}</div>

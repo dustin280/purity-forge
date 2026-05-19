@@ -119,11 +119,14 @@ function SampleDetail() {
         <div className="flex items-center gap-3">
           <StatusPill status={sample.status as SampleStatus} />
           <div className="flex gap-1.5">
+            {sample.status === "prep" && (
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("in_progress")}>Start Analysis</Button>
+            )}
             {sample.status === "in_progress" && (
               <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("reviewed")}>Mark Reviewed</Button>
             )}
             {sample.status === "reviewed" && (
-              <Button size="sm" disabled={busy} onClick={() => changeStatus("approved")}>Approve</Button>
+              <Button size="sm" disabled={busy} onClick={() => changeStatus("complete")}>Mark Complete</Button>
             )}
           </div>
         </div>
@@ -147,6 +150,8 @@ function SampleDetail() {
             <dl className="space-y-2 text-sm">
               <Row k="Client" v={sample.client} />
               <Row k="Project" v={sample.project ?? "—"} />
+              <Row k="Compound" v={(sample as { compound?: string | null }).compound ?? "—"} />
+              <Row k="Lot" v={(sample as { lot?: string | null }).lot ?? "—"} />
               <Row k="Receipt" v={sample.receipt_date} />
               <Row k="Created" v={new Date(sample.created_at).toLocaleString()} />
               <Row k="Notes" v={sample.notes ?? "—"} />

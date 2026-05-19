@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
+import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -48,6 +49,11 @@ const AuthenticatedIntegrationsRoute =
     path: '/integrations',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedIntakeRoute = AuthenticatedIntakeRouteImport.update({
+  id: '/intake',
+  path: '/intake',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/': typeof AuthenticatedIndexRoute
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/_authenticated/intake': typeof AuthenticatedIntakeRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/chain-of-custody'
+    | '/intake'
     | '/integrations'
     | '/users'
     | '/admin/coc-fields'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/chain-of-custody'
+    | '/intake'
     | '/integrations'
     | '/users'
     | '/'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/chain-of-custody'
+    | '/_authenticated/intake'
     | '/_authenticated/integrations'
     | '/_authenticated/users'
     | '/_authenticated/'
@@ -225,6 +237,13 @@ declare module '@tanstack/react-router' {
       path: '/integrations'
       fullPath: '/integrations'
       preLoaderRoute: typeof AuthenticatedIntegrationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/intake': {
+      id: '/_authenticated/intake'
+      path: '/intake'
+      fullPath: '/intake'
+      preLoaderRoute: typeof AuthenticatedIntakeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/chain-of-custody': {
@@ -288,6 +307,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedChainOfCustodyRoute: typeof AuthenticatedChainOfCustodyRoute
+  AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -301,6 +321,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChainOfCustodyRoute: AuthenticatedChainOfCustodyRoute,
+  AuthenticatedIntakeRoute: AuthenticatedIntakeRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

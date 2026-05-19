@@ -12,7 +12,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       supabase.from("audit_log").select("*").order("changed_at", { ascending: false }).limit(15),
       supabase.from("results").select("purity_percentage"),
     ]);
-    const counts = { received: 0, in_progress: 0, reviewed: 0, approved: 0 };
+    const counts = { received: 0, intake_verified: 0, prep: 0, in_progress: 0, reviewed: 0, complete: 0, approved: 0 };
     (samplesAll ?? []).forEach((s: { status: string }) => {
       if (s.status in counts) (counts as Record<string, number>)[s.status]++;
     });
@@ -77,7 +77,7 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       sampleId: z.string().uuid(),
-      status: z.enum(["received", "in_progress", "reviewed", "approved"]),
+      status: z.enum(["received", "intake_verified", "prep", "in_progress", "reviewed", "complete", "approved"]),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -376,4 +376,136 @@ export const nextCocInvoiceNumber = createServerFn({ method: "GET" })
       if (!isNaN(n) && n > max) max = n;
     }
     return { invoice: `${prefix}${max + 1}` };
+  });
+
+// ============= CoC-driven intake =============
+
+const lineItemSchema = z.object({
+  compound: z.string().min(1).max(255),
+  lot: z.string().max(255).optional().nullable(),
+  catalog: z.string().max(255).optional().nullable(),
+  manufacturer: z.string().max(255).optional().nullable(),
+  quantity: z.string().max(64).optional().nullable(),
+  storage: z.string().max(255).optional().nullable(),
+  requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
+});
+
+export const submitCocWithSamples = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      sample_id: z.string().min(1).max(128), // CoC invoice #
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])),
+      line_items: z.array(lineItemSchema).min(1).max(200),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const headerClient = (typeof data.data.client_company === "string" ? data.data.client_company : "") || "Unknown";
+    const headerProject = (typeof data.data.project === "string" ? data.data.project : null);
+    const receiptRaw = (typeof data.data.date_received === "string" ? data.data.date_received : "")
+      || (typeof data.data.client_received_date === "string" ? data.data.client_received_date : "")
+      || new Date().toISOString().slice(0, 10);
+    const receiptDate = receiptRaw.slice(0, 10);
+    const headerTests = Array.isArray(data.data.requested_tests) ? (data.data.requested_tests as string[]) : [];
+
+    // 1. Insert the CoC record (with line_items embedded)
+    const { data: coc, error: cocErr } = await supabase
+      .from("chain_of_custody_records")
+      .insert({
+        sample_id: data.sample_id,
+        data: data.data,
+        line_items: data.line_items,
+        created_by: userId,
+      })
+      .select()
+      .single();
+    if (cocErr) throw cocErr;
+
+    // 2. Create one sample per line item
+    const rows = data.line_items.map((li, idx) => {
+      const lineNo = idx + 1;
+      const sampleId = `${data.sample_id}-${String(lineNo).padStart(2, "0")}`;
+      const params = li.requested_tests && li.requested_tests.length ? li.requested_tests : headerTests;
+      return {
+        batch_id: sampleId,
+        client: headerClient,
+        project: headerProject,
+        receipt_date: receiptDate,
+        parameters: params,
+        notes: li.catalog ? `Catalog: ${li.catalog}` : null,
+        coc_id: coc.id,
+        coc_line_no: lineNo,
+        compound: li.compound,
+        lot: li.lot ?? null,
+        created_by: userId,
+        status: "received" as const,
+      };
+    });
+    const { data: samples, error: sErr } = await supabase
+      .from("samples")
+      .insert(rows)
+      .select();
+    if (sErr) throw sErr;
+    return { coc, samples: samples ?? [] };
+  });
+
+export const listIntakeQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("samples")
+      .select("*")
+      .eq("status", "received")
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const verifySampleIntake = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      sampleId: z.string().uuid(),
+      client: z.string().min(1).max(255),
+      project: z.string().max(255).optional().nullable(),
+      compound: z.string().min(1).max(255),
+      lot: z.string().max(255).optional().nullable(),
+      parameters: z.array(z.string().min(1).max(128)).max(200),
+      notes: z.string().max(2000).optional().nullable(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("samples")
+      .update({
+        client: data.client,
+        project: data.project,
+        compound: data.compound,
+        lot: data.lot,
+        parameters: data.parameters,
+        notes: data.notes,
+        status: "prep",
+      })
+      .eq("id", data.sampleId);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      action: "intake_verified",
+      table_name: "samples",
+      record_id: data.sampleId,
+      changed_by: userId,
+      diff: { status: "prep" },
+    });
+    // auto-create default test if missing
+    const { data: existing } = await supabase.from("tests").select("id").eq("sample_id", data.sampleId).limit(1);
+    if (!existing || existing.length === 0) {
+      await supabase.from("tests").insert({
+        sample_id: data.sampleId,
+        method_name: "Peptide Purity HPLC-DAD",
+        instrument: "Agilent 1290 DAD",
+        assigned_tech: userId,
+      });
+    }
+    return { ok: true };
   });
