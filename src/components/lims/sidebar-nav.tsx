@@ -11,7 +11,7 @@ const NAV = [
   { to: "/chain-of-custody", label: "Chain of Custody", icon: ClipboardList },
   { to: "/intake", label: "Intake", icon: Inbox },
   { to: "/samples", label: "Samples", icon: FlaskConical },
-  { to: "/logs", label: "Logs", icon: NotebookPen },
+  { to: "/lab-logs", label: "Logs", icon: NotebookPen },
   { to: "/integrations", label: "Integrations", icon: Webhook },
 ];
 
