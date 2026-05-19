@@ -2,14 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { getExportConfig, saveExportConfig } from "@/lib/lims.functions";
+import { getExportConfig, saveExportConfig, getSftpConfig, saveSftpConfig } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Copy, Webhook } from "lucide-react";
+import { Copy, Webhook, Server } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/integrations")({ component: Integrations });
 
@@ -18,6 +19,10 @@ function Integrations() {
   const getFn = useServerFn(getExportConfig);
   const saveFn = useServerFn(saveExportConfig);
   const { data } = useQuery({ queryKey: ["export_config"], queryFn: () => getFn() });
+
+  const getSftp = useServerFn(getSftpConfig);
+  const saveSftp = useServerFn(saveSftpConfig);
+  const { data: sftpData } = useQuery({ queryKey: ["sftp_config"], queryFn: () => getSftp() });
 
   const [form, setForm] = useState({
     id: undefined as string | undefined,
@@ -29,6 +34,33 @@ function Integrations() {
     is_active: true,
   });
   const [busy, setBusy] = useState(false);
+
+  const [sftp, setSftp] = useState({
+    id: undefined as string | undefined,
+    host: "",
+    port: 22,
+    username: "",
+    password: "",
+    private_key: "",
+    remote_path: "/",
+    is_active: true,
+  });
+  const [sftpBusy, setSftpBusy] = useState(false);
+
+  useEffect(() => {
+    if (sftpData) {
+      setSftp({
+        id: sftpData.id,
+        host: sftpData.host ?? "",
+        port: sftpData.port ?? 22,
+        username: sftpData.username ?? "",
+        password: sftpData.password ?? "",
+        private_key: sftpData.private_key ?? "",
+        remote_path: sftpData.remote_path ?? "/",
+        is_active: sftpData.is_active,
+      });
+    }
+  }, [sftpData]);
 
   useEffect(() => {
     if (data) {
@@ -52,6 +84,20 @@ function Integrations() {
       qc.invalidateQueries({ queryKey: ["export_config"] });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
     finally { setBusy(false); }
+  }
+
+  async function saveSftpCfg() {
+    setSftpBusy(true);
+    try {
+      await saveSftp({ data: {
+        ...sftp,
+        password: sftp.password || null,
+        private_key: sftp.private_key || null,
+      }});
+      toast.success("SFTP configuration saved");
+      qc.invalidateQueries({ queryKey: ["sftp_config"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
+    finally { setSftpBusy(false); }
   }
 
   const exportUrlBase = typeof window !== "undefined"
