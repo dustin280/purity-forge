@@ -1,0 +1,81 @@
+import { jsPDF } from "jspdf";
+
+export type CocFieldLite = { field_key: string; label: string };
+export type CocRecordLite = {
+  id: string;
+  sample_id: string;
+  data: Record<string, unknown>;
+  created_at: string;
+};
+
+export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPDF {
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  let y = margin;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("Chain of Custody", margin, y);
+  y += 22;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(110);
+  doc.text(`Sample ID: ${record.sample_id}`, margin, y);
+  doc.text(
+    `Created: ${new Date(record.created_at).toLocaleString()}`,
+    pageW - margin,
+    y,
+    { align: "right" }
+  );
+  y += 8;
+  doc.setDrawColor(200);
+  doc.line(margin, y, pageW - margin, y);
+  y += 16;
+  doc.setTextColor(0);
+
+  const labelW = 200;
+  const valueX = margin + labelW + 8;
+  const valueW = pageW - margin - valueX;
+
+  for (const f of fields) {
+    const raw = record.data?.[f.field_key];
+    const value = raw == null || raw === "" ? "—" : String(raw);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    const labelLines = doc.splitTextToSize(f.label, labelW);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const valueLines = doc.splitTextToSize(value, valueW);
+
+    const rowH = Math.max(labelLines.length * 11, valueLines.length * 12) + 8;
+    if (y + rowH > pageH - margin) {
+      doc.addPage();
+      y = margin;
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    doc.text(labelLines, margin, y + 9);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(valueLines, valueX, y + 10);
+
+    y += rowH;
+    doc.setDrawColor(235);
+    doc.line(margin, y - 2, pageW - margin, y - 2);
+  }
+
+  return doc;
+}
+
+export function safeFileName(s: string): string {
+  return s.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "record";
+}
