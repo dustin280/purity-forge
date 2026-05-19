@@ -368,11 +368,16 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       setLineItems(existingItems.map(li => ({
         compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
         manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
+        quantity_unit: li.quantity_unit ?? "",
+        container_size: li.container_size ?? "", concentration: li.concentration ?? "",
+        vial_count: li.vial_count ?? 1,
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
       })));
     } else {
-      setLineItems([{ compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }]);
+      setLineItems([emptyLine()]);
     }
+    setIsDirty(false);
+    setPendingFiles([]);
     // Autofill new invoice # when creating
     if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
