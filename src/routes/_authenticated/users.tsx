@@ -172,7 +172,7 @@ function Users() {
             {data?.profiles.map(p => (
               <tr key={p.id}>
                 <td className="px-4 py-3">
-                  <div className="font-medium">{displayName(p)}</div>
+                  <div className="font-medium">{displayName(p as ProfileExt)}</div>
                   <div className="text-xs text-muted-foreground">{p.email}{(p as ProfileExt).title ? ` · ${(p as ProfileExt).title}` : ""}</div>
                 </td>
                 {ROLES.map(r => {
