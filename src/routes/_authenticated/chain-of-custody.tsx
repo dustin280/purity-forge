@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   createCocRecord, updateCocRecord, deleteCocRecord,
+  listParameters,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
