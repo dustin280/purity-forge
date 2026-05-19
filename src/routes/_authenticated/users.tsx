@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listUsers, setUserRole, createUser, deleteUser, resetUserPassword } from "@/lib/lims.functions";
+import { listUsers, setUserRole, createUser, deleteUser, resetUserPassword, updateUserProfile } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Trash2, KeyRound, UserPlus } from "lucide-react";
+import { Trash2, KeyRound, UserPlus, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/users")({ component: Users });
@@ -45,6 +45,7 @@ function Users() {
   const createFn = useServerFn(createUser);
   const deleteFn = useServerFn(deleteUser);
   const resetFn = useServerFn(resetUserPassword);
+  const editFn = useServerFn(updateUserProfile);
   const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: () => listFn() });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   if (currentUserId === null) {
@@ -66,6 +67,12 @@ function Users() {
   // Reset password dialog state
   const [pwOpen, setPwOpen] = useState<string | null>(null);
   const [pwValue, setPwValue] = useState("");
+
+  // Edit user dialog state
+  const [editForm, setEditForm] = useState<{
+    userId: string; first_name: string; last_name: string; email: string; title: string;
+  } | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
 
   async function toggle(userId: string, role: Role, grant: boolean) {
     try {
@@ -111,6 +118,26 @@ function Users() {
       toast.success("Password updated");
       setPwOpen(null); setPwValue("");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  }
+
+  async function handleEditSave() {
+    if (!editForm) return;
+    setEditBusy(true);
+    try {
+      await editFn({
+        data: {
+          userId: editForm.userId,
+          first_name: editForm.first_name.trim(),
+          last_name: editForm.last_name.trim(),
+          email: editForm.email.trim(),
+          title: editForm.title.trim() || null,
+        },
+      });
+      toast.success("User updated");
+      setEditForm(null);
+      qc.invalidateQueries({ queryKey: ["users"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setEditBusy(false); }
   }
 
   return (
@@ -185,6 +212,18 @@ function Users() {
                 })}
                 <td className="px-4 py-3">
                   <div className="flex justify-end gap-1">
+                    <Button size="sm" variant="ghost" title="Edit user" onClick={() => {
+                      const px = p as ProfileExt;
+                      setEditForm({
+                        userId: p.id,
+                        first_name: px.first_name ?? "",
+                        last_name: px.last_name ?? "",
+                        email: p.email ?? "",
+                        title: px.title ?? "",
+                      });
+                    }}>
+                      <Pencil className="size-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => { setPwOpen(p.id); setPwValue(""); }} title="Reset password">
                       <KeyRound className="size-4" />
                     </Button>
@@ -223,6 +262,29 @@ function Users() {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setPwOpen(null); setPwValue(""); }}>Cancel</Button>
             <Button onClick={handleReset} disabled={pwValue.length < 8}>Update password</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editForm} onOpenChange={(o) => { if (!o) setEditForm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit user</DialogTitle>
+            <DialogDescription>Update the user's name, email, and title.</DialogDescription>
+          </DialogHeader>
+          {editForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>First name</Label><Input value={editForm.first_name} onChange={e => setEditForm({ ...editForm, first_name: e.target.value })} /></div>
+                <div><Label>Last name</Label><Input value={editForm.last_name} onChange={e => setEditForm({ ...editForm, last_name: e.target.value })} /></div>
+              </div>
+              <div><Label>Email address</Label><Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} /></div>
+              <div><Label>Title</Label><Input value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} placeholder="e.g. Lab Technician" /></div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditForm(null)} disabled={editBusy}>Cancel</Button>
+            <Button onClick={handleEditSave} disabled={editBusy || !editForm?.first_name.trim() || !editForm?.last_name.trim() || !editForm?.email.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
