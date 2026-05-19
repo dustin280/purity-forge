@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 320" fill="none" role="img" aria-label="Synthesyx">
+  <title>Synthesyx</title>
+  <!-- Spire mark: two mirrored asymptotic curves meeting at an apex, with a thin baseline -->
+  <g stroke="#0b1431" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M160 60 C 159 130, 130 240, 30 268" />
+    <path d="M160 60 C 161 130, 190 240, 290 268" />
+    <path d="M30 268 L 290 268" />
+  </g>
+  <!-- Wordmark -->
+  <text x="400" y="220"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="200"
+        font-weight="300"
+        letter-spacing="14"
+        fill="#0b1431">SYNTHESYX</text>
+</svg>
