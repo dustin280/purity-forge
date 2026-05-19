@@ -116,6 +116,47 @@ export type Database = {
         }
         Relationships: []
       }
+      coc_attachments: {
+        Row: {
+          coc_id: string
+          content_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          coc_id: string
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          coc_id?: string
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coc_attachments_coc_id_fkey"
+            columns: ["coc_id"]
+            isOneToOne: false
+            referencedRelation: "chain_of_custody_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_backpressure_logs: {
         Row: {
           backpressure: number
@@ -610,10 +651,13 @@ export type Database = {
       samples: {
         Row: {
           batch_id: string
+          catalog: string | null
           client: string
           coc_id: string | null
           coc_line_no: number | null
           compound: string | null
+          concentration: string | null
+          container_size: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -628,10 +672,13 @@ export type Database = {
         }
         Insert: {
           batch_id: string
+          catalog?: string | null
           client: string
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
+          concentration?: string | null
+          container_size?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -646,10 +693,13 @@ export type Database = {
         }
         Update: {
           batch_id?: string
+          catalog?: string | null
           client?: string
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
+          concentration?: string | null
+          container_size?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
