@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   updateCocRecord, deleteCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
+  recordCocAttachment, listCocAttachments, deleteCocAttachment, signedCocAttachmentUrl,
 } from "@/lib/lims.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash, Camera, Upload, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
@@ -296,6 +298,10 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const submit = useServerFn(submitCocWithSamples);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
+  const recordAttachment = useServerFn(recordCocAttachment);
+  const listAttachments = useServerFn(listCocAttachments);
+  const deleteAttachment = useServerFn(deleteCocAttachment);
+  const signAttachmentUrl = useServerFn(signedCocAttachmentUrl);
 
   const { data: fields = [] } = useQuery({
     queryKey: ["coc_fields"],
@@ -312,11 +318,27 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   type LineItem = {
     compound: string; lot: string; catalog: string; manufacturer: string;
-    quantity: string; storage: string; requested_tests: string[];
+    quantity: string; quantity_unit: string;
+    container_size: string; concentration: string;
+    vial_count: number;
+    storage: string; requested_tests: string[];
   };
+  const emptyLine = (): LineItem => ({
+    compound: "", lot: "", catalog: "", manufacturer: "",
+    quantity: "", quantity_unit: "",
+    container_size: "", concentration: "",
+    vial_count: 1,
+    storage: "", requested_tests: [],
+  });
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] },
+    emptyLine(),
   ]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Wrap state setters so any user edit flips dirty
+  const setValuesDirty: typeof setValues = (v) => { setIsDirty(true); setValues(v); };
+  const setLineItemsDirty: typeof setLineItems = (v) => { setIsDirty(true); setLineItems(v); };
 
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
@@ -350,11 +372,16 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       setLineItems(existingItems.map(li => ({
         compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
         manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
+        quantity_unit: li.quantity_unit ?? "",
+        container_size: li.container_size ?? "", concentration: li.concentration ?? "",
+        vial_count: li.vial_count ?? 1,
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
       })));
     } else {
-      setLineItems([{ compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }]);
+      setLineItems([emptyLine()]);
     }
+    setIsDirty(false);
+    setPendingFiles([]);
     // Autofill new invoice # when creating
     if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
@@ -387,12 +414,14 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       });
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
+        if (pendingFiles.length) await uploadPendingTo(recordId);
       } else {
         const cleaned = lineItems
           .map(li => ({ ...li, compound: li.compound.trim() }))
           .filter(li => li.compound.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
-        await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } });
+        const res = await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } }) as { coc: { id: string } };
+        if (pendingFiles.length && res?.coc?.id) await uploadPendingTo(res.coc.id);
       }
     },
     onSuccess: () => {
@@ -400,10 +429,44 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       qc.invalidateQueries({ queryKey: ["coc_records"] });
       qc.invalidateQueries({ queryKey: ["intake_queue"] });
       qc.invalidateQueries({ queryKey: ["samples"] });
+      qc.invalidateQueries({ queryKey: ["coc_attachments"] });
+      setIsDirty(false);
+      setPendingFiles([]);
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
+
+  async function uploadPendingTo(cocId: string) {
+    for (const file of pendingFiles) {
+      const safe = file.name.replace(/[^\w.\-]+/g, "_");
+      const path = `${cocId}/${Date.now()}-${safe}`;
+      const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);
+      if (upErr) throw upErr;
+      await recordAttachment({ data: {
+        coc_id: cocId, file_path: path, file_name: file.name,
+        content_type: file.type || null, size_bytes: file.size,
+      } });
+    }
+  }
+
+  // Existing attachments for edit mode
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["coc_attachments", recordId],
+    queryFn: () => listAttachments({ data: { coc_id: recordId! } }) as Promise<Array<{
+      id: string; file_path: string; file_name: string; content_type: string | null;
+    }>>,
+    enabled: open && !!recordId,
+  });
+
+  function attemptClose() {
+    if (isDirty && !saveMut.isPending) {
+      if (!confirm("Close without completing and lose data?")) return;
+    }
+    setIsDirty(false);
+    setPendingFiles([]);
+    onOpenChange(false);
+  }
 
   function MultiselectField({ fieldKey, selected, options, onToggle }: {
     fieldKey: string;
@@ -526,7 +589,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
               </div>
               {!recordId && (
                 <Button type="button" size="sm" variant="outline"
-                  onClick={() => setLineItems(prev => [...prev, { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }])}>
+                  onClick={() => setLineItemsDirty(prev => [...prev, emptyLine()])}>
                   <Plus className="size-3.5 mr-1" /> Add row
                 </Button>
               )}
@@ -536,47 +599,20 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
                 <div key={idx} className="rounded-md border border-border p-3 bg-muted/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className="font-mono text-[10px]">
-                      Sample {String(idx + 1).padStart(2, "0")}
+                      Row {String(idx + 1).padStart(2, "0")}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px]">
+                      × {Math.max(1, li.vial_count || 1)} vial{(li.vial_count || 1) === 1 ? "" : "s"}
                     </Badge>
                     {!recordId && lineItems.length > 1 && (
                       <Button type="button" size="icon" variant="ghost" className="size-6 ml-auto text-muted-foreground hover:text-destructive"
-                        onClick={() => setLineItems(prev => prev.filter((_, i) => i !== idx))}>
+                        onClick={() => setLineItemsDirty(prev => prev.filter((_, i) => i !== idx))}>
                         <Trash className="size-3.5" />
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Compound *</Label>
-                      <Input className="h-8 mt-1" value={li.compound} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, compound: e.target.value } : x))} />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Lot / Batch</Label>
-                      <Input className="h-8 mt-1" value={li.lot} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, lot: e.target.value } : x))} />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Catalog #</Label>
-                      <Input className="h-8 mt-1" value={li.catalog} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, catalog: e.target.value } : x))} />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Manufacturer</Label>
-                      <Input className="h-8 mt-1" value={li.manufacturer} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, manufacturer: e.target.value } : x))} />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Qty / Units</Label>
-                      <Input className="h-8 mt-1" value={li.quantity} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x))} />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
-                      <Input className="h-8 mt-1" value={li.storage} disabled={!!recordId}
-                        onChange={e => setLineItems(prev => prev.map((x, i) => i === idx ? { ...x, storage: e.target.value } : x))} />
-                    </div>
-                  </div>
+                  <LineItemRow li={li} disabled={!!recordId}
+                    onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))} />
                 </div>
               ))}
             </div>
@@ -587,8 +623,24 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
             )}
           </div>
 
+          <AttachmentsSection
+            attachments={attachments}
+            pendingFiles={pendingFiles}
+            onAddFiles={(files) => { setIsDirty(true); setPendingFiles(prev => [...prev, ...files]); }}
+            onRemovePending={(idx) => { setIsDirty(true); setPendingFiles(prev => prev.filter((_, i) => i !== idx)); }}
+            onDeleteExisting={async (id) => {
+              if (!confirm("Delete this attachment?")) return;
+              await deleteAttachment({ data: { id } });
+              qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
+            }}
+            onOpenExisting={async (path) => {
+              const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
+              window.open(r.url, "_blank");
+            }}
+          />
+
           <DialogFooter className="sm:col-span-2 mt-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={attemptClose}>Cancel</Button>
             <Button type="submit" disabled={saveMut.isPending}>
               {saveMut.isPending ? "Saving…" : recordId ? "Save changes" : "Submit & stage samples"}
             </Button>
@@ -596,5 +648,131 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function LineItemRow({ li, disabled, onChange }: {
+  li: {
+    compound: string; lot: string; catalog: string; manufacturer: string;
+    quantity: string; quantity_unit: string; container_size: string;
+    concentration: string; vial_count: number; storage: string;
+  };
+  disabled: boolean;
+  onChange: (patch: Partial<typeof li>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="sm:col-span-2">
+        <Label className="text-[10px] uppercase text-muted-foreground">Product / Compound *</Label>
+        <Input className="h-8 mt-1" value={li.compound} disabled={disabled}
+          onChange={e => onChange({ compound: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground"># of Vials</Label>
+        <Input type="number" min={1} max={99} className="h-8 mt-1" value={li.vial_count} disabled={disabled}
+          onChange={e => onChange({ vial_count: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Lot / Batch</Label>
+        <Input className="h-8 mt-1" value={li.lot} disabled={disabled}
+          onChange={e => onChange({ lot: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Catalog #</Label>
+        <Input className="h-8 mt-1" value={li.catalog} disabled={disabled}
+          onChange={e => onChange({ catalog: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Manufacturer</Label>
+        <Input className="h-8 mt-1" value={li.manufacturer} disabled={disabled}
+          onChange={e => onChange({ manufacturer: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Qty / vial</Label>
+        <Input className="h-8 mt-1" value={li.quantity} disabled={disabled} placeholder="e.g. 5"
+          onChange={e => onChange({ quantity: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Unit</Label>
+        <Input className="h-8 mt-1" value={li.quantity_unit} disabled={disabled} placeholder="mg, mL…"
+          onChange={e => onChange({ quantity_unit: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Container size</Label>
+        <Input className="h-8 mt-1" value={li.container_size} disabled={disabled} placeholder="e.g. 2 mL vial"
+          onChange={e => onChange({ container_size: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Concentration / vial</Label>
+        <Input className="h-8 mt-1" value={li.concentration} disabled={disabled} placeholder="e.g. 1 mg/mL"
+          onChange={e => onChange({ concentration: e.target.value })} />
+      </div>
+      <div className="sm:col-span-3">
+        <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
+        <Input className="h-8 mt-1" value={li.storage} disabled={disabled}
+          onChange={e => onChange({ storage: e.target.value })} />
+      </div>
+    </div>
+  );
+}
+
+function AttachmentsSection({
+  attachments, pendingFiles, onAddFiles, onRemovePending, onDeleteExisting, onOpenExisting,
+}: {
+  attachments: Array<{ id: string; file_path: string; file_name: string; content_type: string | null }>;
+  pendingFiles: File[];
+  onAddFiles: (files: File[]) => void;
+  onRemovePending: (idx: number) => void;
+  onDeleteExisting: (id: string) => void;
+  onOpenExisting: (path: string) => void;
+}) {
+  const uploadRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
+  return (
+    <div className="sm:col-span-2 border-t border-border pt-4 mt-2">
+      <Label className="text-sm font-semibold">Package photos & attachments</Label>
+      <p className="text-xs text-muted-foreground mb-2">
+        Document the package condition. Upload an image or take a photo with your camera.
+      </p>
+      <div className="flex gap-2 mb-3">
+        <Button type="button" size="sm" variant="outline" onClick={() => uploadRef.current?.click()}>
+          <Upload className="size-3.5 mr-1" /> Upload image
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => cameraRef.current?.click()}>
+          <Camera className="size-3.5 mr-1" /> Take photo
+        </Button>
+        <input ref={uploadRef} type="file" accept="image/*" multiple hidden
+          onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
+          onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+      </div>
+      {(attachments.length === 0 && pendingFiles.length === 0) ? (
+        <div className="text-xs text-muted-foreground italic">No attachments yet.</div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {attachments.map(a => (
+            <div key={a.id} className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2 py-1 text-xs">
+              <ImageIcon className="size-3.5 text-muted-foreground" />
+              <button type="button" className="hover:underline truncate max-w-[160px]" onClick={() => onOpenExisting(a.file_path)}>
+                {a.file_name}
+              </button>
+              <button type="button" onClick={() => onDeleteExisting(a.id)} className="text-muted-foreground hover:text-destructive">
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+          {pendingFiles.map((f, i) => (
+            <div key={i} className="flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2 py-1 text-xs">
+              <ImageIcon className="size-3.5 text-muted-foreground" />
+              <span className="truncate max-w-[160px]">{f.name}</span>
+              <Badge variant="outline" className="text-[9px]">pending</Badge>
+              <button type="button" onClick={() => onRemovePending(i)} className="text-muted-foreground hover:text-destructive">
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

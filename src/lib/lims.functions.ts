@@ -592,6 +592,10 @@ const lineItemSchema = z.object({
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
   quantity: z.string().max(64).optional().nullable(),
+  quantity_unit: z.string().max(32).optional().nullable(),
+  container_size: z.string().max(128).optional().nullable(),
+  concentration: z.string().max(128).optional().nullable(),
+  vial_count: z.number().int().min(1).max(99).optional().default(1),
   storage: z.string().max(255).optional().nullable(),
   requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
@@ -628,25 +632,41 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       .single();
     if (cocErr) throw cocErr;
 
-    // 2. Create one sample per line item
-    const rows = data.line_items.map((li, idx) => {
-      const lineNo = idx + 1;
-      const sampleId = `${data.sample_id}-${String(lineNo).padStart(2, "0")}`;
+    // 2. Create one sample per vial across all line items (continuous numbering)
+    type SampleInsert = {
+      batch_id: string; client: string; project: string | null;
+      receipt_date: string; parameters: string[]; notes: string | null;
+      coc_id: string; coc_line_no: number; compound: string;
+      lot: string | null; catalog: string | null;
+      container_size: string | null; concentration: string | null;
+      created_by: string; status: "received";
+    };
+    const rows: SampleInsert[] = [];
+    let seq = 0;
+    data.line_items.forEach((li) => {
+      const vials = Math.max(1, li.vial_count ?? 1);
       const params = li.requested_tests && li.requested_tests.length ? li.requested_tests : headerTests;
-      return {
-        batch_id: sampleId,
-        client: headerClient,
-        project: headerProject,
-        receipt_date: receiptDate,
-        parameters: params,
-        notes: li.catalog ? `Catalog: ${li.catalog}` : null,
-        coc_id: coc.id,
-        coc_line_no: lineNo,
-        compound: li.compound,
-        lot: li.lot ?? null,
-        created_by: userId,
-        status: "received" as const,
-      };
+      for (let v = 0; v < vials; v++) {
+        seq += 1;
+        const sampleId = `${data.sample_id}-${String(seq).padStart(2, "0")}`;
+        rows.push({
+          batch_id: sampleId,
+          client: headerClient,
+          project: headerProject,
+          receipt_date: receiptDate,
+          parameters: params,
+          notes: li.catalog ? `Catalog: ${li.catalog}` : null,
+          coc_id: coc.id,
+          coc_line_no: seq,
+          compound: li.compound,
+          lot: li.lot ?? null,
+          catalog: li.catalog ?? null,
+          container_size: li.container_size ?? null,
+          concentration: li.concentration ?? null,
+          created_by: userId,
+          status: "received" as const,
+        });
+      }
     });
     const { data: samples, error: sErr } = await supabase
       .from("samples")
@@ -714,4 +734,70 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       });
     }
     return { ok: true };
+  });
+
+// ============= CoC Attachments =============
+
+export const recordCocAttachment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      coc_id: z.string().uuid(),
+      file_path: z.string().min(1).max(1024),
+      file_name: z.string().min(1).max(255),
+      content_type: z.string().max(127).nullable().optional(),
+      size_bytes: z.number().int().nonnegative().nullable().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase.from("coc_attachments").insert({
+      coc_id: data.coc_id,
+      file_path: data.file_path,
+      file_name: data.file_name,
+      content_type: data.content_type ?? null,
+      size_bytes: data.size_bytes ?? null,
+      uploaded_by: userId,
+    }).select().single();
+    if (error) throw error;
+    return row;
+  });
+
+export const listCocAttachments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ coc_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: rows, error } = await context.supabase
+      .from("coc_attachments").select("*")
+      .eq("coc_id", data.coc_id)
+      .order("uploaded_at", { ascending: true });
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const deleteCocAttachment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: row } = await supabase.from("coc_attachments").select("file_path").eq("id", data.id).maybeSingle();
+    if (row?.file_path) {
+      await supabase.storage.from("coc-attachments").remove([row.file_path]);
+    }
+    const { error } = await supabase.from("coc_attachments").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const signedCocAttachmentUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ file_path: z.string().min(1).max(1024), expires_in: z.number().int().min(60).max(3600).default(600) }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { data: signed, error } = await context.supabase.storage
+      .from("coc-attachments")
+      .createSignedUrl(data.file_path, data.expires_in);
+    if (error) throw error;
+    return { url: signed.signedUrl };
   });
