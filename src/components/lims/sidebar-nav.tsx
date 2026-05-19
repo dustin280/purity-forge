@@ -3,7 +3,6 @@ import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activi
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -93,7 +92,7 @@ export function MobileTopBar() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
-          <VisuallyHidden><SheetTitle>Navigation</SheetTitle></VisuallyHidden>
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBody onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
