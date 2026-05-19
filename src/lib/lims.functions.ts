@@ -161,6 +161,50 @@ export const saveExportConfig = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const getSftpConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase.from("sftp_config").select("*").limit(1).maybeSingle();
+    return data;
+  });
+
+export const saveSftpConfig = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid().optional(),
+      host: z.string().trim().max(253),
+      port: z.number().int().min(1).max(65535),
+      username: z.string().trim().max(255),
+      password: z.string().max(2048).nullable().optional(),
+      private_key: z.string().max(16384).nullable().optional(),
+      remote_path: z.string().trim().max(1024),
+      is_active: z.boolean(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const payload = {
+      host: data.host,
+      port: data.port,
+      username: data.username,
+      password: data.password || null,
+      private_key: data.private_key || null,
+      remote_path: data.remote_path,
+      is_active: data.is_active,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    };
+    if (data.id) {
+      const { error } = await supabase.from("sftp_config").update(payload).eq("id", data.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("sftp_config").insert(payload);
+      if (error) throw error;
+    }
+    return { ok: true };
+  });
+
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
