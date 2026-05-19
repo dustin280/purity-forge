@@ -345,8 +345,9 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
   );
 }
 
-function CocFormDialog({ open, onOpenChange, recordId }: {
+function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   open: boolean; onOpenChange: (v: boolean) => void; recordId: string | null;
+  resumeDraftId: string | null;
 }) {
   const qc = useQueryClient();
   const listFields = useServerFn(listCocFields);
@@ -391,6 +392,9 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  // Once true, autosave is allowed to write (suppresses overwrite during initial hydration).
+  const [hydrated, setHydrated] = useState(false);
 
   // Wrap state setters so any user edit flips dirty
   const setValuesDirty: typeof setValues = (v) => { setIsDirty(true); setValues(v); };
@@ -405,9 +409,16 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const activeParams = allParams.filter((p: { is_active: boolean }) => p.is_active);
 
   // Reset values when dialog opens or data loads
-  const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
+  const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${resumeDraftId ?? ""}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
   useEffect(() => {
     if (!open) return;
+    setHydrated(false);
+
+    // Prefer a resumed draft if one was selected.
+    const resumed = resumeDraftId ? getCocDraft(resumeDraftId) : null;
+    const id = resumed?.draftId ?? newDraftId(recordId ? `edit-${recordId.slice(0, 8)}` : "new");
+    setDraftId(id);
+
     const init: Record<string, string | string[]> = {};
     activeFields.forEach(f => {
       const v = existing?.data?.[f.field_key];
@@ -421,10 +432,15 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     if (recordId && existing?.sample_id) {
       init.sample_id = existing.sample_id;
     }
-    setValues(init);
+    // Layer the resumed draft on top of the base, so user's in-progress edits win.
+    const merged: Record<string, string | string[]> = { ...init, ...(resumed?.values ?? {}) };
+    setValues(merged);
     // Hydrate line items
+    const resumedLines = (resumed?.lineItems as LineItem[] | undefined);
     const existingItems = (existing as unknown as { line_items?: LineItem[] } | undefined)?.line_items;
-    if (existingItems && existingItems.length) {
+    if (resumedLines && resumedLines.length) {
+      setLineItems(resumedLines.map(li => ({ ...emptyLine(), ...li })));
+    } else if (existingItems && existingItems.length) {
       setLineItems(existingItems.map(li => ({
         compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
         manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
@@ -436,15 +452,17 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     } else {
       setLineItems([emptyLine()]);
     }
-    setIsDirty(false);
+    setIsDirty(!!resumed);
     setPendingFiles([]);
     // Autofill new invoice # when creating
-    if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
+    if (!recordId && !resumed && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
         const inv = (r as { invoice: string }).invoice;
         setValues(prev => (prev.sample_id ? prev : { ...prev, sample_id: inv }));
       }).catch(() => { /* leave blank on failure */ });
     }
+    // Allow autosave on the next tick (after initial state has flushed).
+    setTimeout(() => setHydrated(true), 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -486,6 +504,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       qc.invalidateQueries({ queryKey: ["intake_queue"] });
       qc.invalidateQueries({ queryKey: ["samples"] });
       qc.invalidateQueries({ queryKey: ["coc_attachments"] });
+      if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);
       onOpenChange(false);
@@ -516,13 +535,41 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   });
 
   function attemptClose() {
-    if (isDirty && !saveMut.isPending) {
-      if (!confirm("Close without completing and lose data?")) return;
-    }
+    // The draft is auto-saved on every change, so closing never destroys data —
+    // just let the user know they can resume from the Drafts panel.
     setIsDirty(false);
     setPendingFiles([]);
+    if (draftId && getCocDraft(draftId)) {
+      toast.info("Draft saved — resume it from the Drafts panel on the Chain of Custody page.");
+    }
     onOpenChange(false);
   }
+
+  // Autosave to localStorage on every change (skip empty/initial state).
+  useEffect(() => {
+    if (!open || !hydrated || !draftId) return;
+    // Determine if there's any meaningful content to save
+    const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
+    const hasLines = lineItems.some(li => li.compound.trim() !== "" || li.lot.trim() !== "" || li.catalog.trim() !== "");
+    const hasPending = pendingFiles.length > 0;
+    if (!hasValues && !hasLines && !hasPending) return;
+    const summaryParts: string[] = [];
+    const invoice = (values.sample_id as string)?.trim();
+    if (invoice) summaryParts.push(invoice);
+    const firstCompound = lineItems.find(li => li.compound.trim() !== "")?.compound.trim();
+    if (firstCompound) summaryParts.push(firstCompound);
+    const client = (values.client_company as string)?.trim();
+    if (client) summaryParts.push(client);
+    saveCocDraft({
+      draftId,
+      recordId: recordId ?? null,
+      values,
+      lineItems,
+      pendingFileNames: pendingFiles.map(f => f.name),
+      updatedAt: new Date().toISOString(),
+      summary: summaryParts.join(" · ") || (recordId ? "Editing existing record" : "New chain of custody"),
+    });
+  }, [open, hydrated, draftId, values, lineItems, pendingFiles, recordId]);
 
   function MultiselectField({ fieldKey, selected, options, onToggle }: {
     fieldKey: string;
