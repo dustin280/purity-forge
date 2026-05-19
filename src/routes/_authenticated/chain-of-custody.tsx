@@ -243,8 +243,13 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
   });
   const open = !!recordId;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={(v) => { if (!v) attemptClose(); else onOpenChange(true); }}>
+      <DialogContent
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        onEscapeKeyDown={(e) => { e.preventDefault(); attemptClose(); }}
+        onPointerDownOutside={(e) => { e.preventDefault(); attemptClose(); }}
+        onInteractOutside={(e) => { e.preventDefault(); attemptClose(); }}
+      >
         <DialogHeader>
           <DialogTitle>
             Chain of Custody {rec ? `— ${rec.sample_id}` : ""}
