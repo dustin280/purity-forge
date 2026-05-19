@@ -337,11 +337,16 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      const sampleIdVal = values.sample_id?.trim();
+      const sampleIdVal = (values.sample_id as string)?.trim();
       if (!sampleIdVal) throw new Error("Sample ID is required");
-      const data: Record<string, string | number | null> = {};
+      const data: Record<string, string | number | string[] | null> = {};
       activeFields.forEach(f => {
-        const raw = values[f.field_key]?.trim() ?? "";
+        if (f.field_type === "multiselect") {
+          const arr = values[f.field_key];
+          data[f.field_key] = Array.isArray(arr) && arr.length ? arr : null;
+          return;
+        }
+        const raw = (values[f.field_key] as string)?.trim() ?? "";
         if (raw === "") { data[f.field_key] = null; return; }
         if (f.field_type === "number") {
           const n = Number(raw);
