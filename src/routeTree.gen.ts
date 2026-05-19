@@ -17,6 +17,7 @@ import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authent
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -60,6 +61,11 @@ const AuthenticatedSamplesBatchIdRoute =
     path: '/samples/$batchId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
+  id: '/api/public/exports/$batchId',
+  path: '/api/public/exports/$batchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/samples/'
+    | '/api/public/exports/$batchId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/samples'
+    | '/api/public/exports/$batchId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -119,11 +130,13 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/samples/'
+    | '/api/public/exports/$batchId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/exports/$batchId': {
+      id: '/api/public/exports/$batchId'
+      path: '/api/public/exports/$batchId'
+      fullPath: '/api/public/exports/$batchId'
+      preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -212,6 +232,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
