@@ -622,7 +622,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     if (f.field_type === "multiselect") {
       const selected = (values[f.field_key] as string[]) ?? [];
       function toggleParam(name: string) {
-        setValues(prev => {
+        setValuesDirty(prev => {
           const arr = new Set((prev[f.field_key] as string[]) ?? []);
           if (arr.has(name)) arr.delete(name); else arr.add(name);
           return { ...prev, [f.field_key]: Array.from(arr) };
@@ -638,7 +638,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       );
     }
     const v = values[f.field_key] as string ?? "";
-    const set = (val: string) => setValues(prev => ({ ...prev, [f.field_key]: val }));
+    const set = (val: string) => setValuesDirty(prev => ({ ...prev, [f.field_key]: val }));
     if (f.field_key === "sample_id") {
       return (
         <Input
