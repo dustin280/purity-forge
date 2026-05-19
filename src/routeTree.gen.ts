@@ -27,6 +27,7 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
+import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
@@ -133,6 +134,12 @@ const AuthenticatedAdminCocFieldsRoute =
     path: '/admin/coc-fields',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminAccessLogsRoute =
+  AuthenticatedAdminAccessLogsRouteImport.update({
+    id: '/admin/access-logs',
+    path: '/admin/access-logs',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsStandardPreparationsIndexRoute =
   AuthenticatedLabLogsStandardPreparationsIndexRouteImport.update({
     id: '/lab-logs/standard-preparations/',
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -194,6 +202,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -220,6 +229,7 @@ export interface FileRoutesById {
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -246,6 +256,7 @@ export interface FileRouteTypes {
     | '/intake'
     | '/integrations'
     | '/users'
+    | '/admin/access-logs'
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/material-receipts/$id'
@@ -270,6 +281,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/users'
     | '/'
+    | '/admin/access-logs'
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/material-receipts/$id'
@@ -295,6 +307,7 @@ export interface FileRouteTypes {
     | '/_authenticated/integrations'
     | '/_authenticated/users'
     | '/_authenticated/'
+    | '/_authenticated/admin/access-logs'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/material-receipts/$id'
@@ -447,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCocFieldsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/access-logs': {
+      id: '/_authenticated/admin/access-logs'
+      path: '/admin/access-logs'
+      fullPath: '/admin/access-logs'
+      preLoaderRoute: typeof AuthenticatedAdminAccessLogsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/standard-preparations/': {
       id: '/_authenticated/lab-logs/standard-preparations/'
       path: '/lab-logs/standard-preparations'
@@ -491,6 +511,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminAccessLogsRoute: typeof AuthenticatedAdminAccessLogsRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
@@ -514,6 +535,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminAccessLogsRoute: AuthenticatedAdminAccessLogsRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
@@ -548,3 +570,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
