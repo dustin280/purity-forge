@@ -576,3 +576,60 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+// ============== Logs ==============
+const LOG_TABLES = {
+  material_receipt: "material_receipt_logs",
+  standard_prep: "standard_prep_logs",
+  reagent_prep: "reagent_prep_logs",
+  sample_prep: "sample_prep_logs",
+  qc_prep: "qc_prep_logs",
+} as const;
+const logTypeSchema = z.enum(["material_receipt", "standard_prep", "reagent_prep", "sample_prep", "qc_prep"]);
+
+export const listLogEntries = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    logType: logTypeSchema,
+    from: z.string().optional().nullable(),
+    to: z.string().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const table = LOG_TABLES[data.logType];
+    let q = context.supabase.from(table).select("*").order("log_date", { ascending: false }).order("created_at", { ascending: false });
+    if (data.from) q = q.gte("log_date", data.from);
+    if (data.to) q = q.lte("log_date", data.to);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return rows ?? [];
+  });
+
+export const createLogEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    logType: logTypeSchema,
+    log_date: z.string().min(1),
+    employee_name: z.string().min(1).max(255),
+    notes: z.string().max(4000).optional().nullable(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const table = LOG_TABLES[data.logType];
+    const { logType: _lt, ...payload } = data;
+    void _lt;
+    const { data: row, error } = await context.supabase.from(table).insert({
+      ...payload, created_by: context.userId,
+    }).select().single();
+    if (error) throw error;
+    return row;
+  });
+
+export const deleteLogEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    logType: logTypeSchema, id: z.string().uuid(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const table = LOG_TABLES[data.logType];
+    const { error } = await context.supabase.from(table).delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
