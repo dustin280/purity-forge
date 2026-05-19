@@ -16,7 +16,7 @@ import {
   type PrepAttachmentKind,
   type StandardPrepRow,
 } from "@/lib/standard-preparations.functions";
-import { PrepForm, prepValuesToPayload, type PrepFormValues } from "@/components/standard-preparations/prep-form";
+import { PrepForm, prepValuesToPayload, clearPrepDraft, type PrepFormValues } from "@/components/standard-preparations/prep-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,7 @@ function PrepDetail() {
   const updateMut = useMutation({
     mutationFn: (patch: ReturnType<typeof prepValuesToPayload>) => update({ data: { id, patch } }),
     onSuccess: () => {
+      clearPrepDraft(`sop-draft:edit:${id}`);
       toast.success("Saved");
       setEditing(false);
       qc.invalidateQueries({ queryKey: ["standard-preparation", id] });
@@ -128,6 +129,7 @@ function PrepDetail() {
           defaultAnalystName={r.analyst_name}
           submitting={updateMut.isPending}
           submitLabel="Save Changes"
+          draftKey={`sop-draft:edit:${id}`}
           onSubmit={v => updateMut.mutate(prepValuesToPayload(v))}
           onCancel={() => setEditing(false)}
         />

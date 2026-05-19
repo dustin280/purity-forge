@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -85,10 +85,34 @@ interface Props {
   submitLabel?: string;
   onSubmit: (values: PrepFormValues) => void;
   onCancel?: () => void;
+  /**
+   * If provided, form values are persisted to localStorage under this key and
+   * restored on mount. Parent should call `clearPrepDraft(draftKey)` after a
+   * successful save.
+   */
+  draftKey?: string;
 }
 
-export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel }: Props) {
-  const [v, setV] = useState<PrepFormValues>(() => ({ ...emptyPrepValues(defaultAnalystName), ...initial }));
+export function clearPrepDraft(draftKey: string | undefined) {
+  if (!draftKey || typeof window === "undefined") return;
+  try { window.localStorage.removeItem(draftKey); } catch { /* ignore */ }
+}
+
+function loadDraft(draftKey: string | undefined): Partial<PrepFormValues> | null {
+  if (!draftKey || typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(draftKey);
+    return raw ? (JSON.parse(raw) as Partial<PrepFormValues>) : null;
+  } catch { return null; }
+}
+
+export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey }: Props) {
+  const [v, setV] = useState<PrepFormValues>(() => {
+    const draft = loadDraft(draftKey);
+    return { ...emptyPrepValues(defaultAnalystName), ...initial, ...(draft ?? {}) };
+  });
+  const dirtyRef = useRef<boolean>(!!loadDraft(draftKey));
+  const hasDraft = !!loadDraft(draftKey);
   const [receiptSearch, setReceiptSearch] = useState("");
   const [receiptPickerOpen, setReceiptPickerOpen] = useState(false);
 
@@ -113,15 +137,35 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [defaultAnalystName]);
 
+  // Persist draft on every change.
+  useEffect(() => {
+    if (!draftKey || typeof window === "undefined") return;
+    try { window.localStorage.setItem(draftKey, JSON.stringify(v)); } catch { /* ignore quota */ }
+  }, [v, draftKey]);
+
+  // Warn on tab close / refresh while dirty.
+  useEffect(() => {
+    if (!draftKey || typeof window === "undefined") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [draftKey]);
+
   const suggestionList = useMemo(() => suggestions, [suggestions]);
 
   function up<K extends keyof PrepFormValues>(k: K, val: PrepFormValues[K]) {
+    dirtyRef.current = true;
     setV(prev => ({ ...prev, [k]: val }));
   }
 
   function pickSuggestion(name: string) {
     if (!name) return;
     const match = suggestionList.find(s => s.name === name);
+    dirtyRef.current = true;
     setV(prev => ({
       ...prev,
       standard_name: name,
@@ -131,6 +175,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   }
 
   function linkReceipt(r: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string }) {
+    dirtyRef.current = true;
     setV(prev => ({
       ...prev,
       material_receipt_id: r.id,
@@ -141,10 +186,12 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   }
 
   function clearReceipt() {
+    dirtyRef.current = true;
     setV(prev => ({ ...prev, material_receipt_id: "", material_receipt_label: "" }));
   }
 
   function addStep() {
+    dirtyRef.current = true;
     setV(prev => ({
       ...prev,
       preparation_steps: [
@@ -155,6 +202,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   }
 
   function removeStep(idx: number) {
+    dirtyRef.current = true;
     setV(prev => ({
       ...prev,
       preparation_steps: prev.preparation_steps.filter((_, i) => i !== idx).map((s, i) => ({ ...s, step_no: i + 1 })),
@@ -162,6 +210,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   }
 
   function updateStep(idx: number, patch: Partial<PrepStep>) {
+    dirtyRef.current = true;
     setV(prev => ({
       ...prev,
       preparation_steps: prev.preparation_steps.map((s, i) => (i === idx ? { ...s, ...patch } : s)),
@@ -173,8 +222,31 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
     onSubmit(v);
   }
 
+  function handleCancel() {
+    if (!onCancel) return;
+    if (dirtyRef.current && draftKey) {
+      const ok = window.confirm("Discard unsaved preparation? Your changes will be lost.");
+      if (!ok) return;
+      clearPrepDraft(draftKey);
+    }
+    onCancel();
+  }
+
+  function discardDraft() {
+    if (!window.confirm("Discard saved draft and start fresh?")) return;
+    clearPrepDraft(draftKey);
+    dirtyRef.current = false;
+    setV({ ...emptyPrepValues(defaultAnalystName), ...initial });
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {hasDraft && draftKey && (
+        <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
+          <span className="text-foreground">Restored unsaved draft. Your changes are auto-saved in this browser until you submit or discard.</span>
+          <Button type="button" size="sm" variant="ghost" onClick={discardDraft}>Discard draft</Button>
+        </div>
+      )}
       <Card className="p-5 space-y-4">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Preparation Details</h2>
         <div className="grid md:grid-cols-2 gap-4">
@@ -345,7 +417,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
       </Card>
 
       <div className="flex gap-2 justify-end">
-        {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
+        {onCancel && <Button type="button" variant="ghost" onClick={handleCancel}>Cancel</Button>}
         <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : submitLabel}</Button>
       </div>
     </form>
