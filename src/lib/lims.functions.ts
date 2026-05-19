@@ -318,7 +318,7 @@ export const createCocRecord = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       sample_id: z.string().min(1).max(128),
-      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
