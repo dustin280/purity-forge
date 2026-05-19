@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   createCocRecord, updateCocRecord, deleteCocRecord,
-  listParameters,
+  listParameters, nextCocInvoiceNumber,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -295,6 +295,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const getRec = useServerFn(getCocRecord);
   const create = useServerFn(createCocRecord);
   const update = useServerFn(updateCocRecord);
+  const nextInvoice = useServerFn(nextCocInvoiceNumber);
 
   const { data: fields = [] } = useQuery({
     queryKey: ["coc_fields"],
@@ -331,7 +332,18 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
         init[f.field_key] = v == null ? "" : String(v);
       }
     });
+    // For edits, prefer the stored sample_id (invoice #) on the record itself
+    if (recordId && existing?.sample_id) {
+      init.sample_id = existing.sample_id;
+    }
     setValues(init);
+    // Autofill new invoice # when creating
+    if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
+      nextInvoice().then((r) => {
+        const inv = (r as { invoice: string }).invoice;
+        setValues(prev => (prev.sample_id ? prev : { ...prev, sample_id: inv }));
+      }).catch(() => { /* leave blank on failure */ });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
@@ -437,6 +449,17 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     }
     const v = values[f.field_key] as string ?? "";
     const set = (val: string) => setValues(prev => ({ ...prev, [f.field_key]: val }));
+    if (f.field_key === "sample_id") {
+      return (
+        <Input
+          id={f.field_key}
+          value={v}
+          readOnly
+          placeholder={v ? "" : "Generating…"}
+          className="font-mono bg-muted/40"
+        />
+      );
+    }
     const common = {
       id: f.field_key,
       value: v,

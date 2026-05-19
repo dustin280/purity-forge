@@ -355,3 +355,25 @@ export const deleteCocRecord = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+export const nextCocInvoiceNumber = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const yy = String(now.getFullYear()).slice(-2);
+    const prefix = `COC${mm}${dd}${yy}-`;
+    const { data, error } = await context.supabase
+      .from("chain_of_custody_records")
+      .select("sample_id")
+      .like("sample_id", `${prefix}%`);
+    if (error) throw error;
+    let max = 99;
+    for (const r of data ?? []) {
+      const tail = String((r as { sample_id: string }).sample_id).slice(prefix.length);
+      const n = parseInt(tail, 10);
+      if (!isNaN(n) && n > max) max = n;
+    }
+    return { invoice: `${prefix}${max + 1}` };
+  });
