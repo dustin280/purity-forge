@@ -20,6 +20,7 @@ import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authenticated/logs/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
+import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
@@ -90,6 +91,12 @@ const AuthenticatedLabLogsIndexRoute =
   AuthenticatedLabLogsIndexRouteImport.update({
     id: '/lab-logs/',
     path: '/lab-logs/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedIssuesIndexRoute =
+  AuthenticatedIssuesIndexRouteImport.update({
+    id: '/issues/',
+    path: '/issues/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/issues/': typeof AuthenticatedIssuesIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/logs/': typeof AuthenticatedLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/issues': typeof AuthenticatedIssuesIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/logs': typeof AuthenticatedLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
@@ -226,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
+    | '/issues/'
     | '/lab-logs/'
     | '/logs/'
     | '/material-receipts/'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
+    | '/issues'
     | '/lab-logs'
     | '/logs'
     | '/material-receipts'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
+    | '/_authenticated/issues/'
     | '/_authenticated/lab-logs/'
     | '/_authenticated/logs/'
     | '/_authenticated/material-receipts/'
@@ -395,6 +408,13 @@ declare module '@tanstack/react-router' {
       path: '/lab-logs'
       fullPath: '/lab-logs/'
       preLoaderRoute: typeof AuthenticatedLabLogsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/issues/': {
+      id: '/_authenticated/issues/'
+      path: '/issues'
+      fullPath: '/issues/'
+      preLoaderRoute: typeof AuthenticatedIssuesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/': {
@@ -497,6 +517,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
@@ -520,6 +541,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
   AuthenticatedLogsIndexRoute: AuthenticatedLogsIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:

@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen } from "lucide-react";
+import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -12,6 +12,7 @@ const NAV = [
   { to: "/intake", label: "Intake", icon: Inbox },
   { to: "/samples", label: "Samples", icon: FlaskConical },
   { to: "/lab-logs", label: "Logs", icon: NotebookPen },
+  { to: "/issues", label: "Notes", icon: MessageSquareWarning },
   { to: "/integrations", label: "Integrations", icon: Webhook },
 ];
 
