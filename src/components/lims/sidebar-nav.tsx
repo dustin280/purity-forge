@@ -30,7 +30,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             className="h-8 w-auto invert brightness-0 contrast-200"
             style={{ filter: "invert(1) brightness(2)" }}
           />
-          <div className="text-[9px] uppercase tracking-widest text-sidebar-foreground/60 mt-2">HPLC-DAD LIMS</div>
+          <div className="text-[9px] uppercase tracking-widest text-sidebar-foreground/60 mt-2">Lab Management System</div>
         </Link>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
