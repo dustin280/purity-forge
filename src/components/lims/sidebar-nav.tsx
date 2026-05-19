@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu } from "lucide-react";
+import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -44,6 +44,11 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         {role === "admin" && (
           <>
             <div className="px-2 py-2 mt-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Admin</div>
+            <Link to="/admin" onClick={onNavigate} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+              pathname === "/admin" || pathname.startsWith("/admin/") ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
+            }`}>
+              <Shield className="size-4" /> Admin
+            </Link>
             <Link to="/users" onClick={onNavigate} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
               pathname === "/users" ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
             }`}>
