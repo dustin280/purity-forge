@@ -36,6 +36,7 @@ const sampleInput = z.object({
   project: z.string().max(255).optional().nullable(),
   receipt_date: z.string().min(1),
   notes: z.string().max(2000).optional().nullable(),
+  parameters: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
 
 export const createSample = createServerFn({ method: "POST" })
@@ -178,5 +179,54 @@ export const setUserRole = createServerFn({ method: "POST" })
       const { error } = await supabase.from("user_roles").delete().eq("user_id", data.userId).eq("role", data.role);
       if (error) throw error;
     }
+    return { ok: true };
+  });
+
+export const listParameters = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("test_parameters").select("*").order("name", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const createParameter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ name: z.string().min(1).max(128).trim() }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("test_parameters")
+      .insert({ name: data.name, created_by: userId })
+      .select().single();
+    if (error) throw error;
+    return row;
+  });
+
+export const updateParameter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      name: z.string().min(1).max(128).trim().optional(),
+      is_active: z.boolean().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("test_parameters").update(patch).eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const deleteParameter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("test_parameters").delete().eq("id", data.id);
+    if (error) throw error;
     return { ok: true };
   });

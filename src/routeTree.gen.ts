@@ -15,8 +15,10 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -50,6 +52,11 @@ const AuthenticatedSamplesIndexRoute =
     path: '/samples/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
   id: '/samples/new',
   path: '/samples/new',
@@ -59,6 +66,12 @@ const AuthenticatedSamplesBatchIdRoute =
   AuthenticatedSamplesBatchIdRouteImport.update({
     id: '/samples/$batchId',
     path: '/samples/$batchId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminParametersRoute =
+  AuthenticatedAdminParametersRouteImport.update({
+    id: '/admin/parameters',
+    path: '/admin/parameters',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
@@ -72,8 +85,10 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -82,8 +97,10 @@ export interface FileRoutesByTo {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -94,8 +111,10 @@ export interface FileRoutesById {
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -106,8 +125,10 @@ export interface FileRouteTypes {
     | '/login'
     | '/integrations'
     | '/users'
+    | '/admin/parameters'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/admin/'
     | '/samples/'
     | '/api/public/exports/$batchId'
   fileRoutesByTo: FileRoutesByTo
@@ -116,8 +137,10 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/users'
     | '/'
+    | '/admin/parameters'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/admin'
     | '/samples'
     | '/api/public/exports/$batchId'
   id:
@@ -127,8 +150,10 @@ export interface FileRouteTypes {
     | '/_authenticated/integrations'
     | '/_authenticated/users'
     | '/_authenticated/'
+    | '/_authenticated/admin/parameters'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
+    | '/_authenticated/admin/'
     | '/_authenticated/samples/'
     | '/api/public/exports/$batchId'
   fileRoutesById: FileRoutesById
@@ -183,6 +208,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/samples/new': {
       id: '/_authenticated/samples/new'
       path: '/samples/new'
@@ -195,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/samples/$batchId'
       fullPath: '/samples/$batchId'
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/parameters': {
+      id: '/_authenticated/admin/parameters'
+      path: '/admin/parameters'
+      fullPath: '/admin/parameters'
+      preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/api/public/exports/$batchId': {
@@ -211,8 +250,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
 }
 
@@ -220,8 +261,10 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
 }
 

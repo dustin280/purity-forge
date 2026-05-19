@@ -206,6 +206,7 @@ export type Database = {
           created_by: string | null
           id: string
           notes: string | null
+          parameters: string[]
           project: string | null
           raw_data_file_path: string | null
           receipt_date: string
@@ -219,6 +220,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          parameters?: string[]
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -232,10 +234,38 @@ export type Database = {
           created_by?: string | null
           id?: string
           notes?: string | null
+          parameters?: string[]
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
           status?: Database["public"]["Enums"]["sample_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      test_parameters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
           updated_at?: string
         }
         Relationships: []
