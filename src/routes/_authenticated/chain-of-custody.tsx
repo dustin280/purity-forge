@@ -258,7 +258,10 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
             <dl className="grid sm:grid-cols-[200px_1fr] gap-x-4 gap-y-2 text-sm">
               {fields.map(f => {
                 const v = rec.data?.[f.field_key];
-                const display = v == null || v === "" ? "—" : String(v);
+                let display: React.ReactNode;
+                if (v == null || v === "") display = "—";
+                else if (Array.isArray(v)) display = v.join(", ");
+                else display = String(v);
                 return (
                   <div key={f.id} className="sm:contents">
                     <dt className="font-medium text-muted-foreground">{f.label}</dt>
