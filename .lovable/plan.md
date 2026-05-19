@@ -1,55 +1,80 @@
-# LIMS Build Plan — Agilent 1290 DAD Peptide Purity
 
-## Design
-Use the **v1 "Precision Analytical Suite"** direction (dark sidebar + light content, IBM Plex Mono for numerics, Inter for UI), with the content background darkened from `slate-50` to a **muted warm slate** (`#eef0f3` panels on a `#e5e7ec` page background). Sidebar stays dark slate; cards stay white for contrast on tables and chromatograms.
+## Goal
 
-## Backend (Lovable Cloud)
-Enable Cloud, then provision:
+Shift intake from "one sample at a time" to a COC-driven flow: a single CoC carries multiple compounds/lots, each becomes its own staged sample with a unique Sample ID, and a lab worker verifies each one before it moves to prep.
 
-**Schema**
-- `profiles` (id ↔ auth.users, full_name, email)
-- `app_role` enum: `admin | tech | reviewer`
-- `user_roles` (user_id, role) + `has_role()` security-definer function
-- `samples` (batch_id unique, client, project, receipt_date, status enum `received|in_progress|reviewed|approved`, notes, created_by, timestamps)
-- `tests` (sample_id, method_name, instrument default `'Agilent 1290 DAD'`, parameters jsonb, assigned_tech, status)
-- `results` (test_id, purity_percentage, peak_details jsonb [{peak_id, rt, area, area_pct, identity, sn}], raw_data_file_path, analysis_date, analyst_id, reviewer_id)
-- `audit_log` (table_name, record_id, action, changed_by, diff jsonb, changed_at) — populated by trigger on samples/tests/results
-- `export_config` (singleton: webhook_url, api_key_hash, include_lcs, include_ccv, include_method_blank, include_calibration)
-- `export_deliveries` (sample_id, payload jsonb, status, attempts, last_error, delivered_at)
+## Workflow
 
-**Storage**
-- `raw-data` bucket (private) for Agilent `.D` exports / chromatogram images, RLS: tech/admin write, reviewer/admin read.
+```text
+Submit CoC (with line items)
+      │
+      ▼
+[Received]  ──►  Intake staging queue (one row per line item, auto Sample IDs)
+      │
+      ▼   (lab worker opens a staged sample, confirms client/project + requested tests)
+[Intake Verified]
+      │
+      ▼
+[Prep]  ──►  [In Progress]  ──►  [Reviewed]  ──►  [Complete]
+```
 
-**RLS**
-- Admin: full access. Tech: read all, write own samples/tests/results. Reviewer: read all, update status to `reviewed/approved` only. All policies via `has_role()`.
+Statuses: `received → intake_verified → prep → in_progress → reviewed → complete`.
 
-## Auth
-Email/password + Google (via Lovable broker + `configure_social_auth`). First registered user auto-granted `admin`; admins assign roles from a Users page.
+## CoC form changes
 
-## Pages (TanStack routes)
-- `/login`, `/reset-password` — public
-- `/_authenticated/` layout — session gate
-  - `/` Dashboard — KPI tiles (received today, in progress, awaiting review, avg purity, LCS recovery), recent samples table, audit stream sidebar
-  - `/samples` — filterable table
-  - `/samples/new` — intake form + dropzone (uploads to `raw-data`)
-  - `/samples/$batchId` — tabs: Info · Tests · Results · COA · Audit. Chromatogram render + peak table + Approve/Reject (reviewer only)
-  - `/samples/$batchId/results/new` — results entry (purity, peak rows)
-  - `/integrations` — webhook URL, API key, extras toggles (LCS, CCV, Method Blank, Calibration), test ping
-  - `/users` (admin) — role management
+Add a repeatable **Compounds / Lots** line-item table to the CoC fillable form. Each row captures the per-sample fields that vary across the shipment:
 
-## COA + Export Hook
-- COA PDF via `jspdf` + `jspdf-autotable`: letterhead placeholder, sample/method/instrument block, purity summary, peak table, analyst + reviewer signature blocks with timestamps.
-- **Public ingestion endpoint** for the external COA system: `src/routes/api/public/exports/$batchId.ts` (GET, bearer-key auth against `export_config.api_key_hash`). Returns JSON `{ sample, test, result, peaks, signatures, extras: { lcs_recovery?, ccv_recovery?, method_blank_spectra?, calibration_data? } }` — extras conditionally included per toggles.
-- On sample `approved`, server fn enqueues a delivery row; a fire-and-forget `fetch` POSTs to `export_config.webhook_url` with the same payload + HMAC signature header. Retries tracked in `export_deliveries`.
+- Compound / Product name
+- Lot / Batch
+- Catalog / Product code (optional)
+- Manufacturer + Mfg date (optional, defaults to header value)
+- Quantity received / units
+- Requested tests (multiselect, pre-filled from CoC header, editable per row)
+- Storage condition (per row, optional override)
 
-## Audit
-DB trigger writes `INSERT/UPDATE/DELETE` diffs to `audit_log`. UI surfaces per-sample audit tab + global stream on dashboard.
+Header fields stay as today (client, contact, shipping, temp, purpose, etc.). The admin CoC field editor gets a new "line-item field" toggle so admins can curate which columns appear in the table.
 
-## Tech notes
-- All Supabase writes via `createServerFn` with `requireSupabaseAuth`; public export route uses `supabaseAdmin` after bearer verification.
-- Mobile-responsive: sidebar collapses to top nav < md.
-- Start with seeded mock samples (3–5) so the dashboard isn't empty on first load.
+## Sample ID
 
-## Out of scope (call out)
-- Parsing native Agilent `.D` binary files — we store the upload as-is; peak data is entered/pasted by the tech.
-- e-signature compliance (21 CFR Part 11) beyond timestamped reviewer approval.
+Replaces "Batch ID" on the sample record. Format derived from the CoC Invoice #:
+
+```text
+COC051926-100-01
+COC051926-100-02
+└─CoC invoice──┘ └─line #─┘
+```
+
+Auto-assigned at the moment the CoC is submitted (one ID per line item, zero-padded 2-digit sequence). Read-only on the sample, displayed everywhere `batch_id` is shown today.
+
+## Intake staging area
+
+New page **Intake** (sidebar item, between Chain of Custody and Samples). Shows all samples with `status = received`, grouped by CoC, with columns: Sample ID, Compound, Lot, Client, Requested tests, Received date, Action.
+
+Each row has a **Verify intake** action that opens a focused dialog:
+
+1. Header (read-only): CoC #, client, project, received date
+2. Confirm / edit: Client, Project, Compound, Lot, Requested tests (parameters multiselect, pre-filled)
+3. Optional: storage location, internal notes
+4. Submit → status becomes `intake_verified`, then auto-advances to `prep` and the sample drops off the intake queue into the Samples list flagged "Ready for prep"
+
+Bulk "Verify all from this CoC" shortcut when the staged rows need no edits.
+
+## Suggestions / optimizations
+
+- **Auto-fill Requested tests per row** from the CoC header, but allow row-level overrides at submit time so the staging step is mostly a confirmation, not data entry.
+- **Print/label hand-off**: add a "Print labels" button on the intake queue that produces a PDF of Sample ID + compound + lot barcodes (QR) for each staged sample. This is the choke point in most real labs — worth doing now.
+- **Discrepancy flag** on the verify dialog ("Compound mismatch", "Lot illegible", "Damaged") that captures a reason and keeps the sample in `received` with a visible badge instead of advancing it. Avoids silent edits.
+- **CoC lock on submit**: once line items create samples, the CoC line-item table becomes read-only (edits require admin) so Sample IDs stay stable.
+- **Prep queue** as a saved filter on the existing Samples page (`status = prep`) — no new page needed yet; revisit if prep grows its own workflow.
+
+## Technical sketch (for engineering, skim-friendly)
+
+- DB: add `chain_of_custody_records.line_items jsonb`, add `samples.coc_id uuid` + `samples.coc_line_no int` + `samples.compound text` + `samples.lot text`, extend `sample_status` enum with `intake_verified`, `prep`, `complete`; remove/retire `approved` (or alias to `complete`).
+- Server fns: `submitCocWithSamples` (atomic: insert CoC + N samples with generated Sample IDs), `listIntakeQueue`, `verifySampleIntake`, `bulkVerifyCoc`.
+- UI: extend `/chain-of-custody` form with line-item editor; new `/intake` route; rename "Batch ID" → "Sample ID" everywhere; remove the standalone "New Sample" intake path (or keep it admin-only as an escape hatch).
+- Keep audit trail via existing `audit_log` trigger on `samples` and `chain_of_custody_records`.
+
+## Open questions to resolve during build
+
+- Should `complete` replace `approved` everywhere (incl. existing rows) or coexist? Default: rename via migration since no production data depends on it.
+- Should the standalone "New Sample" form stay as an admin escape hatch, or be removed entirely? Default: keep, admin-only.
