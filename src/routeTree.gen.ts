@@ -22,6 +22,7 @@ import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedLogsLogTypeRouteImport } from './routes/_authenticated/logs/$logType'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
@@ -96,6 +97,12 @@ const AuthenticatedSamplesBatchIdRoute =
     path: '/samples/$batchId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMaterialReceiptsNewRoute =
+  AuthenticatedMaterialReceiptsNewRouteImport.update({
+    id: '/material-receipts/new',
+    path: '/material-receipts/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLogsLogTypeRoute =
   AuthenticatedLogsLogTypeRouteImport.update({
     id: '/logs/$logType',
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -168,6 +177,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/logs/$logType'
+    | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/logs/$logType'
+    | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
@@ -225,6 +237,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/logs/$logType'
+    | '/_authenticated/material-receipts/new'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
@@ -333,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/material-receipts/new': {
+      id: '/_authenticated/material-receipts/new'
+      path: '/material-receipts/new'
+      fullPath: '/material-receipts/new'
+      preLoaderRoute: typeof AuthenticatedMaterialReceiptsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/logs/$logType': {
       id: '/_authenticated/logs/$logType'
       path: '/logs/$logType'
@@ -373,6 +393,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedLogsLogTypeRoute: typeof AuthenticatedLogsLogTypeRoute
+  AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -390,6 +411,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedLogsLogTypeRoute: AuthenticatedLogsLogTypeRoute,
+  AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -411,3 +433,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
