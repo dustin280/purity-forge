@@ -12,7 +12,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       supabase.from("audit_log").select("*").order("changed_at", { ascending: false }).limit(15),
       supabase.from("results").select("purity_percentage"),
     ]);
-    const counts = { received: 0, in_progress: 0, reviewed: 0, approved: 0 };
+    const counts = { received: 0, intake_verified: 0, prep: 0, in_progress: 0, reviewed: 0, complete: 0, approved: 0 };
     (samplesAll ?? []).forEach((s: { status: string }) => {
       if (s.status in counts) (counts as Record<string, number>)[s.status]++;
     });
