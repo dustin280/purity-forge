@@ -24,6 +24,20 @@ export const Route = createFileRoute("/_authenticated/users")({ component: Users
 const ROLES = ["admin", "tech", "reviewer"] as const;
 type Role = typeof ROLES[number];
 
+type ProfileExt = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  title?: string | null;
+};
+
+function displayName(p: ProfileExt): string {
+  const fl = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+  return fl || p.full_name || p.email || "Unknown";
+}
+
 function Users() {
   const qc = useQueryClient();
   const listFn = useServerFn(listUsers);
