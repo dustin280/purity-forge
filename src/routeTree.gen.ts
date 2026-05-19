@@ -18,6 +18,7 @@ import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
+import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authenticated/logs/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
@@ -80,6 +81,11 @@ const AuthenticatedMaterialReceiptsIndexRoute =
     path: '/material-receipts/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLogsIndexRoute = AuthenticatedLogsIndexRouteImport.update({
+  id: '/logs/',
+  path: '/logs/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedLabLogsIndexRoute =
   AuthenticatedLabLogsIndexRouteImport.update({
     id: '/lab-logs/',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
+  '/logs/': typeof AuthenticatedLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
+  '/logs': typeof AuthenticatedLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -219,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
+  '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -244,6 +253,7 @@ export interface FileRouteTypes {
     | '/samples/new'
     | '/admin/'
     | '/lab-logs/'
+    | '/logs/'
     | '/material-receipts/'
     | '/samples/'
     | '/lab-logs/standard-preparations/$id'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/samples/new'
     | '/admin'
     | '/lab-logs'
+    | '/logs'
     | '/material-receipts'
     | '/samples'
     | '/lab-logs/standard-preparations/$id'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
     | '/_authenticated/lab-logs/'
+    | '/_authenticated/logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
     | '/_authenticated/lab-logs/standard-preparations/$id'
@@ -369,6 +381,13 @@ declare module '@tanstack/react-router' {
       path: '/material-receipts'
       fullPath: '/material-receipts/'
       preLoaderRoute: typeof AuthenticatedMaterialReceiptsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/logs/': {
+      id: '/_authenticated/logs/'
+      path: '/logs'
+      fullPath: '/logs/'
+      preLoaderRoute: typeof AuthenticatedLogsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/lab-logs/': {
@@ -479,6 +498,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
+  AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -501,6 +521,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
+  AuthenticatedLogsIndexRoute: AuthenticatedLogsIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
