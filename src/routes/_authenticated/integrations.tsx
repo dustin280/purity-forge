@@ -168,6 +168,55 @@ function Integrations() {
       </Card>
 
       <Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save Configuration"}</Button>
+
+      <Card className="p-5 border-border space-y-4">
+        <div className="flex items-center gap-2">
+          <Server className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider">SFTP Destination</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Stored credentials for an external worker that pushes approved exports to your SFTP server.
+          The app itself does not open SFTP connections.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="md:col-span-2 space-y-1.5">
+            <Label htmlFor="sftp-host">Host</Label>
+            <Input id="sftp-host" placeholder="sftp.example.com"
+              value={sftp.host} onChange={e => setSftp({ ...sftp, host: e.target.value })} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sftp-port">Port</Label>
+            <Input id="sftp-port" type="number" min={1} max={65535}
+              value={sftp.port} onChange={e => setSftp({ ...sftp, port: Number(e.target.value) || 22 })} />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sftp-user">Username</Label>
+          <Input id="sftp-user" autoComplete="off"
+            value={sftp.username} onChange={e => setSftp({ ...sftp, username: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sftp-pass">Password (optional)</Label>
+          <Input id="sftp-pass" type="password" autoComplete="new-password" placeholder="Leave blank if using a key"
+            value={sftp.password} onChange={e => setSftp({ ...sftp, password: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sftp-key">Private Key (optional)</Label>
+          <Textarea id="sftp-key" rows={4} placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" className="font-mono text-xs"
+            value={sftp.private_key} onChange={e => setSftp({ ...sftp, private_key: e.target.value })} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="sftp-path">Remote Path</Label>
+          <Input id="sftp-path" placeholder="/incoming/coa" className="font-mono text-xs"
+            value={sftp.remote_path} onChange={e => setSftp({ ...sftp, remote_path: e.target.value })} />
+        </div>
+        <div className="flex items-center justify-between py-1 border-t border-border pt-3">
+          <Label htmlFor="sftp-active">Active</Label>
+          <Switch id="sftp-active" checked={sftp.is_active}
+            onCheckedChange={v => setSftp({ ...sftp, is_active: v })} />
+        </div>
+        <Button onClick={saveSftpCfg} disabled={sftpBusy}>{sftpBusy ? "Saving…" : "Save SFTP Settings"}</Button>
+      </Card>
     </div>
   );
 }
