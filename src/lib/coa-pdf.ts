@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Peak } from "./lims-utils";
+import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export interface CoaInput {
   sample: { batch_id: string; client: string; project?: string | null; receipt_date: string; notes?: string | null };
@@ -17,15 +18,17 @@ export function generateCoaPdf(data: CoaInput): jsPDF {
   const margin = 40;
 
   // Letterhead
-  doc.setFillColor(31, 41, 55);
-  doc.rect(0, 0, W, 60, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont("helvetica", "bold");
-  doc.text("QUANTUM LIMS", margin, 36);
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, W, 70, "F");
+  // Logo (aspect ~3.33:1)
+  doc.addImage(SYNTHESYX_LOGO_PNG_BASE64, "PNG", margin, 22, 130, 39);
+  doc.setTextColor(31, 41, 55);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Certificate of Analysis", W - margin, 36, { align: "right" });
+  doc.text("Certificate of Analysis", W - margin, 46, { align: "right" });
+  doc.setDrawColor(31, 41, 55);
+  doc.setLineWidth(1);
+  doc.line(margin, 72, W - margin, 72);
 
   let y = 90;
   doc.setTextColor(31, 41, 55);
@@ -115,7 +118,7 @@ export function generateCoaPdf(data: CoaInput): jsPDF {
 
   // Footer
   doc.setFontSize(7); doc.setTextColor(150);
-  doc.text(`Generated ${new Date().toLocaleString()} • Quantum LIMS • Batch ${data.sample.batch_id}`, margin, doc.internal.pageSize.getHeight() - 20);
+  doc.text(`Generated ${new Date().toLocaleString()} • Synthesyx • Batch ${data.sample.batch_id}`, margin, doc.internal.pageSize.getHeight() - 20);
 
   return doc;
 }
