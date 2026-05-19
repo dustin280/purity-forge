@@ -1,80 +1,59 @@
-
 ## Goal
 
-Shift intake from "one sample at a time" to a COC-driven flow: a single CoC carries multiple compounds/lots, each becomes its own staged sample with a unique Sample ID, and a lab worker verifies each one before it moves to prep.
+Fix the Chain of Custody intake form so per-product info lives on each line item, multi-vial intake is supported, data isn't lost by an accidental click, and package condition can include photos.
 
-## Workflow
+## Changes
 
-```text
-Submit CoC (with line items)
-      │
-      ▼
-[Received]  ──►  Intake staging queue (one row per line item, auto Sample IDs)
-      │
-      ▼   (lab worker opens a staged sample, confirms client/project + requested tests)
-[Intake Verified]
-      │
-      ▼
-[Prep]  ──►  [In Progress]  ──►  [Reviewed]  ──►  [Complete]
-```
+### 1. Move ambiguous header fields onto the line item
 
-Statuses: `received → intake_verified → prep → in_progress → reviewed → complete`.
+Currently `Product Name`, `Catalog / Product Code`, `Lot / Batch Number`, `Quantity Received`, and `Container Size / Concentration per Vial` are header fields, but a single CoC carries multiple products. Make them per-row instead.
 
-## CoC form changes
+- In the **CoC field admin** (`/admin/coc-fields`), deactivate (or auto-hide) those five header fields so they stop showing in the header section.
+- Extend the line-item editor in `chain-of-custody.tsx` with the missing columns:
+  - Product Name (rename current "Compound" label to "Product / Compound")
+  - Catalog / Product Code
+  - Lot / Batch
+  - Container size / Concentration per vial (new)
+  - Quantity received + unit (new dedicated unit field)
+- Persist the new fields on `chain_of_custody_records.line_items` (jsonb, no migration needed) and copy them down to each generated sample row (extend `samples` with `container_size text` and `concentration text` via migration; reuse existing `lot`/`compound` columns).
+- Update the CoC PDF (`coc-pdf.ts`) to render the line items as a table with the new columns, since header values no longer carry that info.
 
-Add a repeatable **Compounds / Lots** line-item table to the CoC fillable form. Each row captures the per-sample fields that vary across the shipment:
+### 2. Multi-vial support on requested tests
 
-- Compound / Product name
-- Lot / Batch
-- Catalog / Product code (optional)
-- Manufacturer + Mfg date (optional, defaults to header value)
-- Quantity received / units
-- Requested tests (multiselect, pre-filled from CoC header, editable per row)
-- Storage condition (per row, optional override)
+Today each row has a `requested_tests` multiselect with no count. Add a `vial_count` integer (default 1) per row, plus a `tests_per_vial` toggle so the user can say "2 vials, each gets these tests".
 
-Header fields stay as today (client, contact, shipping, temp, purpose, etc.). The admin CoC field editor gets a new "line-item field" toggle so admins can curate which columns appear in the table.
+- On submit, expand each line item into `vial_count` sample rows. Sample IDs continue the existing zero-padded sequence (`COC051926-100-01`, `-02`, …) across all vials of all rows in row+vial order.
+- Show a small "× 2 vials" badge in the line-item header so the user sees what they'll get.
 
-## Sample ID
+### 3. Don't lose data on outside click
 
-Replaces "Batch ID" on the sample record. Format derived from the CoC Invoice #:
+`Dialog` from shadcn closes on overlay click and Esc. Wrap the form's `onOpenChange` so that when the user has typed anything (dirty state) and tries to close without submitting:
+- Intercept and show a confirm prompt: "Close without completing? Your data will be lost."
+- Confirm → close and reset. Cancel → keep dialog open.
+- Hitting **Cancel** in the footer goes through the same gate.
+- The existing **Submit** path closes cleanly with no prompt.
+- Track dirtiness with a single `isDirty` flag toggled on any `setValues`/`setLineItems` change.
 
-```text
-COC051926-100-01
-COC051926-100-02
-└─CoC invoice──┘ └─line #─┘
-```
+### 4. Photo upload + camera capture for package condition
 
-Auto-assigned at the moment the CoC is submitted (one ID per line item, zero-padded 2-digit sequence). Read-only on the sample, displayed everywhere `batch_id` is shown today.
+The `package_condition` / `physical_description` field is currently text-only. Add an attachment uploader directly under it:
 
-## Intake staging area
+- New table `coc_attachments` (id, coc_id, file_name, file_path, content_type, size_bytes, uploaded_by, uploaded_at) with RLS mirroring `issue_report_attachments`.
+- New storage bucket `coc-attachments` (private) with the standard authenticated read/write policies.
+- New server fns in `lims.functions.ts`: `recordCocAttachment`, `listCocAttachments`, `deleteCocAttachment`, `signedCocAttachmentUrl`.
+- In the form, render a thumbnail strip + two buttons: **Upload image** (`<input type="file" accept="image/*" multiple>`) and **Take photo** (`<input type="file" accept="image/*" capture="environment">` — works on mobile and on desktop browsers that expose a webcam). Uploads happen after the CoC is saved; on the New-CoC flow, files are queued locally and uploaded once the record exists (same pattern as `material-receipts/new.tsx`'s `uploadPending`).
+- Show existing attachments on the View dialog and embed them in the PDF as a "Package photos" appendix.
 
-New page **Intake** (sidebar item, between Chain of Custody and Samples). Shows all samples with `status = received`, grouped by CoC, with columns: Sample ID, Compound, Lot, Client, Requested tests, Received date, Action.
+## Technical notes
 
-Each row has a **Verify intake** action that opens a focused dialog:
+- DB migrations:
+  1. `alter table samples add column container_size text, add column concentration text;`
+  2. `create table coc_attachments (...)` + RLS + bucket + bucket policies.
+- No new packages required; reuse existing `supabase.storage`, `jspdf`, shadcn `Dialog`/`Input`/`Badge`.
+- The header-field deactivation is data, not schema — done via `supabase--insert` updating `chain_of_custody_fields.is_active = false` for the five keys.
+- `coc-pdf.ts` gets a new "Line items" section that iterates `rec.line_items` with the expanded columns, and an optional "Photos" section that embeds signed-URL images.
 
-1. Header (read-only): CoC #, client, project, received date
-2. Confirm / edit: Client, Project, Compound, Lot, Requested tests (parameters multiselect, pre-filled)
-3. Optional: storage location, internal notes
-4. Submit → status becomes `intake_verified`, then auto-advances to `prep` and the sample drops off the intake queue into the Samples list flagged "Ready for prep"
+## Open questions
 
-Bulk "Verify all from this CoC" shortcut when the staged rows need no edits.
-
-## Suggestions / optimizations
-
-- **Auto-fill Requested tests per row** from the CoC header, but allow row-level overrides at submit time so the staging step is mostly a confirmation, not data entry.
-- **Print/label hand-off**: add a "Print labels" button on the intake queue that produces a PDF of Sample ID + compound + lot barcodes (QR) for each staged sample. This is the choke point in most real labs — worth doing now.
-- **Discrepancy flag** on the verify dialog ("Compound mismatch", "Lot illegible", "Damaged") that captures a reason and keeps the sample in `received` with a visible badge instead of advancing it. Avoids silent edits.
-- **CoC lock on submit**: once line items create samples, the CoC line-item table becomes read-only (edits require admin) so Sample IDs stay stable.
-- **Prep queue** as a saved filter on the existing Samples page (`status = prep`) — no new page needed yet; revisit if prep grows its own workflow.
-
-## Technical sketch (for engineering, skim-friendly)
-
-- DB: add `chain_of_custody_records.line_items jsonb`, add `samples.coc_id uuid` + `samples.coc_line_no int` + `samples.compound text` + `samples.lot text`, extend `sample_status` enum with `intake_verified`, `prep`, `complete`; remove/retire `approved` (or alias to `complete`).
-- Server fns: `submitCocWithSamples` (atomic: insert CoC + N samples with generated Sample IDs), `listIntakeQueue`, `verifySampleIntake`, `bulkVerifyCoc`.
-- UI: extend `/chain-of-custody` form with line-item editor; new `/intake` route; rename "Batch ID" → "Sample ID" everywhere; remove the standalone "New Sample" intake path (or keep it admin-only as an escape hatch).
-- Keep audit trail via existing `audit_log` trigger on `samples` and `chain_of_custody_records`.
-
-## Open questions to resolve during build
-
-- Should `complete` replace `approved` everywhere (incl. existing rows) or coexist? Default: rename via migration since no production data depends on it.
-- Should the standalone "New Sample" form stay as an admin escape hatch, or be removed entirely? Default: keep, admin-only.
+- Should `vial_count > 1` create one sample row per vial (recommended, so each vial gets its own Sample ID and prep record) or a single sample row with a `vial_count` column? Default in this plan: one sample row per vial.
+- For the dirty-state prompt, do you want the same gate on the **Edit** dialog, or only on **New CoC**? Default: both.
