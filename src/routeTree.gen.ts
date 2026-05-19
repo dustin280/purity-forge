@@ -26,6 +26,7 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
+import { Route as AuthenticatedLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/logs/standard-preparations/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -121,6 +122,12 @@ const AuthenticatedAdminCocFieldsRoute =
     path: '/admin/coc-fields',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLogsStandardPreparationsIndexRoute =
+  AuthenticatedLogsStandardPreparationsIndexRouteImport.update({
+    id: '/logs/standard-preparations/',
+    path: '/logs/standard-preparations/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   id: '/api/public/exports/$batchId',
   path: '/api/public/exports/$batchId',
@@ -145,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -164,6 +172,7 @@ export interface FileRoutesByTo {
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/logs/standard-preparations': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +194,7 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/_authenticated/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/material-receipts/'
     | '/samples/'
     | '/api/public/exports/$batchId'
+    | '/logs/standard-preparations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/material-receipts'
     | '/samples'
     | '/api/public/exports/$batchId'
+    | '/logs/standard-preparations'
   id:
     | '__root__'
     | '/_authenticated'
@@ -245,6 +257,7 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
     | '/api/public/exports/$batchId'
+    | '/_authenticated/logs/standard-preparations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -374,6 +387,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCocFieldsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/logs/standard-preparations/': {
+      id: '/_authenticated/logs/standard-preparations/'
+      path: '/logs/standard-preparations'
+      fullPath: '/logs/standard-preparations/'
+      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/exports/$batchId': {
       id: '/api/public/exports/$batchId'
       path: '/api/public/exports/$batchId'
@@ -400,6 +420,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+  AuthenticatedLogsStandardPreparationsIndexRoute: typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -419,6 +440,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+  AuthenticatedLogsStandardPreparationsIndexRoute:
+    AuthenticatedLogsStandardPreparationsIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
