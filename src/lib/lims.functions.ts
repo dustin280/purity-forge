@@ -36,6 +36,7 @@ const sampleInput = z.object({
   project: z.string().max(255).optional().nullable(),
   receipt_date: z.string().min(1),
   notes: z.string().max(2000).optional().nullable(),
+  parameters: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
 
 export const createSample = createServerFn({ method: "POST" })
