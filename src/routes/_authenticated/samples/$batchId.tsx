@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { StatusPill } from "@/components/lims/status-pill";
 import { Chromatogram } from "@/components/lims/chromatogram";
 import { generateCoaPdf } from "@/lib/coa-pdf";
-import { fmtPct, type SampleStatus, type Peak } from "@/lims-utils-shim";
+import { fmtPct, type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { toast } from "sonner";
 import { Download, ChevronRight } from "lucide-react";
 
