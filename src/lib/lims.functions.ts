@@ -230,3 +230,128 @@ export const deleteParameter = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+// ============= Chain of Custody =============
+
+const cocFieldType = z.enum(["text", "textarea", "number", "date", "datetime", "email", "tel"]);
+
+export const listCocFields = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("chain_of_custody_fields").select("*").order("sort_order", { ascending: true });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const createCocField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      field_key: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/, "lowercase letters, numbers, underscores"),
+      label: z.string().min(1).max(255).trim(),
+      field_type: cocFieldType.default("text"),
+      is_required: z.boolean().default(false),
+      placeholder: z.string().max(255).optional().nullable(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { data: maxRow } = await context.supabase
+      .from("chain_of_custody_fields").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+    const next = ((maxRow?.sort_order as number | undefined) ?? 0) + 10;
+    const { data: row, error } = await context.supabase
+      .from("chain_of_custody_fields").insert({ ...data, sort_order: next }).select().single();
+    if (error) throw error;
+    return row;
+  });
+
+export const updateCocField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      label: z.string().min(1).max(255).trim().optional(),
+      field_type: cocFieldType.optional(),
+      is_required: z.boolean().optional(),
+      is_active: z.boolean().optional(),
+      sort_order: z.number().int().optional(),
+      placeholder: z.string().max(255).optional().nullable(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("chain_of_custody_fields").update(patch).eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const deleteCocField = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("chain_of_custody_fields").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const listCocRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("chain_of_custody_records").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    return data ?? [];
+  });
+
+export const getCocRecord = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: row, error } = await context.supabase
+      .from("chain_of_custody_records").select("*").eq("id", data.id).single();
+    if (error) throw error;
+    return row;
+  });
+
+export const createCocRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      sample_id: z.string().min(1).max(128),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("chain_of_custody_records")
+      .insert({ sample_id: data.sample_id, data: data.data, created_by: userId })
+      .select().single();
+    if (error) throw error;
+    return row;
+  });
+
+export const updateCocRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid(),
+      sample_id: z.string().min(1).max(128).optional(),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase.from("chain_of_custody_records").update(patch).eq("id", id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const deleteCocRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("chain_of_custody_records").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });

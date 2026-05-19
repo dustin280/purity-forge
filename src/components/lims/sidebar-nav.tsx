@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu, Shield } from "lucide-react";
+import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu, Shield, ClipboardList } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/samples", label: "Samples", icon: FlaskConical },
   { to: "/samples/new", label: "Intake", icon: FilePlus },
+  { to: "/chain-of-custody", label: "Chain of Custody", icon: ClipboardList },
   { to: "/integrations", label: "Integrations", icon: Webhook },
 ];
 
