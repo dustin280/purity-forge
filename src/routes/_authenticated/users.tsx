@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { listUsers, setUserRole, createUser, deleteUser, resetUserPassword, updateUserProfile } from "@/lib/lims.functions";
+import { listUsers, setUserRole, createUser, deleteUser, resetUserPassword, updateUserProfile, inviteUser } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Trash2, KeyRound, UserPlus, Pencil } from "lucide-react";
+import { Trash2, KeyRound, UserPlus, Pencil, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/users")({ component: Users });
@@ -46,6 +46,7 @@ function Users() {
   const deleteFn = useServerFn(deleteUser);
   const resetFn = useServerFn(resetUserPassword);
   const editFn = useServerFn(updateUserProfile);
+  const inviteFn = useServerFn(inviteUser);
   const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: () => listFn() });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   if (currentUserId === null) {
@@ -63,6 +64,17 @@ function Users() {
     roles: ["tech"] as Role[],
   });
   const [busy, setBusy] = useState(false);
+
+  // Invite user dialog state
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    title: "",
+    roles: ["tech"] as Role[],
+  });
+  const [inviteBusy, setInviteBusy] = useState(false);
 
   // Reset password dialog state
   const [pwOpen, setPwOpen] = useState<string | null>(null);
@@ -140,6 +152,26 @@ function Users() {
     finally { setEditBusy(false); }
   }
 
+  async function handleInvite() {
+    setInviteBusy(true);
+    try {
+      await inviteFn({
+        data: {
+          first_name: inviteForm.first_name.trim(),
+          last_name: inviteForm.last_name.trim(),
+          email: inviteForm.email.trim(),
+          title: inviteForm.title.trim() || null,
+          roles: inviteForm.roles,
+        },
+      });
+      toast.success(`Invitation sent to ${inviteForm.email}`);
+      setInviteOpen(false);
+      setInviteForm({ first_name: "", last_name: "", email: "", title: "", roles: ["tech"] });
+      qc.invalidateQueries({ queryKey: ["users"] });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+    finally { setInviteBusy(false); }
+  }
+
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-4xl">
       <div className="flex items-end justify-between gap-4">
@@ -148,6 +180,42 @@ function Users() {
           <h1 className="text-3xl font-bold tracking-tight mt-1">Users & Roles</h1>
           <p className="text-sm text-muted-foreground mt-1">Create accounts, assign roles, and remove users.</p>
         </div>
+        <div className="flex gap-2">
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><Mail className="size-4 mr-2" />Invite user</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Invite user</DialogTitle>
+              <DialogDescription>Sends an email invitation. The user sets their own password on first sign-in.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>First name</Label><Input value={inviteForm.first_name} onChange={e => setInviteForm({ ...inviteForm, first_name: e.target.value })} /></div>
+                <div><Label>Last name</Label><Input value={inviteForm.last_name} onChange={e => setInviteForm({ ...inviteForm, last_name: e.target.value })} /></div>
+              </div>
+              <div><Label>Email address</Label><Input type="email" value={inviteForm.email} onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })} /></div>
+              <div><Label>Title</Label><Input value={inviteForm.title} onChange={e => setInviteForm({ ...inviteForm, title: e.target.value })} placeholder="e.g. Lab Technician" /></div>
+              <div>
+                <Label>Roles</Label>
+                <div className="flex gap-4 mt-2">
+                  {ROLES.map(r => (
+                    <label key={r} className="flex items-center gap-2 text-sm capitalize">
+                      <input type="checkbox" checked={inviteForm.roles.includes(r)}
+                        onChange={e => setInviteForm({ ...inviteForm, roles: e.target.checked ? [...inviteForm.roles, r] : inviteForm.roles.filter(x => x !== r) })} />
+                      {r}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setInviteOpen(false)} disabled={inviteBusy}>Cancel</Button>
+              <Button onClick={handleInvite} disabled={inviteBusy || !inviteForm.email || !inviteForm.first_name.trim() || !inviteForm.last_name.trim()}>Send invite</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         <Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button><UserPlus className="size-4 mr-2" />Add user</Button>
@@ -184,6 +252,7 @@ function Users() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
       <Card className="border-border overflow-hidden">
         <table className="w-full text-sm">
