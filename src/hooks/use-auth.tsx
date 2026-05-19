@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s?.user) {
         setTimeout(() => {
@@ -56,6 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRole(priority.find(p => roles.includes(p)) ?? null);
           });
           loadProfile(s.user.id);
+          if (event === "SIGNED_IN") {
+            supabase.from("profiles").select("full_name,first_name,last_name,email").eq("id", s.user.id).maybeSingle().then(({ data: p }) => {
+              const name = [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim() || p?.full_name || p?.email || s.user.email || "";
+              supabase.from("access_logs").insert({
+                user_id: s.user.id,
+                user_email: s.user.email ?? p?.email ?? null,
+                user_name: name,
+                event: "login",
+                user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+              });
+            });
+          }
         }, 0);
       } else {
         setRole(null);
@@ -85,7 +97,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthCtx.Provider value={{
       user: session?.user ?? null,
       session, role, profile, loading,
-      signOut: async () => { await supabase.auth.signOut(); },
+      signOut: async () => {
+        const u = session?.user;
+        if (u) {
+          const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() || profile?.full_name || profile?.email || u.email || "";
+          await supabase.from("access_logs").insert({
+            user_id: u.id,
+            user_email: u.email ?? profile?.email ?? null,
+            user_name: name,
+            event: "logout",
+            user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+          });
+        }
+        await supabase.auth.signOut();
+      },
     }}>
       {children}
     </AuthCtx.Provider>
