@@ -44,6 +44,75 @@ export type Database = {
         }
         Relationships: []
       }
+      chain_of_custody_fields: {
+        Row: {
+          created_at: string
+          field_key: string
+          field_type: Database["public"]["Enums"]["coc_field_type"]
+          id: string
+          is_active: boolean
+          is_required: boolean
+          label: string
+          options: Json | null
+          placeholder: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_key: string
+          field_type?: Database["public"]["Enums"]["coc_field_type"]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label: string
+          options?: Json | null
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_key?: string
+          field_type?: Database["public"]["Enums"]["coc_field_type"]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          label?: string
+          options?: Json | null
+          placeholder?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chain_of_custody_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data: Json
+          id: string
+          sample_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          sample_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data?: Json
+          id?: string
+          sample_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       export_config: {
         Row: {
           api_key: string
@@ -354,6 +423,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
+      coc_field_type:
+        | "text"
+        | "textarea"
+        | "number"
+        | "date"
+        | "datetime"
+        | "email"
+        | "tel"
       sample_status: "received" | "in_progress" | "reviewed" | "approved"
       test_status: "pending" | "running" | "completed" | "failed"
     }
@@ -484,6 +561,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "tech", "reviewer"],
+      coc_field_type: [
+        "text",
+        "textarea",
+        "number",
+        "date",
+        "datetime",
+        "email",
+        "tel",
+      ],
       sample_status: ["received", "in_progress", "reviewed", "approved"],
       test_status: ["pending", "running", "completed", "failed"],
     },
