@@ -196,33 +196,209 @@ export type Database = {
           },
         ]
       }
-      material_receipt_logs: {
+      material_receipt_attachments: {
         Row: {
-          created_at: string
-          created_by: string | null
-          employee_name: string
+          content_type: string | null
+          file_name: string
+          file_path: string
           id: string
-          log_date: string
-          notes: string | null
-          updated_at: string
+          kind: Database["public"]["Enums"]["material_receipt_attachment_kind"]
+          receipt_id: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
-          employee_name: string
+          content_type?: string | null
+          file_name: string
+          file_path: string
           id?: string
-          log_date?: string
-          notes?: string | null
-          updated_at?: string
+          kind?: Database["public"]["Enums"]["material_receipt_attachment_kind"]
+          receipt_id: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
         }
         Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["material_receipt_attachment_kind"]
+          receipt_id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "material_receipt_attachments_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      material_receipt_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
+      material_receipts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          approver_name: string | null
+          catalog_number: string | null
+          coa_attached: boolean
+          container_details: string | null
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          id: string
+          internal_lot: string | null
+          manufacturer: string | null
+          manufacturer_lot: string | null
+          material_name: string
+          material_type: Database["public"]["Enums"]["material_type"]
+          notes: string | null
+          po_number: string | null
+          purpose: string | null
+          qc_analyst: string | null
+          qc_date: string | null
+          qc_pass: boolean | null
+          qc_results: string | null
+          quantity: number | null
+          quarantine_status: Database["public"]["Enums"]["material_quarantine_status"]
+          receipt_number: string
+          received_at: string
+          received_by: string | null
+          receiver_name: string
+          sds_attached: boolean
+          storage_location: string | null
+          supplier: string | null
+          temperature_on_receipt: number | null
+          unit: string | null
+          updated_at: string
+          visual_inspection: string | null
+          visual_inspection_notes: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approver_name?: string | null
+          catalog_number?: string | null
+          coa_attached?: boolean
+          container_details?: string | null
           created_at?: string
           created_by?: string | null
-          employee_name?: string
+          expiry_date?: string | null
           id?: string
-          log_date?: string
+          internal_lot?: string | null
+          manufacturer?: string | null
+          manufacturer_lot?: string | null
+          material_name: string
+          material_type: Database["public"]["Enums"]["material_type"]
           notes?: string | null
+          po_number?: string | null
+          purpose?: string | null
+          qc_analyst?: string | null
+          qc_date?: string | null
+          qc_pass?: boolean | null
+          qc_results?: string | null
+          quantity?: number | null
+          quarantine_status?: Database["public"]["Enums"]["material_quarantine_status"]
+          receipt_number?: string
+          received_at?: string
+          received_by?: string | null
+          receiver_name: string
+          sds_attached?: boolean
+          storage_location?: string | null
+          supplier?: string | null
+          temperature_on_receipt?: number | null
+          unit?: string | null
           updated_at?: string
+          visual_inspection?: string | null
+          visual_inspection_notes?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          approver_name?: string | null
+          catalog_number?: string | null
+          coa_attached?: boolean
+          container_details?: string | null
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          id?: string
+          internal_lot?: string | null
+          manufacturer?: string | null
+          manufacturer_lot?: string | null
+          material_name?: string
+          material_type?: Database["public"]["Enums"]["material_type"]
+          notes?: string | null
+          po_number?: string | null
+          purpose?: string | null
+          qc_analyst?: string | null
+          qc_date?: string | null
+          qc_pass?: boolean | null
+          qc_results?: string | null
+          quantity?: number | null
+          quarantine_status?: Database["public"]["Enums"]["material_quarantine_status"]
+          receipt_number?: string
+          received_at?: string
+          received_by?: string | null
+          receiver_name?: string
+          sds_attached?: boolean
+          storage_location?: string | null
+          supplier?: string | null
+          temperature_on_receipt?: number | null
+          unit?: string | null
+          updated_at?: string
+          visual_inspection?: string | null
+          visual_inspection_notes?: string | null
+        }
+        Relationships: []
+      }
+      material_suggestions: {
+        Row: {
+          catalog_number: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          manufacturer: string | null
+          material_type: Database["public"]["Enums"]["material_type"]
+          name: string
+        }
+        Insert: {
+          catalog_number?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manufacturer?: string | null
+          material_type: Database["public"]["Enums"]["material_type"]
+          name: string
+        }
+        Update: {
+          catalog_number?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manufacturer?: string | null
+          material_type?: Database["public"]["Enums"]["material_type"]
+          name?: string
         }
         Relationships: []
       }
@@ -263,6 +439,7 @@ export type Database = {
           employee_name: string
           id: string
           log_date: string
+          material_receipt_id: string | null
           notes: string | null
           updated_at: string
         }
@@ -272,6 +449,7 @@ export type Database = {
           employee_name: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
@@ -281,10 +459,19 @@ export type Database = {
           employee_name?: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "qc_prep_logs_material_receipt_id_fkey"
+            columns: ["material_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reagent_prep_logs: {
         Row: {
@@ -293,6 +480,7 @@ export type Database = {
           employee_name: string
           id: string
           log_date: string
+          material_receipt_id: string | null
           notes: string | null
           updated_at: string
         }
@@ -302,6 +490,7 @@ export type Database = {
           employee_name: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
@@ -311,10 +500,19 @@ export type Database = {
           employee_name?: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reagent_prep_logs_material_receipt_id_fkey"
+            columns: ["material_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       results: {
         Row: {
@@ -376,6 +574,7 @@ export type Database = {
           employee_name: string
           id: string
           log_date: string
+          material_receipt_id: string | null
           notes: string | null
           updated_at: string
         }
@@ -385,6 +584,7 @@ export type Database = {
           employee_name: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
@@ -394,10 +594,19 @@ export type Database = {
           employee_name?: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sample_prep_logs_material_receipt_id_fkey"
+            columns: ["material_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       samples: {
         Row: {
@@ -471,6 +680,7 @@ export type Database = {
           employee_name: string
           id: string
           log_date: string
+          material_receipt_id: string | null
           notes: string | null
           updated_at: string
         }
@@ -480,6 +690,7 @@ export type Database = {
           employee_name: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
@@ -489,10 +700,19 @@ export type Database = {
           employee_name?: string
           id?: string
           log_date?: string
+          material_receipt_id?: string | null
           notes?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "standard_prep_logs_material_receipt_id_fkey"
+            columns: ["material_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       test_parameters: {
         Row: {
@@ -602,6 +822,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_material_receipt_number: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
@@ -614,6 +835,15 @@ export type Database = {
         | "email"
         | "tel"
         | "multiselect"
+      material_quarantine_status: "quarantine" | "released" | "rejected"
+      material_receipt_attachment_kind:
+        | "coa"
+        | "sds"
+        | "packing_slip"
+        | "label"
+        | "photo"
+        | "other"
+      material_type: "controlled" | "uncontrolled"
       sample_status:
         | "received"
         | "in_progress"
@@ -761,6 +991,16 @@ export const Constants = {
         "tel",
         "multiselect",
       ],
+      material_quarantine_status: ["quarantine", "released", "rejected"],
+      material_receipt_attachment_kind: [
+        "coa",
+        "sds",
+        "packing_slip",
+        "label",
+        "photo",
+        "other",
+      ],
+      material_type: ["controlled", "uncontrolled"],
       sample_status: [
         "received",
         "in_progress",
