@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (error) throw error;
+  if (!data) throw new Error("Admin role required");
+}
 
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -171,7 +179,8 @@ export const setUserRole = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
     if (data.grant) {
       const { error } = await supabase.from("user_roles").upsert({ user_id: data.userId, role: data.role }, { onConflict: "user_id,role" });
       if (error) throw error;
@@ -179,6 +188,64 @@ export const setUserRole = createServerFn({ method: "POST" })
       const { error } = await supabase.from("user_roles").delete().eq("user_id", data.userId).eq("role", data.role);
       if (error) throw error;
     }
+    return { ok: true };
+  });
+
+export const createUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      email: z.string().email().max(255),
+      full_name: z.string().min(1).max(255),
+      password: z.string().min(8).max(128),
+      roles: z.array(z.enum(["admin", "tech", "reviewer"])).max(3).default([]),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name: data.full_name },
+    });
+    if (error) throw error;
+    const newId = created.user?.id;
+    if (!newId) throw new Error("User creation failed");
+    // handle_new_user trigger creates profile + default 'tech' role.
+    // Replace with the exact roles requested.
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
+    if (data.roles.length) {
+      const rows = data.roles.map(r => ({ user_id: newId, role: r }));
+      const { error: rErr } = await supabaseAdmin.from("user_roles").insert(rows);
+      if (rErr) throw rErr;
+    }
+    return { ok: true, id: newId };
+  });
+
+export const deleteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ userId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) throw new Error("You cannot delete your own account");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+export const resetUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      password: z.string().min(8).max(128),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: data.password });
+    if (error) throw error;
     return { ok: true };
   });
 
