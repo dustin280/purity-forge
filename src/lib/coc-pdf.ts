@@ -42,7 +42,10 @@ export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPD
 
   for (const f of fields) {
     const raw = record.data?.[f.field_key];
-    const value = raw == null || raw === "" ? "—" : String(raw);
+    let value: string;
+    if (raw == null || raw === "") value = "—";
+    else if (Array.isArray(raw)) value = raw.join(", ");
+    else value = String(raw);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
