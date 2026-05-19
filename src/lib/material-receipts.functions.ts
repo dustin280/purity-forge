@@ -23,6 +23,7 @@ export interface MaterialReceiptRow {
   supplier: string | null;
   po_number: string | null;
   notes: string | null;
+  freight_tracking_number: string | null;
   purpose: string | null;
   manufacturer: string | null;
   manufacturer_lot: string | null;
@@ -71,6 +72,7 @@ const receiptPayloadSchema = z.object({
   supplier: z.string().max(255).nullable().optional(),
   po_number: z.string().max(100).nullable().optional(),
   notes: z.string().max(4000).nullable().optional(),
+  freight_tracking_number: z.string().max(255).nullable().optional(),
   purpose: z.string().max(500).nullable().optional(),
   manufacturer: z.string().max(255).nullable().optional(),
   manufacturer_lot: z.string().max(100).nullable().optional(),
@@ -127,6 +129,7 @@ export const listMaterialReceipts = createServerFn({ method: "GET" })
           `manufacturer_lot.ilike.${term}`,
           `internal_lot.ilike.${term}`,
           `supplier.ilike.${term}`,
+          `freight_tracking_number.ilike.${term}`,
         ].join(","),
       );
     }
