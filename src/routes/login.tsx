@@ -41,8 +41,7 @@ function LoginPage() {
         <div>
           <h1 className="text-4xl font-bold text-white tracking-tight mb-3">Analytical precision, regulated workflow.</h1>
           <p className="text-sidebar-foreground/70 max-w-md">
-            Peptide and pharmaceutical purity testing on Agilent 1290 Infinity III with DAD detection.
-            Sample intake → HPLC analysis → reviewer approval → COA export.
+            {"\n"}
           </p>
         </div>
         <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/40">
