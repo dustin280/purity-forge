@@ -431,6 +431,7 @@ export type Database = {
         | "datetime"
         | "email"
         | "tel"
+        | "multiselect"
       sample_status: "received" | "in_progress" | "reviewed" | "approved"
       test_status: "pending" | "running" | "completed" | "failed"
     }
@@ -569,6 +570,7 @@ export const Constants = {
         "datetime",
         "email",
         "tel",
+        "multiselect",
       ],
       sample_status: ["received", "in_progress", "reviewed", "approved"],
       test_status: ["pending", "running", "completed", "failed"],

@@ -1,0 +1,1 @@
+ALTER TYPE public.coc_field_type ADD VALUE 'multiselect';

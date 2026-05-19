@@ -233,7 +233,7 @@ export const deleteParameter = createServerFn({ method: "POST" })
 
 // ============= Chain of Custody =============
 
-const cocFieldType = z.enum(["text", "textarea", "number", "date", "datetime", "email", "tel"]);
+const cocFieldType = z.enum(["text", "textarea", "number", "date", "datetime", "email", "tel", "multiselect"]);
 
 export const listCocFields = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -318,7 +318,7 @@ export const createCocRecord = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       sample_id: z.string().min(1).max(128),
-      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -337,7 +337,7 @@ export const updateCocRecord = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       sample_id: z.string().min(1).max(128).optional(),
-      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])).optional(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {

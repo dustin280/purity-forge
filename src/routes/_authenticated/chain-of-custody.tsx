@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   createCocRecord, updateCocRecord, deleteCocRecord,
+  listParameters,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ClipboardList, Eye, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
 
@@ -26,7 +28,7 @@ type CocField = {
   id: string;
   field_key: string;
   label: string;
-  field_type: "text" | "textarea" | "number" | "date" | "datetime" | "email" | "tel";
+  field_type: "text" | "textarea" | "number" | "date" | "datetime" | "email" | "tel" | "multiselect";
   is_required: boolean;
   is_active: boolean;
   sort_order: number;
@@ -256,7 +258,10 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
             <dl className="grid sm:grid-cols-[200px_1fr] gap-x-4 gap-y-2 text-sm">
               {fields.map(f => {
                 const v = rec.data?.[f.field_key];
-                const display = v == null || v === "" ? "—" : String(v);
+                let display: React.ReactNode;
+                if (v == null || v === "") display = "—";
+                else if (Array.isArray(v)) display = v.join(", ");
+                else display = String(v);
                 return (
                   <div key={f.id} className="sm:contents">
                     <dt className="font-medium text-muted-foreground">{f.label}</dt>
@@ -303,16 +308,28 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   });
 
   const activeFields = useMemo(() => fields.filter(f => f.is_active), [fields]);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string | string[]>>({});
+
+  const listParams = useServerFn(listParameters);
+  const { data: allParams = [] } = useQuery({
+    queryKey: ["test_parameters"],
+    queryFn: () => listParams(),
+    enabled: open,
+  });
+  const activeParams = allParams.filter((p: { is_active: boolean }) => p.is_active);
 
   // Reset values when dialog opens or data loads
   const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
   useEffect(() => {
     if (!open) return;
-    const init: Record<string, string> = {};
+    const init: Record<string, string | string[]> = {};
     activeFields.forEach(f => {
       const v = existing?.data?.[f.field_key];
-      init[f.field_key] = v == null ? "" : String(v);
+      if (f.field_type === "multiselect") {
+        init[f.field_key] = Array.isArray(v) ? v : [];
+      } else {
+        init[f.field_key] = v == null ? "" : String(v);
+      }
     });
     setValues(init);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -320,11 +337,16 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      const sampleIdVal = values.sample_id?.trim();
+      const sampleIdVal = (values.sample_id as string)?.trim();
       if (!sampleIdVal) throw new Error("Sample ID is required");
-      const data: Record<string, string | number | null> = {};
+      const data: Record<string, string | number | string[] | null> = {};
       activeFields.forEach(f => {
-        const raw = values[f.field_key]?.trim() ?? "";
+        if (f.field_type === "multiselect") {
+          const arr = values[f.field_key];
+          data[f.field_key] = Array.isArray(arr) && arr.length ? arr : null;
+          return;
+        }
+        const raw = (values[f.field_key] as string)?.trim() ?? "";
         if (raw === "") { data[f.field_key] = null; return; }
         if (f.field_type === "number") {
           const n = Number(raw);
@@ -347,8 +369,73 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
 
+  function MultiselectField({ fieldKey, selected, options, onToggle }: {
+    fieldKey: string;
+    selected: string[];
+    options: { id: string; name: string }[];
+    onToggle: (name: string) => void;
+  }) {
+    const [filter, setFilter] = useState("");
+    const filtered = options.filter(p =>
+      p.name.toLowerCase().includes(filter.toLowerCase())
+    );
+    return (
+      <div className="space-y-2" key={fieldKey}>
+        {selected.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selected.map(name => (
+              <Badge key={name} variant="secondary" className="gap-1">
+                {name}
+                <button type="button" onClick={() => onToggle(name)} className="hover:text-destructive">
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <Input
+          placeholder={`Filter ${options.length} parameters…`}
+          value={filter}
+          onChange={e => setFilter(e.target.value)}
+          className="h-8"
+        />
+        <div className="max-h-48 overflow-y-auto rounded-md border border-border divide-y divide-border">
+          {filtered.length === 0 ? (
+            <div className="p-3 text-xs text-muted-foreground">No parameters available.</div>
+          ) : filtered.map(p => {
+            const checked = selected.includes(p.name);
+            return (
+              <label key={p.id} className="flex items-center gap-2.5 px-3 py-1.5 text-sm cursor-pointer hover:bg-muted/40">
+                <Checkbox checked={checked} onCheckedChange={() => onToggle(p.name)} />
+                <span>{p.name}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function renderField(f: CocField) {
-    const v = values[f.field_key] ?? "";
+    if (f.field_type === "multiselect") {
+      const selected = (values[f.field_key] as string[]) ?? [];
+      function toggleParam(name: string) {
+        setValues(prev => {
+          const arr = new Set((prev[f.field_key] as string[]) ?? []);
+          if (arr.has(name)) arr.delete(name); else arr.add(name);
+          return { ...prev, [f.field_key]: Array.from(arr) };
+        });
+      }
+      return (
+        <MultiselectField
+          fieldKey={f.field_key}
+          selected={selected}
+          options={activeParams}
+          onToggle={toggleParam}
+        />
+      );
+    }
+    const v = values[f.field_key] as string ?? "";
     const set = (val: string) => setValues(prev => ({ ...prev, [f.field_key]: val }));
     const common = {
       id: f.field_key,
@@ -376,7 +463,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
           className="grid gap-4 py-2 sm:grid-cols-2"
         >
           {activeFields.map(f => (
-            <div key={f.id} className={f.field_type === "textarea" ? "sm:col-span-2" : ""}>
+            <div key={f.id} className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
               <Label htmlFor={f.field_key} className="text-xs">
                 {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
               </Label>
