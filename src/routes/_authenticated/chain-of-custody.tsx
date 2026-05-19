@@ -26,7 +26,7 @@ type CocField = {
   id: string;
   field_key: string;
   label: string;
-  field_type: "text" | "textarea" | "number" | "date" | "datetime" | "email" | "tel";
+  field_type: "text" | "textarea" | "number" | "date" | "datetime" | "email" | "tel" | "multiselect";
   is_required: boolean;
   is_active: boolean;
   sort_order: number;
