@@ -26,11 +26,11 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
-import { Route as AuthenticatedLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/logs/standard-preparations/index'
-import { Route as AuthenticatedLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/logs/daily-backpressure/index'
+import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
+import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
-import { Route as AuthenticatedLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/logs/standard-preparations/new'
-import { Route as AuthenticatedLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/logs/standard-preparations/$id'
+import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/new'
+import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -126,16 +126,16 @@ const AuthenticatedAdminCocFieldsRoute =
     path: '/admin/coc-fields',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedLogsStandardPreparationsIndexRoute =
-  AuthenticatedLogsStandardPreparationsIndexRouteImport.update({
-    id: '/logs/standard-preparations/',
-    path: '/logs/standard-preparations/',
+const AuthenticatedLabLogsStandardPreparationsIndexRoute =
+  AuthenticatedLabLogsStandardPreparationsIndexRouteImport.update({
+    id: '/lab-logs/standard-preparations/',
+    path: '/lab-logs/standard-preparations/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedLogsDailyBackpressureIndexRoute =
-  AuthenticatedLogsDailyBackpressureIndexRouteImport.update({
-    id: '/logs/daily-backpressure/',
-    path: '/logs/daily-backpressure/',
+const AuthenticatedLabLogsDailyBackpressureIndexRoute =
+  AuthenticatedLabLogsDailyBackpressureIndexRouteImport.update({
+    id: '/lab-logs/daily-backpressure/',
+    path: '/lab-logs/daily-backpressure/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
@@ -143,16 +143,16 @@ const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedLogsStandardPreparationsNewRoute =
-  AuthenticatedLogsStandardPreparationsNewRouteImport.update({
-    id: '/logs/standard-preparations/new',
-    path: '/logs/standard-preparations/new',
+const AuthenticatedLabLogsStandardPreparationsNewRoute =
+  AuthenticatedLabLogsStandardPreparationsNewRouteImport.update({
+    id: '/lab-logs/standard-preparations/new',
+    path: '/lab-logs/standard-preparations/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedLogsStandardPreparationsIdRoute =
-  AuthenticatedLogsStandardPreparationsIdRouteImport.update({
-    id: '/logs/standard-preparations/$id',
-    path: '/logs/standard-preparations/$id',
+const AuthenticatedLabLogsStandardPreparationsIdRoute =
+  AuthenticatedLabLogsStandardPreparationsIdRouteImport.update({
+    id: '/lab-logs/standard-preparations/$id',
+    path: '/lab-logs/standard-preparations/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 
@@ -173,11 +173,11 @@ export interface FileRoutesByFullPath {
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
-  '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
-  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
+  '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
+  '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
-  '/logs/daily-backpressure/': typeof AuthenticatedLogsDailyBackpressureIndexRoute
-  '/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
+  '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -196,11 +196,11 @@ export interface FileRoutesByTo {
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
-  '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
-  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
+  '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
+  '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
-  '/logs/daily-backpressure': typeof AuthenticatedLogsDailyBackpressureIndexRoute
-  '/logs/standard-preparations': typeof AuthenticatedLogsStandardPreparationsIndexRoute
+  '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -221,11 +221,11 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
-  '/_authenticated/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
-  '/_authenticated/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
+  '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
+  '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
-  '/_authenticated/logs/daily-backpressure/': typeof AuthenticatedLogsDailyBackpressureIndexRoute
-  '/_authenticated/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
+  '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -246,11 +246,11 @@ export interface FileRouteTypes {
     | '/lab-logs/'
     | '/material-receipts/'
     | '/samples/'
-    | '/logs/standard-preparations/$id'
-    | '/logs/standard-preparations/new'
+    | '/lab-logs/standard-preparations/$id'
+    | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
-    | '/logs/daily-backpressure/'
-    | '/logs/standard-preparations/'
+    | '/lab-logs/daily-backpressure/'
+    | '/lab-logs/standard-preparations/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -269,11 +269,11 @@ export interface FileRouteTypes {
     | '/lab-logs'
     | '/material-receipts'
     | '/samples'
-    | '/logs/standard-preparations/$id'
-    | '/logs/standard-preparations/new'
+    | '/lab-logs/standard-preparations/$id'
+    | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
-    | '/logs/daily-backpressure'
-    | '/logs/standard-preparations'
+    | '/lab-logs/daily-backpressure'
+    | '/lab-logs/standard-preparations'
   id:
     | '__root__'
     | '/_authenticated'
@@ -293,11 +293,11 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
-    | '/_authenticated/logs/standard-preparations/$id'
-    | '/_authenticated/logs/standard-preparations/new'
+    | '/_authenticated/lab-logs/standard-preparations/$id'
+    | '/_authenticated/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
-    | '/_authenticated/logs/daily-backpressure/'
-    | '/_authenticated/logs/standard-preparations/'
+    | '/_authenticated/lab-logs/daily-backpressure/'
+    | '/_authenticated/lab-logs/standard-preparations/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -427,18 +427,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCocFieldsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/logs/standard-preparations/': {
-      id: '/_authenticated/logs/standard-preparations/'
-      path: '/logs/standard-preparations'
-      fullPath: '/logs/standard-preparations/'
-      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsIndexRouteImport
+    '/_authenticated/lab-logs/standard-preparations/': {
+      id: '/_authenticated/lab-logs/standard-preparations/'
+      path: '/lab-logs/standard-preparations'
+      fullPath: '/lab-logs/standard-preparations/'
+      preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/logs/daily-backpressure/': {
-      id: '/_authenticated/logs/daily-backpressure/'
-      path: '/logs/daily-backpressure'
-      fullPath: '/logs/daily-backpressure/'
-      preLoaderRoute: typeof AuthenticatedLogsDailyBackpressureIndexRouteImport
+    '/_authenticated/lab-logs/daily-backpressure/': {
+      id: '/_authenticated/lab-logs/daily-backpressure/'
+      path: '/lab-logs/daily-backpressure'
+      fullPath: '/lab-logs/daily-backpressure/'
+      preLoaderRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/api/public/exports/$batchId': {
@@ -448,18 +448,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/logs/standard-preparations/new': {
-      id: '/_authenticated/logs/standard-preparations/new'
-      path: '/logs/standard-preparations/new'
-      fullPath: '/logs/standard-preparations/new'
-      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsNewRouteImport
+    '/_authenticated/lab-logs/standard-preparations/new': {
+      id: '/_authenticated/lab-logs/standard-preparations/new'
+      path: '/lab-logs/standard-preparations/new'
+      fullPath: '/lab-logs/standard-preparations/new'
+      preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/logs/standard-preparations/$id': {
-      id: '/_authenticated/logs/standard-preparations/$id'
-      path: '/logs/standard-preparations/$id'
-      fullPath: '/logs/standard-preparations/$id'
-      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsIdRouteImport
+    '/_authenticated/lab-logs/standard-preparations/$id': {
+      id: '/_authenticated/lab-logs/standard-preparations/$id'
+      path: '/lab-logs/standard-preparations/$id'
+      fullPath: '/lab-logs/standard-preparations/$id'
+      preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
   }
@@ -481,10 +481,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
-  AuthenticatedLogsStandardPreparationsIdRoute: typeof AuthenticatedLogsStandardPreparationsIdRoute
-  AuthenticatedLogsStandardPreparationsNewRoute: typeof AuthenticatedLogsStandardPreparationsNewRoute
-  AuthenticatedLogsDailyBackpressureIndexRoute: typeof AuthenticatedLogsDailyBackpressureIndexRoute
-  AuthenticatedLogsStandardPreparationsIndexRoute: typeof AuthenticatedLogsStandardPreparationsIndexRoute
+  AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
+  AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
+  AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -504,14 +504,14 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
-  AuthenticatedLogsStandardPreparationsIdRoute:
-    AuthenticatedLogsStandardPreparationsIdRoute,
-  AuthenticatedLogsStandardPreparationsNewRoute:
-    AuthenticatedLogsStandardPreparationsNewRoute,
-  AuthenticatedLogsDailyBackpressureIndexRoute:
-    AuthenticatedLogsDailyBackpressureIndexRoute,
-  AuthenticatedLogsStandardPreparationsIndexRoute:
-    AuthenticatedLogsStandardPreparationsIndexRoute,
+  AuthenticatedLabLogsStandardPreparationsIdRoute:
+    AuthenticatedLabLogsStandardPreparationsIdRoute,
+  AuthenticatedLabLogsStandardPreparationsNewRoute:
+    AuthenticatedLabLogsStandardPreparationsNewRoute,
+  AuthenticatedLabLogsDailyBackpressureIndexRoute:
+    AuthenticatedLabLogsDailyBackpressureIndexRoute,
+  AuthenticatedLabLogsStandardPreparationsIndexRoute:
+    AuthenticatedLabLogsStandardPreparationsIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -526,13 +526,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

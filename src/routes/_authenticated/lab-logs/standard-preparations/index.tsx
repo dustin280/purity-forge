@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, ChevronRight, ArrowLeft, FlaskConical } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/logs/standard-preparations/")({
+export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/")({
   component: StandardPrepsIndex,
 });
 

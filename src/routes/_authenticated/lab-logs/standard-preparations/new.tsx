@@ -8,7 +8,7 @@ import { PrepForm, prepValuesToPayload } from "@/components/standard-preparation
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/_authenticated/logs/standard-preparations/new")({
+export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/new")({
   component: NewPrep,
 });
 

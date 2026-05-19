@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export const Route = createFileRoute("/_authenticated/logs/daily-backpressure/")({
+export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressure/")({
   component: BackpressureLog,
 });
 

@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import jsPDF from "jspdf";
 
-export const Route = createFileRoute("/_authenticated/logs/standard-preparations/$id")({
+export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
   component: PrepDetail,
 });
 
