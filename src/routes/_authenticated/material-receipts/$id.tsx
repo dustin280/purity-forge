@@ -16,7 +16,8 @@ import {
   type MaterialReceiptRow,
   ATTACHMENT_KINDS,
 } from "@/lib/material-receipts.functions";
-import { ReceiptForm, valuesToPayload, type ReceiptFormValues } from "@/components/material-receipts/receipt-form";
+import { ReceiptForm, valuesToPayload, type ReceiptFormValues, type PendingAttachments } from "@/components/material-receipts/receipt-form";
+import { uploadPending } from "./new";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ function ReceiptDetail() {
   const update = useServerFn(updateMaterialReceipt);
   const del = useServerFn(deleteMaterialReceipt);
   const approve = useServerFn(approveMaterialReceipt);
+  const record = useServerFn(recordAttachment);
 
   const [editing, setEditing] = useState(false);
 
@@ -55,7 +57,11 @@ function ReceiptDetail() {
   });
 
   const updateMut = useMutation({
-    mutationFn: (patch: ReturnType<typeof valuesToPayload>) => update({ data: { id, patch } }),
+    mutationFn: async (args: { patch: ReturnType<typeof valuesToPayload>; pending: PendingAttachments }) => {
+      const row = await update({ data: { id, patch: args.patch } });
+      await uploadPending(id, args.pending, record);
+      return row;
+    },
     onSuccess: () => {
       toast.success("Saved");
       setEditing(false);
@@ -101,6 +107,7 @@ function ReceiptDetail() {
       supplier: r.supplier ?? "",
       po_number: r.po_number ?? "",
       notes: r.notes ?? "",
+      freight_tracking_number: r.freight_tracking_number ?? "",
       purpose: r.purpose ?? "",
       manufacturer: r.manufacturer ?? "",
       manufacturer_lot: r.manufacturer_lot ?? "",
@@ -128,7 +135,7 @@ function ReceiptDetail() {
           defaultReceiverName={r.receiver_name}
           submitting={updateMut.isPending}
           submitLabel="Save Changes"
-          onSubmit={(v) => updateMut.mutate(valuesToPayload(v))}
+          onSubmit={(v, pending) => updateMut.mutate({ patch: valuesToPayload(v), pending })}
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -209,6 +216,7 @@ function ReceiptDetail() {
           <Row label="Quantity" value={r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"} />
           <Row label="Supplier" value={r.supplier} />
           <Row label="PO / Invoice" value={r.po_number} />
+          <Row label="Freight tracking #" value={r.freight_tracking_number} />
           {!isControlled && <Row label="Purpose" value={r.purpose} />}
           {r.notes && <Row label="Notes" value={r.notes} multiline />}
         </Card>
@@ -425,6 +433,7 @@ async function exportPdf(r: MaterialReceiptRow) {
     ["Quantity", r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"],
     ["Supplier", r.supplier ?? "—"],
     ["PO / Invoice", r.po_number ?? "—"],
+    ["Freight tracking #", r.freight_tracking_number ?? "—"],
     ["Notes", r.notes ?? "—"],
   ];
   autoTable(doc, { startY: 30, head: [["Field", "Value"]], body: common, styles: { fontSize: 9 } });

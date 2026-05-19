@@ -266,6 +266,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           expiry_date: string | null
+          freight_tracking_number: string | null
           id: string
           internal_lot: string | null
           manufacturer: string | null
@@ -304,6 +305,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
+          freight_tracking_number?: string | null
           id?: string
           internal_lot?: string | null
           manufacturer?: string | null
@@ -342,6 +344,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expiry_date?: string | null
+          freight_tracking_number?: string | null
           id?: string
           internal_lot?: string | null
           manufacturer?: string | null
