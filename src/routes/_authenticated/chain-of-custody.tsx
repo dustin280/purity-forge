@@ -6,7 +6,9 @@ import {
   listCocFields, listCocRecords, getCocRecord,
   updateCocRecord, deleteCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
+  recordCocAttachment, listCocAttachments, deleteCocAttachment, signedCocAttachmentUrl,
 } from "@/lib/lims.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash, Camera, Upload, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
