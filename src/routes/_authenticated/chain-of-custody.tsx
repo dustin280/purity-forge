@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   createCocRecord, updateCocRecord, deleteCocRecord,
@@ -138,7 +138,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
 
   // Reset values when dialog opens or data loads
   const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
-  useMemo(() => {
+  useEffect(() => {
     if (!open) return;
     const init: Record<string, string> = {};
     activeFields.forEach(f => {

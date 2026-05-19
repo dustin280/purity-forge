@@ -20,6 +20,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
+import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -81,6 +82,12 @@ const AuthenticatedAdminParametersRoute =
     path: '/admin/parameters',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminCocFieldsRoute =
+  AuthenticatedAdminCocFieldsRouteImport.update({
+    id: '/admin/coc-fields',
+    path: '/admin/coc-fields',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   id: '/api/public/exports/$batchId',
   path: '/api/public/exports/$batchId',
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/': typeof AuthenticatedIndexRoute
+  '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -121,6 +130,7 @@ export interface FileRoutesById {
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/chain-of-custody'
     | '/integrations'
     | '/users'
+    | '/admin/coc-fields'
     | '/admin/parameters'
     | '/samples/$batchId'
     | '/samples/new'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/users'
     | '/'
+    | '/admin/coc-fields'
     | '/admin/parameters'
     | '/samples/$batchId'
     | '/samples/new'
@@ -163,6 +175,7 @@ export interface FileRouteTypes {
     | '/_authenticated/integrations'
     | '/_authenticated/users'
     | '/_authenticated/'
+    | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
@@ -256,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/coc-fields': {
+      id: '/_authenticated/admin/coc-fields'
+      path: '/admin/coc-fields'
+      fullPath: '/admin/coc-fields'
+      preLoaderRoute: typeof AuthenticatedAdminCocFieldsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/exports/$batchId': {
       id: '/api/public/exports/$batchId'
       path: '/api/public/exports/$batchId'
@@ -271,6 +291,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
@@ -283,6 +304,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
