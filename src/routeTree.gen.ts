@@ -28,6 +28,8 @@ import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/logs/standard-preparations/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
+import { Route as AuthenticatedLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/logs/standard-preparations/new'
+import { Route as AuthenticatedLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/logs/standard-preparations/$id'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -133,6 +135,18 @@ const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedLogsStandardPreparationsNewRoute =
+  AuthenticatedLogsStandardPreparationsNewRouteImport.update({
+    id: '/logs/standard-preparations/new',
+    path: '/logs/standard-preparations/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLogsStandardPreparationsIdRoute =
+  AuthenticatedLogsStandardPreparationsIdRouteImport.update({
+    id: '/logs/standard-preparations/$id',
+    path: '/logs/standard-preparations/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -151,6 +165,8 @@ export interface FileRoutesByFullPath {
   '/logs/': typeof AuthenticatedLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
+  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -171,6 +187,8 @@ export interface FileRoutesByTo {
   '/logs': typeof AuthenticatedLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
+  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/logs/standard-preparations': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -193,6 +211,8 @@ export interface FileRoutesById {
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/_authenticated/logs/standard-preparations/$id': typeof AuthenticatedLogsStandardPreparationsIdRoute
+  '/_authenticated/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -215,6 +235,8 @@ export interface FileRouteTypes {
     | '/logs/'
     | '/material-receipts/'
     | '/samples/'
+    | '/logs/standard-preparations/$id'
+    | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/logs/standard-preparations/'
   fileRoutesByTo: FileRoutesByTo
@@ -235,6 +257,8 @@ export interface FileRouteTypes {
     | '/logs'
     | '/material-receipts'
     | '/samples'
+    | '/logs/standard-preparations/$id'
+    | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/logs/standard-preparations'
   id:
@@ -256,6 +280,8 @@ export interface FileRouteTypes {
     | '/_authenticated/logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
+    | '/_authenticated/logs/standard-preparations/$id'
+    | '/_authenticated/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/_authenticated/logs/standard-preparations/'
   fileRoutesById: FileRoutesById
@@ -401,6 +427,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/logs/standard-preparations/new': {
+      id: '/_authenticated/logs/standard-preparations/new'
+      path: '/logs/standard-preparations/new'
+      fullPath: '/logs/standard-preparations/new'
+      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/logs/standard-preparations/$id': {
+      id: '/_authenticated/logs/standard-preparations/$id'
+      path: '/logs/standard-preparations/$id'
+      fullPath: '/logs/standard-preparations/$id'
+      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -420,6 +460,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+  AuthenticatedLogsStandardPreparationsIdRoute: typeof AuthenticatedLogsStandardPreparationsIdRoute
+  AuthenticatedLogsStandardPreparationsNewRoute: typeof AuthenticatedLogsStandardPreparationsNewRoute
   AuthenticatedLogsStandardPreparationsIndexRoute: typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 
@@ -440,6 +482,10 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+  AuthenticatedLogsStandardPreparationsIdRoute:
+    AuthenticatedLogsStandardPreparationsIdRoute,
+  AuthenticatedLogsStandardPreparationsNewRoute:
+    AuthenticatedLogsStandardPreparationsNewRoute,
   AuthenticatedLogsStandardPreparationsIndexRoute:
     AuthenticatedLogsStandardPreparationsIndexRoute,
 }
