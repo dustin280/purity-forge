@@ -116,6 +116,48 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_backpressure_logs: {
+        Row: {
+          backpressure: number
+          backpressure_unit: string
+          created_at: string
+          created_by: string | null
+          id: string
+          instrument: string
+          notes: string | null
+          reading_at: string
+          updated_at: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          backpressure: number
+          backpressure_unit?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instrument?: string
+          notes?: string | null
+          reading_at?: string
+          updated_at?: string
+          user_id?: string | null
+          user_name: string
+        }
+        Update: {
+          backpressure?: number
+          backpressure_unit?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instrument?: string
+          notes?: string | null
+          reading_at?: string
+          updated_at?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: []
+      }
       export_config: {
         Row: {
           api_key: string
