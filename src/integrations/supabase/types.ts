@@ -672,6 +672,45 @@ export type Database = {
           },
         ]
       }
+      sftp_config: {
+        Row: {
+          host: string
+          id: string
+          is_active: boolean
+          password: string | null
+          port: number
+          private_key: string | null
+          remote_path: string
+          updated_at: string
+          updated_by: string | null
+          username: string
+        }
+        Insert: {
+          host?: string
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          port?: number
+          private_key?: string | null
+          remote_path?: string
+          updated_at?: string
+          updated_by?: string | null
+          username?: string
+        }
+        Update: {
+          host?: string
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          port?: number
+          private_key?: string | null
+          remote_path?: string
+          updated_at?: string
+          updated_by?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
       standard_preparation_attachments: {
         Row: {
           content_type: string | null
