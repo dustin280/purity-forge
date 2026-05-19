@@ -196,6 +196,36 @@ export type Database = {
           },
         ]
       }
+      material_receipt_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string
+          id: string
+          log_date: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -214,6 +244,66 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      qc_prep_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string
+          id: string
+          log_date: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reagent_prep_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string
+          id: string
+          log_date: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -269,6 +359,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sample_prep_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string
+          id: string
+          log_date: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       samples: {
         Row: {
@@ -334,6 +454,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      standard_prep_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_name: string
+          id: string
+          log_date: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_name: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_name?: string
+          id?: string
+          log_date?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       test_parameters: {
         Row: {
