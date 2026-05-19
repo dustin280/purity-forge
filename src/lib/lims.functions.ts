@@ -633,7 +633,15 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
     if (cocErr) throw cocErr;
 
     // 2. Create one sample per vial across all line items (continuous numbering)
-    const rows: Array<Record<string, unknown>> = [];
+    type SampleInsert = {
+      batch_id: string; client: string; project: string | null;
+      receipt_date: string; parameters: string[]; notes: string | null;
+      coc_id: string; coc_line_no: number; compound: string;
+      lot: string | null; catalog: string | null;
+      container_size: string | null; concentration: string | null;
+      created_by: string; status: "received";
+    };
+    const rows: SampleInsert[] = [];
     let seq = 0;
     data.line_items.forEach((li) => {
       const vials = Math.max(1, li.vial_count ?? 1);
