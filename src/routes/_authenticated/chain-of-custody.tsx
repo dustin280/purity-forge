@@ -293,7 +293,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const qc = useQueryClient();
   const listFields = useServerFn(listCocFields);
   const getRec = useServerFn(getCocRecord);
-  const create = useServerFn(createCocRecord);
+  const submit = useServerFn(submitCocWithSamples);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
 
@@ -310,6 +310,13 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
 
   const activeFields = useMemo(() => fields.filter(f => f.is_active), [fields]);
   const [values, setValues] = useState<Record<string, string | string[]>>({});
+  type LineItem = {
+    compound: string; lot: string; catalog: string; manufacturer: string;
+    quantity: string; storage: string; requested_tests: string[];
+  };
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] },
+  ]);
 
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
@@ -337,6 +344,17 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       init.sample_id = existing.sample_id;
     }
     setValues(init);
+    // Hydrate line items
+    const existingItems = (existing as unknown as { line_items?: LineItem[] } | undefined)?.line_items;
+    if (existingItems && existingItems.length) {
+      setLineItems(existingItems.map(li => ({
+        compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
+        manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
+        storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
+      })));
+    } else {
+      setLineItems([{ compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] }]);
+    }
     // Autofill new invoice # when creating
     if (!recordId && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
@@ -370,12 +388,18 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
       } else {
-        await create({ data: { sample_id: sampleIdVal, data } });
+        const cleaned = lineItems
+          .map(li => ({ ...li, compound: li.compound.trim() }))
+          .filter(li => li.compound.length > 0);
+        if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
+        await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } });
       }
     },
     onSuccess: () => {
-      toast.success(recordId ? "Record updated" : "Record created");
+      toast.success(recordId ? "Record updated" : "CoC submitted — samples added to Intake queue");
       qc.invalidateQueries({ queryKey: ["coc_records"] });
+      qc.invalidateQueries({ queryKey: ["intake_queue"] });
+      qc.invalidateQueries({ queryKey: ["samples"] });
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
