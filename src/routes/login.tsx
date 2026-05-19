@@ -1,10 +1,9 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
@@ -14,39 +13,20 @@ function LoginPage() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin },
-        });
-        if (error) throw error;
-        toast.success("Account created. Check your email if verification is required.");
-        nav({ to: "/" });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        nav({ to: "/" });
-      }
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      nav({ to: "/" });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setBusy(false);
     }
-  }
-
-  async function google() {
-    setBusy(true);
-    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    if (r.error) { toast.error(r.error.message || "Google sign-in failed"); setBusy(false); return; }
-    if (r.redirected) return;
-    nav({ to: "/" });
   }
 
   return (
@@ -72,10 +52,8 @@ function LoginPage() {
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm space-y-6">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">{mode === "signin" ? "Sign in" : "Create account"}</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {mode === "signin" ? "Access the lab dashboard." : "The first registered user becomes admin."}
-            </p>
+            <h2 className="text-2xl font-bold tracking-tight">Sign in</h2>
+            <p className="text-sm text-muted-foreground mt-1">Access is invite-only. Contact your administrator for an account.</p>
           </div>
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
@@ -87,22 +65,9 @@ function LoginPage() {
               <Input id="password" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} />
             </div>
             <Button type="submit" disabled={busy} className="w-full">
-              {busy ? "…" : mode === "signin" ? "Sign in" : "Create account"}
+              {busy ? "…" : "Sign in"}
             </Button>
           </form>
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-          <Button variant="outline" onClick={google} disabled={busy} className="w-full">
-            Continue with Google
-          </Button>
-          <button type="button" className="text-xs text-muted-foreground hover:text-foreground w-full text-center"
-            onClick={() => setMode(m => m === "signin" ? "signup" : "signin")}>
-            {mode === "signin" ? "Need an account? Sign up" : "Have an account? Sign in"}
-          </button>
         </div>
       </div>
     </div>
