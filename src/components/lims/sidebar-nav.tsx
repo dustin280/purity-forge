@@ -1,7 +1,9 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity } from "lucide-react";
+import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { useEffect, useState } from "react";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -10,11 +12,11 @@ const NAV = [
   { to: "/integrations", label: "Integrations", icon: Webhook },
 ];
 
-export function SidebarNav() {
+function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: r => r.location.pathname });
   const { role, user, signOut } = useAuth();
   return (
-    <aside className="w-60 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border shrink-0">
+    <div className="h-full w-full bg-sidebar text-sidebar-foreground flex flex-col">
       <div className="p-5 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
           <div className="size-7 rounded bg-sidebar-primary grid place-items-center">
@@ -26,12 +28,12 @@ export function SidebarNav() {
           </div>
         </div>
       </div>
-      <nav className="flex-1 p-3 space-y-0.5">
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         <div className="px-2 py-2 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Operations</div>
         {NAV.map(item => {
           const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
           return (
-            <Link key={item.to} to={item.to}
+            <Link key={item.to} to={item.to} onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                 active ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
               }`}>
@@ -42,7 +44,7 @@ export function SidebarNav() {
         {role === "admin" && (
           <>
             <div className="px-2 py-2 mt-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Admin</div>
-            <Link to="/users" className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+            <Link to="/users" onClick={onNavigate} className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
               pathname === "/users" ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
             }`}>
               <Users className="size-4" /> Users
@@ -65,6 +67,41 @@ export function SidebarNav() {
           <LogOut className="size-4 mr-2" /> Sign out
         </Button>
       </div>
+    </div>
+  );
+}
+
+export function SidebarNav() {
+  return (
+    <aside className="hidden md:flex w-60 border-r border-sidebar-border shrink-0">
+      <SidebarBody />
     </aside>
+  );
+}
+
+export function MobileTopBar() {
+  const [open, setOpen] = useState(false);
+  const pathname = useRouterState({ select: r => r.location.pathname });
+  useEffect(() => { setOpen(false); }, [pathname]);
+  return (
+    <header className="md:hidden sticky top-0 z-40 flex items-center gap-2 h-12 px-3 bg-sidebar text-sidebar-foreground border-b border-sidebar-border">
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button size="icon" variant="ghost" className="text-white hover:bg-sidebar-accent">
+            <Menu className="size-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SidebarBody onNavigate={() => setOpen(false)} />
+        </SheetContent>
+      </Sheet>
+      <div className="flex items-center gap-2">
+        <div className="size-6 rounded bg-sidebar-primary grid place-items-center">
+          <Activity className="size-3.5 text-sidebar-primary-foreground" />
+        </div>
+        <div className="text-sm font-bold tracking-tight text-white">QUANTUM LIMS</div>
+      </div>
+    </header>
   );
 }

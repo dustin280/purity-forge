@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { SidebarNav } from "@/components/lims/sidebar-nav";
+import { SidebarNav, MobileTopBar } from "@/components/lims/sidebar-nav";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -24,7 +24,10 @@ function AuthedLayout() {
   return (
     <div className="min-h-screen flex bg-background">
       <SidebarNav />
-      <main className="flex-1 overflow-x-auto"><Outlet /></main>
+      <div className="flex-1 flex flex-col min-w-0">
+        <MobileTopBar />
+        <main className="flex-1 min-w-0 overflow-x-auto"><Outlet /></main>
+      </div>
     </div>
   );
 }
