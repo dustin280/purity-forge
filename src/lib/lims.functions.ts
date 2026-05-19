@@ -264,6 +264,41 @@ export const resetUserPassword = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateUserProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      first_name: z.string().min(1).max(128).trim(),
+      last_name: z.string().min(1).max(128).trim(),
+      email: z.string().email().max(255),
+      title: z.string().max(128).trim().optional().nullable(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const full_name = `${data.first_name} ${data.last_name}`.trim();
+    const { error: aErr } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      email: data.email,
+      user_metadata: {
+        full_name,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        title: data.title ?? null,
+      },
+    });
+    if (aErr) throw aErr;
+    const { error: pErr } = await supabaseAdmin.from("profiles").update({
+      email: data.email,
+      full_name,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      title: data.title ?? null,
+    } as never).eq("id", data.userId);
+    if (pErr) throw pErr;
+    return { ok: true };
+  });
+
 export const listParameters = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
