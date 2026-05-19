@@ -28,6 +28,7 @@ import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/logs/standard-preparations/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
+import { Route as AuthenticatedLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/logs/standard-preparations/new'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -133,6 +134,12 @@ const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedLogsStandardPreparationsNewRoute =
+  AuthenticatedLogsStandardPreparationsNewRouteImport.update({
+    id: '/logs/standard-preparations/new',
+    path: '/logs/standard-preparations/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/logs/': typeof AuthenticatedLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -171,6 +179,7 @@ export interface FileRoutesByTo {
   '/logs': typeof AuthenticatedLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/logs/standard-preparations': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -193,6 +202,7 @@ export interface FileRoutesById {
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/_authenticated/logs/standard-preparations/new': typeof AuthenticatedLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/logs/standard-preparations/': typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
@@ -215,6 +225,7 @@ export interface FileRouteTypes {
     | '/logs/'
     | '/material-receipts/'
     | '/samples/'
+    | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/logs/standard-preparations/'
   fileRoutesByTo: FileRoutesByTo
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/logs'
     | '/material-receipts'
     | '/samples'
+    | '/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/logs/standard-preparations'
   id:
@@ -256,6 +268,7 @@ export interface FileRouteTypes {
     | '/_authenticated/logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
+    | '/_authenticated/logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/_authenticated/logs/standard-preparations/'
   fileRoutesById: FileRoutesById
@@ -401,6 +414,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/logs/standard-preparations/new': {
+      id: '/_authenticated/logs/standard-preparations/new'
+      path: '/logs/standard-preparations/new'
+      fullPath: '/logs/standard-preparations/new'
+      preLoaderRoute: typeof AuthenticatedLogsStandardPreparationsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -420,6 +440,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+  AuthenticatedLogsStandardPreparationsNewRoute: typeof AuthenticatedLogsStandardPreparationsNewRoute
   AuthenticatedLogsStandardPreparationsIndexRoute: typeof AuthenticatedLogsStandardPreparationsIndexRoute
 }
 
@@ -440,6 +461,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+  AuthenticatedLogsStandardPreparationsNewRoute:
+    AuthenticatedLogsStandardPreparationsNewRoute,
   AuthenticatedLogsStandardPreparationsIndexRoute:
     AuthenticatedLogsStandardPreparationsIndexRoute,
 }
@@ -456,3 +479,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
