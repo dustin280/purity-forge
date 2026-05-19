@@ -592,6 +592,10 @@ const lineItemSchema = z.object({
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
   quantity: z.string().max(64).optional().nullable(),
+  quantity_unit: z.string().max(32).optional().nullable(),
+  container_size: z.string().max(128).optional().nullable(),
+  concentration: z.string().max(128).optional().nullable(),
+  vial_count: z.number().int().min(1).max(99).optional().default(1),
   storage: z.string().max(255).optional().nullable(),
   requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
@@ -628,25 +632,33 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       .single();
     if (cocErr) throw cocErr;
 
-    // 2. Create one sample per line item
-    const rows = data.line_items.map((li, idx) => {
-      const lineNo = idx + 1;
-      const sampleId = `${data.sample_id}-${String(lineNo).padStart(2, "0")}`;
+    // 2. Create one sample per vial across all line items (continuous numbering)
+    const rows: Array<Record<string, unknown>> = [];
+    let seq = 0;
+    data.line_items.forEach((li) => {
+      const vials = Math.max(1, li.vial_count ?? 1);
       const params = li.requested_tests && li.requested_tests.length ? li.requested_tests : headerTests;
-      return {
-        batch_id: sampleId,
-        client: headerClient,
-        project: headerProject,
-        receipt_date: receiptDate,
-        parameters: params,
-        notes: li.catalog ? `Catalog: ${li.catalog}` : null,
-        coc_id: coc.id,
-        coc_line_no: lineNo,
-        compound: li.compound,
-        lot: li.lot ?? null,
-        created_by: userId,
-        status: "received" as const,
-      };
+      for (let v = 0; v < vials; v++) {
+        seq += 1;
+        const sampleId = `${data.sample_id}-${String(seq).padStart(2, "0")}`;
+        rows.push({
+          batch_id: sampleId,
+          client: headerClient,
+          project: headerProject,
+          receipt_date: receiptDate,
+          parameters: params,
+          notes: li.catalog ? `Catalog: ${li.catalog}` : null,
+          coc_id: coc.id,
+          coc_line_no: seq,
+          compound: li.compound,
+          lot: li.lot ?? null,
+          catalog: li.catalog ?? null,
+          container_size: li.container_size ?? null,
+          concentration: li.concentration ?? null,
+          created_by: userId,
+          status: "received" as const,
+        });
+      }
     });
     const { data: samples, error: sErr } = await supabase
       .from("samples")
