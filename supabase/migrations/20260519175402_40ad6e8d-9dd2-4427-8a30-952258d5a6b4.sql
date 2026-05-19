@@ -1,0 +1,1 @@
+ALTER TABLE public.material_receipts ADD COLUMN freight_tracking_number text;
