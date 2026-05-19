@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
-import synthesyxLogo from "@/assets/synthesyx-logo.png";
+import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
