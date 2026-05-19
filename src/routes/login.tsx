@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
-import { Activity } from "lucide-react";
+import synthesyxLogo from "@/assets/synthesyx-logo.png";
 
 export const Route = createFileRoute("/login")({ component: LoginPage });
 
@@ -52,12 +52,12 @@ function LoginPage() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
       <div className="hidden lg:flex flex-col justify-between bg-sidebar text-sidebar-foreground p-12">
-        <div className="flex items-center gap-2">
-          <div className="size-8 rounded bg-sidebar-primary grid place-items-center">
-            <Activity className="size-5 text-sidebar-primary-foreground" />
-          </div>
-          <div className="text-white font-bold tracking-tight">QUANTUM LIMS</div>
-        </div>
+        <img
+          src={synthesyxLogo}
+          alt="Synthesyx"
+          className="h-10 w-auto"
+          style={{ filter: "invert(1) brightness(2)" }}
+        />
         <div>
           <h1 className="text-4xl font-bold text-white tracking-tight mb-3">Analytical precision, regulated workflow.</h1>
           <p className="text-sidebar-foreground/70 max-w-md">

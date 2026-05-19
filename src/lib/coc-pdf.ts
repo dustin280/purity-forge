@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export type CocFieldLite = { field_key: string; label: string };
 export type CocRecordLite = {
@@ -15,10 +16,18 @@ export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPD
   const margin = 48;
   let y = margin;
 
+  // Branded letterhead
+  doc.addImage(SYNTHESYX_LOGO_PNG_BASE64, "PNG", margin, y - 6, 120, 36);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text("Chain of Custody", margin, y);
-  y += 22;
+  doc.setFontSize(14);
+  doc.setTextColor(31, 41, 55);
+  doc.text("Chain of Custody", pageW - margin, y + 14, { align: "right" });
+  y += 36;
+  doc.setDrawColor(31, 41, 55);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y, pageW - margin, y);
+  y += 14;
+  doc.setTextColor(0);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);

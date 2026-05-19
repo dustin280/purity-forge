@@ -1,9 +1,10 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Activity, Menu, Shield, ClipboardList } from "lucide-react";
+import { LayoutDashboard, FlaskConical, FilePlus, Webhook, Users, LogOut, Menu, Shield, ClipboardList } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
+import synthesyxLogo from "@/assets/synthesyx-logo.png";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -19,15 +20,15 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="h-full w-full bg-sidebar text-sidebar-foreground flex flex-col">
       <div className="p-5 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="size-7 rounded bg-sidebar-primary grid place-items-center">
-            <Activity className="size-4 text-sidebar-primary-foreground" />
-          </div>
-          <div>
-            <div className="text-sm font-bold tracking-tight text-white">QUANTUM LIMS</div>
-            <div className="text-[9px] uppercase tracking-widest text-sidebar-foreground/60">HPLC-DAD v1.0</div>
-          </div>
-        </div>
+        <Link to="/" onClick={onNavigate} className="block">
+          <img
+            src={synthesyxLogo}
+            alt="Synthesyx"
+            className="h-8 w-auto invert brightness-0 contrast-200"
+            style={{ filter: "invert(1) brightness(2)" }}
+          />
+          <div className="text-[9px] uppercase tracking-widest text-sidebar-foreground/60 mt-2">HPLC-DAD LIMS</div>
+        </Link>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         <div className="px-2 py-2 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Operations</div>
@@ -102,12 +103,12 @@ export function MobileTopBar() {
           <SidebarBody onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
-      <div className="flex items-center gap-2">
-        <div className="size-6 rounded bg-sidebar-primary grid place-items-center">
-          <Activity className="size-3.5 text-sidebar-primary-foreground" />
-        </div>
-        <div className="text-sm font-bold tracking-tight text-white">QUANTUM LIMS</div>
-      </div>
+      <img
+        src={synthesyxLogo}
+        alt="Synthesyx"
+        className="h-6 w-auto"
+        style={{ filter: "invert(1) brightness(2)" }}
+      />
     </header>
   );
 }
