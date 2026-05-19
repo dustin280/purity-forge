@@ -299,6 +299,51 @@ export const updateUserProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const inviteUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      email: z.string().email().max(255),
+      first_name: z.string().min(1).max(128).trim(),
+      last_name: z.string().min(1).max(128).trim(),
+      title: z.string().max(128).trim().optional().nullable(),
+      roles: z.array(z.enum(["admin", "tech", "reviewer"])).max(3).default([]),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const full_name = `${data.first_name} ${data.last_name}`.trim();
+    const redirectTo =
+      (process.env.SITE_URL as string | undefined) ??
+      (process.env.PUBLIC_SITE_URL as string | undefined) ??
+      undefined;
+    const { data: invited, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(data.email, {
+      data: {
+        full_name,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        title: data.title ?? null,
+      },
+      redirectTo,
+    });
+    if (error) throw error;
+    const newId = invited.user?.id;
+    if (!newId) throw new Error("Invite failed");
+    await supabaseAdmin.from("profiles").update({
+      full_name,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      title: data.title ?? null,
+    } as never).eq("id", newId);
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
+    if (data.roles.length) {
+      const rows = data.roles.map(r => ({ user_id: newId, role: r }));
+      const { error: rErr } = await supabaseAdmin.from("user_roles").insert(rows);
+      if (rErr) throw rErr;
+    }
+    return { ok: true, id: newId };
+  });
+
 export const listParameters = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
