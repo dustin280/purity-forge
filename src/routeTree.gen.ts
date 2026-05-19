@@ -17,10 +17,13 @@ import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authent
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
+import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authenticated/logs/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
+import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedLogsLogTypeRouteImport } from './routes/_authenticated/logs/$logType'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
@@ -68,6 +71,12 @@ const AuthenticatedSamplesIndexRoute =
     path: '/samples/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMaterialReceiptsIndexRoute =
+  AuthenticatedMaterialReceiptsIndexRouteImport.update({
+    id: '/material-receipts/',
+    path: '/material-receipts/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLogsIndexRoute = AuthenticatedLogsIndexRouteImport.update({
   id: '/logs/',
   path: '/logs/',
@@ -87,6 +96,18 @@ const AuthenticatedSamplesBatchIdRoute =
   AuthenticatedSamplesBatchIdRouteImport.update({
     id: '/samples/$batchId',
     path: '/samples/$batchId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaterialReceiptsNewRoute =
+  AuthenticatedMaterialReceiptsNewRouteImport.update({
+    id: '/material-receipts/new',
+    path: '/material-receipts/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaterialReceiptsIdRoute =
+  AuthenticatedMaterialReceiptsIdRouteImport.update({
+    id: '/material-receipts/$id',
+    path: '/material-receipts/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedLogsLogTypeRoute =
@@ -123,10 +144,13 @@ export interface FileRoutesByFullPath {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
+  '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/logs/': typeof AuthenticatedLogsIndexRoute
+  '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -140,10 +164,13 @@ export interface FileRoutesByTo {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
+  '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/logs': typeof AuthenticatedLogsIndexRoute
+  '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -159,10 +186,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
+  '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
+  '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
+  '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
 }
@@ -178,10 +208,13 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/logs/$logType'
+    | '/material-receipts/$id'
+    | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
     | '/logs/'
+    | '/material-receipts/'
     | '/samples/'
     | '/api/public/exports/$batchId'
   fileRoutesByTo: FileRoutesByTo
@@ -195,10 +228,13 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/parameters'
     | '/logs/$logType'
+    | '/material-receipts/$id'
+    | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
     | '/logs'
+    | '/material-receipts'
     | '/samples'
     | '/api/public/exports/$batchId'
   id:
@@ -213,10 +249,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/logs/$logType'
+    | '/_authenticated/material-receipts/$id'
+    | '/_authenticated/material-receipts/new'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
     | '/_authenticated/logs/'
+    | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
     | '/api/public/exports/$batchId'
   fileRoutesById: FileRoutesById
@@ -285,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/material-receipts/': {
+      id: '/_authenticated/material-receipts/'
+      path: '/material-receipts'
+      fullPath: '/material-receipts/'
+      preLoaderRoute: typeof AuthenticatedMaterialReceiptsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/logs/': {
       id: '/_authenticated/logs/'
       path: '/logs'
@@ -311,6 +357,20 @@ declare module '@tanstack/react-router' {
       path: '/samples/$batchId'
       fullPath: '/samples/$batchId'
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/material-receipts/new': {
+      id: '/_authenticated/material-receipts/new'
+      path: '/material-receipts/new'
+      fullPath: '/material-receipts/new'
+      preLoaderRoute: typeof AuthenticatedMaterialReceiptsNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/material-receipts/$id': {
+      id: '/_authenticated/material-receipts/$id'
+      path: '/material-receipts/$id'
+      fullPath: '/material-receipts/$id'
+      preLoaderRoute: typeof AuthenticatedMaterialReceiptsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/logs/$logType': {
@@ -353,10 +413,13 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedLogsLogTypeRoute: typeof AuthenticatedLogsLogTypeRoute
+  AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
+  AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
+  AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
 }
 
@@ -369,10 +432,14 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedLogsLogTypeRoute: AuthenticatedLogsLogTypeRoute,
+  AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
+  AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedLogsIndexRoute: AuthenticatedLogsIndexRoute,
+  AuthenticatedMaterialReceiptsIndexRoute:
+    AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
 }
 
@@ -388,13 +455,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

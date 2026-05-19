@@ -673,13 +673,12 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
   });
 // ============== Logs ==============
 const LOG_TABLES = {
-  material_receipt: "material_receipt_logs",
   standard_prep: "standard_prep_logs",
   reagent_prep: "reagent_prep_logs",
   sample_prep: "sample_prep_logs",
   qc_prep: "qc_prep_logs",
 } as const;
-const logTypeSchema = z.enum(["material_receipt", "standard_prep", "reagent_prep", "sample_prep", "qc_prep"]);
+const logTypeSchema = z.enum(["standard_prep", "reagent_prep", "sample_prep", "qc_prep"]);
 
 export const listLogEntries = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
