@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getDashboard } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/lims/status-pill";
-import { fmtPct, type SampleStatus } from "@/lib/lims-utils";
+import { type SampleStatus } from "@/lib/lims-utils";
 import { Beaker, FlaskConical, ClipboardCheck, CheckCircle2, Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
@@ -42,13 +42,6 @@ function Dashboard() {
           </Card>
         ))}
       </div>
-
-      <Card className="p-4 border-border">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Average Purity</div>
-        <div className="text-4xl font-mono font-bold" style={{ color: "var(--status-success)" }}>
-          {data?.avgPurity != null ? fmtPct(data.avgPurity) : "—"}
-        </div>
-      </Card>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <Card className="border-border">
