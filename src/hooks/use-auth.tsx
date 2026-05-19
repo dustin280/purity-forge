@@ -4,23 +4,46 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AppRole = "admin" | "tech" | "reviewer";
 
+export interface UserProfile {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  title: string | null;
+}
+
+export function profileDisplayName(p: UserProfile | null, fallback?: string | null): string {
+  if (!p) return fallback ?? "";
+  const fl = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+  return fl || p.full_name || p.email || fallback || "";
+}
+
 interface AuthState {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
+  profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthState>({
-  user: null, session: null, role: null, loading: true,
+  user: null, session: null, role: null, profile: null, loading: true,
   signOut: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const loadProfile = (userId: string) => {
+    supabase.from("profiles").select("*").eq("id", userId).maybeSingle().then(({ data }) => {
+      setProfile((data as UserProfile | null) ?? null);
+    });
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -32,9 +55,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const priority: AppRole[] = ["admin", "reviewer", "tech"];
             setRole(priority.find(p => roles.includes(p)) ?? null);
           });
+          loadProfile(s.user.id);
         }, 0);
       } else {
         setRole(null);
+        setProfile(null);
       }
     });
 
@@ -47,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(priority.find(p => roles.includes(p)) ?? null);
           setLoading(false);
         });
+        loadProfile(data.session.user.id);
       } else {
         setLoading(false);
       }
@@ -58,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthCtx.Provider value={{
       user: session?.user ?? null,
-      session, role, loading,
+      session, role, profile, loading,
       signOut: async () => { await supabase.auth.signOut(); },
     }}>
       {children}

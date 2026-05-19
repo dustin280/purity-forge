@@ -24,6 +24,20 @@ export const Route = createFileRoute("/_authenticated/users")({ component: Users
 const ROLES = ["admin", "tech", "reviewer"] as const;
 type Role = typeof ROLES[number];
 
+type ProfileExt = {
+  id: string;
+  email: string | null;
+  full_name: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  title?: string | null;
+};
+
+function displayName(p: ProfileExt): string {
+  const fl = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+  return fl || p.full_name || p.email || "Unknown";
+}
+
 function Users() {
   const qc = useQueryClient();
   const listFn = useServerFn(listUsers);
@@ -39,7 +53,14 @@ function Users() {
 
   // Add user dialog state
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ email: "", full_name: "", password: "", roles: ["tech"] as Role[] });
+  const [form, setForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+    title: "",
+    password: "",
+    roles: ["tech"] as Role[],
+  });
   const [busy, setBusy] = useState(false);
 
   // Reset password dialog state
@@ -57,10 +78,19 @@ function Users() {
   async function handleAdd() {
     setBusy(true);
     try {
-      await createFn({ data: form });
+      await createFn({
+        data: {
+          first_name: form.first_name.trim(),
+          last_name: form.last_name.trim(),
+          email: form.email.trim(),
+          title: form.title.trim() || null,
+          password: form.password,
+          roles: form.roles,
+        },
+      });
       toast.success("User created");
       setAddOpen(false);
-      setForm({ email: "", full_name: "", password: "", roles: ["tech"] });
+      setForm({ first_name: "", last_name: "", email: "", title: "", password: "", roles: ["tech"] });
       qc.invalidateQueries({ queryKey: ["users"] });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setBusy(false); }
@@ -101,8 +131,12 @@ function Users() {
               <DialogDescription>Creates an account with the chosen roles. The user can sign in immediately.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              <div><Label>Full name</Label><Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></div>
-              <div><Label>Email</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>First name</Label><Input value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} /></div>
+                <div><Label>Last name</Label><Input value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} /></div>
+              </div>
+              <div><Label>Email address</Label><Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+              <div><Label>Title</Label><Input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Lab Technician" /></div>
               <div><Label>Temporary password</Label><Input type="text" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} placeholder="Min 8 characters" /></div>
               <div>
                 <Label>Roles</Label>
@@ -119,7 +153,7 @@ function Users() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setAddOpen(false)} disabled={busy}>Cancel</Button>
-              <Button onClick={handleAdd} disabled={busy || !form.email || !form.full_name || form.password.length < 8}>Create</Button>
+              <Button onClick={handleAdd} disabled={busy || !form.email || !form.first_name.trim() || !form.last_name.trim() || form.password.length < 8}>Create</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -138,8 +172,8 @@ function Users() {
             {data?.profiles.map(p => (
               <tr key={p.id}>
                 <td className="px-4 py-3">
-                  <div className="font-medium">{p.full_name ?? p.email}</div>
-                  <div className="text-xs text-muted-foreground">{p.email}</div>
+                  <div className="font-medium">{displayName(p as ProfileExt)}</div>
+                  <div className="text-xs text-muted-foreground">{p.email}{(p as ProfileExt).title ? ` · ${(p as ProfileExt).title}` : ""}</div>
                 </td>
                 {ROLES.map(r => {
                   const has = data.roles.some(x => x.user_id === p.id && x.role === r);

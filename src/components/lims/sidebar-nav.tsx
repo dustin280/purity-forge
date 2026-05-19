@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
@@ -17,7 +17,9 @@ const NAV = [
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: r => r.location.pathname });
-  const { role, user, signOut } = useAuth();
+  const { role, user, profile, signOut } = useAuth();
+  const name = profileDisplayName(profile, user?.email) || user?.email || "";
+  const initial = (profile?.first_name?.[0] ?? name[0] ?? "?").toUpperCase();
   return (
     <div className="h-full w-full bg-sidebar text-sidebar-foreground flex flex-col">
       <div className="p-5 border-b border-sidebar-border">
@@ -63,11 +65,13 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
       <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2 mb-1">
           <div className="size-8 rounded-full bg-sidebar-accent grid place-items-center text-[10px] font-bold text-white">
-            {user?.email?.[0]?.toUpperCase() ?? "?"}
+            {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-white truncate">{user?.email}</div>
-            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">{role ?? "no role"}</div>
+            <div className="text-xs text-white truncate">{name}</div>
+            <div className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60 truncate">
+              {profile?.title ? `${profile.title} · ` : ""}{role ?? "no role"}
+            </div>
           </div>
         </div>
         <Button size="sm" variant="ghost" onClick={signOut}

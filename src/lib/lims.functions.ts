@@ -196,22 +196,37 @@ export const createUser = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       email: z.string().email().max(255),
-      full_name: z.string().min(1).max(255),
+      first_name: z.string().min(1).max(128).trim(),
+      last_name: z.string().min(1).max(128).trim(),
+      title: z.string().max(128).trim().optional().nullable(),
       password: z.string().min(8).max(128),
       roles: z.array(z.enum(["admin", "tech", "reviewer"])).max(3).default([]),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
+    const full_name = `${data.first_name} ${data.last_name}`.trim();
     const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
-      user_metadata: { full_name: data.full_name },
+      user_metadata: {
+        full_name,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        title: data.title ?? null,
+      },
     });
     if (error) throw error;
     const newId = created.user?.id;
     if (!newId) throw new Error("User creation failed");
+    // Ensure profile reflects the latest fields (in case trigger ran with partial metadata).
+    await supabaseAdmin.from("profiles").update({
+      full_name,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      title: data.title ?? null,
+    } as never).eq("id", newId);
     // handle_new_user trigger creates profile + default 'tech' role.
     // Replace with the exact roles requested.
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
