@@ -233,7 +233,7 @@ export const deleteParameter = createServerFn({ method: "POST" })
 
 // ============= Chain of Custody =============
 
-const cocFieldType = z.enum(["text", "textarea", "number", "date", "datetime", "email", "tel"]);
+const cocFieldType = z.enum(["text", "textarea", "number", "date", "datetime", "email", "tel", "multiselect"]);
 
 export const listCocFields = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
