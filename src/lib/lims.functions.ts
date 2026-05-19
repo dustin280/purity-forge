@@ -226,7 +226,7 @@ export const createUser = createServerFn({ method: "POST" })
       first_name: data.first_name,
       last_name: data.last_name,
       title: data.title ?? null,
-    }).eq("id", newId);
+    } as never).eq("id", newId);
     // handle_new_user trigger creates profile + default 'tech' role.
     // Replace with the exact roles requested.
     await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
