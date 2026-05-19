@@ -23,6 +23,10 @@ import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash, Camera, U
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
+import {
+  listCocDrafts, getCocDraft, saveCocDraft, deleteCocDraft,
+  newDraftId, subscribeCocDrafts, type CocDraft,
+} from "@/lib/coc-drafts";
 
 export const Route = createFileRoute("/_authenticated/chain-of-custody")({ component: CocPage });
 
@@ -64,11 +68,24 @@ function CocPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+  const [resumeDraftId, setResumeDraftId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [downloading, setDownloading] = useState(false);
 
-  function openNew() { setEditingId(null); setOpen(true); }
-  function openEdit(id: string) { setEditingId(id); setOpen(true); }
+  function openNew() { setEditingId(null); setResumeDraftId(null); setOpen(true); }
+  function openEdit(id: string) { setEditingId(id); setResumeDraftId(null); setOpen(true); }
+  function openDraft(d: CocDraft) {
+    setEditingId(d.recordId);
+    setResumeDraftId(d.draftId);
+    setOpen(true);
+  }
+
+  // Drafts panel — live from localStorage
+  const [drafts, setDrafts] = useState<CocDraft[]>(() => listCocDrafts());
+  useEffect(() => {
+    setDrafts(listCocDrafts());
+    return subscribeCocDrafts(() => setDrafts(listCocDrafts()));
+  }, []);
 
   const fieldsForPdf: CocFieldLite[] = useMemo(
     () => fields.map(f => ({ field_key: f.field_key, label: f.label })),
@@ -145,6 +162,40 @@ function CocPage() {
         </Button>
       </div>
 
+      {drafts.length > 0 && (
+        <Card className="mb-4 border-dashed border-primary/40 bg-primary/[0.03]">
+          <div className="px-4 py-3 border-b border-border flex items-center gap-2">
+            <ClipboardList className="size-4 text-primary" />
+            <div className="text-sm font-medium">Drafts in progress</div>
+            <Badge variant="secondary" className="text-[10px]">{drafts.length}</Badge>
+            <span className="text-xs text-muted-foreground ml-1">Auto-saved in this browser.</span>
+          </div>
+          <ul className="divide-y divide-border">
+            {drafts.map(d => (
+              <li key={d.draftId} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {d.summary || (d.recordId ? "Editing existing record" : "New chain of custody")}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {d.recordId ? "Edit draft" : "New CoC draft"} · saved {new Date(d.updatedAt).toLocaleString()}
+                    {d.pendingFileNames.length > 0 && ` · ${d.pendingFileNames.length} photo${d.pendingFileNames.length === 1 ? "" : "s"} pending (re-attach on resume)`}
+                  </div>
+                </div>
+                <Button size="sm" variant="default" onClick={() => openDraft(d)}>Resume</Button>
+                <Button
+                  size="icon" variant="ghost"
+                  onClick={() => { if (confirm("Discard this draft?")) deleteCocDraft(d.draftId); }}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {records.length > 0 && (
         <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
           <Checkbox
@@ -218,7 +269,12 @@ function CocPage() {
         )}
       </Card>
 
-      <CocFormDialog open={open} onOpenChange={setOpen} recordId={editingId} />
+      <CocFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        recordId={editingId}
+        resumeDraftId={resumeDraftId}
+      />
       <CocViewDialog
         recordId={viewingId}
         onOpenChange={(v) => { if (!v) setViewingId(null); }}
