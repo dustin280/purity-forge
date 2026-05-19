@@ -3,7 +3,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-async function assertAdmin(supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> }, userId: string) {
+async function assertAdmin(
+  supabase: { rpc: (fn: "has_role", args: { _user_id: string; _role: "admin" | "tech" | "reviewer" }) => Promise<{ data: boolean | null; error: unknown }> },
+  userId: string,
+) {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (error) throw error;
   if (!data) throw new Error("Admin role required");
