@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { createStandardPreparation } from "@/lib/standard-preparations.functions";
-import { PrepForm, prepValuesToPayload } from "@/components/standard-preparations/prep-form";
+import { PrepForm, prepValuesToPayload, clearPrepDraft } from "@/components/standard-preparations/prep-form";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
@@ -18,9 +18,11 @@ function NewPrep() {
   const defaultAnalystName = profileDisplayName(profile, null);
   const create = useServerFn(createStandardPreparation);
 
+  const DRAFT_KEY = "sop-draft:new";
   const mut = useMutation({
     mutationFn: (payload: ReturnType<typeof prepValuesToPayload>) => create({ data: payload }),
     onSuccess: row => {
+      clearPrepDraft(DRAFT_KEY);
       toast.success(`Created ${row.log_number}`);
       navigate({ to: "/lab-logs/standard-preparations/$id", params: { id: row.id } });
     },
@@ -40,6 +42,7 @@ function NewPrep() {
         defaultAnalystName={defaultAnalystName}
         submitting={mut.isPending}
         submitLabel="Create Preparation"
+        draftKey={DRAFT_KEY}
         onSubmit={v => mut.mutate(prepValuesToPayload(v))}
           onCancel={() => navigate({ to: "/lab-logs/standard-preparations" })}
       />
