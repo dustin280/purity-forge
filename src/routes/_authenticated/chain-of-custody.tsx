@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
-  createCocRecord, updateCocRecord, deleteCocRecord,
+  updateCocRecord, deleteCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X } from "lucide-react";
+import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth";
 import { buildCocPdf, safeFileName, type CocFieldLite } from "@/lib/coc-pdf";
