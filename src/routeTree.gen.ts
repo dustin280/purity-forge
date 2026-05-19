@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
+import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -34,15 +35,22 @@ const AuthenticatedSamplesIndexRoute =
     path: '/samples/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
+  id: '/samples/new',
+  path: '/samples/new',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
+  '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthenticatedIndexRoute
+  '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
 }
 export interface FileRoutesById {
@@ -50,18 +58,20 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/samples/'
+  fullPaths: '/' | '/login' | '/samples/new' | '/samples/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/samples'
+  to: '/login' | '/' | '/samples/new' | '/samples'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
     | '/_authenticated/'
+    | '/_authenticated/samples/new'
     | '/_authenticated/samples/'
   fileRoutesById: FileRoutesById
 }
@@ -100,16 +110,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/samples/new': {
+      id: '/_authenticated/samples/new'
+      path: '/samples/new'
+      fullPath: '/samples/new'
+      preLoaderRoute: typeof AuthenticatedSamplesNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
 }
 
