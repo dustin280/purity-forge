@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Paperclip, X } from "lucide-react";
 import { listMaterialSuggestions, type MaterialType, type QuarantineStatus, MATERIAL_TYPES, QUARANTINE_STATUSES } from "@/lib/material-receipts.functions";
 
 export interface ReceiptFormValues {
@@ -20,6 +20,7 @@ export interface ReceiptFormValues {
   supplier: string;
   po_number: string;
   notes: string;
+  freight_tracking_number: string;
   purpose: string;
   manufacturer: string;
   manufacturer_lot: string;
@@ -60,6 +61,7 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     supplier: "",
     po_number: "",
     notes: "",
+    freight_tracking_number: "",
     purpose: "",
     manufacturer: "",
     manufacturer_lot: "",
@@ -92,6 +94,7 @@ export function valuesToPayload(v: ReceiptFormValues) {
     supplier: v.supplier,
     po_number: v.po_number,
     notes: v.notes,
+    freight_tracking_number: v.freight_tracking_number,
     purpose: v.material_type === "uncontrolled" ? v.purpose : null,
     manufacturer: v.material_type === "controlled" ? v.manufacturer : null,
     manufacturer_lot: v.material_type === "controlled" ? v.manufacturer_lot : null,
@@ -116,17 +119,26 @@ export function valuesToPayload(v: ReceiptFormValues) {
   };
 }
 
+export interface PendingAttachments {
+  coa: File[];
+  sds: File[];
+}
+
 interface Props {
   initial?: Partial<ReceiptFormValues>;
   defaultReceiverName: string;
   submitting?: boolean;
   submitLabel?: string;
-  onSubmit: (values: ReceiptFormValues) => void;
+  onSubmit: (values: ReceiptFormValues, pending: PendingAttachments) => void;
   onCancel?: () => void;
 }
 
 export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLabel = "Save Receipt", onSubmit, onCancel }: Props) {
   const [v, setV] = useState<ReceiptFormValues>(() => ({ ...emptyValues(defaultReceiverName), ...initial }));
+  const [coaFiles, setCoaFiles] = useState<File[]>([]);
+  const [sdsFiles, setSdsFiles] = useState<File[]>([]);
+  const coaRef = useRef<HTMLInputElement>(null);
+  const sdsRef = useRef<HTMLInputElement>(null);
   const listSuggestions = useServerFn(listMaterialSuggestions);
   const { data: suggestions = [] } = useQuery({
     queryKey: ["material-suggestions"],
@@ -162,7 +174,12 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit(v);
+    const values: ReceiptFormValues = {
+      ...v,
+      coa_attached: v.coa_attached || coaFiles.length > 0,
+      sds_attached: v.sds_attached || sdsFiles.length > 0,
+    };
+    onSubmit(values, { coa: coaFiles, sds: sdsFiles });
   }
 
   const isControlled = v.material_type === "controlled";
@@ -263,22 +280,54 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
 
           {/* COA / SDS / Inspection */}
           <Card className="p-5 space-y-4">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Documentation & Inspection</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Documentation & Tracking</h2>
             <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium text-sm">COA attached</div>
-                  <div className="text-xs text-muted-foreground">Upload after saving</div>
-                </div>
-                <Switch checked={v.coa_attached} onCheckedChange={c => up("coa_attached", c)} />
-              </div>
-              <div className="flex items-center justify-between rounded-md border p-3">
-                <div>
-                  <div className="font-medium text-sm">SDS attached</div>
-                  <div className="text-xs text-muted-foreground">Upload after saving</div>
-                </div>
-                <Switch checked={v.sds_attached} onCheckedChange={c => up("sds_attached", c)} />
-              </div>
+              <Field label="Freight tracking number" className="md:col-span-2">
+                <Input
+                  value={v.freight_tracking_number}
+                  onChange={e => up("freight_tracking_number", e.target.value)}
+                  placeholder="e.g. 1Z999AA10123456784"
+                  maxLength={255}
+                />
+              </Field>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <FileSlot
+                title="COA (Certificate of Analysis)"
+                files={coaFiles}
+                existing={v.coa_attached}
+                onPick={() => coaRef.current?.click()}
+                onRemove={(i) => setCoaFiles(prev => prev.filter((_, idx) => idx !== i))}
+              />
+              <input
+                ref={coaRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={e => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length) setCoaFiles(prev => [...prev, ...files]);
+                  e.target.value = "";
+                }}
+              />
+              <FileSlot
+                title="SDS (Safety Data Sheet)"
+                files={sdsFiles}
+                existing={v.sds_attached}
+                onPick={() => sdsRef.current?.click()}
+                onRemove={(i) => setSdsFiles(prev => prev.filter((_, idx) => idx !== i))}
+              />
+              <input
+                ref={sdsRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={e => {
+                  const files = Array.from(e.target.files ?? []);
+                  if (files.length) setSdsFiles(prev => [...prev, ...files]);
+                  e.target.value = "";
+                }}
+              />
               <Field label="Visual inspection result">
                 <Select value={v.visual_inspection} onValueChange={val => up("visual_inspection", val)}>
                   <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
@@ -360,6 +409,53 @@ function Field({ label, required, className, children }: { label: string; requir
         {label}{required && <span className="text-destructive ml-0.5">*</span>}
       </Label>
       <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+function FileSlot({
+  title,
+  files,
+  existing,
+  onPick,
+  onRemove,
+}: {
+  title: string;
+  files: File[];
+  existing: boolean;
+  onPick: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <div className="rounded-md border p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <div className="font-medium text-sm">{title}</div>
+          <div className="text-xs text-muted-foreground">
+            {existing
+              ? "Already attached — add more if needed"
+              : files.length === 0
+                ? "No file selected"
+                : `${files.length} file${files.length === 1 ? "" : "s"} ready to upload`}
+          </div>
+        </div>
+        <Button type="button" size="sm" variant="outline" onClick={onPick}>
+          <Paperclip className="size-4 mr-1" /> Add file
+        </Button>
+      </div>
+      {files.length > 0 && (
+        <ul className="space-y-1">
+          {files.map((f, i) => (
+            <li key={i} className="flex items-center gap-2 text-xs bg-muted/40 rounded px-2 py-1">
+              <span className="flex-1 truncate">{f.name}</span>
+              <span className="text-muted-foreground">{Math.round(f.size / 1024)} KB</span>
+              <button type="button" onClick={() => onRemove(i)} className="text-destructive hover:opacity-70">
+                <X className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
