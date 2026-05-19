@@ -314,11 +314,27 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   type LineItem = {
     compound: string; lot: string; catalog: string; manufacturer: string;
-    quantity: string; storage: string; requested_tests: string[];
+    quantity: string; quantity_unit: string;
+    container_size: string; concentration: string;
+    vial_count: number;
+    storage: string; requested_tests: string[];
   };
+  const emptyLine = (): LineItem => ({
+    compound: "", lot: "", catalog: "", manufacturer: "",
+    quantity: "", quantity_unit: "",
+    container_size: "", concentration: "",
+    vial_count: 1,
+    storage: "", requested_tests: [],
+  });
   const [lineItems, setLineItems] = useState<LineItem[]>([
-    { compound: "", lot: "", catalog: "", manufacturer: "", quantity: "", storage: "", requested_tests: [] },
+    emptyLine(),
   ]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  // Wrap state setters so any user edit flips dirty
+  const setValuesDirty: typeof setValues = (v) => { setIsDirty(true); setValues(v); };
+  const setLineItemsDirty: typeof setLineItems = (v) => { setIsDirty(true); setLineItems(v); };
 
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
