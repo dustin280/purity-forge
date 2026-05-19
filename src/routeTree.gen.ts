@@ -21,6 +21,7 @@ import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedLogsLogTypeRouteImport } from './routes/_authenticated/logs/$logType'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
@@ -88,6 +89,12 @@ const AuthenticatedSamplesBatchIdRoute =
     path: '/samples/$batchId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLogsLogTypeRoute =
+  AuthenticatedLogsLogTypeRouteImport.update({
+    id: '/logs/$logType',
+    path: '/logs/$logType',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminParametersRoute =
   AuthenticatedAdminParametersRouteImport.update({
     id: '/admin/parameters',
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/_authenticated/logs/$logType': typeof AuthenticatedLogsLogTypeRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -167,6 +177,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/admin/coc-fields'
     | '/admin/parameters'
+    | '/logs/$logType'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/coc-fields'
     | '/admin/parameters'
+    | '/logs/$logType'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/parameters'
+    | '/_authenticated/logs/$logType'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
@@ -300,6 +313,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/logs/$logType': {
+      id: '/_authenticated/logs/$logType'
+      path: '/logs/$logType'
+      fullPath: '/logs/$logType'
+      preLoaderRoute: typeof AuthenticatedLogsLogTypeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/parameters': {
       id: '/_authenticated/admin/parameters'
       path: '/admin/parameters'
@@ -332,6 +352,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
+  AuthenticatedLogsLogTypeRoute: typeof AuthenticatedLogsLogTypeRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -347,6 +368,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
+  AuthenticatedLogsLogTypeRoute: AuthenticatedLogsLogTypeRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
