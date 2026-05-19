@@ -298,6 +298,10 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
   const submit = useServerFn(submitCocWithSamples);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
+  const recordAttachment = useServerFn(recordCocAttachment);
+  const listAttachments = useServerFn(listCocAttachments);
+  const deleteAttachment = useServerFn(deleteCocAttachment);
+  const signAttachmentUrl = useServerFn(signedCocAttachmentUrl);
 
   const { data: fields = [] } = useQuery({
     queryKey: ["coc_fields"],
@@ -410,12 +414,14 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       });
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
+        if (pendingFiles.length) await uploadPendingTo(recordId);
       } else {
         const cleaned = lineItems
           .map(li => ({ ...li, compound: li.compound.trim() }))
           .filter(li => li.compound.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
-        await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } });
+        const res = await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } }) as { coc: { id: string } };
+        if (pendingFiles.length && res?.coc?.id) await uploadPendingTo(res.coc.id);
       }
     },
     onSuccess: () => {
@@ -423,10 +429,44 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
       qc.invalidateQueries({ queryKey: ["coc_records"] });
       qc.invalidateQueries({ queryKey: ["intake_queue"] });
       qc.invalidateQueries({ queryKey: ["samples"] });
+      qc.invalidateQueries({ queryKey: ["coc_attachments"] });
+      setIsDirty(false);
+      setPendingFiles([]);
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
+
+  async function uploadPendingTo(cocId: string) {
+    for (const file of pendingFiles) {
+      const safe = file.name.replace(/[^\w.\-]+/g, "_");
+      const path = `${cocId}/${Date.now()}-${safe}`;
+      const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);
+      if (upErr) throw upErr;
+      await recordAttachment({ data: {
+        coc_id: cocId, file_path: path, file_name: file.name,
+        content_type: file.type || null, size_bytes: file.size,
+      } });
+    }
+  }
+
+  // Existing attachments for edit mode
+  const { data: attachments = [] } = useQuery({
+    queryKey: ["coc_attachments", recordId],
+    queryFn: () => listAttachments({ data: { coc_id: recordId! } }) as Promise<Array<{
+      id: string; file_path: string; file_name: string; content_type: string | null;
+    }>>,
+    enabled: open && !!recordId,
+  });
+
+  function attemptClose() {
+    if (isDirty && !saveMut.isPending) {
+      if (!confirm("Close without completing and lose data?")) return;
+    }
+    setIsDirty(false);
+    setPendingFiles([]);
+    onOpenChange(false);
+  }
 
   function MultiselectField({ fieldKey, selected, options, onToggle }: {
     fieldKey: string;
