@@ -435,88 +435,6 @@ export type Database = {
         }
         Relationships: []
       }
-      qc_prep_logs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          employee_name: string
-          id: string
-          log_date: string
-          material_receipt_id: string | null
-          notes: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          employee_name: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          employee_name?: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "qc_prep_logs_material_receipt_id_fkey"
-            columns: ["material_receipt_id"]
-            isOneToOne: false
-            referencedRelation: "material_receipts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      reagent_prep_logs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          employee_name: string
-          id: string
-          log_date: string
-          material_receipt_id: string | null
-          notes: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          employee_name: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          employee_name?: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reagent_prep_logs_material_receipt_id_fkey"
-            columns: ["material_receipt_id"]
-            isOneToOne: false
-            referencedRelation: "material_receipts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       results: {
         Row: {
           analysis_date: string
@@ -566,47 +484,6 @@ export type Database = {
             columns: ["test_id"]
             isOneToOne: false
             referencedRelation: "tests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sample_prep_logs: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          employee_name: string
-          id: string
-          log_date: string
-          material_receipt_id: string | null
-          notes: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          employee_name: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          employee_name?: string
-          id?: string
-          log_date?: string
-          material_receipt_id?: string | null
-          notes?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sample_prep_logs_material_receipt_id_fkey"
-            columns: ["material_receipt_id"]
-            isOneToOne: false
-            referencedRelation: "material_receipts"
             referencedColumns: ["id"]
           },
         ]
@@ -676,46 +553,195 @@ export type Database = {
           },
         ]
       }
-      standard_prep_logs: {
+      standard_preparation_attachments: {
         Row: {
+          content_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          kind: Database["public"]["Enums"]["standard_prep_attachment_kind"]
+          log_id: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          kind?: Database["public"]["Enums"]["standard_prep_attachment_kind"]
+          log_id: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["standard_prep_attachment_kind"]
+          log_id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standard_preparation_attachments_log_id_fkey"
+            columns: ["log_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standard_preparation_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
+      standard_preparation_logs: {
+        Row: {
+          analyst_id: string | null
+          analyst_name: string
+          appearance_notes: string | null
+          approved_at: string | null
+          approver_id: string | null
+          approver_name: string | null
+          container_label: string | null
           created_at: string
           created_by: string | null
-          employee_name: string
+          expiration_date: string | null
+          final_volume: string | null
           id: string
-          log_date: string
+          log_number: string
+          manufacturer_lot: string | null
           material_receipt_id: string | null
+          mixing_details: string | null
           notes: string | null
+          preparation_steps: Json
+          prepared_at: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          reviewer_name: string | null
+          solvent: string | null
+          standard_name: string
+          status: Database["public"]["Enums"]["standard_prep_status"]
+          storage_condition: string | null
+          storage_location: string | null
+          target_concentration: string | null
           updated_at: string
         }
         Insert: {
+          analyst_id?: string | null
+          analyst_name: string
+          appearance_notes?: string | null
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          container_label?: string | null
           created_at?: string
           created_by?: string | null
-          employee_name: string
+          expiration_date?: string | null
+          final_volume?: string | null
           id?: string
-          log_date?: string
+          log_number?: string
+          manufacturer_lot?: string | null
           material_receipt_id?: string | null
+          mixing_details?: string | null
           notes?: string | null
+          preparation_steps?: Json
+          prepared_at?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_name?: string | null
+          solvent?: string | null
+          standard_name: string
+          status?: Database["public"]["Enums"]["standard_prep_status"]
+          storage_condition?: string | null
+          storage_location?: string | null
+          target_concentration?: string | null
           updated_at?: string
         }
         Update: {
+          analyst_id?: string | null
+          analyst_name?: string
+          appearance_notes?: string | null
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          container_label?: string | null
           created_at?: string
           created_by?: string | null
-          employee_name?: string
+          expiration_date?: string | null
+          final_volume?: string | null
           id?: string
-          log_date?: string
+          log_number?: string
+          manufacturer_lot?: string | null
           material_receipt_id?: string | null
+          mixing_details?: string | null
           notes?: string | null
+          preparation_steps?: Json
+          prepared_at?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          reviewer_name?: string | null
+          solvent?: string | null
+          standard_name?: string
+          status?: Database["public"]["Enums"]["standard_prep_status"]
+          storage_condition?: string | null
+          storage_location?: string | null
+          target_concentration?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "standard_prep_logs_material_receipt_id_fkey"
+            foreignKeyName: "standard_preparation_logs_material_receipt_id_fkey"
             columns: ["material_receipt_id"]
             isOneToOne: false
             referencedRelation: "material_receipts"
             referencedColumns: ["id"]
           },
         ]
+      }
+      standard_suggestions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          typical_concentration: string | null
+          typical_solvent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          typical_concentration?: string | null
+          typical_solvent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          typical_concentration?: string | null
+          typical_solvent?: string | null
+        }
+        Relationships: []
       }
       test_parameters: {
         Row: {
@@ -826,6 +852,7 @@ export type Database = {
         Returns: boolean
       }
       next_material_receipt_number: { Args: never; Returns: string }
+      next_standard_preparation_number: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
@@ -855,6 +882,14 @@ export type Database = {
         | "intake_verified"
         | "prep"
         | "complete"
+      standard_prep_attachment_kind:
+        | "weighing"
+        | "label"
+        | "photo"
+        | "sequence"
+        | "coa"
+        | "other"
+      standard_prep_status: "draft" | "reviewed" | "approved"
       test_status: "pending" | "running" | "completed" | "failed"
     }
     CompositeTypes: {
@@ -1013,6 +1048,15 @@ export const Constants = {
         "prep",
         "complete",
       ],
+      standard_prep_attachment_kind: [
+        "weighing",
+        "label",
+        "photo",
+        "sequence",
+        "coa",
+        "other",
+      ],
+      standard_prep_status: ["draft", "reviewed", "approved"],
       test_status: ["pending", "running", "completed", "failed"],
     },
   },
