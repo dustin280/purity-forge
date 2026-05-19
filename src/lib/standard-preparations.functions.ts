@@ -148,7 +148,7 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
     if (e1) throw e1;
     if (e2) throw e2;
     return {
-      log: log as StandardPrepRow & { material_receipt: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null },
+      log: log as unknown as StandardPrepRow & { material_receipt: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null },
       attachments: (atts ?? []) as PrepAttachmentRow[],
     };
   });
@@ -169,7 +169,7 @@ export const createStandardPreparation = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw error;
-    return row as StandardPrepRow;
+    return row as unknown as StandardPrepRow;
   });
 
 export const updateStandardPreparation = createServerFn({ method: "POST" })
@@ -178,15 +178,16 @@ export const updateStandardPreparation = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), patch: payloadSchema.partial() }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const payload = emptyToNull(data.patch);
+    const payload = emptyToNull(data.patch) as Record<string, unknown>;
     const { data: row, error } = await context.supabase
       .from("standard_preparation_logs")
-      .update(payload)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(payload as any)
       .eq("id", data.id)
       .select()
       .single();
     if (error) throw error;
-    return row as StandardPrepRow;
+    return row as unknown as StandardPrepRow;
   });
 
 export const deleteStandardPreparation = createServerFn({ method: "POST" })
@@ -238,12 +239,13 @@ export const transitionStandardPreparation = createServerFn({ method: "POST" })
     }
     const { data: row, error } = await context.supabase
       .from("standard_preparation_logs")
-      .update(patch)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(patch as any)
       .eq("id", data.id)
       .select()
       .single();
     if (error) throw error;
-    return row as StandardPrepRow;
+    return row as unknown as StandardPrepRow;
   });
 
 export const recordPrepAttachment = createServerFn({ method: "POST" })
