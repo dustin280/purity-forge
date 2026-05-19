@@ -337,7 +337,7 @@ export const updateCocRecord = createServerFn({ method: "POST" })
     z.object({
       id: z.string().uuid(),
       sample_id: z.string().min(1).max(128).optional(),
-      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+      data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])).optional(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
