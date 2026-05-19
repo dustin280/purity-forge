@@ -447,7 +447,7 @@ function CocFormDialog({ open, onOpenChange, recordId }: {
           className="grid gap-4 py-2 sm:grid-cols-2"
         >
           {activeFields.map(f => (
-            <div key={f.id} className={f.field_type === "textarea" ? "sm:col-span-2" : ""}>
+            <div key={f.id} className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
               <Label htmlFor={f.field_key} className="text-xs">
                 {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
               </Label>
