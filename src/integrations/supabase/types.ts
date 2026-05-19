@@ -92,6 +92,7 @@ export type Database = {
           created_by: string | null
           data: Json
           id: string
+          line_items: Json
           sample_id: string
           updated_at: string
         }
@@ -100,6 +101,7 @@ export type Database = {
           created_by?: string | null
           data?: Json
           id?: string
+          line_items?: Json
           sample_id: string
           updated_at?: string
         }
@@ -108,6 +110,7 @@ export type Database = {
           created_by?: string | null
           data?: Json
           id?: string
+          line_items?: Json
           sample_id?: string
           updated_at?: string
         }
@@ -271,9 +274,13 @@ export type Database = {
         Row: {
           batch_id: string
           client: string
+          coc_id: string | null
+          coc_line_no: number | null
+          compound: string | null
           created_at: string
           created_by: string | null
           id: string
+          lot: string | null
           notes: string | null
           parameters: string[]
           project: string | null
@@ -285,9 +292,13 @@ export type Database = {
         Insert: {
           batch_id: string
           client: string
+          coc_id?: string | null
+          coc_line_no?: number | null
+          compound?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          lot?: string | null
           notes?: string | null
           parameters?: string[]
           project?: string | null
@@ -299,9 +310,13 @@ export type Database = {
         Update: {
           batch_id?: string
           client?: string
+          coc_id?: string | null
+          coc_line_no?: number | null
+          compound?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
+          lot?: string | null
           notes?: string | null
           parameters?: string[]
           project?: string | null
@@ -310,7 +325,15 @@ export type Database = {
           status?: Database["public"]["Enums"]["sample_status"]
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "samples_coc_id_fkey"
+            columns: ["coc_id"]
+            isOneToOne: false
+            referencedRelation: "chain_of_custody_records"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       test_parameters: {
         Row: {
@@ -432,7 +455,14 @@ export type Database = {
         | "email"
         | "tel"
         | "multiselect"
-      sample_status: "received" | "in_progress" | "reviewed" | "approved"
+      sample_status:
+        | "received"
+        | "in_progress"
+        | "reviewed"
+        | "approved"
+        | "intake_verified"
+        | "prep"
+        | "complete"
       test_status: "pending" | "running" | "completed" | "failed"
     }
     CompositeTypes: {
@@ -572,7 +602,15 @@ export const Constants = {
         "tel",
         "multiselect",
       ],
-      sample_status: ["received", "in_progress", "reviewed", "approved"],
+      sample_status: [
+        "received",
+        "in_progress",
+        "reviewed",
+        "approved",
+        "intake_verified",
+        "prep",
+        "complete",
+      ],
       test_status: ["pending", "running", "completed", "failed"],
     },
   },
