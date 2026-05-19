@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   listCocFields, listCocRecords, getCocRecord,
   updateCocRecord, deleteCocRecord, submitCocWithSamples,
@@ -243,7 +243,7 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
   });
   const open = !!recordId;
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (v) onOpenChange(true); else attemptClose(); }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
