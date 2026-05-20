@@ -695,14 +695,36 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}
           className="grid gap-4 py-2 sm:grid-cols-2"
         >
-          {activeFields.map(f => (
-            <div key={f.id} className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
-              <Label htmlFor={f.field_key} className="text-xs">
-                {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
-              </Label>
-              <div className="mt-1">{renderField(f)}</div>
-            </div>
-          ))}
+          {activeFields
+            // Hide the legacy header-level "requested_tests" multiselect — it's now per row.
+            .filter(f => f.field_key !== "requested_tests")
+            .map(f => (
+              <React.Fragment key={f.id}>
+                <div className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
+                  <Label htmlFor={f.field_key} className="text-xs">
+                    {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
+                  </Label>
+                  <div className="mt-1">{renderField(f)}</div>
+                </div>
+                {f.field_key === "packaging_condition" && (
+                  <AttachmentsSection
+                    attachments={attachments}
+                    pendingFiles={pendingFiles}
+                    onAddFiles={(files) => { setIsDirty(true); setPendingFiles(prev => [...prev, ...files]); }}
+                    onRemovePending={(idx) => { setIsDirty(true); setPendingFiles(prev => prev.filter((_, i) => i !== idx)); }}
+                    onDeleteExisting={async (id) => {
+                      if (!confirm("Delete this attachment?")) return;
+                      await deleteAttachment({ data: { id } });
+                      qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
+                    }}
+                    onOpenExisting={async (path) => {
+                      const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
+                      window.open(r.url, "_blank");
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            ))}
 
           <div className="sm:col-span-2 border-t border-border pt-4 mt-2">
             <div className="flex items-center justify-between mb-2">
@@ -734,33 +756,32 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
                       </Button>
                     )}
                   </div>
-                  <LineItemRow li={li} disabled={!!recordId}
-                    onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))} />
+                  <LineItemRow
+                    li={li}
+                    disabled={!!recordId}
+                    onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
+                    testOptions={activeParams}
+                    pendingFiles={pendingByLine[idx] ?? []}
+                    onAddFiles={(files) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: [...(prev[idx] ?? []), ...files] })); }}
+                    onRemoveFile={(fileIdx) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: (prev[idx] ?? []).filter((_, i) => i !== fileIdx) })); }}
+                  />
                 </div>
               ))}
             </div>
+            {!recordId && (
+              <div className="mt-3">
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => setLineItemsDirty(prev => [...prev, emptyLine()])}>
+                  <Plus className="size-3.5 mr-1" /> Add row
+                </Button>
+              </div>
+            )}
             {recordId && (
               <p className="text-[11px] text-muted-foreground mt-2">
                 Line items are locked after submission to keep Sample IDs stable. Edits to individual samples happen in Intake / Samples.
               </p>
             )}
           </div>
-
-          <AttachmentsSection
-            attachments={attachments}
-            pendingFiles={pendingFiles}
-            onAddFiles={(files) => { setIsDirty(true); setPendingFiles(prev => [...prev, ...files]); }}
-            onRemovePending={(idx) => { setIsDirty(true); setPendingFiles(prev => prev.filter((_, i) => i !== idx)); }}
-            onDeleteExisting={async (id) => {
-              if (!confirm("Delete this attachment?")) return;
-              await deleteAttachment({ data: { id } });
-              qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
-            }}
-            onOpenExisting={async (path) => {
-              const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
-              window.open(r.url, "_blank");
-            }}
-          />
 
           <DialogFooter className="sm:col-span-2 mt-2">
             <Button type="button" variant="outline" onClick={attemptClose}>Cancel</Button>
