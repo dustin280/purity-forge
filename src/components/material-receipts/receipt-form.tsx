@@ -39,6 +39,9 @@ export interface ReceiptFormValues {
   qc_results: string;
   qc_analyst: string;
   qc_date: string;
+  purity_percent: string;
+  molecular_weight: string;
+  shelf_life_months: string;
 }
 
 export const VISUAL_INSPECTION_OPTIONS = [
@@ -80,6 +83,9 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     qc_results: "",
     qc_analyst: "",
     qc_date: "",
+    purity_percent: "",
+    molecular_weight: "",
+    shelf_life_months: "",
   };
 }
 
@@ -116,6 +122,18 @@ export function valuesToPayload(v: ReceiptFormValues) {
     qc_results: v.material_type === "controlled" ? v.qc_results : null,
     qc_analyst: v.material_type === "controlled" ? v.qc_analyst : null,
     qc_date: v.material_type === "controlled" && v.qc_date ? v.qc_date : null,
+    purity_percent:
+      v.material_type === "controlled" && v.purity_percent !== ""
+        ? Number(v.purity_percent)
+        : null,
+    molecular_weight:
+      v.material_type === "controlled" && v.molecular_weight !== ""
+        ? Number(v.molecular_weight)
+        : null,
+    shelf_life_months:
+      v.material_type === "controlled" && v.shelf_life_months !== ""
+        ? Number(v.shelf_life_months)
+        : null,
   };
 }
 
