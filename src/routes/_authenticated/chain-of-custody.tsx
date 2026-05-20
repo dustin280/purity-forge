@@ -857,6 +857,16 @@ function LineItemRow({
           onChange={e => onChange({ manufacturer: e.target.value })} />
       </div>
       <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Manufacture Date</Label>
+        <Input type="date" className="h-8 mt-1" value={li.manufacture_date} disabled={disabled}
+          onChange={e => onChange({ manufacture_date: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Client Received Date</Label>
+        <Input type="date" className="h-8 mt-1" value={li.client_received_date} disabled={disabled}
+          onChange={e => onChange({ client_received_date: e.target.value })} />
+      </div>
+      <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Qty / vial</Label>
         <Input className="h-8 mt-1" value={li.quantity} disabled={disabled} placeholder="e.g. 5"
           onChange={e => onChange({ quantity: e.target.value })} />
@@ -891,6 +901,13 @@ function LineItemRow({
         <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
         <Input className="h-8 mt-1" value={li.storage} disabled={disabled}
           onChange={e => onChange({ storage: e.target.value })} />
+      </div>
+      <div className="sm:col-span-3">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          Physical Description (lyophilized powder, liquid, color, etc.)
+        </Label>
+        <Textarea rows={2} className="mt-1" value={li.physical_description} disabled={disabled}
+          onChange={e => onChange({ physical_description: e.target.value })} />
       </div>
 
       <div className="sm:col-span-3">
