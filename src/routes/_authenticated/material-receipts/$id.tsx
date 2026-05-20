@@ -16,6 +16,8 @@ import {
   type MaterialReceiptRow,
   ATTACHMENT_KINDS,
 } from "@/lib/material-receipts.functions";
+import { listPrepsForReceipt } from "@/lib/standard-preparations.functions";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ReceiptForm, valuesToPayload, type ReceiptFormValues, type PendingAttachments } from "@/components/material-receipts/receipt-form";
 import { uploadPending } from "./new";
 import { Card } from "@/components/ui/card";
