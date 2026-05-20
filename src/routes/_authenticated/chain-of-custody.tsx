@@ -342,6 +342,7 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
                 );
               })}
             </dl>
+            <CocLineItemsView items={(rec as unknown as { line_items?: CocLineItemView[] }).line_items ?? []} />
           </div>
         )}
         <DialogFooter>
