@@ -67,16 +67,16 @@ function ParametersAdmin() {
       </Link>
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Test Parameters</h1>
+        <h1 className="text-3xl font-bold tracking-tight mt-1">Requested Tests</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Compounds available for selection during sample intake. Deactivate to hide from intake without losing history.
+          Tests available for selection on each compound row of the Chain of Custody (e.g. Endotoxin, Heavy Metals, Sterility). Deactivate to hide without losing history.
         </p>
       </div>
 
       <Card className="p-5 border-border mb-4">
         <form onSubmit={onAdd} className="flex gap-2">
           <Input
-            placeholder="New parameter name (e.g. BPC-157)"
+            placeholder="New test name (e.g. Endotoxin)"
             value={newName}
             onChange={e => setNewName(e.target.value)}
             maxLength={128}
