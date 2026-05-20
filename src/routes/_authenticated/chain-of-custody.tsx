@@ -44,6 +44,15 @@ type CocField = {
   placeholder: string | null;
 };
 type CocRecord = { id: string; sample_id: string; data: Record<string, unknown>; created_at: string };
+type CocLineItemView = {
+  compound?: string; lot?: string; catalog?: string; manufacturer?: string;
+  quantity?: string; quantity_unit?: string;
+  container_size?: string; concentration?: string;
+  vial_count?: number; temperature_c?: string | number;
+  storage?: string; requested_tests?: string[];
+  client_received_date?: string; manufacture_date?: string;
+  physical_description?: string;
+};
 
 function CocPage() {
   const { role } = useAuth();
