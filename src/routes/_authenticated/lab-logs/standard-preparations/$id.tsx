@@ -16,6 +16,8 @@ import {
   type PrepAttachmentKind,
   type StandardPrepRow,
 } from "@/lib/standard-preparations.functions";
+import type { PrepTargetRow } from "@/lib/standard-preparations.functions";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PrepForm, prepValuesToPayload, clearPrepDraft, type PrepFormValues } from "@/components/standard-preparations/prep-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
