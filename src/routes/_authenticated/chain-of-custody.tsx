@@ -44,6 +44,15 @@ type CocField = {
   placeholder: string | null;
 };
 type CocRecord = { id: string; sample_id: string; data: Record<string, unknown>; created_at: string };
+type CocLineItemView = {
+  compound?: string; lot?: string; catalog?: string; manufacturer?: string;
+  quantity?: string; quantity_unit?: string;
+  container_size?: string; concentration?: string;
+  vial_count?: number; temperature_c?: string | number;
+  storage?: string; requested_tests?: string[];
+  client_received_date?: string; manufacture_date?: string;
+  physical_description?: string;
+};
 
 function CocPage() {
   const { role } = useAuth();
@@ -333,6 +342,7 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
                 );
               })}
             </dl>
+            <CocLineItemsView items={(rec as unknown as { line_items?: CocLineItemView[] }).line_items ?? []} />
           </div>
         )}
         <DialogFooter>
@@ -382,6 +392,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     container_size: string; concentration: string;
     vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
+    client_received_date: string; manufacture_date: string; physical_description: string;
   };
   const emptyLine = (): LineItem => ({
     compound: "", lot: "", catalog: "", manufacturer: "",
@@ -389,6 +400,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     container_size: "", concentration: "",
     vial_count: 1, temperature_c: "",
     storage: "", requested_tests: [],
+    client_received_date: "", manufacture_date: "", physical_description: "",
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([
     emptyLine(),
@@ -455,6 +467,9 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
         temperature_c: (li as unknown as { temperature_c?: string | number }).temperature_c == null
           ? "" : String((li as unknown as { temperature_c?: string | number }).temperature_c),
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
+        client_received_date: (li as unknown as { client_received_date?: string }).client_received_date ?? "",
+        manufacture_date: (li as unknown as { manufacture_date?: string }).manufacture_date ?? "",
+        physical_description: (li as unknown as { physical_description?: string }).physical_description ?? "",
       })));
     } else {
       setLineItems([emptyLine()]);
@@ -800,6 +815,54 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
 
 const CONTAINER_SIZES = ["2 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
 
+function CocLineItemsView({ items }: { items: CocLineItemView[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="text-sm font-semibold mb-2">Samples ({items.length})</div>
+      <div className="space-y-3">
+        {items.map((li, idx) => {
+          const rows: Array<[string, string]> = [
+            ["Lot / Batch", li.lot || "—"],
+            ["Catalog #", li.catalog || "—"],
+            ["Manufacturer", li.manufacturer || "—"],
+            ["Manufacture Date", li.manufacture_date || "—"],
+            ["Client Received Date", li.client_received_date || "—"],
+            ["Container Size", li.container_size || "—"],
+            ["Concentration", li.concentration || "—"],
+            ["Quantity / vial", li.quantity ? `${li.quantity}${li.quantity_unit ? ` ${li.quantity_unit}` : ""}` : "—"],
+            ["Temperature (°C)", li.temperature_c == null || li.temperature_c === "" ? "—" : String(li.temperature_c)],
+            ["Storage", li.storage || "—"],
+            ["Requested Tests", (li.requested_tests ?? []).join(", ") || "—"],
+            ["Physical Description", li.physical_description || "—"],
+          ];
+          return (
+            <div key={idx} className="rounded-md border border-border bg-muted/20 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="font-mono text-[10px]">
+                  Sample {String(idx + 1).padStart(2, "0")}
+                </Badge>
+                <div className="text-sm font-medium">{li.compound || "—"}</div>
+                {li.vial_count && li.vial_count > 1 && (
+                  <Badge variant="secondary" className="text-[10px]">×{li.vial_count} vials</Badge>
+                )}
+              </div>
+              <dl className="grid sm:grid-cols-[160px_1fr] gap-x-3 gap-y-1 text-xs">
+                {rows.map(([k, v]) => (
+                  <div key={k} className="sm:contents">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="whitespace-pre-wrap break-words">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function LineItemRow({
   li, disabled, onChange, testOptions, pendingFiles, onAddFiles, onRemoveFile,
 }: {
@@ -808,6 +871,7 @@ function LineItemRow({
     quantity: string; quantity_unit: string; container_size: string;
     concentration: string; vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
+    client_received_date: string; manufacture_date: string; physical_description: string;
   };
   disabled: boolean;
   onChange: (patch: Partial<typeof li>) => void;
@@ -851,6 +915,16 @@ function LineItemRow({
           onChange={e => onChange({ manufacturer: e.target.value })} />
       </div>
       <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Manufacture Date</Label>
+        <Input type="date" className="h-8 mt-1" value={li.manufacture_date} disabled={disabled}
+          onChange={e => onChange({ manufacture_date: e.target.value })} />
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Client Received Date</Label>
+        <Input type="date" className="h-8 mt-1" value={li.client_received_date} disabled={disabled}
+          onChange={e => onChange({ client_received_date: e.target.value })} />
+      </div>
+      <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Qty / vial</Label>
         <Input className="h-8 mt-1" value={li.quantity} disabled={disabled} placeholder="e.g. 5"
           onChange={e => onChange({ quantity: e.target.value })} />
@@ -885,6 +959,13 @@ function LineItemRow({
         <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
         <Input className="h-8 mt-1" value={li.storage} disabled={disabled}
           onChange={e => onChange({ storage: e.target.value })} />
+      </div>
+      <div className="sm:col-span-3">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          Physical Description (lyophilized powder, liquid, color, etc.)
+        </Label>
+        <Textarea rows={2} className="mt-1" value={li.physical_description} disabled={disabled}
+          onChange={e => onChange({ physical_description: e.target.value })} />
       </div>
 
       <div className="sm:col-span-3">

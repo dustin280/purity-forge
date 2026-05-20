@@ -598,6 +598,9 @@ const lineItemSchema = z.object({
   vial_count: z.number().int().min(1).max(99).optional().default(1),
   storage: z.string().max(255).optional().nullable(),
   temperature_c: z.union([z.number(), z.string()]).optional().nullable(),
+  client_received_date: z.string().max(32).optional().nullable(),
+  manufacture_date: z.string().max(32).optional().nullable(),
+  physical_description: z.string().max(2000).optional().nullable(),
   requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
 
@@ -640,6 +643,8 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       lot: string | null; catalog: string | null;
       container_size: string | null; concentration: string | null;
       temperature_c: number | null; line_item_index: number;
+      client_received_date: string | null; manufacture_date: string | null;
+      physical_description: string | null;
       created_by: string; status: "received";
     };
     const rows: SampleInsert[] = [];
@@ -672,6 +677,9 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           concentration: li.concentration ?? null,
           temperature_c: tempNum,
           line_item_index: lineIdx,
+          client_received_date: (li.client_received_date && li.client_received_date.trim()) ? li.client_received_date.slice(0, 10) : null,
+          manufacture_date: (li.manufacture_date && li.manufacture_date.trim()) ? li.manufacture_date.slice(0, 10) : null,
+          physical_description: (li.physical_description && li.physical_description.trim()) ? li.physical_description : null,
           created_by: userId,
           status: "received" as const,
         });

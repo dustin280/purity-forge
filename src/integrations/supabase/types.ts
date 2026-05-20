@@ -686,6 +686,7 @@ export type Database = {
           batch_id: string
           catalog: string | null
           client: string
+          client_received_date: string | null
           coc_id: string | null
           coc_line_no: number | null
           compound: string | null
@@ -696,8 +697,10 @@ export type Database = {
           id: string
           line_item_index: number | null
           lot: string | null
+          manufacture_date: string | null
           notes: string | null
           parameters: string[]
+          physical_description: string | null
           project: string | null
           raw_data_file_path: string | null
           receipt_date: string
@@ -709,6 +712,7 @@ export type Database = {
           batch_id: string
           catalog?: string | null
           client: string
+          client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
@@ -719,8 +723,10 @@ export type Database = {
           id?: string
           line_item_index?: number | null
           lot?: string | null
+          manufacture_date?: string | null
           notes?: string | null
           parameters?: string[]
+          physical_description?: string | null
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -732,6 +738,7 @@ export type Database = {
           batch_id?: string
           catalog?: string | null
           client?: string
+          client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
@@ -742,8 +749,10 @@ export type Database = {
           id?: string
           line_item_index?: number | null
           lot?: string | null
+          manufacture_date?: string | null
           notes?: string | null
           parameters?: string[]
+          physical_description?: string | null
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
