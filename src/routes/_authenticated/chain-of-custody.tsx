@@ -382,6 +382,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     container_size: string; concentration: string;
     vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
+    client_received_date: string; manufacture_date: string; physical_description: string;
   };
   const emptyLine = (): LineItem => ({
     compound: "", lot: "", catalog: "", manufacturer: "",
@@ -389,6 +390,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     container_size: "", concentration: "",
     vial_count: 1, temperature_c: "",
     storage: "", requested_tests: [],
+    client_received_date: "", manufacture_date: "", physical_description: "",
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([
     emptyLine(),
@@ -455,6 +457,9 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
         temperature_c: (li as unknown as { temperature_c?: string | number }).temperature_c == null
           ? "" : String((li as unknown as { temperature_c?: string | number }).temperature_c),
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
+        client_received_date: (li as unknown as { client_received_date?: string }).client_received_date ?? "",
+        manufacture_date: (li as unknown as { manufacture_date?: string }).manufacture_date ?? "",
+        physical_description: (li as unknown as { physical_description?: string }).physical_description ?? "",
       })));
     } else {
       setLineItems([emptyLine()]);
