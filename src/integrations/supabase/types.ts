@@ -153,6 +153,7 @@ export type Database = {
           file_name: string
           file_path: string
           id: string
+          line_item_index: number | null
           size_bytes: number | null
           uploaded_at: string
           uploaded_by: string | null
@@ -163,6 +164,7 @@ export type Database = {
           file_name: string
           file_path: string
           id?: string
+          line_item_index?: number | null
           size_bytes?: number | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -173,6 +175,7 @@ export type Database = {
           file_name?: string
           file_path?: string
           id?: string
+          line_item_index?: number | null
           size_bytes?: number | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -691,6 +694,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          line_item_index: number | null
           lot: string | null
           notes: string | null
           parameters: string[]
@@ -698,6 +702,7 @@ export type Database = {
           raw_data_file_path: string | null
           receipt_date: string
           status: Database["public"]["Enums"]["sample_status"]
+          temperature_c: number | null
           updated_at: string
         }
         Insert: {
@@ -712,6 +717,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          line_item_index?: number | null
           lot?: string | null
           notes?: string | null
           parameters?: string[]
@@ -719,6 +725,7 @@ export type Database = {
           raw_data_file_path?: string | null
           receipt_date?: string
           status?: Database["public"]["Enums"]["sample_status"]
+          temperature_c?: number | null
           updated_at?: string
         }
         Update: {
@@ -733,6 +740,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          line_item_index?: number | null
           lot?: string | null
           notes?: string | null
           parameters?: string[]
@@ -740,6 +748,7 @@ export type Database = {
           raw_data_file_path?: string | null
           receipt_date?: string
           status?: Database["public"]["Enums"]["sample_status"]
+          temperature_c?: number | null
           updated_at?: string
         }
         Relationships: [
