@@ -1,4 +1,5 @@
 const STORAGE_KEY = "coc-drafts:v1";
+const DELETED_KEY = "coc-drafts:deleted:v1";
 
 export type CocDraft = {
   draftId: string;
@@ -14,6 +15,32 @@ export type CocDraft = {
 };
 
 type DraftMap = Record<string, CocDraft>;
+
+function safeReadDeleted(): Record<string, true> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(DELETED_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? (obj as Record<string, true>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function safeWriteDeleted(map: Record<string, true>) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DELETED_KEY, JSON.stringify(map));
+    window.dispatchEvent(new Event("coc-drafts-changed"));
+  } catch {
+    /* ignore */
+  }
+}
+
+function isDraftDeleted(draftId: string) {
+  return !!safeReadDeleted()[draftId];
+}
 
 function safeRead(): DraftMap {
   if (typeof window === "undefined") return {};
@@ -39,14 +66,19 @@ function safeWrite(map: DraftMap) {
 
 export function listCocDrafts(): CocDraft[] {
   const map = safeRead();
-  return Object.values(map).sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  const deleted = safeReadDeleted();
+  return Object.values(map)
+    .filter((draft) => !deleted[draft.draftId])
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
 }
 
 export function getCocDraft(draftId: string): CocDraft | null {
+  if (isDraftDeleted(draftId)) return null;
   return safeRead()[draftId] ?? null;
 }
 
 export function saveCocDraft(draft: CocDraft) {
+  if (isDraftDeleted(draft.draftId)) return;
   const map = safeRead();
   map[draft.draftId] = draft;
   safeWrite(map);
@@ -54,9 +86,14 @@ export function saveCocDraft(draft: CocDraft) {
 
 export function deleteCocDraft(draftId: string) {
   const map = safeRead();
+  const deleted = safeReadDeleted();
   if (draftId in map) {
     delete map[draftId];
     safeWrite(map);
+  }
+  if (!deleted[draftId]) {
+    deleted[draftId] = true;
+    safeWriteDeleted(deleted);
   }
 }
 
