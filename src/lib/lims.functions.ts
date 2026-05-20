@@ -573,12 +573,15 @@ export const nextCocInvoiceNumber = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("chain_of_custody_records")
       .select("sample_id")
-      .like("sample_id", `${prefix}%`);
+      .like("sample_id", "COC%");
     if (error) throw error;
     let max = 99;
     for (const r of data ?? []) {
-      const tail = String((r as { sample_id: string }).sample_id).slice(prefix.length);
-      const n = parseInt(tail, 10);
+      const sid = String((r as { sample_id: string }).sample_id);
+      // Match COC<date>-<seq> where seq is the trailing number after the last '-'
+      const dash = sid.lastIndexOf("-");
+      if (dash < 0) continue;
+      const n = parseInt(sid.slice(dash + 1), 10);
       if (!isNaN(n) && n > max) max = n;
     }
     return { invoice: `${prefix}${max + 1}` };
