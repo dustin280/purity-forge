@@ -15,6 +15,22 @@ export interface PrepStep {
   time: string;
 }
 
+export interface PrepTarget {
+  row_no: number;
+  name: string;
+  target_concentration_mg_per_ml: number | null;
+  target_volume_ml: number | null;
+  calculated_mass_mg: number | null;
+  calculated_volume_ml: number | null;
+  notes: string;
+}
+
+export interface PrepTargetRow extends PrepTarget {
+  id: string;
+  prep_id: string;
+  created_at: string;
+}
+
 export interface StandardPrepRow {
   id: string;
   log_number: string;
@@ -45,6 +61,17 @@ export interface StandardPrepRow {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  expiration_period_code: string | null;
+  expiration_period_days: number | null;
+  initial_solvent: string | null;
+  final_diluent: string | null;
+  modifier_percent: number | null;
+  material_overridden: boolean;
+  ref_material_name: string | null;
+  ref_lot: string | null;
+  ref_purity_percent: number | null;
+  ref_molecular_weight: number | null;
+  ref_receipt_date: string | null;
 }
 
 export interface PrepAttachmentRow {
@@ -67,6 +94,16 @@ const stepSchema = z.object({
   time: z.string().max(255),
 });
 
+const targetSchema = z.object({
+  row_no: z.number().int().min(1).max(999),
+  name: z.string().max(255),
+  target_concentration_mg_per_ml: z.number().nullable(),
+  target_volume_ml: z.number().nullable(),
+  calculated_mass_mg: z.number().nullable(),
+  calculated_volume_ml: z.number().nullable(),
+  notes: z.string().max(2000),
+});
+
 const payloadSchema = z.object({
   prepared_at: z.string().min(1),
   analyst_name: z.string().min(1).max(255),
@@ -84,6 +121,18 @@ const payloadSchema = z.object({
   storage_location: z.string().max(500).nullable().optional(),
   container_label: z.string().max(500).nullable().optional(),
   notes: z.string().max(4000).nullable().optional(),
+  expiration_period_code: z.string().max(20).nullable().optional(),
+  expiration_period_days: z.number().int().nullable().optional(),
+  initial_solvent: z.string().max(500).nullable().optional(),
+  final_diluent: z.string().max(500).nullable().optional(),
+  modifier_percent: z.number().nullable().optional(),
+  material_overridden: z.boolean().optional(),
+  ref_material_name: z.string().max(255).nullable().optional(),
+  ref_lot: z.string().max(255).nullable().optional(),
+  ref_purity_percent: z.number().nullable().optional(),
+  ref_molecular_weight: z.number().nullable().optional(),
+  ref_receipt_date: z.string().nullable().optional(),
+  targets: z.array(targetSchema).max(500).optional(),
 });
 
 function emptyToNull<T extends Record<string, unknown>>(o: T): T {
