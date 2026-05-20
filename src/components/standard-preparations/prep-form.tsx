@@ -196,6 +196,17 @@ interface Props {
    * successful save.
    */
   draftKey?: string;
+  /**
+   * Batch mode: the calculator's target rows are the standards. Hides the
+   * single "Standard name" required field, shows a SYN ID preview column,
+   * and the submit button reflects the row count.
+   */
+  batchMode?: boolean;
+  /**
+   * Prefix for SYN ID preview, e.g. "SYN_052026_JDS_". A "?" is appended
+   * per row since the real counter is assigned server-side.
+   */
+  synPreviewPrefix?: string;
 }
 
 export function clearPrepDraft(draftKey: string | undefined) {
@@ -211,7 +222,7 @@ function loadDraft(draftKey: string | undefined): Partial<PrepFormValues> | null
   } catch { return null; }
 }
 
-export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey }: Props) {
+export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey, batchMode = false, synPreviewPrefix }: Props) {
   const [v, setV] = useState<PrepFormValues>(() => {
     const draft = loadDraft(draftKey);
     return { ...emptyPrepValues(defaultAnalystName), ...initial, ...(draft ?? {}) };
@@ -440,6 +451,13 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (batchMode) {
+      const nonEmpty = v.targets.filter(t => t.name.trim() || t.target_concentration_mg_per_ml || t.target_volume_ml);
+      if (nonEmpty.length === 0) {
+        toast.error("Add at least one standard to the calculator before saving.");
+        return;
+      }
+    }
     onSubmit(v);
   }
 
