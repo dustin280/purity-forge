@@ -813,6 +813,7 @@ function LineItemRow({
     quantity: string; quantity_unit: string; container_size: string;
     concentration: string; vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
+    client_received_date: string; manufacture_date: string; physical_description: string;
   };
   disabled: boolean;
   onChange: (patch: Partial<typeof li>) => void;
