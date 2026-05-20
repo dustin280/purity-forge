@@ -798,15 +798,31 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   );
 }
 
-function LineItemRow({ li, disabled, onChange }: {
+const CONTAINER_SIZES = ["2 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
+
+function LineItemRow({
+  li, disabled, onChange, testOptions, pendingFiles, onAddFiles, onRemoveFile,
+}: {
   li: {
     compound: string; lot: string; catalog: string; manufacturer: string;
     quantity: string; quantity_unit: string; container_size: string;
-    concentration: string; vial_count: number; storage: string;
+    concentration: string; vial_count: number; temperature_c: string;
+    storage: string; requested_tests: string[];
   };
   disabled: boolean;
   onChange: (patch: Partial<typeof li>) => void;
+  testOptions: { id: string; name: string }[];
+  pendingFiles: File[];
+  onAddFiles: (files: File[]) => void;
+  onRemoveFile: (idx: number) => void;
 }) {
+  const uploadRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
+  function toggleTest(name: string) {
+    const set = new Set(li.requested_tests ?? []);
+    if (set.has(name)) set.delete(name); else set.add(name);
+    onChange({ requested_tests: Array.from(set) });
+  }
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div className="sm:col-span-2">
@@ -846,19 +862,87 @@ function LineItemRow({ li, disabled, onChange }: {
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Container size</Label>
-        <Input className="h-8 mt-1" value={li.container_size} disabled={disabled} placeholder="e.g. 2 mL vial"
-          onChange={e => onChange({ container_size: e.target.value })} />
+        <Select value={li.container_size || undefined} disabled={disabled}
+          onValueChange={(v) => onChange({ container_size: v })}>
+          <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent>
+            {CONTAINER_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Concentration / vial</Label>
         <Input className="h-8 mt-1" value={li.concentration} disabled={disabled} placeholder="e.g. 1 mg/mL"
           onChange={e => onChange({ concentration: e.target.value })} />
       </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Temperature (°C)</Label>
+        <Input type="number" step="0.1" className="h-8 mt-1" value={li.temperature_c} disabled={disabled}
+          placeholder="e.g. -20"
+          onChange={e => onChange({ temperature_c: e.target.value })} />
+      </div>
       <div className="sm:col-span-3">
         <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
         <Input className="h-8 mt-1" value={li.storage} disabled={disabled}
           onChange={e => onChange({ storage: e.target.value })} />
       </div>
+
+      <div className="sm:col-span-3">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          Requested tests for this compound
+        </Label>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {testOptions.length === 0 ? (
+            <span className="text-xs text-muted-foreground italic">No tests configured. Add some in Admin → Test Parameters.</span>
+          ) : testOptions.map(t => {
+            const active = (li.requested_tests ?? []).includes(t.name);
+            return (
+              <button
+                key={t.id} type="button" disabled={disabled}
+                onClick={() => toggleTest(t.name)}
+                className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-foreground border-border hover:border-primary/50"
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {t.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!disabled && (
+        <div className="sm:col-span-3">
+          <Label className="text-[10px] uppercase text-muted-foreground">Photos for this compound</Label>
+          <div className="flex gap-2 mt-1">
+            <Button type="button" size="sm" variant="outline" onClick={() => uploadRef.current?.click()}>
+              <Upload className="size-3.5 mr-1" /> Upload
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => cameraRef.current?.click()}>
+              <Camera className="size-3.5 mr-1" /> Take photo
+            </Button>
+            <input ref={uploadRef} type="file" accept="image/*" multiple hidden
+              onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
+              onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+          </div>
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {pendingFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2 py-1 text-xs">
+                  <ImageIcon className="size-3.5 text-muted-foreground" />
+                  <span className="truncate max-w-[160px]">{f.name}</span>
+                  <button type="button" onClick={() => onRemoveFile(i)} className="text-muted-foreground hover:text-destructive">
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
