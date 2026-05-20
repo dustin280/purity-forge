@@ -30,6 +30,9 @@ type IntakeSample = {
   coc_id: string | null;
   receipt_date: string;
   created_at: string;
+  container_size: string | null;
+  concentration: string | null;
+  temperature_c: number | null;
 };
 
 function IntakePage() {
@@ -90,10 +93,12 @@ function IntakePage() {
                           <div className="text-sm font-mono font-semibold">{s.batch_id}</div>
                           <div className="text-xs text-muted-foreground truncate">
                             {s.compound ?? "(no compound)"} {s.lot ? `· Lot ${s.lot}` : ""}
+                            {s.container_size ? ` · ${s.container_size}` : ""}
+                            {s.temperature_c != null ? ` · ${s.temperature_c}°C` : ""}
                           </div>
                         </div>
                         <div className="text-xs text-muted-foreground hidden sm:block max-w-[40%] truncate">
-                          {s.parameters?.length ? s.parameters.join(", ") : "no tests"}
+                          {s.parameters?.length ? `Tests: ${s.parameters.join(", ")}` : "no tests selected"}
                         </div>
                         <Button size="sm" onClick={() => setVerifying(s)}>
                           <CheckCircle2 className="size-3.5 mr-1" /> Verify

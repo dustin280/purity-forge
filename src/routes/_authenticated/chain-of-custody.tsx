@@ -18,6 +18,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash, Camera, Upload, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -377,14 +380,14 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     compound: string; lot: string; catalog: string; manufacturer: string;
     quantity: string; quantity_unit: string;
     container_size: string; concentration: string;
-    vial_count: number;
+    vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
   };
   const emptyLine = (): LineItem => ({
     compound: "", lot: "", catalog: "", manufacturer: "",
     quantity: "", quantity_unit: "",
     container_size: "", concentration: "",
-    vial_count: 1,
+    vial_count: 1, temperature_c: "",
     storage: "", requested_tests: [],
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([
@@ -392,6 +395,8 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // Per-row pending photos: key = line item index (-1 reserved for package condition)
+  const [pendingByLine, setPendingByLine] = useState<Record<number, File[]>>({});
   const [draftId, setDraftId] = useState<string | null>(null);
   // Once true, autosave is allowed to write (suppresses overwrite during initial hydration).
   const [hydrated, setHydrated] = useState(false);
@@ -447,6 +452,8 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
         quantity_unit: li.quantity_unit ?? "",
         container_size: li.container_size ?? "", concentration: li.concentration ?? "",
         vial_count: li.vial_count ?? 1,
+        temperature_c: (li as unknown as { temperature_c?: string | number }).temperature_c == null
+          ? "" : String((li as unknown as { temperature_c?: string | number }).temperature_c),
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
       })));
     } else {
@@ -454,6 +461,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     }
     setIsDirty(!!resumed);
     setPendingFiles([]);
+    setPendingByLine({});
     // Autofill new invoice # when creating
     if (!recordId && !resumed && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
@@ -488,14 +496,14 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       });
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
-        if (pendingFiles.length) await uploadPendingTo(recordId);
+        await uploadAllPendingTo(recordId);
       } else {
         const cleaned = lineItems
           .map(li => ({ ...li, compound: li.compound.trim() }))
           .filter(li => li.compound.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
         const res = await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } }) as { coc: { id: string } };
-        if (pendingFiles.length && res?.coc?.id) await uploadPendingTo(res.coc.id);
+        if (res?.coc?.id) await uploadAllPendingTo(res.coc.id);
       }
     },
     onSuccess: () => {
@@ -507,13 +515,13 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);
+      setPendingByLine({});
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
 
-  async function uploadPendingTo(cocId: string) {
-    for (const file of pendingFiles) {
+  async function uploadOne(cocId: string, file: File, lineIdx: number | null) {
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
       const path = `${cocId}/${Date.now()}-${safe}`;
       const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);
@@ -521,7 +529,17 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       await recordAttachment({ data: {
         coc_id: cocId, file_path: path, file_name: file.name,
         content_type: file.type || null, size_bytes: file.size,
+        line_item_index: lineIdx,
       } });
+  }
+
+  async function uploadAllPendingTo(cocId: string) {
+    for (const file of pendingFiles) {
+      await uploadOne(cocId, file, null);
+    }
+    for (const [idx, files] of Object.entries(pendingByLine)) {
+      const i = Number(idx);
+      for (const file of files) await uploadOne(cocId, file, i);
     }
   }
 
@@ -680,14 +698,36 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}
           className="grid gap-4 py-2 sm:grid-cols-2"
         >
-          {activeFields.map(f => (
-            <div key={f.id} className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
-              <Label htmlFor={f.field_key} className="text-xs">
-                {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
-              </Label>
-              <div className="mt-1">{renderField(f)}</div>
-            </div>
-          ))}
+          {activeFields
+            // Hide the legacy header-level "requested_tests" multiselect — it's now per row.
+            .filter(f => f.field_key !== "requested_tests")
+            .map(f => (
+              <React.Fragment key={f.id}>
+                <div className={f.field_type === "textarea" || f.field_type === "multiselect" ? "sm:col-span-2" : ""}>
+                  <Label htmlFor={f.field_key} className="text-xs">
+                    {f.label}{f.is_required && <span className="text-destructive ml-0.5">*</span>}
+                  </Label>
+                  <div className="mt-1">{renderField(f)}</div>
+                </div>
+                {f.field_key === "packaging_condition" && (
+                  <AttachmentsSection
+                    attachments={attachments}
+                    pendingFiles={pendingFiles}
+                    onAddFiles={(files) => { setIsDirty(true); setPendingFiles(prev => [...prev, ...files]); }}
+                    onRemovePending={(idx) => { setIsDirty(true); setPendingFiles(prev => prev.filter((_, i) => i !== idx)); }}
+                    onDeleteExisting={async (id) => {
+                      if (!confirm("Delete this attachment?")) return;
+                      await deleteAttachment({ data: { id } });
+                      qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
+                    }}
+                    onOpenExisting={async (path) => {
+                      const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
+                      window.open(r.url, "_blank");
+                    }}
+                  />
+                )}
+              </React.Fragment>
+            ))}
 
           <div className="sm:col-span-2 border-t border-border pt-4 mt-2">
             <div className="flex items-center justify-between mb-2">
@@ -719,33 +759,32 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
                       </Button>
                     )}
                   </div>
-                  <LineItemRow li={li} disabled={!!recordId}
-                    onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))} />
+                  <LineItemRow
+                    li={li}
+                    disabled={!!recordId}
+                    onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
+                    testOptions={activeParams}
+                    pendingFiles={pendingByLine[idx] ?? []}
+                    onAddFiles={(files) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: [...(prev[idx] ?? []), ...files] })); }}
+                    onRemoveFile={(fileIdx) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: (prev[idx] ?? []).filter((_, i) => i !== fileIdx) })); }}
+                  />
                 </div>
               ))}
             </div>
+            {!recordId && (
+              <div className="mt-3">
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => setLineItemsDirty(prev => [...prev, emptyLine()])}>
+                  <Plus className="size-3.5 mr-1" /> Add row
+                </Button>
+              </div>
+            )}
             {recordId && (
               <p className="text-[11px] text-muted-foreground mt-2">
                 Line items are locked after submission to keep Sample IDs stable. Edits to individual samples happen in Intake / Samples.
               </p>
             )}
           </div>
-
-          <AttachmentsSection
-            attachments={attachments}
-            pendingFiles={pendingFiles}
-            onAddFiles={(files) => { setIsDirty(true); setPendingFiles(prev => [...prev, ...files]); }}
-            onRemovePending={(idx) => { setIsDirty(true); setPendingFiles(prev => prev.filter((_, i) => i !== idx)); }}
-            onDeleteExisting={async (id) => {
-              if (!confirm("Delete this attachment?")) return;
-              await deleteAttachment({ data: { id } });
-              qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
-            }}
-            onOpenExisting={async (path) => {
-              const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
-              window.open(r.url, "_blank");
-            }}
-          />
 
           <DialogFooter className="sm:col-span-2 mt-2">
             <Button type="button" variant="outline" onClick={attemptClose}>Cancel</Button>
@@ -759,15 +798,31 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   );
 }
 
-function LineItemRow({ li, disabled, onChange }: {
+const CONTAINER_SIZES = ["2 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
+
+function LineItemRow({
+  li, disabled, onChange, testOptions, pendingFiles, onAddFiles, onRemoveFile,
+}: {
   li: {
     compound: string; lot: string; catalog: string; manufacturer: string;
     quantity: string; quantity_unit: string; container_size: string;
-    concentration: string; vial_count: number; storage: string;
+    concentration: string; vial_count: number; temperature_c: string;
+    storage: string; requested_tests: string[];
   };
   disabled: boolean;
   onChange: (patch: Partial<typeof li>) => void;
+  testOptions: { id: string; name: string }[];
+  pendingFiles: File[];
+  onAddFiles: (files: File[]) => void;
+  onRemoveFile: (idx: number) => void;
 }) {
+  const uploadRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
+  function toggleTest(name: string) {
+    const set = new Set(li.requested_tests ?? []);
+    if (set.has(name)) set.delete(name); else set.add(name);
+    onChange({ requested_tests: Array.from(set) });
+  }
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div className="sm:col-span-2">
@@ -807,19 +862,87 @@ function LineItemRow({ li, disabled, onChange }: {
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Container size</Label>
-        <Input className="h-8 mt-1" value={li.container_size} disabled={disabled} placeholder="e.g. 2 mL vial"
-          onChange={e => onChange({ container_size: e.target.value })} />
+        <Select value={li.container_size || undefined} disabled={disabled}
+          onValueChange={(v) => onChange({ container_size: v })}>
+          <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent>
+            {CONTAINER_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Concentration / vial</Label>
         <Input className="h-8 mt-1" value={li.concentration} disabled={disabled} placeholder="e.g. 1 mg/mL"
           onChange={e => onChange({ concentration: e.target.value })} />
       </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Temperature (°C)</Label>
+        <Input type="number" step="0.1" className="h-8 mt-1" value={li.temperature_c} disabled={disabled}
+          placeholder="e.g. -20"
+          onChange={e => onChange({ temperature_c: e.target.value })} />
+      </div>
       <div className="sm:col-span-3">
         <Label className="text-[10px] uppercase text-muted-foreground">Storage</Label>
         <Input className="h-8 mt-1" value={li.storage} disabled={disabled}
           onChange={e => onChange({ storage: e.target.value })} />
       </div>
+
+      <div className="sm:col-span-3">
+        <Label className="text-[10px] uppercase text-muted-foreground">
+          Requested tests for this compound
+        </Label>
+        <div className="mt-1 flex flex-wrap gap-1.5">
+          {testOptions.length === 0 ? (
+            <span className="text-xs text-muted-foreground italic">No tests configured. Add some in Admin → Test Parameters.</span>
+          ) : testOptions.map(t => {
+            const active = (li.requested_tests ?? []).includes(t.name);
+            return (
+              <button
+                key={t.id} type="button" disabled={disabled}
+                onClick={() => toggleTest(t.name)}
+                className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-foreground border-border hover:border-primary/50"
+                } disabled:opacity-60 disabled:cursor-not-allowed`}
+              >
+                {t.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {!disabled && (
+        <div className="sm:col-span-3">
+          <Label className="text-[10px] uppercase text-muted-foreground">Photos for this compound</Label>
+          <div className="flex gap-2 mt-1">
+            <Button type="button" size="sm" variant="outline" onClick={() => uploadRef.current?.click()}>
+              <Upload className="size-3.5 mr-1" /> Upload
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => cameraRef.current?.click()}>
+              <Camera className="size-3.5 mr-1" /> Take photo
+            </Button>
+            <input ref={uploadRef} type="file" accept="image/*" multiple hidden
+              onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" hidden
+              onChange={e => { const fs = Array.from(e.target.files ?? []); if (fs.length) onAddFiles(fs); e.target.value = ""; }} />
+          </div>
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {pendingFiles.map((f, i) => (
+                <div key={i} className="flex items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-2 py-1 text-xs">
+                  <ImageIcon className="size-3.5 text-muted-foreground" />
+                  <span className="truncate max-w-[160px]">{f.name}</span>
+                  <button type="button" onClick={() => onRemoveFile(i)} className="text-muted-foreground hover:text-destructive">
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

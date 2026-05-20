@@ -597,6 +597,7 @@ const lineItemSchema = z.object({
   concentration: z.string().max(128).optional().nullable(),
   vial_count: z.number().int().min(1).max(99).optional().default(1),
   storage: z.string().max(255).optional().nullable(),
+  temperature_c: z.union([z.number(), z.string()]).optional().nullable(),
   requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
 });
 
@@ -617,7 +618,6 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       || (typeof data.data.client_received_date === "string" ? data.data.client_received_date : "")
       || new Date().toISOString().slice(0, 10);
     const receiptDate = receiptRaw.slice(0, 10);
-    const headerTests = Array.isArray(data.data.requested_tests) ? (data.data.requested_tests as string[]) : [];
 
     // 1. Insert the CoC record (with line_items embedded)
     const { data: coc, error: cocErr } = await supabase
@@ -639,13 +639,20 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       coc_id: string; coc_line_no: number; compound: string;
       lot: string | null; catalog: string | null;
       container_size: string | null; concentration: string | null;
+      temperature_c: number | null; line_item_index: number;
       created_by: string; status: "received";
     };
     const rows: SampleInsert[] = [];
     let seq = 0;
-    data.line_items.forEach((li) => {
+    data.line_items.forEach((li, lineIdx) => {
       const vials = Math.max(1, li.vial_count ?? 1);
-      const params = li.requested_tests && li.requested_tests.length ? li.requested_tests : headerTests;
+      // Each sample's tests come ONLY from its own line item — no header fallback.
+      const params = li.requested_tests ?? [];
+      const tempNum = (() => {
+        if (li.temperature_c == null || li.temperature_c === "") return null;
+        const n = typeof li.temperature_c === "number" ? li.temperature_c : Number(li.temperature_c);
+        return isNaN(n) ? null : n;
+      })();
       for (let v = 0; v < vials; v++) {
         seq += 1;
         const sampleId = `${data.sample_id}-${String(seq).padStart(2, "0")}`;
@@ -663,6 +670,8 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           catalog: li.catalog ?? null,
           container_size: li.container_size ?? null,
           concentration: li.concentration ?? null,
+          temperature_c: tempNum,
+          line_item_index: lineIdx,
           created_by: userId,
           status: "received" as const,
         });
@@ -747,6 +756,7 @@ export const recordCocAttachment = createServerFn({ method: "POST" })
       file_name: z.string().min(1).max(255),
       content_type: z.string().max(127).nullable().optional(),
       size_bytes: z.number().int().nonnegative().nullable().optional(),
+      line_item_index: z.number().int().nullable().optional(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -757,6 +767,7 @@ export const recordCocAttachment = createServerFn({ method: "POST" })
       file_name: data.file_name,
       content_type: data.content_type ?? null,
       size_bytes: data.size_bytes ?? null,
+      line_item_index: data.line_item_index ?? null,
       uploaded_by: userId,
     }).select().single();
     if (error) throw error;
