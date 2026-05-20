@@ -169,6 +169,7 @@ export const listStandardPreparations = createServerFn({ method: "GET" })
       q = q.or(
         [
           `log_number.ilike.${term}`,
+          `syn_id.ilike.${term}`,
           `standard_name.ilike.${term}`,
           `analyst_name.ilike.${term}`,
           `manufacturer_lot.ilike.${term}`,
