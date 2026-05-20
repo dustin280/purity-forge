@@ -182,7 +182,7 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const [{ data: log, error: e1 }, { data: atts, error: e2 }] = await Promise.all([
+    const [{ data: log, error: e1 }, { data: atts, error: e2 }, { data: targets, error: e3 }] = await Promise.all([
       context.supabase
         .from("standard_preparation_logs")
         .select("*, material_receipt:material_receipts(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
@@ -193,12 +193,19 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
         .select("*")
         .eq("log_id", data.id)
         .order("uploaded_at", { ascending: false }),
+      context.supabase
+        .from("standard_preparation_targets")
+        .select("*")
+        .eq("prep_id", data.id)
+        .order("row_no", { ascending: true }),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;
+    if (e3) throw e3;
     return {
       log: log as unknown as StandardPrepRow & { material_receipt: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null },
       attachments: (atts ?? []) as PrepAttachmentRow[],
+      targets: (targets ?? []) as PrepTargetRow[],
     };
   });
 
@@ -396,13 +403,19 @@ export const listStandardSuggestions = createServerFn({ method: "GET" })
 
 export const searchMaterialReceiptsForLink = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ q: z.string().nullable().optional() }).parse(d ?? {}))
+  .inputValidator((d: unknown) => z.object({
+    q: z.string().nullable().optional(),
+    approved_only: z.boolean().optional(),
+  }).parse(d ?? {}))
   .handler(async ({ context, data }) => {
     let q = context.supabase
       .from("material_receipts")
-      .select("id, receipt_number, internal_lot, manufacturer_lot, material_name")
+      .select("id, receipt_number, internal_lot, manufacturer_lot, material_name, received_at, purity_percent, molecular_weight, shelf_life_months, expiry_date, approved_at, quarantine_status")
       .order("received_at", { ascending: false })
       .limit(20);
+    if (data.approved_only) {
+      q = q.not("approved_at", "is", null).eq("quarantine_status", "released");
+    }
     if (data.q && data.q.trim()) {
       const term = `%${data.q.trim()}%`;
       q = q.or(
@@ -417,4 +430,26 @@ export const searchMaterialReceiptsForLink = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw error;
     return rows ?? [];
+  });
+
+export const listPrepsForReceipt = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ receipt_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: rows, error } = await context.supabase
+      .from("standard_preparation_logs")
+      .select("id, log_number, standard_name, analyst_name, prepared_at, expiration_date, status")
+      .eq("material_receipt_id", data.receipt_id)
+      .order("prepared_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return (rows ?? []) as Array<{
+      id: string;
+      log_number: string;
+      standard_name: string;
+      analyst_name: string;
+      prepared_at: string;
+      expiration_date: string | null;
+      status: PrepStatus;
+    }>;
   });
