@@ -493,14 +493,14 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       });
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
-        if (pendingFiles.length) await uploadPendingTo(recordId);
+        await uploadAllPendingTo(recordId);
       } else {
         const cleaned = lineItems
           .map(li => ({ ...li, compound: li.compound.trim() }))
           .filter(li => li.compound.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
         const res = await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } }) as { coc: { id: string } };
-        if (pendingFiles.length && res?.coc?.id) await uploadPendingTo(res.coc.id);
+        if (res?.coc?.id) await uploadAllPendingTo(res.coc.id);
       }
     },
     onSuccess: () => {
@@ -512,13 +512,13 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);
+      setPendingByLine({});
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
   });
 
-  async function uploadPendingTo(cocId: string) {
-    for (const file of pendingFiles) {
+  async function uploadOne(cocId: string, file: File, lineIdx: number | null) {
       const safe = file.name.replace(/[^\w.\-]+/g, "_");
       const path = `${cocId}/${Date.now()}-${safe}`;
       const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);
@@ -526,7 +526,17 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
       await recordAttachment({ data: {
         coc_id: cocId, file_path: path, file_name: file.name,
         content_type: file.type || null, size_bytes: file.size,
+        line_item_index: lineIdx,
       } });
+  }
+
+  async function uploadAllPendingTo(cocId: string) {
+    for (const file of pendingFiles) {
+      await uploadOne(cocId, file, null);
+    }
+    for (const [idx, files] of Object.entries(pendingByLine)) {
+      const i = Number(idx);
+      for (const file of files) await uploadOne(cocId, file, i);
     }
   }
 
