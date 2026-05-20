@@ -289,6 +289,7 @@ function LinkedPreparations({ receiptId }: { receiptId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Log #</TableHead>
+                <TableHead>SYN ID</TableHead>
                 <TableHead>Standard</TableHead>
                 <TableHead>Analyst</TableHead>
                 <TableHead>Prepared</TableHead>
@@ -304,6 +305,7 @@ function LinkedPreparations({ receiptId }: { receiptId: string }) {
                       {p.log_number}
                     </Link>
                   </TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{p.syn_id ?? "—"}</TableCell>
                   <TableCell>{p.standard_name}</TableCell>
                   <TableCell className="text-muted-foreground">{p.analyst_name}</TableCell>
                   <TableCell className="text-muted-foreground">{new Date(p.prepared_at).toLocaleDateString()}</TableCell>

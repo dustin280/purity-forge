@@ -84,6 +84,7 @@ function StandardPrepsIndex() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm font-semibold">{r.log_number}</span>
+                      {r.syn_id && <span className="font-mono text-xs text-muted-foreground">{r.syn_id}</span>}
                       <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>{r.status}</Badge>
                     </div>
                     <div className="font-medium mt-1 truncate">{r.standard_name}</div>

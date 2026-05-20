@@ -1,0 +1,1 @@
+ALTER TABLE public.syn_id_counters ENABLE ROW LEVEL SECURITY;

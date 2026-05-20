@@ -885,6 +885,7 @@ export type Database = {
           approved_at: string | null
           approver_id: string | null
           approver_name: string | null
+          batch_group_id: string | null
           container_label: string | null
           created_at: string
           created_by: string | null
@@ -917,6 +918,7 @@ export type Database = {
           status: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition: string | null
           storage_location: string | null
+          syn_id: string | null
           target_concentration: string | null
           updated_at: string
         }
@@ -927,6 +929,7 @@ export type Database = {
           approved_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
+          batch_group_id?: string | null
           container_label?: string | null
           created_at?: string
           created_by?: string | null
@@ -959,6 +962,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition?: string | null
           storage_location?: string | null
+          syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
         }
@@ -969,6 +973,7 @@ export type Database = {
           approved_at?: string | null
           approver_id?: string | null
           approver_name?: string | null
+          batch_group_id?: string | null
           container_label?: string | null
           created_at?: string
           created_by?: string | null
@@ -1001,6 +1006,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition?: string | null
           storage_location?: string | null
+          syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
         }
@@ -1085,6 +1091,21 @@ export type Database = {
           name?: string
           typical_concentration?: string | null
           typical_solvent?: string | null
+        }
+        Relationships: []
+      }
+      syn_id_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
         }
         Relationships: []
       }
@@ -1198,6 +1219,10 @@ export type Database = {
       }
       next_material_receipt_number: { Args: never; Returns: string }
       next_standard_preparation_number: { Args: never; Returns: string }
+      next_syn_id: {
+        Args: { p_day: string; p_user_token: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"

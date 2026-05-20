@@ -196,6 +196,17 @@ interface Props {
    * successful save.
    */
   draftKey?: string;
+  /**
+   * Batch mode: the calculator's target rows are the standards. Hides the
+   * single "Standard name" required field, shows a SYN ID preview column,
+   * and the submit button reflects the row count.
+   */
+  batchMode?: boolean;
+  /**
+   * Prefix for SYN ID preview, e.g. "SYN_052026_JDS_". A "?" is appended
+   * per row since the real counter is assigned server-side.
+   */
+  synPreviewPrefix?: string;
 }
 
 export function clearPrepDraft(draftKey: string | undefined) {
@@ -211,7 +222,7 @@ function loadDraft(draftKey: string | undefined): Partial<PrepFormValues> | null
   } catch { return null; }
 }
 
-export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey }: Props) {
+export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey, batchMode = false, synPreviewPrefix }: Props) {
   const [v, setV] = useState<PrepFormValues>(() => {
     const draft = loadDraft(draftKey);
     return { ...emptyPrepValues(defaultAnalystName), ...initial, ...(draft ?? {}) };
@@ -440,6 +451,13 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    if (batchMode) {
+      const nonEmpty = v.targets.filter(t => t.name.trim() || t.target_concentration_mg_per_ml || t.target_volume_ml);
+      if (nonEmpty.length === 0) {
+        toast.error("Add at least one standard to the calculator before saving.");
+        return;
+      }
+    }
     onSubmit(v);
   }
 
@@ -477,15 +495,15 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
           <Field label="Analyst name" required>
             <Input value={v.analyst_name} onChange={e => up("analyst_name", e.target.value)} required maxLength={255} />
           </Field>
-          <Field label="Standard name" required>
+          <Field label={batchMode ? "Batch label (optional)" : "Standard name"} required={!batchMode}>
             <Input
               list="standard-suggestions"
               value={v.standard_name}
               onChange={e => up("standard_name", e.target.value)}
               onBlur={e => pickSuggestion(e.target.value)}
-              required
+              required={!batchMode}
               maxLength={255}
-              placeholder="e.g. Peptide Reference Standard"
+              placeholder={batchMode ? "e.g. Method validation batch" : "e.g. Peptide Reference Standard"}
             />
             <datalist id="standard-suggestions">
               {suggestionList.map(s => <option key={s.id} value={s.name} />)}
@@ -646,6 +664,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b">
                   <th className="py-1 pr-2 w-8">#</th>
+                  {batchMode && <th className="py-1 pr-2 w-40">SYN ID (preview)</th>}
                   <th className="py-1 pr-2 min-w-[160px]">Name</th>
                   <th className="py-1 pr-2 w-32">Conc (mg/mL)</th>
                   <th className="py-1 pr-2 w-28">Vol (mL)</th>
@@ -660,6 +679,11 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
                   return (
                     <tr key={idx} className="border-b last:border-0">
                       <td className="py-1 pr-2 text-xs font-mono text-muted-foreground">{idx + 1}</td>
+                      {batchMode && (
+                        <td className="py-1 pr-2 text-xs font-mono text-muted-foreground">
+                          {synPreviewPrefix ? `${synPreviewPrefix}?` : "—"}
+                        </td>
+                      )}
                       <td className="py-1 pr-2"><Input value={t.name} onChange={e => updateTarget(idx, { name: e.target.value })} maxLength={255} /></td>
                       <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_concentration_mg_per_ml} onChange={e => updateTarget(idx, { target_concentration_mg_per_ml: e.target.value })} /></td>
                       <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_volume_ml} onChange={e => updateTarget(idx, { target_volume_ml: e.target.value })} /></td>
@@ -782,9 +806,20 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
         </div>
       </Card>
 
+      {batchMode && (
+        <div className="text-xs text-muted-foreground -mt-2 px-1">
+          Final SYN IDs are assigned in order on save. Each standard becomes its own line in the journal.
+        </div>
+      )}
       <div className="flex gap-2 justify-end">
         {onCancel && <Button type="button" variant="ghost" onClick={handleCancel}>Cancel</Button>}
-        <Button type="submit" disabled={submitting}>{submitting ? "Saving…" : submitLabel}</Button>
+        <Button type="submit" disabled={submitting}>
+          {submitting
+            ? "Saving…"
+            : batchMode
+              ? `Save ${v.targets.filter(t => t.name.trim() || t.target_concentration_mg_per_ml || t.target_volume_ml).length} standards to log`
+              : submitLabel}
+        </Button>
       </div>
     </form>
   );

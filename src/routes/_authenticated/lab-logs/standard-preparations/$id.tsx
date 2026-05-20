@@ -146,7 +146,10 @@ function PrepDetail() {
       </Link>
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
-          <div className="font-mono text-sm text-muted-foreground">{r.log_number}</div>
+          <div className="font-mono text-sm text-muted-foreground">
+            {r.log_number}
+            {r.syn_id && <span className="ml-2 text-foreground">· {r.syn_id}</span>}
+          </div>
           <h1 className="text-3xl font-bold tracking-tight mt-1">{r.standard_name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>
@@ -154,6 +157,11 @@ function PrepDetail() {
             </Badge>
             {r.target_concentration && <Badge variant="outline">{r.target_concentration}</Badge>}
             {r.manufacturer_lot && <Badge variant="outline">Lot {r.manufacturer_lot}</Badge>}
+            {r.batch_group_id && (
+              <Link to="/lab-logs/standard-preparations/batch/$groupId" params={{ groupId: r.batch_group_id }}>
+                <Badge variant="secondary" className="cursor-pointer">View batch</Badge>
+              </Link>
+            )}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
