@@ -18,6 +18,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ClipboardList, Eye, Download, X, Trash, Camera, Upload, ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
