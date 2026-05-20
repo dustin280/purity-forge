@@ -206,18 +206,28 @@ export const createStandardPreparation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => payloadSchema.parse(d))
   .handler(async ({ context, data }) => {
+    const { targets, ...rest } = data;
     const payload = emptyToNull({
-      ...data,
+      ...rest,
       analyst_id: context.userId,
       created_by: context.userId,
-      preparation_steps: data.preparation_steps ?? [],
+      preparation_steps: rest.preparation_steps ?? [],
     });
     const { data: row, error } = await context.supabase
       .from("standard_preparation_logs")
-      .insert(payload)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .insert(payload as any)
       .select()
       .single();
     if (error) throw error;
+    if (targets && targets.length > 0) {
+      const inserts = targets.map(t => ({ ...t, prep_id: row.id }));
+      const { error: tErr } = await context.supabase
+        .from("standard_preparation_targets")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .insert(inserts as any);
+      if (tErr) throw tErr;
+    }
     return row as unknown as StandardPrepRow;
   });
 
@@ -227,7 +237,8 @@ export const updateStandardPreparation = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), patch: payloadSchema.partial() }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const payload = emptyToNull(data.patch) as Record<string, unknown>;
+    const { targets, ...patch } = data.patch;
+    const payload = emptyToNull(patch) as Record<string, unknown>;
     const { data: row, error } = await context.supabase
       .from("standard_preparation_logs")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,6 +247,22 @@ export const updateStandardPreparation = createServerFn({ method: "POST" })
       .select()
       .single();
     if (error) throw error;
+    if (targets) {
+      // Replace strategy: delete existing targets then re-insert.
+      const { error: dErr } = await context.supabase
+        .from("standard_preparation_targets")
+        .delete()
+        .eq("prep_id", data.id);
+      if (dErr) throw dErr;
+      if (targets.length > 0) {
+        const inserts = targets.map(t => ({ ...t, prep_id: data.id }));
+        const { error: tErr } = await context.supabase
+          .from("standard_preparation_targets")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .insert(inserts as any);
+        if (tErr) throw tErr;
+      }
+    }
     return row as unknown as StandardPrepRow;
   });
 
