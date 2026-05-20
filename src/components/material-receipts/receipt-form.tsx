@@ -39,6 +39,9 @@ export interface ReceiptFormValues {
   qc_results: string;
   qc_analyst: string;
   qc_date: string;
+  purity_percent: string;
+  molecular_weight: string;
+  shelf_life_months: string;
 }
 
 export const VISUAL_INSPECTION_OPTIONS = [
@@ -80,6 +83,9 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     qc_results: "",
     qc_analyst: "",
     qc_date: "",
+    purity_percent: "",
+    molecular_weight: "",
+    shelf_life_months: "",
   };
 }
 
@@ -116,6 +122,18 @@ export function valuesToPayload(v: ReceiptFormValues) {
     qc_results: v.material_type === "controlled" ? v.qc_results : null,
     qc_analyst: v.material_type === "controlled" ? v.qc_analyst : null,
     qc_date: v.material_type === "controlled" && v.qc_date ? v.qc_date : null,
+    purity_percent:
+      v.material_type === "controlled" && v.purity_percent !== ""
+        ? Number(v.purity_percent)
+        : null,
+    molecular_weight:
+      v.material_type === "controlled" && v.molecular_weight !== ""
+        ? Number(v.molecular_weight)
+        : null,
+    shelf_life_months:
+      v.material_type === "controlled" && v.shelf_life_months !== ""
+        ? Number(v.shelf_life_months)
+        : null,
   };
 }
 
@@ -274,6 +292,37 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
               </Field>
               <Field label="Container (size, type, condition)" className="md:col-span-2">
                 <Input value={v.container_details} onChange={e => up("container_details", e.target.value)} maxLength={500} />
+              </Field>
+              <Field label="Purity (%)">
+                <Input
+                  type="number"
+                  step="any"
+                  min={0}
+                  max={100}
+                  value={v.purity_percent}
+                  onChange={e => up("purity_percent", e.target.value)}
+                  placeholder="e.g. 99.5"
+                />
+              </Field>
+              <Field label="Molecular weight (g/mol)">
+                <Input
+                  type="number"
+                  step="any"
+                  min={0}
+                  value={v.molecular_weight}
+                  onChange={e => up("molecular_weight", e.target.value)}
+                  placeholder="e.g. 1046.18"
+                />
+              </Field>
+              <Field label="Shelf life (months)">
+                <Input
+                  type="number"
+                  step={1}
+                  min={0}
+                  value={v.shelf_life_months}
+                  onChange={e => up("shelf_life_months", e.target.value)}
+                  placeholder="e.g. 24"
+                />
               </Field>
             </div>
           </Card>

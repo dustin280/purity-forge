@@ -126,6 +126,9 @@ function ReceiptDetail() {
       qc_results: r.qc_results ?? "",
       qc_analyst: r.qc_analyst ?? "",
       qc_date: r.qc_date ?? "",
+      purity_percent: r.purity_percent?.toString() ?? "",
+      molecular_weight: r.molecular_weight?.toString() ?? "",
+      shelf_life_months: r.shelf_life_months?.toString() ?? "",
     };
     return (
       <div className="p-6 md:p-8 max-w-4xl">

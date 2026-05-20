@@ -466,8 +466,10 @@ export type Database = {
           manufacturer_lot: string | null
           material_name: string
           material_type: Database["public"]["Enums"]["material_type"]
+          molecular_weight: number | null
           notes: string | null
           po_number: string | null
+          purity_percent: number | null
           purpose: string | null
           qc_analyst: string | null
           qc_date: string | null
@@ -480,6 +482,7 @@ export type Database = {
           received_by: string | null
           receiver_name: string
           sds_attached: boolean
+          shelf_life_months: number | null
           storage_location: string | null
           supplier: string | null
           temperature_on_receipt: number | null
@@ -505,8 +508,10 @@ export type Database = {
           manufacturer_lot?: string | null
           material_name: string
           material_type: Database["public"]["Enums"]["material_type"]
+          molecular_weight?: number | null
           notes?: string | null
           po_number?: string | null
+          purity_percent?: number | null
           purpose?: string | null
           qc_analyst?: string | null
           qc_date?: string | null
@@ -519,6 +524,7 @@ export type Database = {
           received_by?: string | null
           receiver_name: string
           sds_attached?: boolean
+          shelf_life_months?: number | null
           storage_location?: string | null
           supplier?: string | null
           temperature_on_receipt?: number | null
@@ -544,8 +550,10 @@ export type Database = {
           manufacturer_lot?: string | null
           material_name?: string
           material_type?: Database["public"]["Enums"]["material_type"]
+          molecular_weight?: number | null
           notes?: string | null
           po_number?: string | null
+          purity_percent?: number | null
           purpose?: string | null
           qc_analyst?: string | null
           qc_date?: string | null
@@ -558,6 +566,7 @@ export type Database = {
           received_by?: string | null
           receiver_name?: string
           sds_attached?: boolean
+          shelf_life_months?: number | null
           storage_location?: string | null
           supplier?: string | null
           temperature_on_receipt?: number | null
@@ -880,15 +889,26 @@ export type Database = {
           created_at: string
           created_by: string | null
           expiration_date: string | null
+          expiration_period_code: string | null
+          expiration_period_days: number | null
+          final_diluent: string | null
           final_volume: string | null
           id: string
+          initial_solvent: string | null
           log_number: string
           manufacturer_lot: string | null
+          material_overridden: boolean
           material_receipt_id: string | null
           mixing_details: string | null
+          modifier_percent: number | null
           notes: string | null
           preparation_steps: Json
           prepared_at: string
+          ref_lot: string | null
+          ref_material_name: string | null
+          ref_molecular_weight: number | null
+          ref_purity_percent: number | null
+          ref_receipt_date: string | null
           reviewed_at: string | null
           reviewer_id: string | null
           reviewer_name: string | null
@@ -911,15 +931,26 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expiration_date?: string | null
+          expiration_period_code?: string | null
+          expiration_period_days?: number | null
+          final_diluent?: string | null
           final_volume?: string | null
           id?: string
+          initial_solvent?: string | null
           log_number?: string
           manufacturer_lot?: string | null
+          material_overridden?: boolean
           material_receipt_id?: string | null
           mixing_details?: string | null
+          modifier_percent?: number | null
           notes?: string | null
           preparation_steps?: Json
           prepared_at?: string
+          ref_lot?: string | null
+          ref_material_name?: string | null
+          ref_molecular_weight?: number | null
+          ref_purity_percent?: number | null
+          ref_receipt_date?: string | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           reviewer_name?: string | null
@@ -942,15 +973,26 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           expiration_date?: string | null
+          expiration_period_code?: string | null
+          expiration_period_days?: number | null
+          final_diluent?: string | null
           final_volume?: string | null
           id?: string
+          initial_solvent?: string | null
           log_number?: string
           manufacturer_lot?: string | null
+          material_overridden?: boolean
           material_receipt_id?: string | null
           mixing_details?: string | null
+          modifier_percent?: number | null
           notes?: string | null
           preparation_steps?: Json
           prepared_at?: string
+          ref_lot?: string | null
+          ref_material_name?: string | null
+          ref_molecular_weight?: number | null
+          ref_purity_percent?: number | null
+          ref_receipt_date?: string | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           reviewer_name?: string | null
@@ -968,6 +1010,53 @@ export type Database = {
             columns: ["material_receipt_id"]
             isOneToOne: false
             referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standard_preparation_targets: {
+        Row: {
+          calculated_mass_mg: number | null
+          calculated_volume_ml: number | null
+          created_at: string
+          id: string
+          name: string | null
+          notes: string | null
+          prep_id: string
+          row_no: number
+          target_concentration_mg_per_ml: number | null
+          target_volume_ml: number | null
+        }
+        Insert: {
+          calculated_mass_mg?: number | null
+          calculated_volume_ml?: number | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          prep_id: string
+          row_no: number
+          target_concentration_mg_per_ml?: number | null
+          target_volume_ml?: number | null
+        }
+        Update: {
+          calculated_mass_mg?: number | null
+          calculated_volume_ml?: number | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          notes?: string | null
+          prep_id?: string
+          row_no?: number
+          target_concentration_mg_per_ml?: number | null
+          target_volume_ml?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standard_preparation_targets_prep_id_fkey"
+            columns: ["prep_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_logs"
             referencedColumns: ["id"]
           },
         ]

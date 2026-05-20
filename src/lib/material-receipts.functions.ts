@@ -48,6 +48,9 @@ export interface MaterialReceiptRow {
   created_at: string;
   updated_at: string;
   created_by: string | null;
+  purity_percent: number | null;
+  molecular_weight: number | null;
+  shelf_life_months: number | null;
 }
 
 export interface AttachmentRow {
@@ -91,6 +94,9 @@ const receiptPayloadSchema = z.object({
   qc_results: z.string().max(2000).nullable().optional(),
   qc_analyst: z.string().max(255).nullable().optional(),
   qc_date: z.string().nullable().optional(),
+  purity_percent: z.number().nullable().optional(),
+  molecular_weight: z.number().nullable().optional(),
+  shelf_life_months: z.number().int().nullable().optional(),
 });
 
 function emptyToNull<T extends Record<string, unknown>>(o: T): T {

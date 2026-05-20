@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Link2 } from "lucide-react";
+import { Plus, Trash2, Link2, Copy, ExternalLink, AlertTriangle, Calculator } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   listStandardSuggestions,
   searchMaterialReceiptsForLink,
   type PrepStep,
+  type PrepTarget,
 } from "@/lib/standard-preparations.functions";
 
 export interface PrepFormValues {
@@ -31,6 +35,62 @@ export interface PrepFormValues {
   storage_location: string;
   container_label: string;
   notes: string;
+  // Calculator / traceability
+  expiration_period_code: ExpirationCode;
+  expiration_period_days: string;
+  initial_solvent: string;
+  final_diluent: string;
+  modifier_percent: string;
+  material_overridden: boolean;
+  ref_material_name: string;
+  ref_lot: string;
+  ref_purity_percent: string;
+  ref_molecular_weight: string;
+  ref_receipt_date: string;
+  ref_shelf_life_months: string;
+  targets: TargetRow[];
+}
+
+export type ExpirationCode = "1w" | "2w" | "4w" | "3m" | "6m" | "custom";
+
+export interface TargetRow {
+  name: string;
+  target_concentration_mg_per_ml: string;
+  target_volume_ml: string;
+  notes: string;
+}
+
+const EXP_PRESETS: Record<Exclude<ExpirationCode, "custom">, { label: string; days: number }> = {
+  "1w": { label: "1 week", days: 7 },
+  "2w": { label: "2 weeks", days: 14 },
+  "4w": { label: "4 weeks", days: 28 },
+  "3m": { label: "3 months", days: 90 },
+  "6m": { label: "6 months", days: 180 },
+};
+
+function emptyTarget(): TargetRow {
+  return { name: "", target_concentration_mg_per_ml: "", target_volume_ml: "", notes: "" };
+}
+
+function periodDays(code: ExpirationCode, customDays: string): number | null {
+  if (code === "custom") {
+    const n = Number(customDays);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  }
+  return EXP_PRESETS[code].days;
+}
+
+function addDaysISO(dateInput: string, days: number): string {
+  const base = new Date(dateInput);
+  if (Number.isNaN(base.getTime())) return "";
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+function calcMassMg(concMgPerMl: number, volMl: number, purityPct: number | null): number {
+  const raw = concMgPerMl * volMl;
+  if (!purityPct || purityPct <= 0) return raw;
+  return raw / (purityPct / 100);
 }
 
 export function emptyPrepValues(analystName: string): PrepFormValues {
@@ -52,10 +112,43 @@ export function emptyPrepValues(analystName: string): PrepFormValues {
     storage_location: "",
     container_label: "",
     notes: "",
+    expiration_period_code: "2w",
+    expiration_period_days: "14",
+    initial_solvent: "",
+    final_diluent: "HPLC Grade Water + 0.1% TFA",
+    modifier_percent: "",
+    material_overridden: false,
+    ref_material_name: "",
+    ref_lot: "",
+    ref_purity_percent: "",
+    ref_molecular_weight: "",
+    ref_receipt_date: "",
+    ref_shelf_life_months: "",
+    targets: [emptyTarget()],
   };
 }
 
 export function prepValuesToPayload(v: PrepFormValues) {
+  const purity = v.ref_purity_percent === "" ? null : Number(v.ref_purity_percent);
+  const days = periodDays(v.expiration_period_code, v.expiration_period_days);
+  const expDate = days != null && v.prepared_at ? addDaysISO(v.prepared_at, days) : v.expiration_date || null;
+  const targets: PrepTarget[] = v.targets
+    .map((t, idx) => {
+      const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+      const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
+      const mass = conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
+      return {
+        row_no: idx + 1,
+        name: t.name,
+        target_concentration_mg_per_ml: conc,
+        target_volume_ml: vol,
+        calculated_mass_mg: mass,
+        calculated_volume_ml: vol,
+        notes: t.notes,
+      };
+    })
+    .filter(t => t.name.trim() || t.target_concentration_mg_per_ml != null || t.target_volume_ml != null || t.notes.trim());
+
   return {
     prepared_at: new Date(v.prepared_at).toISOString(),
     analyst_name: v.analyst_name,
@@ -70,11 +163,23 @@ export function prepValuesToPayload(v: PrepFormValues) {
       .map((s, idx) => ({ ...s, step_no: idx + 1 })),
     mixing_details: v.mixing_details,
     appearance_notes: v.appearance_notes,
-    expiration_date: v.expiration_date,
+    expiration_date: expDate ?? "",
     storage_condition: v.storage_condition,
     storage_location: v.storage_location,
     container_label: v.container_label,
     notes: v.notes,
+    expiration_period_code: v.expiration_period_code,
+    expiration_period_days: days,
+    initial_solvent: v.initial_solvent,
+    final_diluent: v.final_diluent,
+    modifier_percent: v.modifier_percent === "" ? null : Number(v.modifier_percent),
+    material_overridden: v.material_overridden,
+    ref_material_name: v.ref_material_name,
+    ref_lot: v.ref_lot,
+    ref_purity_percent: purity,
+    ref_molecular_weight: v.ref_molecular_weight === "" ? null : Number(v.ref_molecular_weight),
+    ref_receipt_date: v.ref_receipt_date || null,
+    targets,
   };
 }
 
@@ -115,6 +220,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   const hasDraft = !!loadDraft(draftKey);
   const [receiptSearch, setReceiptSearch] = useState("");
   const [receiptPickerOpen, setReceiptPickerOpen] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false);
 
   const listSuggestions = useServerFn(listStandardSuggestions);
   const searchReceipts = useServerFn(searchMaterialReceiptsForLink);
@@ -126,7 +232,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   const { data: receiptResults = [] } = useQuery({
     queryKey: ["receipt-link-search", receiptSearch],
-    queryFn: () => searchReceipts({ data: { q: receiptSearch || null } }),
+    queryFn: () => searchReceipts({ data: { q: receiptSearch || null, approved_only: true } }),
     enabled: receiptPickerOpen,
   });
 
@@ -157,6 +263,57 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   const suggestionList = useMemo(() => suggestions, [suggestions]);
 
+  const purityNum = v.ref_purity_percent === "" ? null : Number(v.ref_purity_percent);
+  const days = periodDays(v.expiration_period_code, v.expiration_period_days);
+  const computedExpiration = days != null && v.prepared_at ? addDaysISO(v.prepared_at, days) : "";
+
+  const shelfLifeWarning = useMemo(() => {
+    if (!v.ref_receipt_date || !v.ref_shelf_life_months) return null;
+    const recd = new Date(v.ref_receipt_date);
+    const shelfMonths = Number(v.ref_shelf_life_months);
+    if (!Number.isFinite(shelfMonths) || shelfMonths <= 0) return null;
+    const shelfEnd = new Date(recd);
+    shelfEnd.setMonth(shelfEnd.getMonth() + shelfMonths);
+    const today = new Date();
+    const exp = computedExpiration ? new Date(computedExpiration) : null;
+    if (exp && exp > shelfEnd) return `Standard would expire (${computedExpiration}) after material shelf life (${shelfEnd.toISOString().slice(0,10)}).`;
+    if (today > shelfEnd) return `Reference material is past its shelf life (${shelfEnd.toISOString().slice(0,10)}).`;
+    return null;
+  }, [v.ref_receipt_date, v.ref_shelf_life_months, computedExpiration]);
+
+  const calcRows = useMemo(() => v.targets.map((t, i) => {
+    const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+    const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
+    const mass = conc != null && vol != null ? calcMassMg(conc, vol, purityNum) : null;
+    return { idx: i + 1, name: t.name, conc, vol, mass };
+  }), [v.targets, purityNum]);
+
+  const procedureText = useMemo(() => {
+    const lines: string[] = [];
+    lines.push(`1. Reference Material: ${v.ref_material_name || "—"} (Lot ${v.ref_lot || "—"}, Received ${v.ref_receipt_date || "—"}, Purity ${v.ref_purity_percent || "—"}%).`);
+    let n = 2;
+    calcRows.filter(r => r.mass != null && r.vol != null).forEach(r => {
+      lines.push(`${n++}. For ${r.name || `Std #${r.idx}`}: accurately weigh ${r.mass!.toFixed(4)} mg of reference material.`);
+      if (v.initial_solvent) lines.push(`${n++}. Dissolve in ${v.initial_solvent}${v.modifier_percent ? ` with ${v.modifier_percent}% modifier` : ""}.`);
+      lines.push(`${n++}. Dilute to ${r.vol} mL with ${v.final_diluent || "final diluent"}.`);
+    });
+    if (computedExpiration) lines.push(`${n++}. Standard expires on ${computedExpiration}.`);
+    return lines.join("\n");
+  }, [calcRows, v.ref_material_name, v.ref_lot, v.ref_receipt_date, v.ref_purity_percent, v.initial_solvent, v.modifier_percent, v.final_diluent, computedExpiration]);
+
+  const summaryText = useMemo(() => [
+    `Reference: ${v.ref_material_name || "—"} (Lot ${v.ref_lot || "—"})`,
+    `Receipt date: ${v.ref_receipt_date || "—"}`,
+    `Prepared: ${v.prepared_at} by ${v.analyst_name}`,
+    `Expiration: ${computedExpiration || v.expiration_date || "—"}`,
+    `Targets: ${calcRows.length}`,
+  ].join("\n"), [v, computedExpiration, calcRows.length]);
+
+  async function copy(text: string, label: string) {
+    try { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); }
+    catch { toast.error("Copy failed"); }
+  }
+
   function up<K extends keyof PrepFormValues>(k: K, val: PrepFormValues[K]) {
     dirtyRef.current = true;
     setV(prev => ({ ...prev, [k]: val }));
@@ -176,18 +333,82 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   function linkReceipt(r: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string }) {
     dirtyRef.current = true;
+    const x = r as typeof r & {
+      received_at?: string;
+      purity_percent?: number | null;
+      molecular_weight?: number | null;
+      shelf_life_months?: number | null;
+    };
     setV(prev => ({
       ...prev,
       material_receipt_id: r.id,
       material_receipt_label: `${r.receipt_number} — ${r.material_name}${r.internal_lot ? ` (lot ${r.internal_lot})` : ""}`,
       manufacturer_lot: prev.manufacturer_lot || r.manufacturer_lot || "",
+      ref_material_name: r.material_name,
+      ref_lot: r.internal_lot || r.manufacturer_lot || "",
+      ref_purity_percent: x.purity_percent != null ? String(x.purity_percent) : "",
+      ref_molecular_weight: x.molecular_weight != null ? String(x.molecular_weight) : "",
+      ref_receipt_date: x.received_at ? x.received_at.slice(0, 10) : "",
+      ref_shelf_life_months: x.shelf_life_months != null ? String(x.shelf_life_months) : "",
+      material_overridden: false,
     }));
     setReceiptPickerOpen(false);
   }
 
   function clearReceipt() {
     dirtyRef.current = true;
-    setV(prev => ({ ...prev, material_receipt_id: "", material_receipt_label: "" }));
+    setV(prev => ({
+      ...prev,
+      material_receipt_id: "",
+      material_receipt_label: "",
+      ref_material_name: "",
+      ref_lot: "",
+      ref_purity_percent: "",
+      ref_molecular_weight: "",
+      ref_receipt_date: "",
+      ref_shelf_life_months: "",
+      material_overridden: false,
+    }));
+  }
+
+  function markOverridden<K extends keyof PrepFormValues>(k: K, val: PrepFormValues[K]) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, [k]: val, material_overridden: prev.material_receipt_id ? true : prev.material_overridden }));
+  }
+
+  function addTargetRows(n: number) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: [...prev.targets, ...Array.from({ length: n }, emptyTarget)] }));
+  }
+
+  function updateTarget(idx: number, patch: Partial<TargetRow>) {
+    dirtyRef.current = true;
+    setV(prev => ({
+      ...prev,
+      targets: prev.targets.map((t, i) => (i === idx ? { ...t, ...patch } : t)),
+    }));
+  }
+
+  function removeTarget(idx: number) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: prev.targets.filter((_, i) => i !== idx) }));
+  }
+
+  function pasteTargets(text: string) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const rows: TargetRow[] = lines.map(l => {
+      const cols = l.split(/\t|,/).map(c => c.trim());
+      return {
+        name: cols[0] ?? "",
+        target_concentration_mg_per_ml: cols[1] ?? "",
+        target_volume_ml: cols[2] ?? "",
+        notes: cols[3] ?? "",
+      };
+    });
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: [...prev.targets.filter(t => t.name || t.target_concentration_mg_per_ml || t.target_volume_ml), ...rows] }));
+    toast.success(`Added ${rows.length} rows`);
   }
 
   function addStep() {
@@ -331,6 +552,151 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
             </div>
           )}
         </div>
+      </Card>
+
+      {/* Calculator: reference material + expiration + diluents + targets */}
+      <Card className="p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Reference Material & Calculator</h2>
+          {v.material_receipt_id && (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <a href={`/material-receipts/${v.material_receipt_id}`} target="_blank" rel="noopener">
+                <ExternalLink className="size-4 mr-1" /> View Linked Receipt
+              </a>
+            </Button>
+          )}
+        </div>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Field label="Reference material name">
+            <div className="flex gap-1 items-start">
+              <Input value={v.ref_material_name} onChange={e => markOverridden("ref_material_name", e.target.value)} maxLength={255} />
+              {v.material_overridden && <Badge variant="outline" className="mt-2 text-[10px]">Overridden</Badge>}
+            </div>
+          </Field>
+          <Field label="Lot #">
+            <Input value={v.ref_lot} onChange={e => markOverridden("ref_lot", e.target.value)} maxLength={255} />
+          </Field>
+          <Field label="Receipt date">
+            <Input type="date" value={v.ref_receipt_date} onChange={e => markOverridden("ref_receipt_date", e.target.value)} />
+          </Field>
+          <Field label="Purity (%)">
+            <Input type="number" step="any" value={v.ref_purity_percent} onChange={e => markOverridden("ref_purity_percent", e.target.value)} />
+          </Field>
+          <Field label="Molecular weight (g/mol)">
+            <Input type="number" step="any" value={v.ref_molecular_weight} onChange={e => markOverridden("ref_molecular_weight", e.target.value)} />
+          </Field>
+          <Field label="Shelf life (months)">
+            <Input type="number" step={1} value={v.ref_shelf_life_months} onChange={e => markOverridden("ref_shelf_life_months", e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4 pt-2 border-t">
+          <Field label="Expiration period">
+            <Select value={v.expiration_period_code} onValueChange={val => up("expiration_period_code", val as ExpirationCode)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1w">1 week</SelectItem>
+                <SelectItem value="2w">2 weeks</SelectItem>
+                <SelectItem value="4w">4 weeks</SelectItem>
+                <SelectItem value="3m">3 months</SelectItem>
+                <SelectItem value="6m">6 months</SelectItem>
+                <SelectItem value="custom">Custom days</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+          {v.expiration_period_code === "custom" && (
+            <Field label="Custom days">
+              <Input type="number" min={1} step={1} value={v.expiration_period_days} onChange={e => up("expiration_period_days", e.target.value)} />
+            </Field>
+          )}
+          <Field label="Calculated expiration date">
+            <Input type="date" value={computedExpiration} readOnly className="bg-muted/30" />
+          </Field>
+        </div>
+        {shelfLifeWarning && (
+          <div className="flex gap-2 items-start text-xs rounded-md border border-destructive/40 bg-destructive/5 p-2">
+            <AlertTriangle className="size-4 text-destructive shrink-0 mt-0.5" />
+            <span>{shelfLifeWarning}</span>
+          </div>
+        )}
+
+        <div className="grid md:grid-cols-3 gap-4 pt-2 border-t">
+          <Field label="Initial solvent">
+            <Input value={v.initial_solvent} onChange={e => up("initial_solvent", e.target.value)} placeholder="e.g. DMSO" maxLength={500} />
+          </Field>
+          <Field label="Final diluent">
+            <Input value={v.final_diluent} onChange={e => up("final_diluent", e.target.value)} maxLength={500} />
+          </Field>
+          <Field label="Modifier %">
+            <Input type="number" step="any" value={v.modifier_percent} onChange={e => up("modifier_percent", e.target.value)} placeholder="e.g. 0.1" />
+          </Field>
+        </div>
+
+        <div className="pt-2 border-t">
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Desired Standards ({v.targets.length})</h3>
+            <div className="flex gap-1">
+              <Button type="button" size="sm" variant="outline" onClick={() => addTargetRows(1)}><Plus className="size-4 mr-1" /> Add row</Button>
+              <Button type="button" size="sm" variant="outline" onClick={() => addTargetRows(10)}>+10</Button>
+              <Button type="button" size="sm" variant="ghost" onClick={async () => { try { const t = await navigator.clipboard.readText(); pasteTargets(t); } catch { toast.error("Clipboard unavailable"); } }}>Paste</Button>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b">
+                  <th className="py-1 pr-2 w-8">#</th>
+                  <th className="py-1 pr-2 min-w-[160px]">Name</th>
+                  <th className="py-1 pr-2 w-32">Conc (mg/mL)</th>
+                  <th className="py-1 pr-2 w-28">Vol (mL)</th>
+                  <th className="py-1 pr-2 w-28">Mass (mg)</th>
+                  <th className="py-1 pr-2">Notes</th>
+                  <th className="w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {v.targets.map((t, idx) => {
+                  const row = calcRows[idx];
+                  return (
+                    <tr key={idx} className="border-b last:border-0">
+                      <td className="py-1 pr-2 text-xs font-mono text-muted-foreground">{idx + 1}</td>
+                      <td className="py-1 pr-2"><Input value={t.name} onChange={e => updateTarget(idx, { name: e.target.value })} maxLength={255} /></td>
+                      <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_concentration_mg_per_ml} onChange={e => updateTarget(idx, { target_concentration_mg_per_ml: e.target.value })} /></td>
+                      <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_volume_ml} onChange={e => updateTarget(idx, { target_volume_ml: e.target.value })} /></td>
+                      <td className="py-1 pr-2 text-xs font-mono">{row?.mass != null ? row.mass.toFixed(4) : "—"}</td>
+                      <td className="py-1 pr-2"><Input value={t.notes} onChange={e => updateTarget(idx, { notes: e.target.value })} maxLength={2000} /></td>
+                      <td className="py-1"><Button type="button" size="icon" variant="ghost" onClick={() => removeTarget(idx)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></Button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="pt-3 flex justify-end">
+            <Button type="button" onClick={() => setCalcOpen(true)} variant="default">
+              <Calculator className="size-4 mr-1" /> Calculate Preparation
+            </Button>
+          </div>
+        </div>
+
+        {calcOpen && (
+          <div className="space-y-3 pt-3 border-t">
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Procedure</h3>
+                <Button type="button" size="sm" variant="ghost" onClick={() => copy(procedureText, "Procedure")}><Copy className="size-3 mr-1" /> Copy</Button>
+              </div>
+              <pre className="text-xs whitespace-pre-wrap rounded-md bg-muted/30 p-3 border">{procedureText}</pre>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Traceability Summary</h3>
+                <Button type="button" size="sm" variant="ghost" onClick={() => copy(summaryText, "Summary")}><Copy className="size-3 mr-1" /> Copy</Button>
+              </div>
+              <pre className="text-xs whitespace-pre-wrap rounded-md bg-muted/30 p-3 border">{summaryText}</pre>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="p-5 space-y-3">

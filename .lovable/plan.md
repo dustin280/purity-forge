@@ -1,59 +1,108 @@
+
 ## Goal
 
-Fix the Chain of Custody intake form so per-product info lives on each line item, multi-vial intake is supported, data isn't lost by an accidental click, and package condition can include photos.
+Add a "Standard Preparation Calculator" that:
+1. Pulls reference material from approved Material Receipts (with purity / MW / receipt date)
+2. Calculates weights & volumes for many target standards at once
+3. Generates a fully-traceable, copy-able step-by-step procedure
+4. Saves to the Standard Preparation Log, linked to the source receipt (one receipt → many preps)
+5. Shows all standards prepared from each Material Receipt on the receipt's detail page
 
-## Changes
+## Database changes
 
-### 1. Move ambiguous header fields onto the line item
+**Add columns to `material_receipts`** (needed for auto-fill):
+- `purity_percent numeric` — e.g. 99.5
+- `molecular_weight numeric` — g/mol
+- `shelf_life_months int` (optional, default 24) — for the "material is old" warning
 
-Currently `Product Name`, `Catalog / Product Code`, `Lot / Batch Number`, `Quantity Received`, and `Container Size / Concentration per Vial` are header fields, but a single CoC carries multiple products. Make them per-row instead.
+**New table `standard_preparation_targets`** (one prep → many target standards, supports 50+ rows):
+- `id uuid pk`
+- `prep_id uuid` → `standard_preparation_logs.id` (cascade delete)
+- `row_no int`
+- `name text` (the target / desired standard label, e.g. "Working std #1")
+- `target_concentration_mg_per_ml numeric`
+- `target_volume_ml numeric`
+- `calculated_mass_mg numeric` (purity-corrected)
+- `calculated_volume_ml numeric`
+- `notes text`
+- RLS: tech/reviewer/admin write, all auth read (matches sibling tables)
 
-- In the **CoC field admin** (`/admin/coc-fields`), deactivate (or auto-hide) those five header fields so they stop showing in the header section.
-- Extend the line-item editor in `chain-of-custody.tsx` with the missing columns:
-  - Product Name (rename current "Compound" label to "Product / Compound")
-  - Catalog / Product Code
-  - Lot / Batch
-  - Container size / Concentration per vial (new)
-  - Quantity received + unit (new dedicated unit field)
-- Persist the new fields on `chain_of_custody_records.line_items` (jsonb, no migration needed) and copy them down to each generated sample row (extend `samples` with `container_size text` and `concentration text` via migration; reuse existing `lot`/`compound` columns).
-- Update the CoC PDF (`coc-pdf.ts`) to render the line items as a table with the new columns, since header values no longer carry that info.
+**Extend `standard_preparation_logs`** for calculator traceability:
+- `expiration_period_code text` — `1w | 2w | 4w | 3m | 6m | custom`
+- `expiration_period_days int` — resolved days used (so the value is auditable even if presets change)
+- `initial_solvent text`
+- `final_diluent text` (default suggestion "HPLC Grade Water + 0.1% TFA" — set in form, not DB default)
+- `modifier_percent numeric`
+- `material_overridden boolean default false` — true when user edits an auto-filled field
+- Snapshot fields captured at save time (so deleting/editing the receipt later doesn't break the log):
+  - `ref_material_name text`, `ref_lot text`, `ref_purity_percent numeric`,
+    `ref_molecular_weight numeric`, `ref_receipt_date date`
 
-### 2. Multi-vial support on requested tests
+The existing `material_receipt_id` foreign-key column already gives us the one-to-many relation.
 
-Today each row has a `requested_tests` multiselect with no count. Add a `vial_count` integer (default 1) per row, plus a `tests_per_vial` toggle so the user can say "2 vials, each gets these tests".
+## Server functions (`src/lib/standard-preparations.functions.ts`)
 
-- On submit, expand each line item into `vial_count` sample rows. Sample IDs continue the existing zero-padded sequence (`COC051926-100-01`, `-02`, …) across all vials of all rows in row+vial order.
-- Show a small "× 2 vials" badge in the line-item header so the user sees what they'll get.
+- Extend `searchMaterialReceiptsForLink` → only return rows where `approved_at IS NOT NULL` AND `quarantine_status = 'released'`, and include `purity_percent`, `molecular_weight`, `received_at`, `shelf_life_months`.
+- Add `listPrepsForReceipt({ receipt_id })` — used on the Material Receipt detail page.
+- Extend `createStandardPreparation` / `updateStandardPreparation` payload + handler to accept the new fields and an array of `targets`, written transactionally (insert log, then insert children).
+- Extend `getStandardPreparation` to return `targets`.
 
-### 3. Don't lose data on outside click
+## Calculator UI
 
-`Dialog` from shadcn closes on overlay click and Esc. Wrap the form's `onOpenChange` so that when the user has typed anything (dirty state) and tries to close without submitting:
-- Intercept and show a confirm prompt: "Close without completing? Your data will be lost."
-- Confirm → close and reset. Cancel → keep dialog open.
-- Hitting **Cancel** in the footer goes through the same gate.
-- The existing **Submit** path closes cleanly with no prompt.
-- Track dirtiness with a single `isDirty` flag toggled on any `setValues`/`setLineItems` change.
+New component `src/components/standard-preparations/prep-calculator.tsx` rendered above (or inside) `PrepForm` on the New Preparation page.
 
-### 4. Photo upload + camera capture for package condition
+Sections:
 
-The `package_condition` / `physical_description` field is currently text-only. Add an attachment uploader directly under it:
+1. **Reference Material**
+   - Searchable combobox (reuses `searchMaterialReceiptsForLink`, now filtered to approved).
+   - On select, auto-fills: ref name, lot, purity %, MW, receipt date — each field shows a small "Overridden" badge if the user edits it after auto-fill (sets `material_overridden=true`).
+   - "View Linked Receipt" button → opens `/material-receipts/$id` in a new tab.
 
-- New table `coc_attachments` (id, coc_id, file_name, file_path, content_type, size_bytes, uploaded_by, uploaded_at) with RLS mirroring `issue_report_attachments`.
-- New storage bucket `coc-attachments` (private) with the standard authenticated read/write policies.
-- New server fns in `lims.functions.ts`: `recordCocAttachment`, `listCocAttachments`, `deleteCocAttachment`, `signedCocAttachmentUrl`.
-- In the form, render a thumbnail strip + two buttons: **Upload image** (`<input type="file" accept="image/*" multiple>`) and **Take photo** (`<input type="file" accept="image/*" capture="environment">` — works on mobile and on desktop browsers that expose a webcam). Uploads happen after the CoC is saved; on the New-CoC flow, files are queued locally and uploaded once the record exists (same pattern as `material-receipts/new.tsx`'s `uploadPending`).
-- Show existing attachments on the View dialog and embed them in the PDF as a "Package photos" appendix.
+2. **Expiration Settings**
+   - Period dropdown: 1 week / 2 weeks (default) / 4 weeks / 3 months / 6 months / Custom.
+   - Custom days numeric input when "Custom".
+   - Read-only computed Expiration Date = prepared_at + period.
+   - Warning banner when `today − receipt_date > shelf_life_months` OR when expiration would exceed receipt-based shelf life.
 
-## Technical notes
+3. **Diluent & Solvent**
+   - Initial Solvent, Final Diluent (preset "HPLC Grade Water + 0.1% TFA"), Modifier %.
 
-- DB migrations:
-  1. `alter table samples add column container_size text, add column concentration text;`
-  2. `create table coc_attachments (...)` + RLS + bucket + bucket policies.
-- No new packages required; reuse existing `supabase.storage`, `jspdf`, shadcn `Dialog`/`Input`/`Badge`.
-- The header-field deactivation is data, not schema — done via `supabase--insert` updating `chain_of_custody_fields.is_active = false` for the five keys.
-- `coc-pdf.ts` gets a new "Line items" section that iterates `rec.line_items` with the expanded columns, and an optional "Photos" section that embeds signed-URL images.
+4. **Desired Standards table** (dynamic, virtualized-friendly):
+   - Columns: # / Name / Target conc (mg/mL) / Target volume (mL) / Calculated mass (mg) / Calculated volume (mL) / Notes / Remove.
+   - "+ Add row", "+ Add 10 rows", paste-from-clipboard helper (TSV → rows) for bulk entry.
+   - Inline calc: `mass_mg = (target_conc × target_volume) / (purity/100)`; volume column used for serial-dilution rows.
 
-## Open questions
+5. **Calculate Preparation** button → recomputes all rows and renders:
+   - **Calculated Results Table** (read-only echo of the rows).
+   - **Step-by-Step Procedure** with traceability text (includes ref name, lot, receipt date, purity, and a link token resolved to `/material-receipts/$id`).
+   - **Traceability Summary Box**: receipt link, receipt date, prep date & analyst, expiration date, totals.
+   - **Copy** buttons on procedure text and summary (clipboard).
 
-- Should `vial_count > 1` create one sample row per vial (recommended, so each vial gets its own Sample ID and prep record) or a single sample row with a `vial_count` column? Default in this plan: one sample row per vial.
-- For the dirty-state prompt, do you want the same gate on the **Edit** dialog, or only on **New CoC**? Default: both.
+6. **Save This Preparation to Log** → reuses `createStandardPreparation` with the new payload (writes log row + targets, snapshots ref material fields). Redirects to the prep detail page on success.
+
+## Material Receipt detail page
+
+Add a "Standards Prepared From This Receipt" card (uses `listPrepsForReceipt`): table of log #, standard name, prepared date, analyst, expiration, status; each row links to the prep detail. Empty state when none.
+
+## Styling / UX
+
+- Reuses existing `Card`, `Input`, `Select`, `Button`, `Badge` — visual parity with other lab-log pages.
+- Mobile: stack sections; targets table becomes horizontally scrollable with sticky first column.
+- Toasts for save/copy actions; disabled "Save" until a reference material is selected (or explicitly overridden).
+
+## Out of scope
+
+- No new PDF layout — existing prep PDF will include the new fields once they're on the row. Targets table can be added to the PDF in a follow-up if you want.
+- No change to the approval workflow.
+
+## Files to add / change
+
+- `supabase/migrations/<new>.sql` — new columns + new table + RLS.
+- `src/lib/standard-preparations.functions.ts` — schema, listPrepsForReceipt, target-array handling.
+- `src/components/standard-preparations/prep-calculator.tsx` — new.
+- `src/components/standard-preparations/prep-form.tsx` — wire calculator fields into `PrepFormValues` and payload.
+- `src/routes/_authenticated/lab-logs/standard-preparations/new.tsx` — render calculator above the form (or as the primary view).
+- `src/routes/_authenticated/lab-logs/standard-preparations/$id.tsx` — render targets table + traceability snapshot.
+- `src/routes/_authenticated/material-receipts/$id.tsx` — "Standards Prepared From This Receipt" card.
+
+Ready to implement on approval.
