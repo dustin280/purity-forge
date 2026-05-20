@@ -288,8 +288,80 @@ function PrepDetail() {
         {r.notes && <Row label="Notes" value={r.notes} multiline />}
       </Card>
 
+      <TraceabilitySnapshot row={r} />
+      <TargetsTable targets={data.targets} />
+
       <PrepAttachments logId={id} attachments={data.attachments} canEdit={canEdit && r.status !== "approved"} />
     </div>
+  );
+}
+
+function TraceabilitySnapshot({ row: r }: { row: StandardPrepRow }) {
+  const hasAny =
+    r.ref_material_name || r.ref_lot || r.ref_purity_percent != null ||
+    r.ref_molecular_weight != null || r.ref_receipt_date ||
+    r.initial_solvent || r.final_diluent || r.modifier_percent != null ||
+    r.expiration_period_code;
+  if (!hasAny) return null;
+  return (
+    <Card className="p-5 mb-6 text-sm">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Traceability Snapshot
+        </h2>
+        {r.material_overridden && <Badge variant="outline">Overridden</Badge>}
+      </div>
+      <div className="grid md:grid-cols-2 gap-x-6 gap-y-2">
+        <Row label="Ref material" value={r.ref_material_name} />
+        <Row label="Ref lot" value={r.ref_lot} />
+        <Row label="Ref purity" value={r.ref_purity_percent != null ? `${r.ref_purity_percent}%` : null} />
+        <Row label="Ref MW" value={r.ref_molecular_weight != null ? `${r.ref_molecular_weight} g/mol` : null} />
+        <Row label="Receipt date" value={r.ref_receipt_date} />
+        <Row label="Expiration period" value={r.expiration_period_code ?? (r.expiration_period_days ? `${r.expiration_period_days} d` : null)} />
+        <Row label="Initial solvent" value={r.initial_solvent} />
+        <Row label="Final diluent" value={r.final_diluent} />
+        <Row label="Modifier %" value={r.modifier_percent != null ? `${r.modifier_percent}%` : null} />
+      </div>
+    </Card>
+  );
+}
+
+function TargetsTable({ targets }: { targets: PrepTargetRow[] }) {
+  if (!targets || targets.length === 0) return null;
+  return (
+    <Card className="p-5 mb-6">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        Desired Standards ({targets.length})
+      </h2>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="text-right">Conc (mg/mL)</TableHead>
+              <TableHead className="text-right">Vol (mL)</TableHead>
+              <TableHead className="text-right">Mass (mg)</TableHead>
+              <TableHead className="text-right">Calc Vol (mL)</TableHead>
+              <TableHead>Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {targets.map(t => (
+              <TableRow key={t.id}>
+                <TableCell className="font-mono text-xs text-muted-foreground">{t.row_no}</TableCell>
+                <TableCell>{t.name || "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">{t.target_concentration_mg_per_ml ?? "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">{t.target_volume_ml ?? "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">{t.calculated_mass_mg != null ? Number(t.calculated_mass_mg).toFixed(3) : "—"}</TableCell>
+                <TableCell className="text-right tabular-nums">{t.calculated_volume_ml != null ? Number(t.calculated_volume_ml).toFixed(3) : "—"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{t.notes || ""}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Card>
   );
 }
 
