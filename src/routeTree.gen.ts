@@ -33,6 +33,7 @@ import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from '
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/new'
 import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
+import { Route as AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/batch.$groupId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -169,6 +170,12 @@ const AuthenticatedLabLogsStandardPreparationsIdRoute =
     path: '/lab-logs/standard-preparations/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute =
+  AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport.update({
+    id: '/lab-logs/standard-preparations/batch/$groupId',
+    path: '/lab-logs/standard-preparations/batch/$groupId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -219,6 +227,7 @@ export interface FileRoutesByTo {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -246,6 +255,7 @@ export interface FileRoutesById {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -273,6 +283,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/standard-preparations/'
+    | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -298,6 +309,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/standard-preparations'
+    | '/lab-logs/standard-preparations/batch/$groupId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -324,6 +336,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/standard-preparations/'
+    | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/standard-preparations/batch/$groupId': {
+      id: '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
+      path: '/lab-logs/standard-preparations/batch/$groupId'
+      fullPath: '/lab-logs/standard-preparations/batch/$groupId'
+      preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -527,6 +547,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -556,6 +577,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIndexRoute:
     AuthenticatedLabLogsStandardPreparationsIndexRoute,
+  AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute:
+    AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
