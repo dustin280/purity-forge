@@ -377,14 +377,14 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     compound: string; lot: string; catalog: string; manufacturer: string;
     quantity: string; quantity_unit: string;
     container_size: string; concentration: string;
-    vial_count: number;
+    vial_count: number; temperature_c: string;
     storage: string; requested_tests: string[];
   };
   const emptyLine = (): LineItem => ({
     compound: "", lot: "", catalog: "", manufacturer: "",
     quantity: "", quantity_unit: "",
     container_size: "", concentration: "",
-    vial_count: 1,
+    vial_count: 1, temperature_c: "",
     storage: "", requested_tests: [],
   });
   const [lineItems, setLineItems] = useState<LineItem[]>([
@@ -392,6 +392,8 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  // Per-row pending photos: key = line item index (-1 reserved for package condition)
+  const [pendingByLine, setPendingByLine] = useState<Record<number, File[]>>({});
   const [draftId, setDraftId] = useState<string | null>(null);
   // Once true, autosave is allowed to write (suppresses overwrite during initial hydration).
   const [hydrated, setHydrated] = useState(false);
@@ -447,6 +449,8 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
         quantity_unit: li.quantity_unit ?? "",
         container_size: li.container_size ?? "", concentration: li.concentration ?? "",
         vial_count: li.vial_count ?? 1,
+        temperature_c: (li as unknown as { temperature_c?: string | number }).temperature_c == null
+          ? "" : String((li as unknown as { temperature_c?: string | number }).temperature_c),
         storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
       })));
     } else {
@@ -454,6 +458,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     }
     setIsDirty(!!resumed);
     setPendingFiles([]);
+    setPendingByLine({});
     // Autofill new invoice # when creating
     if (!recordId && !resumed && activeFields.some(f => f.field_key === "sample_id")) {
       nextInvoice().then((r) => {
