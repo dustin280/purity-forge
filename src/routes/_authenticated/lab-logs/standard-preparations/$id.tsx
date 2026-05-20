@@ -537,6 +537,7 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   };
   line("Standard Preparation Log", { bold: true, size: 16 });
   line(r.log_number, { size: 10 });
+  if (r.syn_id) line(`SYN ID: ${r.syn_id}`, { bold: true });
   y += 2;
   line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
   line(`Status: ${r.status.toUpperCase()}`);
@@ -570,5 +571,5 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   line(`Approved by: ${r.approver_name ?? "—"}${r.approved_at ? ` on ${new Date(r.approved_at).toLocaleString()}` : ""}`);
   if (r.notes) { y += 2; line("Notes:", { bold: true }); line(r.notes); }
   line(`Attachments on file: ${attachmentCount}`);
-  doc.save(`${r.log_number}.pdf`);
+  doc.save(`${r.syn_id ?? r.log_number}.pdf`);
 }
