@@ -231,7 +231,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   const { data: receiptResults = [] } = useQuery({
     queryKey: ["receipt-link-search", receiptSearch],
-    queryFn: () => searchReceipts({ data: { q: receiptSearch || null } }),
+    queryFn: () => searchReceipts({ data: { q: receiptSearch || null, approved_only: true } }),
     enabled: receiptPickerOpen,
   });
 
@@ -281,18 +281,82 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
   function linkReceipt(r: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string }) {
     dirtyRef.current = true;
+    const x = r as typeof r & {
+      received_at?: string;
+      purity_percent?: number | null;
+      molecular_weight?: number | null;
+      shelf_life_months?: number | null;
+    };
     setV(prev => ({
       ...prev,
       material_receipt_id: r.id,
       material_receipt_label: `${r.receipt_number} — ${r.material_name}${r.internal_lot ? ` (lot ${r.internal_lot})` : ""}`,
       manufacturer_lot: prev.manufacturer_lot || r.manufacturer_lot || "",
+      ref_material_name: r.material_name,
+      ref_lot: r.internal_lot || r.manufacturer_lot || "",
+      ref_purity_percent: x.purity_percent != null ? String(x.purity_percent) : "",
+      ref_molecular_weight: x.molecular_weight != null ? String(x.molecular_weight) : "",
+      ref_receipt_date: x.received_at ? x.received_at.slice(0, 10) : "",
+      ref_shelf_life_months: x.shelf_life_months != null ? String(x.shelf_life_months) : "",
+      material_overridden: false,
     }));
     setReceiptPickerOpen(false);
   }
 
   function clearReceipt() {
     dirtyRef.current = true;
-    setV(prev => ({ ...prev, material_receipt_id: "", material_receipt_label: "" }));
+    setV(prev => ({
+      ...prev,
+      material_receipt_id: "",
+      material_receipt_label: "",
+      ref_material_name: "",
+      ref_lot: "",
+      ref_purity_percent: "",
+      ref_molecular_weight: "",
+      ref_receipt_date: "",
+      ref_shelf_life_months: "",
+      material_overridden: false,
+    }));
+  }
+
+  function markOverridden<K extends keyof PrepFormValues>(k: K, val: PrepFormValues[K]) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, [k]: val, material_overridden: prev.material_receipt_id ? true : prev.material_overridden }));
+  }
+
+  function addTargetRows(n: number) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: [...prev.targets, ...Array.from({ length: n }, emptyTarget)] }));
+  }
+
+  function updateTarget(idx: number, patch: Partial<TargetRow>) {
+    dirtyRef.current = true;
+    setV(prev => ({
+      ...prev,
+      targets: prev.targets.map((t, i) => (i === idx ? { ...t, ...patch } : t)),
+    }));
+  }
+
+  function removeTarget(idx: number) {
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: prev.targets.filter((_, i) => i !== idx) }));
+  }
+
+  function pasteTargets(text: string) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const rows: TargetRow[] = lines.map(l => {
+      const cols = l.split(/\t|,/).map(c => c.trim());
+      return {
+        name: cols[0] ?? "",
+        target_concentration_mg_per_ml: cols[1] ?? "",
+        target_volume_ml: cols[2] ?? "",
+        notes: cols[3] ?? "",
+      };
+    });
+    dirtyRef.current = true;
+    setV(prev => ({ ...prev, targets: [...prev.targets.filter(t => t.name || t.target_concentration_mg_per_ml || t.target_volume_ml), ...rows] }));
+    toast.success(`Added ${rows.length} rows`);
   }
 
   function addStep() {
