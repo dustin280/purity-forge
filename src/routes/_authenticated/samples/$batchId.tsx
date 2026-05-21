@@ -123,7 +123,7 @@ function SampleDetail() {
               <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("in_progress")}>Start Analysis</Button>
             )}
             {sample.status === "in_progress" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("reviewed")}>Mark Reviewed</Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("reviewed")}>Mark In Review</Button>
             )}
             {sample.status === "reviewed" && (
               <Button size="sm" disabled={busy} onClick={() => changeStatus("complete")}>Mark Complete</Button>

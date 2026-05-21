@@ -12,7 +12,7 @@ export const STATUS_LABEL: Record<SampleStatus, string> = {
   intake_verified: "Intake Verified",
   prep: "Prep",
   in_progress: "In Progress",
-  reviewed: "Reviewed",
+  reviewed: "In Review",
   complete: "Complete",
   approved: "Approved",
 };

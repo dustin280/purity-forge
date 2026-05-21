@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { getStandardPreparationBatch } from "@/lib/standard-preparations.functions";
+import { STATUS_LABEL } from "@/lib/lims-utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,7 +93,9 @@ function BatchView() {
                 <TableCell className="text-muted-foreground">{r.final_volume ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{r.expiration_date ?? "—"}</TableCell>
                 <TableCell>
-                  <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>{r.status}</Badge>
+                  <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>
+                    {STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))}

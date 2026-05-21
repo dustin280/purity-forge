@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
+import { STATUS_LABEL } from "@/lib/lims-utils";
 import jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
@@ -153,7 +154,7 @@ function PrepDetail() {
           <h1 className="text-3xl font-bold tracking-tight mt-1">{r.standard_name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>
-              {r.status}
+              {STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status}
             </Badge>
             {r.target_concentration && <Badge variant="outline">{r.target_concentration}</Badge>}
             {r.manufacturer_lot && <Badge variant="outline">Lot {r.manufacturer_lot}</Badge>}
@@ -175,13 +176,13 @@ function PrepDetail() {
           )}
           {canReview && r.status === "draft" && (
             <TransitionDialog
-              label="Mark Reviewed"
+              label="Mark In Review"
               title="Review preparation"
-              actionText="Mark Reviewed"
+              actionText="Mark In Review"
               defaultName={actorName}
               loading={transitionMut.isPending}
               onConfirm={name => transitionMut.mutate({ target: "reviewed", actor_name: name })}
-              trigger={<Button size="sm" variant="outline"><Eye className="size-4 mr-1" /> Mark Reviewed</Button>}
+              trigger={<Button size="sm" variant="outline"><Eye className="size-4 mr-1" /> Mark In Review</Button>}
             />
           )}
           {canReview && r.status === "reviewed" && (
@@ -284,8 +285,8 @@ function PrepDetail() {
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Review & Approval</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Row label="Reviewed by" value={r.reviewer_name} />
-            <Row label="Reviewed at" value={r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : null} />
+            <Row label="In Review by" value={r.reviewer_name} />
+            <Row label="In Review at" value={r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : null} />
           </div>
           <div className="space-y-2">
             <Row label="Approved by" value={r.approver_name} />
@@ -540,7 +541,7 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   if (r.syn_id) line(`SYN ID: ${r.syn_id}`, { bold: true });
   y += 2;
   line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
-  line(`Status: ${r.status.toUpperCase()}`);
+  line(`Status: ${STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]?.toUpperCase() ?? r.status.toUpperCase()}`);
   line(`Prepared: ${new Date(r.prepared_at).toLocaleString()}`);
   line(`Analyst: ${r.analyst_name}`);
   if (r.target_concentration) line(`Target concentration: ${r.target_concentration}`);
@@ -567,7 +568,7 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   if (r.container_label) line(`Container: ${r.container_label}`);
   y += 2;
   line("Review & Approval", { bold: true });
-  line(`Reviewed by: ${r.reviewer_name ?? "—"}${r.reviewed_at ? ` on ${new Date(r.reviewed_at).toLocaleString()}` : ""}`);
+  line(`In Review by: ${r.reviewer_name ?? "—"}${r.reviewed_at ? ` on ${new Date(r.reviewed_at).toLocaleString()}` : ""}`);
   line(`Approved by: ${r.approver_name ?? "—"}${r.approved_at ? ` on ${new Date(r.approved_at).toLocaleString()}` : ""}`);
   if (r.notes) { y += 2; line("Notes:", { bold: true }); line(r.notes); }
   line(`Attachments on file: ${attachmentCount}`);

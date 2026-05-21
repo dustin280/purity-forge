@@ -17,6 +17,7 @@ import {
   ATTACHMENT_KINDS,
 } from "@/lib/material-receipts.functions";
 import { listPrepsForReceipt } from "@/lib/standard-preparations.functions";
+import { STATUS_LABEL } from "@/lib/lims-utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ReceiptForm, valuesToPayload, type ReceiptFormValues, type PendingAttachments } from "@/components/material-receipts/receipt-form";
 import { uploadPending } from "./new";
@@ -312,7 +313,7 @@ function LinkedPreparations({ receiptId }: { receiptId: string }) {
                   <TableCell className="text-muted-foreground">{p.expiration_date ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={p.status === "approved" ? "default" : p.status === "reviewed" ? "secondary" : "outline"}>
-                      {p.status}
+                      {STATUS_LABEL[p.status as keyof typeof STATUS_LABEL] ?? p.status}
                     </Badge>
                   </TableCell>
                 </TableRow>

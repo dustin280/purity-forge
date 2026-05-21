@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listStandardPreparations, PREP_STATUSES } from "@/lib/standard-preparations.functions";
+import { STATUS_LABEL } from "@/lib/lims-utils";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,7 @@ function StandardPrepsIndex() {
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                {PREP_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {PREP_STATUSES.map(s => <SelectItem key={s} value={s}>{STATUS_LABEL[s as keyof typeof STATUS_LABEL] ?? s}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -85,7 +86,7 @@ function StandardPrepsIndex() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm font-semibold">{r.log_number}</span>
                       {r.syn_id && <span className="font-mono text-xs text-muted-foreground">{r.syn_id}</span>}
-                      <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>{r.status}</Badge>
+                      <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>{STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status}</Badge>
                     </div>
                     <div className="font-medium mt-1 truncate">{r.standard_name}</div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">
