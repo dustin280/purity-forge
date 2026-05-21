@@ -414,7 +414,7 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
               </Field>
               <Field label="QC pass / fail">
                 <Select value={v.qc_pass} onValueChange={val => up("qc_pass", val as "" | "pass" | "fail")}>
-                  <SelectTrigger><SelectValue placeholder="Not reviewed" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Not In Review" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pass">Pass</SelectItem>
                     <SelectItem value="fail">Fail</SelectItem>
