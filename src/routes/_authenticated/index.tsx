@@ -17,7 +17,7 @@ function Dashboard() {
     { label: "Received", value: data?.counts.received ?? 0, icon: Beaker, color: "var(--muted-foreground)" },
     { label: "Prep", value: data?.counts.prep ?? 0, icon: Inbox, color: "var(--status-warning)" },
     { label: "In Progress", value: data?.counts.in_progress ?? 0, icon: FlaskConical, color: "var(--status-warning)" },
-    { label: "Reviewed", value: data?.counts.reviewed ?? 0, icon: ClipboardCheck, color: "var(--status-info)" },
+    { label: "In Review", value: data?.counts.reviewed ?? 0, icon: ClipboardCheck, color: "var(--status-info)" },
     { label: "Complete", value: (data?.counts.complete ?? 0) + (data?.counts.approved ?? 0), icon: CheckCircle2, color: "var(--status-success)" },
   ];
 
