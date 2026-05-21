@@ -541,7 +541,7 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   if (r.syn_id) line(`SYN ID: ${r.syn_id}`, { bold: true });
   y += 2;
   line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
-  line(`Status: ${r.status.toUpperCase()}`);
+  line(`Status: ${STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]?.toUpperCase() ?? r.status.toUpperCase()}`);
   line(`Prepared: ${new Date(r.prepared_at).toLocaleString()}`);
   line(`Analyst: ${r.analyst_name}`);
   if (r.target_concentration) line(`Target concentration: ${r.target_concentration}`);
@@ -568,7 +568,7 @@ function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: n
   if (r.container_label) line(`Container: ${r.container_label}`);
   y += 2;
   line("Review & Approval", { bold: true });
-  line(`Reviewed by: ${r.reviewer_name ?? "—"}${r.reviewed_at ? ` on ${new Date(r.reviewed_at).toLocaleString()}` : ""}`);
+  line(`In Review by: ${r.reviewer_name ?? "—"}${r.reviewed_at ? ` on ${new Date(r.reviewed_at).toLocaleString()}` : ""}`);
   line(`Approved by: ${r.approver_name ?? "—"}${r.approved_at ? ` on ${new Date(r.approved_at).toLocaleString()}` : ""}`);
   if (r.notes) { y += 2; line("Notes:", { bold: true }); line(r.notes); }
   line(`Attachments on file: ${attachmentCount}`);
