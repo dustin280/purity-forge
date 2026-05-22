@@ -1,3 +1,6 @@
+/**
+ * Server functions for the Issue Reports module: list reports + attachments, create new reports, update status, and presign attachment uploads. Auth-gated; RLS enforces ownership and role-based visibility.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

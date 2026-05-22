@@ -1,3 +1,6 @@
+/**
+ * Client-side PDF generator for Chain-of-Custody (COC) documents. Renders the signed COC form with timestamps, custodian signatures, and configurable field layout.
+ */
 import { jsPDF } from "jspdf";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 

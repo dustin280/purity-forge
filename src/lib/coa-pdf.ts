@@ -1,3 +1,6 @@
+/**
+ * Client-side PDF generator for Certificates of Analysis (COA). Builds a multi-page jsPDF document from sample/batch data, including chromatogram thumbnails and result tables.
+ */
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Peak } from "./lims-utils";

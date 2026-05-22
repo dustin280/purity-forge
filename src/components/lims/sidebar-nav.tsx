@@ -1,3 +1,6 @@
+/**
+ * Primary app navigation: persistent sidebar on desktop, slide-over sheet on mobile. Highlights the active route via TanStack Router state and gates admin links by role.
+ */
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";

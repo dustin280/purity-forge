@@ -1,3 +1,6 @@
+/**
+ * Pure utility functions and type aliases shared across LIMS UI: status enums, label maps, Tailwind class lookups, peak math, and formatters. No side effects, no network.
+ */
 export type SampleStatus =
   | "received"
   | "intake_verified"

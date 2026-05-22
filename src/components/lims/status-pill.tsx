@@ -1,3 +1,6 @@
+/**
+ * Compact colored badge mapping a `SampleStatus` to its label and Tailwind class. Single source of truth for status visuals across the app.
+ */
 import { statusClasses, STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
 export function StatusPill({ status }: { status: SampleStatus }) {
   return (

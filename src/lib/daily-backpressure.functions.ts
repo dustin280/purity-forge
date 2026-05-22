@@ -1,3 +1,6 @@
+/**
+ * Server functions for the Daily Backpressure log: list, create, and update HPLC system backpressure readings. All endpoints require authentication; RLS scopes writes per user/role.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

@@ -1,3 +1,6 @@
+/**
+ * Server functions for the Standard Preparations log: individual preps, batch groups, review workflow, and audit metadata. Auth-gated with RLS.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
