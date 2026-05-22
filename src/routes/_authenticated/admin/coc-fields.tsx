@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/admin/coc-fields")({ component: CocFieldsAdmin });
 
@@ -45,12 +46,12 @@ function CocFieldsAdmin() {
   const del = useServerFn(deleteCocField);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["coc_fields"],
+    queryKey: qk.cocFields.list(),
     queryFn: () => list() as Promise<CocField[]>,
   });
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["coc_fields"] });
-    qc.invalidateQueries({ queryKey: ["coc_records"] });
+    qc.invalidateQueries({ queryKey: qk.cocFields.list() });
+    qc.invalidateQueries({ queryKey: qk.cocRecords.list() });
   };
 
   const addMut = useMutation({

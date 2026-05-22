@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
   component: ReceiptDetail,
@@ -55,7 +56,7 @@ function ReceiptDetail() {
   const [editing, setEditing] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["material-receipt", id],
+    queryKey: qk.materialReceipts.detail(id),
     queryFn: () => get({ data: { id } }),
   });
 
@@ -68,8 +69,8 @@ function ReceiptDetail() {
     onSuccess: () => {
       toast.success("Saved");
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["material-receipt", id] });
-      qc.invalidateQueries({ queryKey: ["material-receipts"] });
+      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.materialReceipts.all });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -87,7 +88,7 @@ function ReceiptDetail() {
     mutationFn: (args: { approver_name: string; qc_pass: boolean }) => approve({ data: { id, ...args } }),
     onSuccess: () => {
       toast.success("Receipt updated");
-      qc.invalidateQueries({ queryKey: ["material-receipt", id] });
+      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(id) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -272,7 +273,7 @@ function ReceiptDetail() {
 function LinkedPreparations({ receiptId }: { receiptId: string }) {
   const list = useServerFn(listPrepsForReceipt);
   const { data, isLoading } = useQuery({
-    queryKey: ["receipt-preps", receiptId],
+    queryKey: qk.materialReceipts.preps(receiptId),
     queryFn: () => list({ data: { receipt_id: receiptId } }),
   });
   return (
@@ -405,7 +406,7 @@ function Attachments({ receiptId, attachments, canEdit }: { receiptId: string; a
         });
       }
       toast.success("Uploaded");
-      qc.invalidateQueries({ queryKey: ["material-receipt", receiptId] });
+      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(receiptId) });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -427,7 +428,7 @@ function Attachments({ receiptId, attachments, canEdit }: { receiptId: string; a
     try {
       await del({ data: { id } });
       toast.success("Removed");
-      qc.invalidateQueries({ queryKey: ["material-receipt", receiptId] });
+      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(receiptId) });
     } catch (err) {
       toast.error((err as Error).message);
     }

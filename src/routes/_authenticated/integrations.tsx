@@ -11,18 +11,18 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Copy, Webhook, Server } from "lucide-react";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/integrations")({ component: Integrations });
 
 function Integrations() {
   const qc = useQueryClient();
   const getFn = useServerFn(getExportConfig);
   const saveFn = useServerFn(saveExportConfig);
-  const { data } = useQuery({ queryKey: ["export_config"], queryFn: () => getFn() });
+  const { data } = useQuery({ queryKey: qk.integrations.exportConfig(), queryFn: () => getFn() });
 
   const getSftp = useServerFn(getSftpConfig);
   const saveSftp = useServerFn(saveSftpConfig);
-  const { data: sftpData } = useQuery({ queryKey: ["sftp_config"], queryFn: () => getSftp() });
+  const { data: sftpData } = useQuery({ queryKey: qk.integrations.sftpConfig(), queryFn: () => getSftp() });
 
   const [form, setForm] = useState({
     id: undefined as string | undefined,
@@ -81,7 +81,7 @@ function Integrations() {
     try {
       await saveFn({ data: { ...form, webhook_url: form.webhook_url || null } });
       toast.success("Configuration saved");
-      qc.invalidateQueries({ queryKey: ["export_config"] });
+      qc.invalidateQueries({ queryKey: qk.integrations.exportConfig() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
     finally { setBusy(false); }
   }
@@ -95,7 +95,7 @@ function Integrations() {
         private_key: sftp.private_key || null,
       }});
       toast.success("SFTP configuration saved");
-      qc.invalidateQueries({ queryKey: ["sftp_config"] });
+      qc.invalidateQueries({ queryKey: qk.integrations.sftpConfig() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
     finally { setSftpBusy(false); }
   }

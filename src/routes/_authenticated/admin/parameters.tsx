@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/admin/parameters")({ component: ParametersAdmin });
 
 function ParametersAdmin() {
@@ -22,11 +22,11 @@ function ParametersAdmin() {
   const del = useServerFn(deleteParameter);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["test_parameters"],
+    queryKey: qk.testParameters.list(),
     queryFn: () => list(),
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["test_parameters"] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: qk.testParameters.list() });
 
   const addMut = useMutation({
     mutationFn: (name: string) => create({ data: { name } }),

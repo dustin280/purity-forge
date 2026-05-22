@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Sparkles, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/samples/new")({ component: NewSample });
 
 function NewSample() {
@@ -23,7 +23,7 @@ function NewSample() {
   const fn = useServerFn(createSample);
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
-    queryKey: ["test_parameters"],
+    queryKey: qk.testParameters.list(),
     queryFn: () => listParams(),
   });
   const activeParams = allParams.filter(p => p.is_active);

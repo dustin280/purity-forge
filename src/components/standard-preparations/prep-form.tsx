@@ -16,6 +16,7 @@ import {
   type PrepStep,
   type PrepTarget,
 } from "@/lib/standard-preparations.functions";
+import { qk } from "@/lib/query-keys";
 
 export interface PrepFormValues {
   prepared_at: string;
@@ -237,12 +238,12 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   const searchReceipts = useServerFn(searchMaterialReceiptsForLink);
 
   const { data: suggestions = [] } = useQuery({
-    queryKey: ["standard-suggestions"],
+    queryKey: qk.standardPreps.suggestions(),
     queryFn: () => listSuggestions(),
   });
 
   const { data: receiptResults = [] } = useQuery({
-    queryKey: ["receipt-link-search", receiptSearch],
+    queryKey: qk.materialReceipts.search(receiptSearch),
     queryFn: () => searchReceipts({ data: { q: receiptSearch || null, approved_only: true } }),
     enabled: receiptPickerOpen,
   });

@@ -9,12 +9,12 @@ import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/lims/status-pill";
 import { STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
 import { Plus, Search } from "lucide-react";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/samples/")({ component: SamplesList });
 
 function SamplesList() {
   const fn = useServerFn(listSamples);
-  const { data, isLoading } = useQuery({ queryKey: ["samples"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: qk.samples.list(), queryFn: () => fn() });
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<SampleStatus | "all">("all");
 

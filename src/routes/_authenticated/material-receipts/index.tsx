@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, PackageSearch, ChevronRight } from "lucide-react";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/material-receipts/")({
   component: ReceiptsIndex,
 });
@@ -32,7 +32,7 @@ function ReceiptsIndex() {
   );
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["material-receipts", filters],
+    queryKey: qk.materialReceipts.list(filters),
     queryFn: () => list({ data: filters }),
   });
 

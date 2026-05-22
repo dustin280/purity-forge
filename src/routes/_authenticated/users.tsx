@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Trash2, KeyRound, UserPlus, Pencil, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/users")({ component: Users });
 
@@ -47,7 +48,7 @@ function Users() {
   const resetFn = useServerFn(resetUserPassword);
   const editFn = useServerFn(updateUserProfile);
   const inviteFn = useServerFn(inviteUser);
-  const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: () => listFn() });
+  const { data, isLoading } = useQuery({ queryKey: qk.users.list(), queryFn: () => listFn() });
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   if (currentUserId === null) {
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? ""));
@@ -90,7 +91,7 @@ function Users() {
     try {
       await setFn({ data: { userId, role, grant } });
       toast.success(`${grant ? "Granted" : "Revoked"} ${role}`);
-      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: qk.users.list() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   }
 
@@ -110,7 +111,7 @@ function Users() {
       toast.success("User created");
       setAddOpen(false);
       setForm({ first_name: "", last_name: "", email: "", title: "", password: "", roles: ["tech"] });
-      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: qk.users.list() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setBusy(false); }
   }
@@ -119,7 +120,7 @@ function Users() {
     try {
       await deleteFn({ data: { userId } });
       toast.success("User deleted");
-      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: qk.users.list() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
   }
 
@@ -147,7 +148,7 @@ function Users() {
       });
       toast.success("User updated");
       setEditForm(null);
-      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: qk.users.list() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setEditBusy(false); }
   }
@@ -167,7 +168,7 @@ function Users() {
       toast.success(`Invitation sent to ${inviteForm.email}`);
       setInviteOpen(false);
       setInviteForm({ first_name: "", last_name: "", email: "", title: "", roles: ["tech"] });
-      qc.invalidateQueries({ queryKey: ["users"] });
+      qc.invalidateQueries({ queryKey: qk.users.list() });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
     finally { setInviteBusy(false); }
   }

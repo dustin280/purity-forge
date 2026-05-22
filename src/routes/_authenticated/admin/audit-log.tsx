@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft } from "lucide-react";
-
+import { qk } from "@/lib/query-keys";
 export const Route = createFileRoute("/_authenticated/admin/audit-log")({ component: AuditLogAdmin });
 
 type AuditRow = {
@@ -42,7 +42,7 @@ function AuditLogAdmin() {
   const [selected, setSelected] = useState<AuditRow | null>(null);
 
   const { data: rows = [], isLoading, error } = useQuery({
-    queryKey: ["audit_log", from, to, tableFilter],
+    queryKey: qk.auditLog.list(from, to, tableFilter),
     enabled: role === "admin",
     queryFn: async () => {
       let q = supabase
@@ -65,7 +65,7 @@ function AuditLogAdmin() {
   );
 
   const { data: profiles = [] } = useQuery({
-    queryKey: ["audit_log_profiles", actorIds.join(",")],
+    queryKey: qk.auditLog.profiles(actorIds.join(",")),
     enabled: actorIds.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase

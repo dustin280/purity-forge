@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Inbox, CheckCircle2, X } from "lucide-react";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/intake")({ component: IntakePage });
 
@@ -39,7 +40,7 @@ function IntakePage() {
   const qc = useQueryClient();
   const list = useServerFn(listIntakeQueue);
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["intake_queue"],
+    queryKey: qk.intake.list(),
     queryFn: () => list() as Promise<IntakeSample[]>,
   });
 
@@ -118,8 +119,8 @@ function IntakePage() {
         onOpenChange={(v) => { if (!v) setVerifying(null); }}
         onDone={() => {
           setVerifying(null);
-          qc.invalidateQueries({ queryKey: ["intake_queue"] });
-          qc.invalidateQueries({ queryKey: ["samples"] });
+          qc.invalidateQueries({ queryKey: qk.intake.list() });
+          qc.invalidateQueries({ queryKey: qk.samples.list() });
         }}
       />
     </div>
@@ -134,7 +135,7 @@ function VerifyDialog({ sample, onOpenChange, onDone }: {
   const verify = useServerFn(verifySampleIntake);
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
-    queryKey: ["test_parameters"],
+    queryKey: qk.testParameters.list(),
     queryFn: () => listParams(),
     enabled: !!sample,
   });

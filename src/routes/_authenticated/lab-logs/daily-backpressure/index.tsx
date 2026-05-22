@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressure/")({
   component: BackpressureLog,
@@ -44,7 +45,7 @@ function BackpressureLog() {
   const del = useServerFn(deleteBackpressureLog);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["daily-backpressure"],
+    queryKey: qk.backpressure.list(),
     queryFn: () => list(),
   });
 
@@ -72,7 +73,7 @@ function BackpressureLog() {
       setReadingAt(nowLocal());
       setBackpressure("");
       setNotes("");
-      qc.invalidateQueries({ queryKey: ["daily-backpressure"] });
+      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -81,7 +82,7 @@ function BackpressureLog() {
     mutationFn: (id: string) => del({ data: { id } }),
     onSuccess: () => {
       toast.success("Deleted");
-      qc.invalidateQueries({ queryKey: ["daily-backpressure"] });
+      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
     },
     onError: (e: Error) => toast.error(e.message),
   });

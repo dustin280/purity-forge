@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Paperclip, X } from "lucide-react";
 import { listMaterialSuggestions, type MaterialType, type QuarantineStatus, MATERIAL_TYPES, QUARANTINE_STATUSES } from "@/lib/material-receipts.functions";
-
+import { qk } from "@/lib/query-keys";
 export interface ReceiptFormValues {
   material_type: MaterialType;
   received_at: string;
@@ -159,7 +159,7 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
   const sdsRef = useRef<HTMLInputElement>(null);
   const listSuggestions = useServerFn(listMaterialSuggestions);
   const { data: suggestions = [] } = useQuery({
-    queryKey: ["material-suggestions"],
+    queryKey: qk.materialReceipts.suggestions(),
     queryFn: () => listSuggestions(),
   });
 
