@@ -50,7 +50,7 @@ export const samplesListQuery = () =>
 export const sampleDetailQuery = (batchId: string) =>
   queryOptions({
     queryKey: qk.samples.detail(batchId),
-    queryFn: () => getSampleDetail({ data: { batch_id: batchId } }),
+    queryFn: () => getSampleDetail({ data: { batchId } }),
   });
 
 // Users
