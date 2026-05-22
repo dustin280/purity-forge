@@ -1,48 +1,36 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FileDown, Pencil, Trash2, Upload, FileText, X, ShieldCheck, Eye } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2, ShieldCheck, Eye } from "lucide-react";
 import {
-  deletePrepAttachment,
   deleteStandardPreparation,
   getStandardPreparation,
-  recordPrepAttachment,
-  signPrepAttachmentUrl,
   transitionStandardPreparation,
   updateStandardPreparation,
-  PREP_ATTACHMENT_KINDS,
-  type PrepAttachmentKind,
-  type StandardPrepRow,
 } from "@/lib/standard-preparations.functions";
-import type { PrepTargetRow } from "@/lib/standard-preparations.functions";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PrepForm, prepValuesToPayload, clearPrepDraft, type PrepFormValues } from "@/components/standard-preparations/prep-form";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { STATUS_LABEL } from "@/lib/lims-utils";
-import jsPDF from "jspdf";
 import { qk } from "@/lib/query-keys";
+import { InfoRow } from "@/components/standard-preparations/info-row";
+import { TraceabilitySnapshot } from "@/components/standard-preparations/traceability-snapshot";
+import { TargetsTable } from "@/components/standard-preparations/targets-table";
+import { TransitionDialog } from "@/components/standard-preparations/transition-dialog";
+import { PrepAttachments } from "@/components/standard-preparations/prep-attachments";
+import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
   component: PrepDetail,
 });
-
-type LinkedReceipt = { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null;
 
 function PrepDetail() {
   const { id } = Route.useParams();
