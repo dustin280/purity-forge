@@ -5,6 +5,7 @@ import { useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, FileDown, Pencil, Trash2, Upload, FileText, X, ShieldCheck, Eye } from "lucide-react";
 import {
+import { qk } from "@/lib/query-keys";
   deletePrepAttachment,
   deleteStandardPreparation,
   getStandardPreparation,
@@ -56,7 +57,7 @@ function PrepDetail() {
   const [editing, setEditing] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["standard-preparation", id],
+    queryKey: qk.standardPreps.detail(id),
     queryFn: () => get({ data: { id } }),
   });
 
@@ -66,8 +67,8 @@ function PrepDetail() {
       clearPrepDraft(`sop-draft:edit:${id}`);
       toast.success("Saved");
       setEditing(false);
-      qc.invalidateQueries({ queryKey: ["standard-preparation", id] });
-      qc.invalidateQueries({ queryKey: ["standard-preparations"] });
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
+      qc.invalidateQueries({ queryKey: qk.standardPreps.all });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -86,7 +87,7 @@ function PrepDetail() {
       transition({ data: { id, ...args } }),
     onSuccess: () => {
       toast.success("Status updated");
-      qc.invalidateQueries({ queryKey: ["standard-preparation", id] });
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -449,7 +450,7 @@ function PrepAttachments({ logId, attachments, canEdit }: {
         });
       }
       toast.success("Uploaded");
-      qc.invalidateQueries({ queryKey: ["standard-preparation", logId] });
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(logId) });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -471,7 +472,7 @@ function PrepAttachments({ logId, attachments, canEdit }: {
     try {
       await del({ data: { id } });
       toast.success("Removed");
-      qc.invalidateQueries({ queryKey: ["standard-preparation", logId] });
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(logId) });
     } catch (err) {
       toast.error((err as Error).message);
     }

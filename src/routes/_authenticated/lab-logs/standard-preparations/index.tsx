@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, ChevronRight, ArrowLeft, FlaskConical } from "lucide-react";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/")({
   component: StandardPrepsIndex,
@@ -30,7 +31,7 @@ function StandardPrepsIndex() {
   }), [q, status, from, to]);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["standard-preparations", filters],
+    queryKey: qk.standardPreps.list(filters),
     queryFn: () => list({ data: filters }),
   });
 

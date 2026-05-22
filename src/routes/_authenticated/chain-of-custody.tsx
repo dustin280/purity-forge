@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useEffect, useMemo, useState } from "react";
 import {
+import { qk } from "@/lib/query-keys";
   listCocFields, listCocRecords, getCocRecord,
   updateCocRecord, deleteCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
@@ -63,17 +64,17 @@ function CocPage() {
   const del = useServerFn(deleteCocRecord);
 
   const { data: records = [], isLoading } = useQuery({
-    queryKey: ["coc_records"],
+    queryKey: qk.cocRecords.list(),
     queryFn: () => listRecords() as Promise<CocRecord[]>,
   });
   const { data: fields = [] } = useQuery({
-    queryKey: ["coc_fields"],
+    queryKey: qk.cocFields.list(),
     queryFn: () => listFields() as Promise<CocField[]>,
   });
 
   const delMut = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { toast.success("Record deleted"); qc.invalidateQueries({ queryKey: ["coc_records"] }); },
+    onSuccess: () => { toast.success("Record deleted"); qc.invalidateQueries({ queryKey: qk.cocRecords.list() }); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
   });
 
@@ -305,7 +306,7 @@ function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
 }) {
   const getRec = useServerFn(getCocRecord);
   const { data: rec } = useQuery({
-    queryKey: ["coc_record_view", recordId],
+    queryKey: qk.cocRecords.view(recordId),
     queryFn: () => getRec({ data: { id: recordId! } }) as Promise<CocRecord>,
     enabled: !!recordId,
   });
@@ -374,12 +375,12 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
   const signAttachmentUrl = useServerFn(signedCocAttachmentUrl);
 
   const { data: fields = [] } = useQuery({
-    queryKey: ["coc_fields"],
+    queryKey: qk.cocFields.list(),
     queryFn: () => listFields() as Promise<CocField[]>,
     enabled: open,
   });
   const { data: existing } = useQuery({
-    queryKey: ["coc_record", recordId],
+    queryKey: qk.cocRecords.detail(recordId),
     queryFn: () => getRec({ data: { id: recordId! } }) as Promise<CocRecord>,
     enabled: open && !!recordId,
   });
@@ -419,7 +420,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
 
   const listParams = useServerFn(listParameters);
   const { data: allParams = [] } = useQuery({
-    queryKey: ["test_parameters"],
+    queryKey: qk.testParameters.list(),
     queryFn: () => listParams(),
     enabled: open,
   });
@@ -523,10 +524,10 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     },
     onSuccess: () => {
       toast.success(recordId ? "Record updated" : "CoC submitted — samples added to Intake queue");
-      qc.invalidateQueries({ queryKey: ["coc_records"] });
-      qc.invalidateQueries({ queryKey: ["intake_queue"] });
-      qc.invalidateQueries({ queryKey: ["samples"] });
-      qc.invalidateQueries({ queryKey: ["coc_attachments"] });
+      qc.invalidateQueries({ queryKey: qk.cocRecords.list() });
+      qc.invalidateQueries({ queryKey: qk.intake.list() });
+      qc.invalidateQueries({ queryKey: qk.samples.list() });
+      qc.invalidateQueries({ queryKey: qk.cocRecords.attachmentsAll });
       if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);
@@ -560,7 +561,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
 
   // Existing attachments for edit mode
   const { data: attachments = [] } = useQuery({
-    queryKey: ["coc_attachments", recordId],
+    queryKey: qk.cocRecords.attachments(recordId),
     queryFn: () => listAttachments({ data: { coc_id: recordId! } }) as Promise<Array<{
       id: string; file_path: string; file_name: string; content_type: string | null;
     }>>,
@@ -733,7 +734,7 @@ function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
                     onDeleteExisting={async (id) => {
                       if (!confirm("Delete this attachment?")) return;
                       await deleteAttachment({ data: { id } });
-                      qc.invalidateQueries({ queryKey: ["coc_attachments", recordId] });
+                      qc.invalidateQueries({ queryKey: qk.cocRecords.attachments(recordId) });
                     }}
                     onOpenExisting={async (path) => {
                       const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };

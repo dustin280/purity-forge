@@ -6,12 +6,13 @@ import { Card } from "@/components/ui/card";
 import { StatusPill } from "@/components/lims/status-pill";
 import { type SampleStatus } from "@/lib/lims-utils";
 import { Beaker, FlaskConical, ClipboardCheck, CheckCircle2, Inbox } from "lucide-react";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
 
 function Dashboard() {
   const fn = useServerFn(getDashboard);
-  const { data, isLoading } = useQuery({ queryKey: ["dashboard"], queryFn: () => fn() });
+  const { data, isLoading } = useQuery({ queryKey: qk.dashboard.all, queryFn: () => fn() });
 
   const tiles = [
     { label: "Received", value: data?.counts.received ?? 0, icon: Beaker, color: "var(--muted-foreground)" },

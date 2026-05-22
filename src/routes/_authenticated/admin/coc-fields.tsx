@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import {
+import { qk } from "@/lib/query-keys";
   listCocFields, createCocField, updateCocField, deleteCocField,
 } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
@@ -45,12 +46,12 @@ function CocFieldsAdmin() {
   const del = useServerFn(deleteCocField);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["coc_fields"],
+    queryKey: qk.cocFields.list(),
     queryFn: () => list() as Promise<CocField[]>,
   });
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["coc_fields"] });
-    qc.invalidateQueries({ queryKey: ["coc_records"] });
+    qc.invalidateQueries({ queryKey: qk.cocFields.list() });
+    qc.invalidateQueries({ queryKey: qk.cocRecords.list() });
   };
 
   const addMut = useMutation({

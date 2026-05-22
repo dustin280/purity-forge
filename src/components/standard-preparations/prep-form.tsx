@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
+import { qk } from "@/lib/query-keys";
   listStandardSuggestions,
   searchMaterialReceiptsForLink,
   type PrepStep,
@@ -237,12 +238,12 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
   const searchReceipts = useServerFn(searchMaterialReceiptsForLink);
 
   const { data: suggestions = [] } = useQuery({
-    queryKey: ["standard-suggestions"],
+    queryKey: qk.standardPreps.suggestions(),
     queryFn: () => listSuggestions(),
   });
 
   const { data: receiptResults = [] } = useQuery({
-    queryKey: ["receipt-link-search", receiptSearch],
+    queryKey: qk.materialReceipts.search(receiptSearch),
     queryFn: () => searchReceipts({ data: { q: receiptSearch || null, approved_only: true } }),
     enabled: receiptPickerOpen,
   });

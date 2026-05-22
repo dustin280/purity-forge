@@ -14,6 +14,7 @@ import { generateCoaPdf } from "@/lib/coa-pdf";
 import { fmtPct, type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { toast } from "sonner";
 import { Download, ChevronRight } from "lucide-react";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/samples/$batchId")({ component: SampleDetail });
 
@@ -24,7 +25,7 @@ function SampleDetail() {
   const setStatusFn = useServerFn(updateSampleStatus);
   const saveResultFn = useServerFn(saveResult);
   const { data, isLoading } = useQuery({
-    queryKey: ["sample", batchId],
+    queryKey: qk.samples.detail(batchId),
     queryFn: () => fn({ data: { batchId } }),
   });
 
@@ -45,8 +46,8 @@ function SampleDetail() {
     try {
       await setStatusFn({ data: { sampleId: sample.id, status } });
       toast.success(`Status → ${status}`);
-      qc.invalidateQueries({ queryKey: ["sample", batchId] });
-      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
+      qc.invalidateQueries({ queryKey: qk.dashboard.all });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Update failed"); }
     finally { setBusy(false); }
   }
@@ -81,7 +82,7 @@ function SampleDetail() {
       await setStatusFn({ data: { sampleId: sample.id, status: "in_progress" } });
       toast.success(`Result saved — ${purity.toFixed(2)}% purity`);
       setPasted("");
-      qc.invalidateQueries({ queryKey: ["sample", batchId] });
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
     finally { setBusy(false); }
   }

@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, Trash2, Gauge } from "lucide-react";
 import {
+import { qk } from "@/lib/query-keys";
   createBackpressureLog,
   deleteBackpressureLog,
   listBackpressureLogs,
@@ -44,7 +45,7 @@ function BackpressureLog() {
   const del = useServerFn(deleteBackpressureLog);
 
   const { data: rows = [], isLoading } = useQuery({
-    queryKey: ["daily-backpressure"],
+    queryKey: qk.backpressure.list(),
     queryFn: () => list(),
   });
 
@@ -72,7 +73,7 @@ function BackpressureLog() {
       setReadingAt(nowLocal());
       setBackpressure("");
       setNotes("");
-      qc.invalidateQueries({ queryKey: ["daily-backpressure"] });
+      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -81,7 +82,7 @@ function BackpressureLog() {
     mutationFn: (id: string) => del({ data: { id } }),
     onSuccess: () => {
       toast.success("Deleted");
-      qc.invalidateQueries({ queryKey: ["daily-backpressure"] });
+      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
     },
     onError: (e: Error) => toast.error(e.message),
   });

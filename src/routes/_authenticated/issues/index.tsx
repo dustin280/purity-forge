@@ -13,6 +13,7 @@ import { Camera, Paperclip, X, NotebookPen, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import {
+import { qk } from "@/lib/query-keys";
   listIssueReports,
   createIssueReport,
   recordIssueAttachment,
@@ -42,7 +43,7 @@ function IssuesPage() {
   const updateStatus = useServerFn(updateIssueStatus);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["issue-reports"],
+    queryKey: qk.issues.list(),
     queryFn: () => list(),
   });
 
@@ -95,7 +96,7 @@ function IssuesPage() {
       setDescription("");
       setFiles([]);
       setOccurredAt(nowLocal());
-      qc.invalidateQueries({ queryKey: ["issue-reports"] });
+      qc.invalidateQueries({ queryKey: qk.issues.list() });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -103,7 +104,7 @@ function IssuesPage() {
   const setStatus = useMutation({
     mutationFn: (args: { id: string; status: "open" | "in_progress" | "resolved" }) =>
       updateStatus({ data: args }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["issue-reports"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.issues.list() }),
     onError: (e: Error) => toast.error(e.message),
   });
 
