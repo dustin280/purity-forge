@@ -107,10 +107,16 @@ export const sftpConfigQuery = () =>
   });
 
 // Standard preparations
-export const standardPrepsListQuery = (filters: unknown) =>
+export type StandardPrepsFilters = {
+  q: string | null;
+  status: "draft" | "reviewed" | "approved" | null;
+  from: string | null;
+  to: string | null;
+};
+export const standardPrepsListQuery = (filters: StandardPrepsFilters) =>
   queryOptions({
     queryKey: qk.standardPreps.list(filters),
-    queryFn: () => listStandardPreparations({ data: filters as never }),
+    queryFn: () => listStandardPreparations({ data: filters }),
   });
 
 export const standardPrepQuery = (id: string) =>
@@ -148,10 +154,16 @@ export const receiptPrepsQuery = (receiptId: string) =>
   });
 
 // Material receipts
-export const materialReceiptsListQuery = (filters: unknown) =>
+export type MaterialReceiptsFilters = {
+  q: string | null;
+  material_type: "controlled" | "uncontrolled" | null;
+  from: string | null;
+  to: string | null;
+};
+export const materialReceiptsListQuery = (filters: MaterialReceiptsFilters) =>
   queryOptions({
     queryKey: qk.materialReceipts.list(filters),
-    queryFn: () => listMaterialReceipts({ data: filters as never }),
+    queryFn: () => listMaterialReceipts({ data: filters }),
   });
 
 export const materialReceiptQuery = (id: string) =>
