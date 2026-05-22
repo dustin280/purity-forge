@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FileDown, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   approveMaterialReceipt,
   deleteMaterialReceipt,
@@ -18,20 +18,14 @@ import {
   type PendingAttachments,
 } from "@/components/material-receipts/receipt-form";
 import { uploadPending } from "./new";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { qk } from "@/lib/query-keys";
-import { InfoRow } from "@/components/material-receipts/info-row";
-import { ApproveDialog } from "@/components/material-receipts/approve-dialog";
 import { AttachmentsSection } from "@/components/material-receipts/attachments-section";
 import { LinkedPreparations } from "@/components/material-receipts/linked-preparations";
 import { exportMaterialReceiptPdf } from "@/lib/material-receipt-pdf";
+import { ReceiptHeader } from "@/components/material-receipts/receipt-header";
+import { ReceiptInfoCards } from "@/components/material-receipts/receipt-info-cards";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
   component: ReceiptDetail,
@@ -145,119 +139,25 @@ function ReceiptDetail() {
     );
   }
 
-  const isControlled = r.material_type === "controlled";
-
   return (
     <div className="p-6 md:p-8 max-w-5xl">
       <Link to="/material-receipts">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2"><ArrowLeft className="size-4 mr-1" /> Back</Button>
       </Link>
-      <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-        <div>
-          <div className="font-mono text-sm text-muted-foreground">{r.receipt_number}</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">{r.material_name}</h1>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge variant={isControlled ? "default" : "secondary"}>{r.material_type}</Badge>
-            {isControlled && (
-              <Badge variant={
-                r.quarantine_status === "released" ? "default"
-                  : r.quarantine_status === "rejected" ? "destructive" : "outline"
-              }>
-                {r.quarantine_status}
-              </Badge>
-            )}
-            {r.qc_pass != null && (
-              <Badge variant={r.qc_pass ? "default" : "destructive"}>QC {r.qc_pass ? "Pass" : "Fail"}</Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => exportMaterialReceiptPdf(r)}>
-            <FileDown className="size-4 mr-1" /> PDF
-          </Button>
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-              <Pencil className="size-4 mr-1" /> Edit
-            </Button>
-          )}
-          {canApprove && isControlled && r.approved_at == null && (
-            <ApproveDialog
-              defaultName={profileDisplayName(profile, user?.email) || user?.email || ""}
-              onApprove={(approver_name, qc_pass) => approveMut.mutate({ approver_name, qc_pass })}
-              loading={approveMut.isPending}
-            />
-          )}
-          {role === "admin" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-destructive">
-                  <Trash2 className="size-4 mr-1" /> Delete
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete this receipt?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    All attached files will be removed too. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteMut.mutate()}>Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      </div>
+      <ReceiptHeader
+        r={r}
+        canEdit={canEdit}
+        canApprove={canApprove}
+        isAdmin={role === "admin"}
+        approverDefaultName={profileDisplayName(profile, user?.email) || user?.email || ""}
+        onPdf={() => exportMaterialReceiptPdf(r)}
+        onEdit={() => setEditing(true)}
+        onApprove={(approver_name, qc_pass) => approveMut.mutate({ approver_name, qc_pass })}
+        onDelete={() => deleteMut.mutate()}
+        approving={approveMut.isPending}
+      />
 
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-        <Card className="p-5 space-y-2 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Receipt</h2>
-          <InfoRow label="Received" value={new Date(r.received_at).toLocaleString()} />
-          <InfoRow label="Receiver" value={r.receiver_name} />
-          <InfoRow label="Quantity" value={r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"} />
-          <InfoRow label="Supplier" value={r.supplier} />
-          <InfoRow label="PO / Invoice" value={r.po_number} />
-          <InfoRow label="Freight tracking #" value={r.freight_tracking_number} />
-          {!isControlled && <InfoRow label="Purpose" value={r.purpose} />}
-          {r.notes && <InfoRow label="Notes" value={r.notes} multiline />}
-        </Card>
-
-        {isControlled && (
-          <Card className="p-5 space-y-2 text-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Manufacturer & Storage</h2>
-            <InfoRow label="Manufacturer" value={r.manufacturer} />
-            <InfoRow label="Mfr. lot" value={r.manufacturer_lot} />
-            <InfoRow label="Catalog #" value={r.catalog_number} />
-            <InfoRow label="Expiry" value={r.expiry_date} />
-            <InfoRow label="Container" value={r.container_details} />
-            <InfoRow label="Internal lot" value={r.internal_lot} />
-            <InfoRow label="Storage" value={r.storage_location} />
-            <InfoRow label="Temp on receipt" value={r.temperature_on_receipt != null ? `${r.temperature_on_receipt} °C` : null} />
-            <InfoRow label="Visual inspection" value={r.visual_inspection} />
-            {r.visual_inspection_notes && <InfoRow label="Inspection notes" value={r.visual_inspection_notes} multiline />}
-          </Card>
-        )}
-      </div>
-
-      {isControlled && (
-        <Card className="p-5 mb-6 space-y-2 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">QC & Approval</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <InfoRow label="QC pass/fail" value={r.qc_pass == null ? "—" : r.qc_pass ? "Pass" : "Fail"} />
-              <InfoRow label="QC analyst" value={r.qc_analyst} />
-              <InfoRow label="QC date" value={r.qc_date} />
-              {r.qc_results && <InfoRow label="QC results" value={r.qc_results} multiline />}
-            </div>
-            <div className="space-y-2">
-              <InfoRow label="Approved at" value={r.approved_at ? new Date(r.approved_at).toLocaleString() : "Pending"} />
-              <InfoRow label="Approver" value={r.approver_name} />
-            </div>
-          </div>
-        </Card>
-      )}
+      <ReceiptInfoCards r={r} />
 
       <AttachmentsSection receiptId={id} attachments={data.attachments} canEdit={canEdit} />
 
