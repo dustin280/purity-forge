@@ -1,8 +1,16 @@
-import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-router";
+/**
+ * Pathless layout that gates every `/_authenticated/*` route behind a valid
+ * Supabase session. `beforeLoad` redirects unauthenticated visitors to the
+ * login page before any child loader runs; the component additionally syncs
+ * with the `useAuth` context so client-side sign-outs trigger a redirect.
+ * An `errorComponent` catches uncaught render/loader errors and offers retry.
+ */
+import { createFileRoute, Outlet, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { SidebarNav, MobileTopBar } from "@/components/lims/sidebar-nav";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -11,7 +19,36 @@ export const Route = createFileRoute("/_authenticated")({
     if (!data.session) throw redirect({ to: "/login" });
   },
   component: AuthedLayout,
+  errorComponent: AuthedErrorBoundary,
 });
+
+function AuthedErrorBoundary({ error, reset }: { error: Error; reset: () => void }) {
+  console.error(error);
+  const router = useRouter();
+  return (
+    <div className="min-h-[60vh] grid place-items-center px-4">
+      <div className="max-w-md text-center space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Something went wrong</h2>
+        <p className="text-sm text-muted-foreground break-words">
+          {error.message || "An unexpected error occurred while loading this page."}
+        </p>
+        <div className="flex justify-center gap-2">
+          <Button
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
+          >
+            Try again
+          </Button>
+          <Button variant="outline" onClick={() => router.navigate({ to: "/" })}>
+            Go home
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function AuthedLayout() {
   const { loading, user } = useAuth();
