@@ -91,9 +91,11 @@ export const qk = {
   cocRecords: {
     all: ["coc_records"] as const,
     list: () => ["coc_records"] as const,
-    detail: (id: string) => ["coc_record", id] as const,
-    view: (id: string) => ["coc_record_view", id] as const,
-    attachments: (cocId: string) => ["coc_attachments", cocId] as const,
+    detail: (id: string | null | undefined) => ["coc_record", id] as const,
+    view: (id: string | null | undefined) =>
+      ["coc_record_view", id] as const,
+    attachments: (cocId: string | null | undefined) =>
+      ["coc_attachments", cocId] as const,
     attachmentsAll: ["coc_attachments"] as const,
   },
 
