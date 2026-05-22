@@ -1,42 +1,37 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, FileDown, Pencil, Trash2, Upload, FileText, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Trash2 } from "lucide-react";
 import {
   approveMaterialReceipt,
-  deleteAttachment,
   deleteMaterialReceipt,
   getMaterialReceipt,
   recordAttachment,
-  signAttachmentUrl,
   updateMaterialReceipt,
-  type AttachmentKind,
-  type MaterialReceiptRow,
-  ATTACHMENT_KINDS,
 } from "@/lib/material-receipts.functions";
-import { listPrepsForReceipt } from "@/lib/standard-preparations.functions";
-import { STATUS_LABEL } from "@/lib/lims-utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ReceiptForm, valuesToPayload, type ReceiptFormValues, type PendingAttachments } from "@/components/material-receipts/receipt-form";
+import {
+  ReceiptForm,
+  valuesToPayload,
+  type ReceiptFormValues,
+  type PendingAttachments,
+} from "@/components/material-receipts/receipt-form";
 import { uploadPending } from "./new";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { qk } from "@/lib/query-keys";
+import { InfoRow } from "@/components/material-receipts/info-row";
+import { ApproveDialog } from "@/components/material-receipts/approve-dialog";
+import { AttachmentsSection } from "@/components/material-receipts/attachments-section";
+import { LinkedPreparations } from "@/components/material-receipts/linked-preparations";
+import { exportMaterialReceiptPdf } from "@/lib/material-receipt-pdf";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
   component: ReceiptDetail,
@@ -85,7 +80,8 @@ function ReceiptDetail() {
   });
 
   const approveMut = useMutation({
-    mutationFn: (args: { approver_name: string; qc_pass: boolean }) => approve({ data: { id, ...args } }),
+    mutationFn: (args: { approver_name: string; qc_pass: boolean }) =>
+      approve({ data: { id, ...args } }),
     onSuccess: () => {
       toast.success("Receipt updated");
       qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(id) });
@@ -176,7 +172,7 @@ function ReceiptDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => exportPdf(r)}>
+          <Button variant="outline" size="sm" onClick={() => exportMaterialReceiptPdf(r)}>
             <FileDown className="size-4 mr-1" /> PDF
           </Button>
           {canEdit && (
@@ -218,29 +214,29 @@ function ReceiptDetail() {
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <Card className="p-5 space-y-2 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Receipt</h2>
-          <Row label="Received" value={new Date(r.received_at).toLocaleString()} />
-          <Row label="Receiver" value={r.receiver_name} />
-          <Row label="Quantity" value={r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"} />
-          <Row label="Supplier" value={r.supplier} />
-          <Row label="PO / Invoice" value={r.po_number} />
-          <Row label="Freight tracking #" value={r.freight_tracking_number} />
-          {!isControlled && <Row label="Purpose" value={r.purpose} />}
-          {r.notes && <Row label="Notes" value={r.notes} multiline />}
+          <InfoRow label="Received" value={new Date(r.received_at).toLocaleString()} />
+          <InfoRow label="Receiver" value={r.receiver_name} />
+          <InfoRow label="Quantity" value={r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"} />
+          <InfoRow label="Supplier" value={r.supplier} />
+          <InfoRow label="PO / Invoice" value={r.po_number} />
+          <InfoRow label="Freight tracking #" value={r.freight_tracking_number} />
+          {!isControlled && <InfoRow label="Purpose" value={r.purpose} />}
+          {r.notes && <InfoRow label="Notes" value={r.notes} multiline />}
         </Card>
 
         {isControlled && (
           <Card className="p-5 space-y-2 text-sm">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Manufacturer & Storage</h2>
-            <Row label="Manufacturer" value={r.manufacturer} />
-            <Row label="Mfr. lot" value={r.manufacturer_lot} />
-            <Row label="Catalog #" value={r.catalog_number} />
-            <Row label="Expiry" value={r.expiry_date} />
-            <Row label="Container" value={r.container_details} />
-            <Row label="Internal lot" value={r.internal_lot} />
-            <Row label="Storage" value={r.storage_location} />
-            <Row label="Temp on receipt" value={r.temperature_on_receipt != null ? `${r.temperature_on_receipt} °C` : null} />
-            <Row label="Visual inspection" value={r.visual_inspection} />
-            {r.visual_inspection_notes && <Row label="Inspection notes" value={r.visual_inspection_notes} multiline />}
+            <InfoRow label="Manufacturer" value={r.manufacturer} />
+            <InfoRow label="Mfr. lot" value={r.manufacturer_lot} />
+            <InfoRow label="Catalog #" value={r.catalog_number} />
+            <InfoRow label="Expiry" value={r.expiry_date} />
+            <InfoRow label="Container" value={r.container_details} />
+            <InfoRow label="Internal lot" value={r.internal_lot} />
+            <InfoRow label="Storage" value={r.storage_location} />
+            <InfoRow label="Temp on receipt" value={r.temperature_on_receipt != null ? `${r.temperature_on_receipt} °C` : null} />
+            <InfoRow label="Visual inspection" value={r.visual_inspection} />
+            {r.visual_inspection_notes && <InfoRow label="Inspection notes" value={r.visual_inspection_notes} multiline />}
           </Card>
         )}
       </div>
@@ -250,286 +246,22 @@ function ReceiptDetail() {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">QC & Approval</h2>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Row label="QC pass/fail" value={r.qc_pass == null ? "—" : r.qc_pass ? "Pass" : "Fail"} />
-              <Row label="QC analyst" value={r.qc_analyst} />
-              <Row label="QC date" value={r.qc_date} />
-              {r.qc_results && <Row label="QC results" value={r.qc_results} multiline />}
+              <InfoRow label="QC pass/fail" value={r.qc_pass == null ? "—" : r.qc_pass ? "Pass" : "Fail"} />
+              <InfoRow label="QC analyst" value={r.qc_analyst} />
+              <InfoRow label="QC date" value={r.qc_date} />
+              {r.qc_results && <InfoRow label="QC results" value={r.qc_results} multiline />}
             </div>
             <div className="space-y-2">
-              <Row label="Approved at" value={r.approved_at ? new Date(r.approved_at).toLocaleString() : "Pending"} />
-              <Row label="Approver" value={r.approver_name} />
+              <InfoRow label="Approved at" value={r.approved_at ? new Date(r.approved_at).toLocaleString() : "Pending"} />
+              <InfoRow label="Approver" value={r.approver_name} />
             </div>
           </div>
         </Card>
       )}
 
-      <Attachments receiptId={id} attachments={data.attachments} canEdit={canEdit} />
+      <AttachmentsSection receiptId={id} attachments={data.attachments} canEdit={canEdit} />
 
       <LinkedPreparations receiptId={id} />
     </div>
   );
-}
-
-function LinkedPreparations({ receiptId }: { receiptId: string }) {
-  const list = useServerFn(listPrepsForReceipt);
-  const { data, isLoading } = useQuery({
-    queryKey: qk.materialReceipts.preps(receiptId),
-    queryFn: () => list({ data: { receipt_id: receiptId } }),
-  });
-  return (
-    <Card className="p-5 mt-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        Standards Prepared From This Receipt
-      </h2>
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground py-2">Loading…</div>
-      ) : !data || data.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-4 text-center">No preparations linked yet.</div>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Log #</TableHead>
-                <TableHead>SYN ID</TableHead>
-                <TableHead>Standard</TableHead>
-                <TableHead>Analyst</TableHead>
-                <TableHead>Prepared</TableHead>
-                <TableHead>Expires</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map(p => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs">
-                    <Link to="/lab-logs/standard-preparations/$id" params={{ id: p.id }} className="hover:underline">
-                      {p.log_number}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{p.syn_id ?? "—"}</TableCell>
-                  <TableCell>{p.standard_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.analyst_name}</TableCell>
-                  <TableCell className="text-muted-foreground">{new Date(p.prepared_at).toLocaleDateString()}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.expiration_date ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.status === "approved" ? "default" : p.status === "reviewed" ? "secondary" : "outline"}>
-                      {STATUS_LABEL[p.status as keyof typeof STATUS_LABEL] ?? p.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function Row({ label, value, multiline }: { label: string; value: string | number | null | undefined; multiline?: boolean }) {
-  return (
-    <div className={multiline ? "flex flex-col gap-0.5" : "flex justify-between gap-4"}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={multiline ? "whitespace-pre-wrap" : "text-right truncate"}>{value ?? "—"}</div>
-    </div>
-  );
-}
-
-function ApproveDialog({ defaultName, onApprove, loading }: { defaultName: string; onApprove: (name: string, pass: boolean) => void; loading: boolean }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(defaultName);
-  const [pass, setPass] = useState<"pass" | "fail">("pass");
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm"><ShieldCheck className="size-4 mr-1" /> Approve / Release</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Approval decision</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div>
-            <Label className="text-xs text-muted-foreground">Approver name</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1" />
-          </div>
-          <div>
-            <Label className="text-xs text-muted-foreground">Decision</Label>
-            <Select value={pass} onValueChange={v => setPass(v as "pass" | "fail")}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pass">Pass — Release from quarantine</SelectItem>
-                <SelectItem value="fail">Fail — Reject</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={loading || !name.trim()} onClick={() => { onApprove(name.trim(), pass === "pass"); setOpen(false); }}>
-            Confirm
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Attachments({ receiptId, attachments, canEdit }: { receiptId: string; attachments: Array<{ id: string; kind: AttachmentKind; file_path: string; file_name: string; uploaded_at: string }>; canEdit: boolean }) {
-  const qc = useQueryClient();
-  const record = useServerFn(recordAttachment);
-  const del = useServerFn(deleteAttachment);
-  const sign = useServerFn(signAttachmentUrl);
-  const [kind, setKind] = useState<AttachmentKind>("coa");
-  const [uploading, setUploading] = useState(false);
-
-  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      for (const f of Array.from(files)) {
-        const safeName = f.name.replace(/[^\w.\-]+/g, "_");
-        const path = `${receiptId}/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage.from("material-receipts").upload(path, f);
-        if (upErr) throw upErr;
-        await record({
-          data: {
-            receipt_id: receiptId,
-            kind,
-            file_path: path,
-            file_name: f.name,
-            content_type: f.type || null,
-            size_bytes: f.size,
-          },
-        });
-      }
-      toast.success("Uploaded");
-      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(receiptId) });
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  }
-
-  async function openFile(path: string) {
-    try {
-      const { url } = await sign({ data: { path } });
-      window.open(url, "_blank", "noopener");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
-  async function removeAttachment(id: string) {
-    try {
-      await del({ data: { id } });
-      toast.success("Removed");
-      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(receiptId) });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
-  return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attachments</h2>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <Select value={kind} onValueChange={v => setKind(v as AttachmentKind)}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {ATTACHMENT_KINDS.map(k => (
-                  <SelectItem key={k} value={k}>{k.toUpperCase()}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <label className="inline-flex">
-              <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
-              <Button asChild size="sm" disabled={uploading}>
-                <span><Upload className="size-4 mr-1" /> {uploading ? "Uploading…" : "Upload"}</span>
-              </Button>
-            </label>
-          </div>
-        )}
-      </div>
-      {attachments.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-4 text-center">No attachments yet.</div>
-      ) : (
-        <ul className="divide-y">
-          {attachments.map(a => (
-            <li key={a.id} className="flex items-center gap-3 py-2">
-              <FileText className="size-4 text-muted-foreground shrink-0" />
-              <button onClick={() => openFile(a.file_path)} className="flex-1 min-w-0 text-left text-sm hover:underline truncate">
-                {a.file_name}
-              </button>
-              <Badge variant="outline" className="uppercase text-[10px]">{a.kind}</Badge>
-              <span className="text-xs text-muted-foreground">{new Date(a.uploaded_at).toLocaleDateString()}</span>
-              {canEdit && (
-                <Button size="icon" variant="ghost" onClick={() => removeAttachment(a.id)} className="text-destructive size-7">
-                  <X className="size-4" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-async function exportPdf(r: MaterialReceiptRow) {
-  const { default: jsPDF } = await import("jspdf");
-  const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "portrait" });
-  doc.setFontSize(16);
-  doc.text(`Material Receipt — ${r.receipt_number}`, 14, 18);
-  doc.setFontSize(10);
-  doc.text(`Generated ${new Date().toLocaleString()}`, 14, 24);
-
-  const common: Array<[string, string]> = [
-    ["Material type", r.material_type],
-    ["Received at", new Date(r.received_at).toLocaleString()],
-    ["Receiver", r.receiver_name],
-    ["Material", r.material_name],
-    ["Quantity", r.quantity != null ? `${r.quantity} ${r.unit ?? ""}` : "—"],
-    ["Supplier", r.supplier ?? "—"],
-    ["PO / Invoice", r.po_number ?? "—"],
-    ["Freight tracking #", r.freight_tracking_number ?? "—"],
-    ["Notes", r.notes ?? "—"],
-  ];
-  autoTable(doc, { startY: 30, head: [["Field", "Value"]], body: common, styles: { fontSize: 9 } });
-
-  if (r.material_type === "controlled") {
-    const controlled: Array<[string, string]> = [
-      ["Manufacturer", r.manufacturer ?? "—"],
-      ["Mfr. lot", r.manufacturer_lot ?? "—"],
-      ["Catalog #", r.catalog_number ?? "—"],
-      ["Expiry / retest", r.expiry_date ?? "—"],
-      ["Container", r.container_details ?? "—"],
-      ["COA attached", r.coa_attached ? "Yes" : "No"],
-      ["SDS attached", r.sds_attached ? "Yes" : "No"],
-      ["Visual inspection", r.visual_inspection ?? "—"],
-      ["Inspection notes", r.visual_inspection_notes ?? "—"],
-      ["Temp on receipt", r.temperature_on_receipt != null ? `${r.temperature_on_receipt} °C` : "—"],
-      ["Internal lot", r.internal_lot ?? "—"],
-      ["Storage", r.storage_location ?? "—"],
-      ["Quarantine status", r.quarantine_status],
-      ["QC pass/fail", r.qc_pass == null ? "—" : r.qc_pass ? "Pass" : "Fail"],
-      ["QC analyst", r.qc_analyst ?? "—"],
-      ["QC date", r.qc_date ?? "—"],
-      ["QC results", r.qc_results ?? "—"],
-      ["Approved at", r.approved_at ? new Date(r.approved_at).toLocaleString() : "Pending"],
-      ["Approver", r.approver_name ?? "—"],
-    ];
-    autoTable(doc, { head: [["Controlled-material details", ""]], body: controlled, styles: { fontSize: 9 } });
-  } else {
-    autoTable(doc, { head: [["Field", "Value"]], body: [["Purpose", r.purpose ?? "—"]], styles: { fontSize: 9 } });
-  }
-
-  doc.save(`${r.receipt_number}.pdf`);
 }
