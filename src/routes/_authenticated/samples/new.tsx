@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { Sparkles, X } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/samples/new")({ component: NewSample });
 
 function NewSample() {

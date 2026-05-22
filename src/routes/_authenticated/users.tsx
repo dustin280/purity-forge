@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-import { qk } from "@/lib/query-keys";
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
@@ -19,6 +18,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { Trash2, KeyRound, UserPlus, Pencil, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/users")({ component: Users });
 

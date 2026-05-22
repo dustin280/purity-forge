@@ -13,7 +13,6 @@ import { Camera, Paperclip, X, NotebookPen, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import {
-import { qk } from "@/lib/query-keys";
   listIssueReports,
   createIssueReport,
   recordIssueAttachment,
@@ -21,6 +20,7 @@ import { qk } from "@/lib/query-keys";
   updateIssueStatus,
   type IssueAttachmentRow,
 } from "@/lib/issue-reports.functions";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/issues/")({
   component: IssuesPage,

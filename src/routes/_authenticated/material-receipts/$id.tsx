@@ -5,7 +5,6 @@ import { useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, FileDown, Pencil, Trash2, Upload, FileText, ShieldCheck, X } from "lucide-react";
 import {
-import { qk } from "@/lib/query-keys";
   approveMaterialReceipt,
   deleteAttachment,
   deleteMaterialReceipt,
@@ -37,6 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
   component: ReceiptDetail,

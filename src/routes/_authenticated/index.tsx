@@ -7,7 +7,6 @@ import { StatusPill } from "@/components/lims/status-pill";
 import { type SampleStatus } from "@/lib/lims-utils";
 import { Beaker, FlaskConical, ClipboardCheck, CheckCircle2, Inbox } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
 
 function Dashboard() {

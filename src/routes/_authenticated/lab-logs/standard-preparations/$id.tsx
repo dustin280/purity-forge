@@ -5,7 +5,6 @@ import { useState, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { ArrowLeft, FileDown, Pencil, Trash2, Upload, FileText, X, ShieldCheck, Eye } from "lucide-react";
 import {
-import { qk } from "@/lib/query-keys";
   deletePrepAttachment,
   deleteStandardPreparation,
   getStandardPreparation,
@@ -37,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { STATUS_LABEL } from "@/lib/lims-utils";
 import jsPDF from "jspdf";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
   component: PrepDetail,

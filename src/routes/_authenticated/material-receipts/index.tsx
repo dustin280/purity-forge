@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, PackageSearch, ChevronRight } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/material-receipts/")({
   component: ReceiptsIndex,
 });

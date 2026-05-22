@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Paperclip, X } from "lucide-react";
 import { listMaterialSuggestions, type MaterialType, type QuarantineStatus, MATERIAL_TYPES, QUARANTINE_STATUSES } from "@/lib/material-receipts.functions";
 import { qk } from "@/lib/query-keys";
-
 export interface ReceiptFormValues {
   material_type: MaterialType;
   received_at: string;

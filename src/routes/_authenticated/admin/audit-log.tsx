@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/admin/audit-log")({ component: AuditLogAdmin });
 
 type AuditRow = {

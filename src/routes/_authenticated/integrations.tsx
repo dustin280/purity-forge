@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Copy, Webhook, Server } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/integrations")({ component: Integrations });
 
 function Integrations() {

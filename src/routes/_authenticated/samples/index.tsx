@@ -10,7 +10,6 @@ import { StatusPill } from "@/components/lims/status-pill";
 import { STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
 import { Plus, Search } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/samples/")({ component: SamplesList });
 
 function SamplesList() {

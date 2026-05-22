@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/batch/$groupId")({
   component: BatchView,
 });

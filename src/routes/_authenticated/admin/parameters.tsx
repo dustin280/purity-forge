@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/admin/parameters")({ component: ParametersAdmin });
 
 function ParametersAdmin() {

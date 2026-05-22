@@ -15,7 +15,6 @@ import { fmtPct, type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { toast } from "sonner";
 import { Download, ChevronRight } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-
 export const Route = createFileRoute("/_authenticated/samples/$batchId")({ component: SampleDetail });
 
 function SampleDetail() {
