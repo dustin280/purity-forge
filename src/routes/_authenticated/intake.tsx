@@ -1,40 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { listIntakeQueue, verifySampleIntake, listParameters } from "@/lib/lims.functions";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { listIntakeQueue } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { Inbox, CheckCircle2, X } from "lucide-react";
+import { Inbox, CheckCircle2 } from "lucide-react";
 import { qk } from "@/lib/query-keys";
+import { VerifyDialog } from "@/components/intake/verify-dialog";
+import type { IntakeSample } from "@/components/intake/types";
 
 export const Route = createFileRoute("/_authenticated/intake")({ component: IntakePage });
-
-type IntakeSample = {
-  id: string;
-  batch_id: string;
-  client: string;
-  project: string | null;
-  compound: string | null;
-  lot: string | null;
-  parameters: string[];
-  notes: string | null;
-  coc_id: string | null;
-  receipt_date: string;
-  created_at: string;
-  container_size: string | null;
-  concentration: string | null;
-  temperature_c: number | null;
-};
 
 function IntakePage() {
   const qc = useQueryClient();
