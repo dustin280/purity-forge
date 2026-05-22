@@ -1,3 +1,6 @@
+/**
+ * Static HTML for the SSR 500 error page. Rendered by errorMiddleware in src/start.ts when a server-side render throws.
+ */
 export function renderErrorPage(): string {
   return `<!doctype html>
 <html lang="en">

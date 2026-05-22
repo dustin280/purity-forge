@@ -1,3 +1,6 @@
+/**
+ * `useIsMobile` — boolean hook that tracks whether the viewport is below the mobile breakpoint. Used by the sidebar and other responsive components.
+ */
 import * as React from "react";
 
 const MOBILE_BREAKPOINT = 768;

@@ -1,3 +1,6 @@
+/**
+ * Server functions for the Material Receipts module: receiving incoming materials, lot tracking, and acceptance workflows. Auth-gated with RLS.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

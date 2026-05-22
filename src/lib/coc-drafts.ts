@@ -1,3 +1,6 @@
+/**
+ * Local-storage backed draft persistence for in-progress Chain-of-Custody forms. Survives accidental tab closes without round-tripping to the server.
+ */
 const STORAGE_KEY = "coc-drafts:v1";
 const DELETED_KEY = "coc-drafts:deleted:v1";
 

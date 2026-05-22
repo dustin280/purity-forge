@@ -1,3 +1,6 @@
+/**
+ * Core LIMS server functions: samples, batches, intake, results, chromatograms, and chain-of-custody. The largest server module — grouped by domain within the file.
+ */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

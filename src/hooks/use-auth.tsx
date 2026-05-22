@@ -1,3 +1,6 @@
+/**
+ * React context provider and `useAuth` hook wrapping Supabase Auth. Tracks session, user profile, and role; exposes sign-in/sign-out helpers. Listens to onAuthStateChange so the UI stays in sync across tabs.
+ */
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";

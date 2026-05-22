@@ -1,3 +1,6 @@
+/**
+ * Out-of-band Error stash so the SSR shell (src/server.ts) can recover the original thrown Error from the request scope and render a useful error page.
+ */
 // Captures the original Error out-of-band so server.ts can recover the stack
 // when h3 has already swallowed the throw into a generic 500 Response.
 

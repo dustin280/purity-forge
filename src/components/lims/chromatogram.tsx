@@ -1,3 +1,6 @@
+/**
+ * Lightweight SVG chromatogram renderer. Plots peaks (retention time × intensity) without a charting dependency. Used in sample detail views and COA PDFs.
+ */
 import type { Peak } from "@/lib/lims-utils";
 
 export function Chromatogram({ peaks }: { peaks: Peak[] }) {
