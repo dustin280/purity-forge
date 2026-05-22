@@ -5,7 +5,7 @@ import { Chromatogram } from "@/components/lims/chromatogram";
 import { fmtPct, type Peak } from "@/lib/lims-utils";
 
 type LatestResult = {
-  purity_percentage: number;
+  purity_percentage: number | null;
   analysis_date: string;
 } | null;
 
