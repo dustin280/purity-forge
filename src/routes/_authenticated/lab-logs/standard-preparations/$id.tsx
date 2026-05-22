@@ -155,7 +155,7 @@ function PrepDetail() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => exportPdf(r, linked, data.attachments.length)}>
+          <Button variant="outline" size="sm" onClick={() => exportPrepPdf(r, linked, data.attachments.length)}>
             <FileDown className="size-4 mr-1" /> PDF
           </Button>
           {canEdit && r.status !== "approved" && (
@@ -218,19 +218,19 @@ function PrepDetail() {
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <Card className="p-5 space-y-2 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Preparation</h2>
-          <Row label="Prepared" value={new Date(r.prepared_at).toLocaleString()} />
-          <Row label="Analyst" value={r.analyst_name} />
-          <Row label="Target conc." value={r.target_concentration} />
-          <Row label="Final volume" value={r.final_volume} />
-          <Row label="Solvent" value={r.solvent} />
-          <Row label="Mfr. lot" value={r.manufacturer_lot} />
+          <InfoRow label="Prepared" value={new Date(r.prepared_at).toLocaleString()} />
+          <InfoRow label="Analyst" value={r.analyst_name} />
+          <InfoRow label="Target conc." value={r.target_concentration} />
+          <InfoRow label="Final volume" value={r.final_volume} />
+          <InfoRow label="Solvent" value={r.solvent} />
+          <InfoRow label="Mfr. lot" value={r.manufacturer_lot} />
         </Card>
         <Card className="p-5 space-y-2 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Storage & Linkage</h2>
-          <Row label="Expiration" value={r.expiration_date} />
-          <Row label="Condition" value={r.storage_condition} />
-          <Row label="Location" value={r.storage_location} />
-          <Row label="Container label" value={r.container_label} />
+          <InfoRow label="Expiration" value={r.expiration_date} />
+          <InfoRow label="Condition" value={r.storage_condition} />
+          <InfoRow label="Location" value={r.storage_location} />
+          <InfoRow label="Container label" value={r.container_label} />
           {linked ? (
             <div className="pt-2 mt-2 border-t">
               <div className="text-xs text-muted-foreground mb-1">Linked Material Receipt</div>
@@ -240,7 +240,7 @@ function PrepDetail() {
               </Link>
             </div>
           ) : (
-            <Row label="Linked receipt" value={null} />
+            <InfoRow label="Linked receipt" value={null} />
           )}
         </Card>
       </div>
@@ -274,16 +274,16 @@ function PrepDetail() {
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Review & Approval</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Row label="In Review by" value={r.reviewer_name} />
-            <Row label="In Review at" value={r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : null} />
+            <InfoRow label="In Review by" value={r.reviewer_name} />
+            <InfoRow label="In Review at" value={r.reviewed_at ? new Date(r.reviewed_at).toLocaleString() : null} />
           </div>
           <div className="space-y-2">
-            <Row label="Approved by" value={r.approver_name} />
-            <Row label="Approved at" value={r.approved_at ? new Date(r.approved_at).toLocaleString() : null} />
+            <InfoRow label="Approved by" value={r.approver_name} />
+            <InfoRow label="Approved at" value={r.approved_at ? new Date(r.approved_at).toLocaleString() : null} />
           </div>
         </div>
-        {r.appearance_notes && <Row label="Appearance" value={r.appearance_notes} multiline />}
-        {r.notes && <Row label="Notes" value={r.notes} multiline />}
+        {r.appearance_notes && <InfoRow label="Appearance" value={r.appearance_notes} multiline />}
+        {r.notes && <InfoRow label="Notes" value={r.notes} multiline />}
       </Card>
 
       <TraceabilitySnapshot row={r} />
@@ -294,272 +294,3 @@ function PrepDetail() {
   );
 }
 
-function TraceabilitySnapshot({ row: r }: { row: StandardPrepRow }) {
-  const hasAny =
-    r.ref_material_name || r.ref_lot || r.ref_purity_percent != null ||
-    r.ref_molecular_weight != null || r.ref_receipt_date ||
-    r.initial_solvent || r.final_diluent || r.modifier_percent != null ||
-    r.expiration_period_code;
-  if (!hasAny) return null;
-  return (
-    <Card className="p-5 mb-6 text-sm">
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Traceability Snapshot
-        </h2>
-        {r.material_overridden && <Badge variant="outline">Overridden</Badge>}
-      </div>
-      <div className="grid md:grid-cols-2 gap-x-6 gap-y-2">
-        <Row label="Ref material" value={r.ref_material_name} />
-        <Row label="Ref lot" value={r.ref_lot} />
-        <Row label="Ref purity" value={r.ref_purity_percent != null ? `${r.ref_purity_percent}%` : null} />
-        <Row label="Ref MW" value={r.ref_molecular_weight != null ? `${r.ref_molecular_weight} g/mol` : null} />
-        <Row label="Receipt date" value={r.ref_receipt_date} />
-        <Row label="Expiration period" value={r.expiration_period_code ?? (r.expiration_period_days ? `${r.expiration_period_days} d` : null)} />
-        <Row label="Initial solvent" value={r.initial_solvent} />
-        <Row label="Final diluent" value={r.final_diluent} />
-        <Row label="Modifier %" value={r.modifier_percent != null ? `${r.modifier_percent}%` : null} />
-      </div>
-    </Card>
-  );
-}
-
-function TargetsTable({ targets }: { targets: PrepTargetRow[] }) {
-  if (!targets || targets.length === 0) return null;
-  return (
-    <Card className="p-5 mb-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        Desired Standards ({targets.length})
-      </h2>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10">#</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead className="text-right">Conc (mg/mL)</TableHead>
-              <TableHead className="text-right">Vol (mL)</TableHead>
-              <TableHead className="text-right">Mass (mg)</TableHead>
-              <TableHead className="text-right">Calc Vol (mL)</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {targets.map(t => (
-              <TableRow key={t.id}>
-                <TableCell className="font-mono text-xs text-muted-foreground">{t.row_no}</TableCell>
-                <TableCell>{t.name || "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{t.target_concentration_mg_per_ml ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{t.target_volume_ml ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{t.calculated_mass_mg != null ? Number(t.calculated_mass_mg).toFixed(3) : "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{t.calculated_volume_ml != null ? Number(t.calculated_volume_ml).toFixed(3) : "—"}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{t.notes || ""}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
-  );
-}
-
-function Row({ label, value, multiline }: { label: string; value: string | number | null | undefined; multiline?: boolean }) {
-  return (
-    <div className={multiline ? "flex flex-col gap-0.5" : "flex justify-between gap-4"}>
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={multiline ? "whitespace-pre-wrap" : "text-right truncate"}>{value ?? "—"}</div>
-    </div>
-  );
-}
-
-function TransitionDialog({
-  label, title, actionText, defaultName, loading, onConfirm, trigger,
-}: {
-  label: string; title: string; actionText: string; defaultName: string; loading: boolean;
-  onConfirm: (name: string) => void; trigger: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState(defaultName);
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3 py-2">
-          <div>
-            <Label className="text-xs text-muted-foreground">{label} as</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} className="mt-1" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={loading || !name.trim()} onClick={() => { onConfirm(name.trim()); setOpen(false); }}>
-            {actionText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function PrepAttachments({ logId, attachments, canEdit }: {
-  logId: string;
-  attachments: Array<{ id: string; kind: PrepAttachmentKind; file_path: string; file_name: string; uploaded_at: string }>;
-  canEdit: boolean;
-}) {
-  const qc = useQueryClient();
-  const record = useServerFn(recordPrepAttachment);
-  const del = useServerFn(deletePrepAttachment);
-  const sign = useServerFn(signPrepAttachmentUrl);
-  const [kind, setKind] = useState<PrepAttachmentKind>("weighing");
-  const [uploading, setUploading] = useState(false);
-
-  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      for (const f of Array.from(files)) {
-        const safeName = f.name.replace(/[^\w.\-]+/g, "_");
-        const path = `${logId}/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage.from("standard-preparations").upload(path, f);
-        if (upErr) throw upErr;
-        await record({
-          data: {
-            log_id: logId,
-            kind,
-            file_path: path,
-            file_name: f.name,
-            content_type: f.type || null,
-            size_bytes: f.size,
-          },
-        });
-      }
-      toast.success("Uploaded");
-      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(logId) });
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setUploading(false);
-      e.target.value = "";
-    }
-  }
-
-  async function openFile(path: string) {
-    try {
-      const { url } = await sign({ data: { path } });
-      window.open(url, "_blank", "noopener");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
-  async function removeAttachment(id: string) {
-    try {
-      await del({ data: { id } });
-      toast.success("Removed");
-      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(logId) });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
-  return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between gap-4 mb-3 flex-wrap">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attachments</h2>
-        {canEdit && (
-          <div className="flex items-center gap-2">
-            <Select value={kind} onValueChange={v => setKind(v as PrepAttachmentKind)}>
-              <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PREP_ATTACHMENT_KINDS.map(k => (
-                  <SelectItem key={k} value={k}>{k}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <label className="inline-flex">
-              <input type="file" multiple className="hidden" onChange={handleUpload} disabled={uploading} />
-              <Button asChild size="sm" disabled={uploading}>
-                <span><Upload className="size-4 mr-1" /> {uploading ? "Uploading…" : "Upload"}</span>
-              </Button>
-            </label>
-          </div>
-        )}
-      </div>
-      {attachments.length === 0 ? (
-        <div className="text-sm text-muted-foreground py-4 text-center">No attachments yet.</div>
-      ) : (
-        <ul className="divide-y">
-          {attachments.map(a => (
-            <li key={a.id} className="flex items-center gap-3 py-2">
-              <FileText className="size-4 text-muted-foreground shrink-0" />
-              <button onClick={() => openFile(a.file_path)} className="flex-1 min-w-0 text-left text-sm hover:underline truncate">
-                {a.file_name}
-              </button>
-              <Badge variant="outline" className="text-[10px]">{a.kind}</Badge>
-              <span className="text-xs text-muted-foreground">{new Date(a.uploaded_at).toLocaleDateString()}</span>
-              {canEdit && (
-                <Button size="icon" variant="ghost" onClick={() => removeAttachment(a.id)} className="text-destructive size-7">
-                  <X className="size-4" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Card>
-  );
-}
-
-function exportPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: number) {
-  const doc = new jsPDF();
-  let y = 14;
-  const line = (text: string, opts?: { bold?: boolean; size?: number }) => {
-    doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
-    doc.setFontSize(opts?.size ?? 10);
-    const wrapped = doc.splitTextToSize(text, 180);
-    doc.text(wrapped, 14, y);
-    y += wrapped.length * (opts?.size ?? 10) * 0.45 + 2;
-    if (y > 280) { doc.addPage(); y = 14; }
-  };
-  line("Standard Preparation Log", { bold: true, size: 16 });
-  line(r.log_number, { size: 10 });
-  if (r.syn_id) line(`SYN ID: ${r.syn_id}`, { bold: true });
-  y += 2;
-  line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
-  line(`Status: ${STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]?.toUpperCase() ?? r.status.toUpperCase()}`);
-  line(`Prepared: ${new Date(r.prepared_at).toLocaleString()}`);
-  line(`Analyst: ${r.analyst_name}`);
-  if (r.target_concentration) line(`Target concentration: ${r.target_concentration}`);
-  if (r.final_volume) line(`Final volume: ${r.final_volume}`);
-  if (r.solvent) line(`Solvent: ${r.solvent}`);
-  if (r.manufacturer_lot) line(`Manufacturer lot: ${r.manufacturer_lot}`);
-  if (linked) line(`Linked receipt: ${linked.receipt_number} — ${linked.material_name}${linked.internal_lot ? ` (lot ${linked.internal_lot})` : ""}`);
-  y += 2;
-  if (r.preparation_steps?.length) {
-    line("Steps", { bold: true });
-    r.preparation_steps.forEach(s => {
-      line(`${s.step_no}. ${s.description || "—"}`);
-      const meta = [s.amount && `Amount: ${s.amount}`, s.instrument_id && `Instr: ${s.instrument_id}`, s.time && `Time: ${s.time}`].filter(Boolean).join(" · ");
-      if (meta) line(`   ${meta}`);
-    });
-  }
-  if (r.mixing_details) { y += 2; line("Mixing:", { bold: true }); line(r.mixing_details); }
-  if (r.appearance_notes) { y += 2; line("Appearance:", { bold: true }); line(r.appearance_notes); }
-  y += 2;
-  line("Storage", { bold: true });
-  if (r.expiration_date) line(`Expiration: ${r.expiration_date}`);
-  if (r.storage_condition) line(`Condition: ${r.storage_condition}`);
-  if (r.storage_location) line(`Location: ${r.storage_location}`);
-  if (r.container_label) line(`Container: ${r.container_label}`);
-  y += 2;
-  line("Review & Approval", { bold: true });
-  line(`In Review by: ${r.reviewer_name ?? "—"}${r.reviewed_at ? ` on ${new Date(r.reviewed_at).toLocaleString()}` : ""}`);
-  line(`Approved by: ${r.approver_name ?? "—"}${r.approved_at ? ` on ${new Date(r.approved_at).toLocaleString()}` : ""}`);
-  if (r.notes) { y += 2; line("Notes:", { bold: true }); line(r.notes); }
-  line(`Attachments on file: ${attachmentCount}`);
-  doc.save(`${r.syn_id ?? r.log_number}.pdf`);
-}
