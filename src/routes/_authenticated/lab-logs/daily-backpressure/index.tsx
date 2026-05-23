@@ -38,8 +38,14 @@ function BackpressureLog() {
   });
 
   const createMut = useMutation({
-    mutationFn: (payload: Parameters<typeof create>[0]["data"]) =>
-      create({ data: payload }),
+    mutationFn: (payload: {
+      reading_at: string;
+      user_name: string;
+      instrument: string;
+      backpressure: number;
+      backpressure_unit: string;
+      notes: string | null;
+    }) => create({ data: payload }),
     onSuccess: () => {
       toast.success("Reading logged");
       qc.invalidateQueries({ queryKey: qk.backpressure.list() });
