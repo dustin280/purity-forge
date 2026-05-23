@@ -8,7 +8,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import {
   listCocFields, getCocRecord, updateCocRecord, submitCocWithSamples,
   listParameters, nextCocInvoiceNumber,
@@ -19,6 +18,7 @@ import {
 } from "@/lib/coc-drafts";
 import { qk } from "@/lib/query-keys";
 import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types";
+import { uploadPendingCocAttachments } from "./coc-form-uploads";
 
 export type CocAttachment = {
   id: string; file_path: string; file_name: string; content_type: string | null;
@@ -138,26 +138,8 @@ export function useCocForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig]);
 
-  async function uploadOne(cocId: string, file: File, lineIdx: number | null) {
-    const safe = file.name.replace(/[^\w.\-]+/g, "_");
-    const path = `${cocId}/${Date.now()}-${safe}`;
-    const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);
-    if (upErr) throw upErr;
-    await recordAttachment({ data: {
-      coc_id: cocId, file_path: path, file_name: file.name,
-      content_type: file.type || null, size_bytes: file.size,
-      line_item_index: lineIdx,
-    } });
-  }
-
   async function uploadAllPendingTo(cocId: string) {
-    for (const file of pendingFiles) {
-      await uploadOne(cocId, file, null);
-    }
-    for (const [idx, files] of Object.entries(pendingByLine)) {
-      const i = Number(idx);
-      for (const file of files) await uploadOne(cocId, file, i);
-    }
+    await uploadPendingCocAttachments(cocId, pendingFiles, pendingByLine, recordAttachment);
   }
 
   const saveMut = useMutation({
