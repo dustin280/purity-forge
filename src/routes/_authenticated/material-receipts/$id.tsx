@@ -1,27 +1,15 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import {
-  approveMaterialReceipt,
-  deleteMaterialReceipt,
-  getMaterialReceipt,
-  recordAttachment,
-  updateMaterialReceipt,
-} from "@/lib/material-receipts.functions";
-import { valuesToPayload, type PendingAttachments } from "@/components/material-receipts/receipt-form";
 import { ReceiptEditView } from "@/components/material-receipts/edit-view";
-import { uploadPending } from "./new";
 import { Button } from "@/components/ui/button";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
-import { qk } from "@/lib/query-keys";
 import { AttachmentsSection } from "@/components/material-receipts/attachments-section";
 import { LinkedPreparations } from "@/components/material-receipts/linked-preparations";
 import { exportMaterialReceiptPdf } from "@/lib/material-receipt-pdf";
 import { ReceiptHeader } from "@/components/material-receipts/receipt-header";
 import { ReceiptInfoCards } from "@/components/material-receipts/receipt-info-cards";
+import { useReceiptDetail } from "@/components/material-receipts/use-receipt-detail";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
   component: ReceiptDetail,
@@ -29,55 +17,10 @@ export const Route = createFileRoute("/_authenticated/material-receipts/$id")({
 
 function ReceiptDetail() {
   const { id } = Route.useParams();
-  const navigate = useNavigate();
-  const qc = useQueryClient();
   const { user, profile, role } = useAuth();
-  const get = useServerFn(getMaterialReceipt);
-  const update = useServerFn(updateMaterialReceipt);
-  const del = useServerFn(deleteMaterialReceipt);
-  const approve = useServerFn(approveMaterialReceipt);
-  const record = useServerFn(recordAttachment);
-
   const [editing, setEditing] = useState(false);
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: qk.materialReceipts.detail(id),
-    queryFn: () => get({ data: { id } }),
-  });
-
-  const updateMut = useMutation({
-    mutationFn: async (args: { patch: ReturnType<typeof valuesToPayload>; pending: PendingAttachments }) => {
-      const row = await update({ data: { id, patch: args.patch } });
-      await uploadPending(id, args.pending, record);
-      return row;
-    },
-    onSuccess: () => {
-      toast.success("Saved");
-      setEditing(false);
-      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(id) });
-      qc.invalidateQueries({ queryKey: qk.materialReceipts.all });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: () => del({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Receipt deleted");
-      navigate({ to: "/material-receipts" });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const approveMut = useMutation({
-    mutationFn: (args: { approver_name: string; qc_pass: boolean }) =>
-      approve({ data: { id, ...args } }),
-    onSuccess: () => {
-      toast.success("Receipt updated");
-      qc.invalidateQueries({ queryKey: qk.materialReceipts.detail(id) });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const { query, updateMut, deleteMut, approveMut } = useReceiptDetail(id);
+  const { data, isLoading, error } = query;
 
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   if (error || !data) return <div className="p-8 text-sm text-destructive">Receipt not found.</div>;
@@ -91,7 +34,7 @@ function ReceiptDetail() {
       <ReceiptEditView
         r={r}
         submitting={updateMut.isPending}
-        onSubmit={(patch, pending) => updateMut.mutate({ patch, pending })}
+        onSubmit={(patch, pending) => updateMut.mutate({ patch, pending }, { onSuccess: () => setEditing(false) })}
         onCancel={() => setEditing(false)}
       />
     );
