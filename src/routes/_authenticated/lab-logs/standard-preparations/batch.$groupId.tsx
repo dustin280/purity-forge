@@ -4,12 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { getStandardPreparationBatch } from "@/lib/standard-preparations.functions";
-import { STATUS_LABEL } from "@/lib/lims-utils";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { qk } from "@/lib/query-keys";
+import { BatchRowsTable } from "@/components/standard-preparations/batch-rows-table";
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/batch/$groupId")({
   component: BatchView,
 });
@@ -68,40 +66,7 @@ function BatchView() {
         </Card>
       )}
 
-      <Card className="p-0 overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SYN ID</TableHead>
-              <TableHead>Log #</TableHead>
-              <TableHead>Standard</TableHead>
-              <TableHead>Conc</TableHead>
-              <TableHead>Volume</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map(r => (
-              <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">{r.syn_id ?? "—"}</TableCell>
-                <TableCell className="font-mono text-xs">
-                  <Link to="/lab-logs/standard-preparations/$id" params={{ id: r.id }} className="hover:underline">{r.log_number}</Link>
-                </TableCell>
-                <TableCell>{r.standard_name}</TableCell>
-                <TableCell className="text-muted-foreground">{r.target_concentration ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{r.final_volume ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{r.expiration_date ?? "—"}</TableCell>
-                <TableCell>
-                  <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>
-                    {STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+      <BatchRowsTable rows={rows} />
     </div>
   );
 }
