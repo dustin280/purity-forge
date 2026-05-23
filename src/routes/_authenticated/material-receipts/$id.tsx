@@ -11,12 +11,8 @@ import {
   recordAttachment,
   updateMaterialReceipt,
 } from "@/lib/material-receipts.functions";
-import {
-  ReceiptForm,
-  valuesToPayload,
-  type ReceiptFormValues,
-  type PendingAttachments,
-} from "@/components/material-receipts/receipt-form";
+import { valuesToPayload, type PendingAttachments } from "@/components/material-receipts/receipt-form";
+import { ReceiptEditView } from "@/components/material-receipts/edit-view";
 import { uploadPending } from "./new";
 import { Button } from "@/components/ui/button";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
@@ -91,51 +87,13 @@ function ReceiptDetail() {
   const canApprove = role === "admin" || role === "reviewer";
 
   if (editing) {
-    const initial: Partial<ReceiptFormValues> = {
-      material_type: r.material_type,
-      received_at: r.received_at.slice(0, 16),
-      receiver_name: r.receiver_name,
-      material_name: r.material_name,
-      quantity: r.quantity?.toString() ?? "",
-      unit: r.unit ?? "",
-      supplier: r.supplier ?? "",
-      po_number: r.po_number ?? "",
-      notes: r.notes ?? "",
-      freight_tracking_number: r.freight_tracking_number ?? "",
-      purpose: r.purpose ?? "",
-      manufacturer: r.manufacturer ?? "",
-      manufacturer_lot: r.manufacturer_lot ?? "",
-      catalog_number: r.catalog_number ?? "",
-      expiry_date: r.expiry_date ?? "",
-      container_details: r.container_details ?? "",
-      coa_attached: r.coa_attached,
-      sds_attached: r.sds_attached,
-      visual_inspection: r.visual_inspection ?? "",
-      visual_inspection_notes: r.visual_inspection_notes ?? "",
-      temperature_on_receipt: r.temperature_on_receipt?.toString() ?? "",
-      internal_lot: r.internal_lot ?? "",
-      storage_location: r.storage_location ?? "",
-      quarantine_status: r.quarantine_status,
-      qc_pass: r.qc_pass == null ? "" : r.qc_pass ? "pass" : "fail",
-      qc_results: r.qc_results ?? "",
-      qc_analyst: r.qc_analyst ?? "",
-      qc_date: r.qc_date ?? "",
-      purity_percent: r.purity_percent?.toString() ?? "",
-      molecular_weight: r.molecular_weight?.toString() ?? "",
-      shelf_life_months: r.shelf_life_months?.toString() ?? "",
-    };
     return (
-      <div className="p-6 md:p-8 max-w-4xl">
-        <h1 className="text-2xl font-bold tracking-tight mb-4">Edit {r.receipt_number}</h1>
-        <ReceiptForm
-          initial={initial}
-          defaultReceiverName={r.receiver_name}
-          submitting={updateMut.isPending}
-          submitLabel="Save Changes"
-          onSubmit={(v, pending) => updateMut.mutate({ patch: valuesToPayload(v), pending })}
-          onCancel={() => setEditing(false)}
-        />
-      </div>
+      <ReceiptEditView
+        r={r}
+        submitting={updateMut.isPending}
+        onSubmit={(patch, pending) => updateMut.mutate({ patch, pending })}
+        onCancel={() => setEditing(false)}
+      />
     );
   }
 
