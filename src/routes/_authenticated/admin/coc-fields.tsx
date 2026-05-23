@@ -1,76 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import {
-  listCocFields, createCocField, updateCocField, deleteCocField,
-} from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft } from "lucide-react";
-import { qk } from "@/lib/query-keys";
 import { AddFieldForm } from "@/components/admin/coc-fields/add-field-form";
 import { FieldRow } from "@/components/admin/coc-fields/field-row";
-import type { CocField, FieldType } from "@/components/admin/coc-fields/types";
+import { useCocFields } from "@/components/admin/coc-fields/use-coc-fields";
 
 export const Route = createFileRoute("/_authenticated/admin/coc-fields")({ component: CocFieldsAdmin });
 
 function CocFieldsAdmin() {
   const { role } = useAuth();
-  const qc = useQueryClient();
-  const list = useServerFn(listCocFields);
-  const create = useServerFn(createCocField);
-  const update = useServerFn(updateCocField);
-  const del = useServerFn(deleteCocField);
-
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: qk.cocFields.list(),
-    queryFn: () => list() as Promise<CocField[]>,
-  });
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: qk.cocFields.list() });
-    qc.invalidateQueries({ queryKey: qk.cocRecords.list() });
-  };
-
-  const addMut = useMutation({
-    mutationFn: (v: { field_key: string; label: string; field_type: FieldType; is_required: boolean }) =>
-      create({ data: v }),
-    onSuccess: () => { toast.success("Field added"); invalidate(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to add"),
-  });
-  const updateMut = useMutation({
-    mutationFn: (v: { id: string; label?: string; field_type?: FieldType; is_required?: boolean; is_active?: boolean; sort_order?: number }) =>
-      update({ data: v }),
-    onSuccess: invalidate,
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update"),
-  });
-  const delMut = useMutation({
-    mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { toast.success("Field removed"); invalidate(); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to delete"),
-  });
-
-  function handleAdd(payload: { field_key: string; label: string; field_type: FieldType; is_required: boolean }) {
-    addMut.mutate(payload);
-  }
-
-  function move(idx: number, dir: -1 | 1) {
-    const target = rows[idx + dir];
-    const me = rows[idx];
-    if (!target || !me) return;
-    updateMut.mutate({ id: me.id, sort_order: target.sort_order });
-    updateMut.mutate({ id: target.id, sort_order: me.sort_order });
-  }
-
-  function handleUpdate(id: string, patch: Partial<CocField>) {
-    updateMut.mutate({ id, ...patch });
-  }
-
-  function handleDelete(id: string, label: string) {
-    if (confirm(`Delete field "${label}"? Existing data is preserved but the field will disappear.`)) {
-      delMut.mutate(id);
-    }
-  }
+  const { rows, isLoading, adding, handleAdd, move, handleUpdate, handleDelete } = useCocFields();
 
   if (role && role !== "admin") {
     return <div className="p-8 text-sm text-muted-foreground">Admin role required.</div>;
@@ -89,7 +29,7 @@ function CocFieldsAdmin() {
         </p>
       </div>
 
-      <AddFieldForm onAdd={handleAdd} adding={addMut.isPending} />
+      <AddFieldForm onAdd={handleAdd} adding={adding} />
 
       <Card className="border-border overflow-hidden">
         {isLoading ? (
