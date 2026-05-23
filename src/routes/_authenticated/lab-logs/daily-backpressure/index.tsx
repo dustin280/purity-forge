@@ -1,18 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
-import {
-  createBackpressureLog,
-  deleteBackpressureLog,
-  listBackpressureLogs,
-} from "@/lib/daily-backpressure.functions";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { qk } from "@/lib/query-keys";
 import { ReadingForm } from "@/components/daily-backpressure/reading-form";
 import { ReadingsTable } from "@/components/daily-backpressure/readings-table";
+import { useBackpressure } from "@/components/daily-backpressure/use-backpressure";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressure/")({
   component: BackpressureLog,
@@ -20,47 +12,14 @@ export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressur
 
 function BackpressureLog() {
   const { profile, role } = useAuth();
-  const qc = useQueryClient();
   const defaultName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
     .join(" ")
     .trim();
   const canCreate = role === "admin" || role === "tech" || role === "reviewer";
   const isAdmin = role === "admin";
-
-  const list = useServerFn(listBackpressureLogs);
-  const create = useServerFn(createBackpressureLog);
-  const del = useServerFn(deleteBackpressureLog);
-
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: qk.backpressure.list(),
-    queryFn: () => list(),
-  });
-
-  const createMut = useMutation({
-    mutationFn: (payload: {
-      reading_at: string;
-      user_name: string;
-      instrument: string;
-      backpressure: number;
-      backpressure_unit: string;
-      notes: string | null;
-    }) => create({ data: payload }),
-    onSuccess: () => {
-      toast.success("Reading logged");
-      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Deleted");
-      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
+  const { query, createMut, deleteMut } = useBackpressure();
+  const { data: rows = [], isLoading } = query;
 
   return (
     <div className="p-6 md:p-8 max-w-5xl">
