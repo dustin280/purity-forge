@@ -3,17 +3,16 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { getSampleDetail, updateSampleStatus, saveResult } from "@/lib/lims.functions";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { StatusPill } from "@/components/lims/status-pill";
 import { generateCoaPdf } from "@/lib/coa-pdf";
 import { type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { toast } from "sonner";
-import { Download, ChevronRight } from "lucide-react";
 import { qk } from "@/lib/query-keys";
-import { InfoRow } from "@/components/samples/info-row";
 import { ResultsTab } from "@/components/samples/results-tab";
 import { parsePeaks } from "@/lib/parse-peaks";
+import { SampleDetailHeader } from "@/components/samples/detail-header";
+import { SampleDetailTabs, type SampleDetailTab } from "@/components/samples/detail-tabs";
+import { SampleInfoTab } from "@/components/samples/info-tab";
+import { CoaTab } from "@/components/samples/coa-tab";
 export const Route = createFileRoute("/_authenticated/samples/$batchId")({ component: SampleDetail });
 
 function SampleDetail() {
@@ -27,7 +26,7 @@ function SampleDetail() {
     queryFn: () => fn({ data: { batchId } }),
   });
 
-  const [tab, setTab] = useState<"info" | "results" | "coa">("info");
+  const [tab, setTab] = useState<SampleDetailTab>("info");
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -84,68 +83,18 @@ function SampleDetail() {
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1400px]">
-      <div className="flex items-center text-xs text-muted-foreground gap-1">
-        <Link to="/samples" className="hover:text-foreground">Samples</Link>
-        <ChevronRight className="size-3" />
-        <span className="font-mono">{sample.batch_id}</span>
-      </div>
+      <SampleDetailHeader
+        batchId={sample.batch_id}
+        client={sample.client}
+        project={sample.project}
+        status={sample.status as SampleStatus}
+        busy={busy}
+        onChangeStatus={changeStatus}
+      />
 
-      <div className="flex items-start justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold font-mono tracking-tight">{sample.batch_id}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{sample.client}{sample.project ? ` · ${sample.project}` : ""}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <StatusPill status={sample.status as SampleStatus} />
-          <div className="flex gap-1.5">
-            {sample.status === "prep" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("in_progress")}>Start Analysis</Button>
-            )}
-            {sample.status === "in_progress" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => changeStatus("reviewed")}>Mark In Review</Button>
-            )}
-            {sample.status === "reviewed" && (
-              <Button size="sm" disabled={busy} onClick={() => changeStatus("complete")}>Mark Complete</Button>
-            )}
-          </div>
-        </div>
-      </div>
+      <SampleDetailTabs tab={tab} setTab={setTab} />
 
-      <div className="flex gap-1 border-b border-border">
-        {(["info", "results", "coa"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 text-xs uppercase tracking-wider font-semibold border-b-2 -mb-px ${
-              tab === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}>
-            {t === "coa" ? "COA" : t}
-          </button>
-        ))}
-      </div>
-
-      {tab === "info" && (
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card className="p-5 border-border">
-            <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Sample</h3>
-            <dl className="space-y-2 text-sm">
-              <InfoRow k="Client" v={sample.client} />
-              <InfoRow k="Project" v={sample.project ?? "—"} />
-              <InfoRow k="Compound" v={(sample as { compound?: string | null }).compound ?? "—"} />
-              <InfoRow k="Lot" v={(sample as { lot?: string | null }).lot ?? "—"} />
-              <InfoRow k="Receipt" v={sample.receipt_date} />
-              <InfoRow k="Created" v={new Date(sample.created_at).toLocaleString()} />
-              <InfoRow k="Notes" v={sample.notes ?? "—"} />
-            </dl>
-          </Card>
-          <Card className="p-5 border-border">
-            <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Test Method</h3>
-            <dl className="space-y-2 text-sm">
-              <InfoRow k="Method" v={test?.method_name ?? "—"} />
-              <InfoRow k="Instrument" v={test?.instrument ?? "—"} />
-              <InfoRow k="Status" v={test?.status ?? "—"} />
-            </dl>
-          </Card>
-        </div>
-      )}
+      {tab === "info" && <SampleInfoTab sample={sample as never} test={test as never} />}
 
       {tab === "results" && (
         <ResultsTab
@@ -158,20 +107,7 @@ function SampleDetail() {
         />
       )}
 
-      {tab === "coa" && (
-        <Card className="p-6 border-border">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold">Certificate of Analysis</h3>
-              <p className="text-xs text-muted-foreground mt-1">Generates a signed COA PDF with sample, method, peak table, and signature blocks.</p>
-            </div>
-            <Button onClick={downloadCoa} disabled={!latestResult}>
-              <Download className="size-4 mr-1" />Download COA
-            </Button>
-          </div>
-          {!latestResult && <p className="text-xs text-muted-foreground mt-4">Save a result first to generate the COA.</p>}
-        </Card>
-      )}
+      {tab === "coa" && <CoaTab onDownload={downloadCoa} hasResult={!!latestResult} />}
     </div>
   );
 }
