@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 type Sample = { batch_id: string; client: string; project: string | null; receipt_date: string; notes: string | null };
 type Test = { method_name: string; instrument: string; parameters: unknown };
-type Result = { purity_percentage: number; analysis_date: string; analyst_id: string | null; reviewer_id: string | null; approved_at: string | null };
+type Result = { purity_percentage: number | null; analysis_date: string; analyst_id: string | null; reviewer_id: string | null; approved_at: string | null };
 
 export function downloadCoa(sample: Sample, test: Test | undefined, latestResult: Result | undefined, peaks: Peak[]) {
   if (!test || !latestResult) return toast.error("No result to certify");
