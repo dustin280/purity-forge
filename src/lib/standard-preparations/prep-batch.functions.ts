@@ -33,7 +33,11 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
       const syn_id = synRes as unknown as string;
 
       const standardName = t.name?.trim() || batch_label?.trim() || `Standard ${i + 1}`;
-      const concDisplay = t.target_concentration_mg_per_ml != null ? `${t.target_concentration_mg_per_ml} mg/mL` : null;
+      const concUnit = t.target_concentration_unit ?? "mg/mL";
+      const concDisplayValue = t.target_concentration_mg_per_ml != null
+        ? (concUnit === "mg/L" ? t.target_concentration_mg_per_ml * 1000 : t.target_concentration_mg_per_ml)
+        : null;
+      const concDisplay = concDisplayValue != null ? `${concDisplayValue} ${concUnit}` : null;
       const volDisplay = t.target_volume_ml != null ? `${t.target_volume_ml} mL` : null;
       const isLiquid = shared.ref_form === "liquid";
 
@@ -89,6 +93,7 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
           row_no: 1,
           name: standardName,
           target_concentration_mg_per_ml: t.target_concentration_mg_per_ml,
+          target_concentration_unit: concUnit,
           target_volume_ml: t.target_volume_ml,
           calculated_mass_mg: t.calculated_mass_mg,
           calculated_volume_ml: isLiquid ? (t.calculated_stock_volume_ml ?? null) : t.target_volume_ml,
