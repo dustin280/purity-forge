@@ -81,10 +81,10 @@ export function usePrepForm(opts: {
 
   const computedExpiration = useMemo(() => deriveComputedExpiration(v), [v.expiration_period_code, v.expiration_period_days, v.prepared_at]);
   const shelfLifeWarning = useMemo(() => deriveShelfLifeWarning(v, computedExpiration), [v.ref_receipt_date, v.ref_shelf_life_months, computedExpiration]);
-  const calcRows = useMemo(() => deriveCalcRows(v), [v.targets, v.ref_purity_percent]);
+  const calcRows = useMemo(() => deriveCalcRows(v), [v.targets, v.ref_purity_percent, v.ref_concentration_mg_per_ml, v.ref_form]);
   const procedureText = useMemo(
     () => deriveProcedureText(v, calcRows, computedExpiration),
-    [calcRows, v.ref_material_name, v.ref_lot, v.ref_receipt_date, v.ref_purity_percent, v.initial_solvent, v.modifier_percent, v.final_diluent, computedExpiration],
+    [calcRows, v.ref_material_name, v.ref_lot, v.ref_receipt_date, v.ref_form, v.ref_purity_percent, v.ref_concentration_mg_per_ml, v.initial_solvent, v.modifier_percent, v.final_diluent, computedExpiration],
   );
   const summaryText = useMemo(
     () => deriveSummaryText(v, computedExpiration, calcRows.length),

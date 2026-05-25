@@ -2,7 +2,7 @@
  * Pure derivations for the Standard Preparation form. Kept separate from
  * `use-prep-form.ts` so the hook stays focused on state + side effects.
  */
-import { addDaysISO, calcMassMg, periodDays, type PrepFormValues } from "./prep-form-logic";
+import { addDaysISO, calcMassMg, calcStockVolMl, periodDays, type PrepFormValues } from "./prep-form-logic";
 
 export type CalcRow = {
   idx: number;
@@ -10,6 +10,7 @@ export type CalcRow = {
   conc: number | null;
   vol: number | null;
   mass: number | null;
+  stockVolMl: number | null;
 };
 
 export function deriveComputedExpiration(v: PrepFormValues): string {
@@ -19,11 +20,14 @@ export function deriveComputedExpiration(v: PrepFormValues): string {
 
 export function deriveCalcRows(v: PrepFormValues): CalcRow[] {
   const purityNum = v.ref_purity_percent === "" ? null : Number(v.ref_purity_percent);
+  const stockConc = v.ref_concentration_mg_per_ml === "" ? null : Number(v.ref_concentration_mg_per_ml);
+  const isLiquid = v.ref_form === "liquid";
   return v.targets.map((t, i) => {
     const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
     const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
-    const mass = conc != null && vol != null ? calcMassMg(conc, vol, purityNum) : null;
-    return { idx: i + 1, name: t.name, conc, vol, mass };
+    const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purityNum) : null;
+    const stockVolMl = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;
+    return { idx: i + 1, name: t.name, conc, vol, mass, stockVolMl };
   });
 }
 
@@ -44,13 +48,25 @@ export function deriveShelfLifeWarning(v: PrepFormValues, computedExpiration: st
 
 export function deriveProcedureText(v: PrepFormValues, calcRows: CalcRow[], computedExpiration: string): string {
   const lines: string[] = [];
-  lines.push(`1. Reference Material: ${v.ref_material_name || "—"} (Lot ${v.ref_lot || "—"}, Received ${v.ref_receipt_date || "—"}, Purity ${v.ref_purity_percent || "—"}%).`);
+  const isLiquid = v.ref_form === "liquid";
+  if (isLiquid) {
+    lines.push(`1. Reference Material (liquid stock): ${v.ref_material_name || "—"} (Lot ${v.ref_lot || "—"}, Received ${v.ref_receipt_date || "—"}, Stock conc ${v.ref_concentration_mg_per_ml || "—"} mg/mL).`);
+  } else {
+    lines.push(`1. Reference Material: ${v.ref_material_name || "—"} (Lot ${v.ref_lot || "—"}, Received ${v.ref_receipt_date || "—"}, Purity ${v.ref_purity_percent || "—"}%).`);
+  }
   let n = 2;
-  calcRows.filter(r => r.mass != null && r.vol != null).forEach(r => {
-    lines.push(`${n++}. For ${r.name || `Std #${r.idx}`}: accurately weigh ${r.mass!.toFixed(4)} mg of reference material.`);
-    if (v.initial_solvent) lines.push(`${n++}. Dissolve in ${v.initial_solvent}${v.modifier_percent ? ` with ${v.modifier_percent}% modifier` : ""}.`);
-    lines.push(`${n++}. Dilute to ${r.vol} mL with ${v.final_diluent || "final diluent"}.`);
-  });
+  if (isLiquid) {
+    calcRows.filter(r => r.stockVolMl != null && r.vol != null).forEach(r => {
+      lines.push(`${n++}. For ${r.name || `Std #${r.idx}`}: pipette ${r.stockVolMl!.toFixed(4)} mL of stock standard into a ${r.vol} mL volumetric.`);
+      lines.push(`${n++}. Dilute to ${r.vol} mL with ${v.final_diluent || "final diluent"}${v.modifier_percent ? ` (${v.modifier_percent}% modifier)` : ""}.`);
+    });
+  } else {
+    calcRows.filter(r => r.mass != null && r.vol != null).forEach(r => {
+      lines.push(`${n++}. For ${r.name || `Std #${r.idx}`}: accurately weigh ${r.mass!.toFixed(4)} mg of reference material.`);
+      if (v.initial_solvent) lines.push(`${n++}. Dissolve in ${v.initial_solvent}${v.modifier_percent ? ` with ${v.modifier_percent}% modifier` : ""}.`);
+      lines.push(`${n++}. Dilute to ${r.vol} mL with ${v.final_diluent || "final diluent"}.`);
+    });
+  }
   if (computedExpiration) lines.push(`${n++}. Standard expires on ${computedExpiration}.`);
   return lines.join("\n");
 }

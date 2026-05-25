@@ -2,6 +2,8 @@ import type { PrepStep, PrepTarget } from "@/lib/standard-preparations.functions
 
 export type ExpirationCode = "1w" | "2w" | "4w" | "3m" | "6m" | "custom";
 
+export type RefForm = "solid" | "liquid";
+
 export interface TargetRow {
   name: string;
   target_concentration_mg_per_ml: string;
@@ -35,7 +37,9 @@ export interface PrepFormValues {
   material_overridden: boolean;
   ref_material_name: string;
   ref_lot: string;
+  ref_form: RefForm;
   ref_purity_percent: string;
+  ref_concentration_mg_per_ml: string;
   ref_molecular_weight: string;
   ref_receipt_date: string;
   ref_shelf_life_months: string;
@@ -75,6 +79,15 @@ export function calcMassMg(concMgPerMl: number, volMl: number, purityPct: number
   return raw / (purityPct / 100);
 }
 
+/**
+ * For liquid primary standards: volume of stock (mL) required to obtain
+ * `targetConc * targetVol` mg of analyte.
+ */
+export function calcStockVolMl(targetConcMgPerMl: number, targetVolMl: number, stockConcMgPerMl: number | null): number | null {
+  if (!stockConcMgPerMl || stockConcMgPerMl <= 0) return null;
+  return (targetConcMgPerMl * targetVolMl) / stockConcMgPerMl;
+}
+
 export function emptyPrepValues(analystName: string): PrepFormValues {
   return {
     prepared_at: new Date().toISOString().slice(0, 16),
@@ -102,7 +115,9 @@ export function emptyPrepValues(analystName: string): PrepFormValues {
     material_overridden: false,
     ref_material_name: "",
     ref_lot: "",
+    ref_form: "solid",
     ref_purity_percent: "",
+    ref_concentration_mg_per_ml: "",
     ref_molecular_weight: "",
     ref_receipt_date: "",
     ref_shelf_life_months: "",
@@ -112,20 +127,23 @@ export function emptyPrepValues(analystName: string): PrepFormValues {
 
 export function prepValuesToPayload(v: PrepFormValues) {
   const purity = v.ref_purity_percent === "" ? null : Number(v.ref_purity_percent);
+  const stockConc = v.ref_concentration_mg_per_ml === "" ? null : Number(v.ref_concentration_mg_per_ml);
+  const isLiquid = v.ref_form === "liquid";
   const days = periodDays(v.expiration_period_code, v.expiration_period_days);
   const expDate = days != null && v.prepared_at ? addDaysISO(v.prepared_at, days) : v.expiration_date || null;
   const targets: PrepTarget[] = v.targets
     .map((t, idx) => {
       const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
       const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
-      const mass = conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
+      const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
+      const stockVol = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;
       return {
         row_no: idx + 1,
         name: t.name,
         target_concentration_mg_per_ml: conc,
         target_volume_ml: vol,
         calculated_mass_mg: mass,
-        calculated_volume_ml: vol,
+        calculated_volume_ml: isLiquid ? stockVol : vol,
         notes: t.notes,
       };
     })
@@ -158,7 +176,9 @@ export function prepValuesToPayload(v: PrepFormValues) {
     material_overridden: v.material_overridden,
     ref_material_name: v.ref_material_name,
     ref_lot: v.ref_lot,
-    ref_purity_percent: purity,
+    ref_form: v.ref_form,
+    ref_purity_percent: isLiquid ? null : purity,
+    ref_concentration_mg_per_ml: isLiquid ? stockConc : null,
     ref_molecular_weight: v.ref_molecular_weight === "" ? null : Number(v.ref_molecular_weight),
     ref_receipt_date: v.ref_receipt_date || null,
     targets,

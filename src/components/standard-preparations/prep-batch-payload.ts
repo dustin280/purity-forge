@@ -1,4 +1,5 @@
 import type { PrepFormValues } from "@/components/standard-preparations/prep-form";
+import { calcStockVolMl } from "@/components/standard-preparations/prep-form-logic";
 
 function calcMassMg(conc: number, vol: number, purityPct: number | null): number {
   const raw = conc * vol;
@@ -17,18 +18,22 @@ function periodDays(code: string, customDays: string): number | null {
 
 export function valuesToBatchPayload(v: PrepFormValues, userToken: string) {
   const purity = v.ref_purity_percent === "" ? null : Number(v.ref_purity_percent);
+  const stockConc = v.ref_concentration_mg_per_ml === "" ? null : Number(v.ref_concentration_mg_per_ml);
+  const isLiquid = v.ref_form === "liquid";
   const days = periodDays(v.expiration_period_code, v.expiration_period_days);
   const targets = v.targets
     .filter(t => t.name.trim() || t.target_concentration_mg_per_ml || t.target_volume_ml)
     .map(t => {
       const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
       const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
-      const mass = conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
+      const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
+      const stockVol = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;
       return {
         name: t.name,
         target_concentration_mg_per_ml: conc,
         target_volume_ml: vol,
         calculated_mass_mg: mass,
+        calculated_stock_volume_ml: stockVol,
         notes: t.notes ?? "",
       };
     });
@@ -56,7 +61,9 @@ export function valuesToBatchPayload(v: PrepFormValues, userToken: string) {
     material_overridden: v.material_overridden,
     ref_material_name: v.ref_material_name || null,
     ref_lot: v.ref_lot || null,
-    ref_purity_percent: purity,
+    ref_form: v.ref_form,
+    ref_purity_percent: isLiquid ? null : purity,
+    ref_concentration_mg_per_ml: isLiquid ? stockConc : null,
     ref_molecular_weight: v.ref_molecular_weight === "" ? null : Number(v.ref_molecular_weight),
     ref_receipt_date: v.ref_receipt_date || null,
     targets,

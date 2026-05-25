@@ -38,6 +38,12 @@ export function exportPrepPdf(r: StandardPrepRow, linked: LinkedReceipt, attachm
   if (r.final_volume) line(`Final volume: ${r.final_volume}`);
   if (r.solvent) line(`Solvent: ${r.solvent}`);
   if (r.manufacturer_lot) line(`Manufacturer lot: ${r.manufacturer_lot}`);
+  if (r.ref_material_name) line(`Reference material: ${r.ref_material_name}${r.ref_lot ? ` (lot ${r.ref_lot})` : ""}`);
+  if (r.ref_form === "liquid") {
+    if (r.ref_concentration_mg_per_ml != null) line(`Stock concentration: ${r.ref_concentration_mg_per_ml} mg/mL`);
+  } else if (r.ref_purity_percent != null) {
+    line(`Reference purity: ${r.ref_purity_percent}%`);
+  }
   if (linked) line(`Linked receipt: ${linked.receipt_number} — ${linked.material_name}${linked.internal_lot ? ` (lot ${linked.internal_lot})` : ""}`);
   y += 2;
   if (r.preparation_steps?.length) {
