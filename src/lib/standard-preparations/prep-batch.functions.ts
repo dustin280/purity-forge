@@ -35,6 +35,7 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
       const standardName = t.name?.trim() || batch_label?.trim() || `Standard ${i + 1}`;
       const concDisplay = t.target_concentration_mg_per_ml != null ? `${t.target_concentration_mg_per_ml} mg/mL` : null;
       const volDisplay = t.target_volume_ml != null ? `${t.target_volume_ml} mL` : null;
+      const isLiquid = shared.ref_form === "liquid";
 
       const logPayload = emptyToNull({
         prepared_at: new Date(shared.prepared_at).toISOString(),
@@ -63,7 +64,9 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
         material_overridden: shared.material_overridden ?? false,
         ref_material_name: shared.ref_material_name ?? null,
         ref_lot: shared.ref_lot ?? null,
-        ref_purity_percent: shared.ref_purity_percent ?? null,
+        ref_form: shared.ref_form ?? "solid",
+        ref_purity_percent: isLiquid ? null : (shared.ref_purity_percent ?? null),
+        ref_concentration_mg_per_ml: isLiquid ? (shared.ref_concentration_mg_per_ml ?? null) : null,
         ref_molecular_weight: shared.ref_molecular_weight ?? null,
         ref_receipt_date: shared.ref_receipt_date ?? null,
         syn_id,
@@ -88,7 +91,7 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
           target_concentration_mg_per_ml: t.target_concentration_mg_per_ml,
           target_volume_ml: t.target_volume_ml,
           calculated_mass_mg: t.calculated_mass_mg,
-          calculated_volume_ml: t.target_volume_ml,
+          calculated_volume_ml: isLiquid ? (t.calculated_stock_volume_ml ?? null) : t.target_volume_ml,
           notes: t.notes ?? "",
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any);

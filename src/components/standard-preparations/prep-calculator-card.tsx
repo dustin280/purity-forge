@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, Copy, ExternalLink, AlertTriangle, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import { Field } from "./prep-form-field";
-import type { ExpirationCode } from "./prep-form-logic";
+import type { ExpirationCode, RefForm } from "./prep-form-logic";
 import type { UsePrepFormReturn } from "./use-prep-form";
 
 export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UsePrepFormReturn; batchMode: boolean; synPreviewPrefix?: string }) {
@@ -15,6 +15,7 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
     addTargetRows, updateTarget, removeTarget, pasteTargets, calcOpen, setCalcOpen,
     procedureText, summaryText, copy,
   } = f;
+  const isLiquid = v.ref_form === "liquid";
 
   return (
     <Card className="p-5 space-y-4">
@@ -29,6 +30,15 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
         )}
       </div>
       <div className="grid md:grid-cols-3 gap-4">
+        <Field label="Reference form">
+          <Select value={v.ref_form} onValueChange={val => markOverridden("ref_form", val as RefForm)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="solid">Solid (weigh by mass)</SelectItem>
+              <SelectItem value="liquid">Liquid (pipette from stock)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
         <Field label="Reference material name">
           <div className="flex gap-1 items-start">
             <Input value={v.ref_material_name} onChange={e => markOverridden("ref_material_name", e.target.value)} maxLength={255} />
@@ -41,9 +51,15 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
         <Field label="Receipt date">
           <Input type="date" value={v.ref_receipt_date} onChange={e => markOverridden("ref_receipt_date", e.target.value)} />
         </Field>
-        <Field label="Purity (%)">
-          <Input type="number" step="any" value={v.ref_purity_percent} onChange={e => markOverridden("ref_purity_percent", e.target.value)} />
-        </Field>
+        {isLiquid ? (
+          <Field label="Stock concentration (mg/mL)">
+            <Input type="number" step="any" value={v.ref_concentration_mg_per_ml} onChange={e => markOverridden("ref_concentration_mg_per_ml", e.target.value)} />
+          </Field>
+        ) : (
+          <Field label="Purity (%)">
+            <Input type="number" step="any" value={v.ref_purity_percent} onChange={e => markOverridden("ref_purity_percent", e.target.value)} />
+          </Field>
+        )}
         <Field label="Molecular weight (g/mol)">
           <Input type="number" step="any" value={v.ref_molecular_weight} onChange={e => markOverridden("ref_molecular_weight", e.target.value)} />
         </Field>
@@ -112,7 +128,7 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
                 <th className="py-1 pr-2 min-w-[160px]">Name</th>
                 <th className="py-1 pr-2 w-32">Conc (mg/mL)</th>
                 <th className="py-1 pr-2 w-28">Vol (mL)</th>
-                <th className="py-1 pr-2 w-28">Mass (mg)</th>
+                <th className="py-1 pr-2 w-32">{isLiquid ? "Stock vol (mL)" : "Mass (mg)"}</th>
                 <th className="py-1 pr-2">Notes</th>
                 <th className="w-8"></th>
               </tr>
@@ -131,7 +147,11 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
                     <td className="py-1 pr-2"><Input value={t.name} onChange={e => updateTarget(idx, { name: e.target.value })} maxLength={255} /></td>
                     <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_concentration_mg_per_ml} onChange={e => updateTarget(idx, { target_concentration_mg_per_ml: e.target.value })} /></td>
                     <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_volume_ml} onChange={e => updateTarget(idx, { target_volume_ml: e.target.value })} /></td>
-                    <td className="py-1 pr-2 text-xs font-mono">{row?.mass != null ? row.mass.toFixed(4) : "—"}</td>
+                    <td className="py-1 pr-2 text-xs font-mono">
+                      {isLiquid
+                        ? (row?.stockVolMl != null ? row.stockVolMl.toFixed(4) : "—")
+                        : (row?.mass != null ? row.mass.toFixed(4) : "—")}
+                    </td>
                     <td className="py-1 pr-2"><Input value={t.notes} onChange={e => updateTarget(idx, { notes: e.target.value })} maxLength={2000} /></td>
                     <td className="py-1"><Button type="button" size="icon" variant="ghost" onClick={() => removeTarget(idx)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-4" /></Button></td>
                   </tr>

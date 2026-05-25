@@ -18,6 +18,13 @@ type PrepRow = {
   storage_location: string | null;
   container_label: string | null;
   notes: string | null;
+  ref_form?: "solid" | "liquid" | null;
+  ref_material_name?: string | null;
+  ref_lot?: string | null;
+  ref_purity_percent?: number | null;
+  ref_concentration_mg_per_ml?: number | null;
+  ref_molecular_weight?: number | null;
+  ref_receipt_date?: string | null;
 };
 
 export function buildPrepEditInitial(r: PrepRow, linked: LinkedReceipt): Partial<PrepFormValues> {
@@ -43,5 +50,12 @@ export function buildPrepEditInitial(r: PrepRow, linked: LinkedReceipt): Partial
     storage_location: r.storage_location ?? "",
     container_label: r.container_label ?? "",
     notes: r.notes ?? "",
+    ref_form: (r.ref_form ?? "solid") as "solid" | "liquid",
+    ref_material_name: r.ref_material_name ?? "",
+    ref_lot: r.ref_lot ?? "",
+    ref_purity_percent: r.ref_purity_percent != null ? String(r.ref_purity_percent) : "",
+    ref_concentration_mg_per_ml: r.ref_concentration_mg_per_ml != null ? String(r.ref_concentration_mg_per_ml) : "",
+    ref_molecular_weight: r.ref_molecular_weight != null ? String(r.ref_molecular_weight) : "",
+    ref_receipt_date: r.ref_receipt_date ?? "",
   };
 }

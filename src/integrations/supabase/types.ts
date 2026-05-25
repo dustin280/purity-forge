@@ -905,6 +905,8 @@ export type Database = {
           notes: string | null
           preparation_steps: Json
           prepared_at: string
+          ref_concentration_mg_per_ml: number | null
+          ref_form: string
           ref_lot: string | null
           ref_material_name: string | null
           ref_molecular_weight: number | null
@@ -949,6 +951,8 @@ export type Database = {
           notes?: string | null
           preparation_steps?: Json
           prepared_at?: string
+          ref_concentration_mg_per_ml?: number | null
+          ref_form?: string
           ref_lot?: string | null
           ref_material_name?: string | null
           ref_molecular_weight?: number | null
@@ -993,6 +997,8 @@ export type Database = {
           notes?: string | null
           preparation_steps?: Json
           prepared_at?: string
+          ref_concentration_mg_per_ml?: number | null
+          ref_form?: string
           ref_lot?: string | null
           ref_material_name?: string | null
           ref_molecular_weight?: number | null
