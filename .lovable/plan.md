@@ -1,63 +1,55 @@
-## Phase 2 — `src/lib/` cleanup
+## Goal
 
-Low-risk refactor of data-access patterns. No URL, DB, auth, or behavior changes. All existing server functions stay in place with identical signatures.
+Let analysts switch the Reference Material between **Solid (Purity %)** and **Liquid (Concentration mg/mL)** in the Standard Preparation form. In Liquid mode, the calculator and generated procedure work in **stock aliquot volumes** instead of weighed mass — for liquid primary standards.
 
-### 1. New files
+Designed to be additive: existing solid-prep records, PDFs, batch views, exports, and the prep-batch server function keep working unchanged.
 
-- **`src/lib/query-keys.ts`** — single `qk` object, source of truth for every TanStack Query key:
-  - `qk.samples.list(filters?)`, `qk.samples.detail(id)`, `qk.samples.batch(batchId)`
-  - `qk.standardPreps.list()`, `qk.standardPreps.detail(id)`, `qk.standardPreps.batch(groupId)`
-  - `qk.materialReceipts.list()`, `qk.materialReceipts.detail(id)`
-  - `qk.backpressure.list()`
-  - `qk.auditLog.list(filters)`, `qk.accessLogs.list(filters)`
-  - `qk.issues.list()`, `qk.users.list()`, `qk.cocFields.list()`, `qk.parameters.list()`
-  - Hierarchical shape so `invalidateQueries({ queryKey: qk.samples.all })` invalidates the whole domain.
+## Schema change (minimal, additive)
 
-- **`src/lib/types.ts`** — friendly re-exports from `integrations/supabase/types.ts`:
-  - `Sample`, `StandardPrep`, `MaterialReceipt`, `BackpressureLog`, `AuditLogRow`, `IssueReport`, etc. via `Tables<'...'>`.
+One small migration on `standard_preparation_logs`:
+- `ref_form text not null default 'solid'` — values `'solid' | 'liquid'`
+- `ref_concentration_mg_per_ml numeric null` — stock concentration when liquid
 
-- **Per-domain `*.queries.ts` factories** co-located in `src/lib/`:
-  - `standard-preparations.queries.ts`
-  - `material-receipts.queries.ts`
-  - `samples.queries.ts`
-  - `daily-backpressure.queries.ts`
-  - `audit-log.queries.ts`
-  - `issue-reports.queries.ts`
-  - Each exports `queryOptions({ queryKey, queryFn })` factories wrapping the existing `*.functions.ts` server fns. Example: `standardPrepDetailQuery(id)`, `standardPrepBatchQuery(groupId)`.
+Reuse the existing `standard_preparation_targets.calculated_volume_ml` column (currently populated but redundant with `target_volume_ml`) to store the **stock aliquot volume** in liquid mode. No new target columns needed.
 
-### 2. Dedupe helpers
+`ref_purity_percent` and `ref_molecular_weight` stay; they're simply null for liquid prep.
 
-Extract repeated patterns currently inlined in route files into `src/lib/`:
-- Date-range filter normalization (`src/lib/filters.ts`)
-- Audit diff formatter (`src/lib/audit-diff.ts`) — pulled from `audit-log.tsx`
-- Any duplicated status/label mappers → consolidate into `lims-utils.ts`
+## Form changes (`prep-form-logic.ts`, `prep-calculator-card.tsx`, `use-prep-form.ts`, `prep-form-derive.ts`, `prep-batch-payload.ts`)
 
-### 3. Call-site updates
+1. Add `ref_form: 'solid' | 'liquid'` and `ref_concentration_mg_per_ml: string` to `PrepFormValues` + `emptyPrepValues` (defaults to `'solid'`, `""`).
+2. In the Reference Material card, render a small **Form** toggle (Select: Solid / Liquid). The "Purity (%)" field is shown only when Solid; when Liquid it's replaced by "Stock concentration (mg/mL)". Molecular weight stays visible for both.
+3. New derivation helper `calcStockVolUl(targetConc, targetVol, stockConc)` → `targetConc * targetVol / stockConc` (mL). Add to `prep-form-logic.ts`.
+4. In `deriveCalcRows`, branch on `ref_form`:
+   - solid → existing `mass` column populated.
+   - liquid → new `stockVolMl` populated; mass left null.
+5. Calculator table header swaps the rightmost calc column between **Mass (mg)** and **Stock vol (mL)** based on `ref_form`. Other columns stay identical.
+6. `deriveProcedureText` writes liquid-mode instructions:
+   - "1. Reference: {name} (Lot {lot}, Received {date}, Stock concentration {conc} mg/mL)."
+   - "For {std}: pipette {stockVol mL} of stock standard into final volumetric."
+   - "Dilute to {target_vol} mL with {final_diluent}."
+7. `prepValuesToPayload` / `valuesToBatchPayload` pass through `ref_form`, `ref_concentration_mg_per_ml`, and write `calculated_volume_ml = stockVolMl` (liquid) or keep current `target_volume_ml` (solid).
 
-Update every route/component that currently inlines `useQuery({ queryKey: [...], queryFn: () => serverFn() })` to use the new factories:
-- `loader: ({ context }) => context.queryClient.ensureQueryData(qo)`
-- Components switch to `useSuspenseQuery(qo)` where data is required, or keep `useQuery(qo)` where the existing UX shows loading states.
-- Mutation `onSuccess` invalidations switch from string-array keys to `qk.*` references.
+## Server function (`prep-batch.functions.ts`, `prep-shared.server.ts`)
 
-Routes touched (read-only structural change, no behavior diff):
-- `_authenticated/samples/index.tsx`, `samples/$batchId.tsx`, `samples/new.tsx`
-- `_authenticated/lab-logs/standard-preparations/{index,$id,batch.$groupId,new}.tsx`
-- `_authenticated/lab-logs/daily-backpressure/index.tsx`
-- `_authenticated/material-receipts/{index,$id,new}.tsx`
-- `_authenticated/admin/{audit-log,access-logs,coc-fields,parameters}.tsx`
-- `_authenticated/issues/index.tsx`
-- `_authenticated/users.tsx`
+- Extend the Zod payload schema to accept `ref_form` and `ref_concentration_mg_per_ml` (nullable). Default `ref_form` to `'solid'` if omitted (back-compat for any in-flight drafts).
+- Persist both fields on the log insert. No change to per-target insert logic since `calculated_volume_ml` already exists.
 
-### 4. Hard constraints (unchanged from plan)
+## Read-side updates (light)
 
-- No edits to `*.functions.ts` signatures, RLS, DB, auth, locked files, or `vite.config.ts`.
-- No route renames, no new URLs.
-- No barrel files.
+- `traceability-snapshot.tsx` and `batch.$groupId.tsx`: when `ref_form === 'liquid'`, show "Stock conc: X mg/mL" instead of "Purity: X%". One ternary per view.
+- `standard-preparation-pdf.ts`: same conditional in the reference block.
+- `prep-edit-initial.ts`: hydrate the new fields from row data when editing.
 
-### Deliverable
+## What stays untouched
 
-After Phase 2 lands, every Query key in the app is centralized, every query is reusable via a factory, and routes are noticeably shorter. I'll list the changed files and pause for approval before Phase 3 (component extraction).
+- Existing solid records load with `ref_form = 'solid'` (default), all current calculations, exports, and review/approval flow are unchanged.
+- `material_receipts` link, attachments, status transitions, SYN ID counters — none of these care about ref form.
+- No changes to RLS, types regenerate automatically after migration.
 
-### Restore point
+## Implementation order
 
-Same as before — revert via chat history on this message to roll back Phase 2 only, keeping Phase 1 intact.
+1. Migration (add two columns with safe defaults).
+2. Form logic + calculator UI + derive helpers.
+3. Server function payload schema + insert.
+4. Snapshot / batch view / PDF / edit hydration display tweaks.
+5. Manual smoke test: create a solid prep (regression), then a liquid prep (new path), edit each, view PDF.
