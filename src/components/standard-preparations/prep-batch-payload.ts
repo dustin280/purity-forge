@@ -1,5 +1,6 @@
 import type { PrepFormValues } from "@/components/standard-preparations/prep-form";
 import { calcStockVolMl } from "@/components/standard-preparations/prep-form-logic";
+import { toMgPerMl } from "@/components/standard-preparations/target-units";
 
 function calcMassMg(conc: number, vol: number, purityPct: number | null): number {
   const raw = conc * vol;
@@ -24,13 +25,15 @@ export function valuesToBatchPayload(v: PrepFormValues, userToken: string) {
   const targets = v.targets
     .filter(t => t.name.trim() || t.target_concentration_mg_per_ml || t.target_volume_ml)
     .map(t => {
-      const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+      const raw = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+      const conc = raw != null && Number.isFinite(raw) ? toMgPerMl(raw, t.target_concentration_unit) : null;
       const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
       const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
       const stockVol = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;
       return {
         name: t.name,
         target_concentration_mg_per_ml: conc,
+        target_concentration_unit: t.target_concentration_unit,
         target_volume_ml: vol,
         calculated_mass_mg: mass,
         calculated_stock_volume_ml: stockVol,

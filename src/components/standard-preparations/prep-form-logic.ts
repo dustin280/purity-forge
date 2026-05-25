@@ -1,4 +1,5 @@
 import type { PrepStep, PrepTarget } from "@/lib/standard-preparations.functions";
+import { DEFAULT_CONC_UNIT, toMgPerMl, type ConcUnit } from "./target-units";
 
 export type ExpirationCode = "1w" | "2w" | "4w" | "3m" | "6m" | "custom";
 
@@ -7,6 +8,7 @@ export type RefForm = "solid" | "liquid";
 export interface TargetRow {
   name: string;
   target_concentration_mg_per_ml: string;
+  target_concentration_unit: ConcUnit;
   target_volume_ml: string;
   notes: string;
 }
@@ -55,7 +57,7 @@ export const EXP_PRESETS: Record<Exclude<ExpirationCode, "custom">, { label: str
 };
 
 export function emptyTarget(): TargetRow {
-  return { name: "", target_concentration_mg_per_ml: "", target_volume_ml: "", notes: "" };
+  return { name: "", target_concentration_mg_per_ml: "", target_concentration_unit: DEFAULT_CONC_UNIT, target_volume_ml: "", notes: "" };
 }
 
 export function periodDays(code: ExpirationCode, customDays: string): number | null {
@@ -133,7 +135,10 @@ export function prepValuesToPayload(v: PrepFormValues) {
   const expDate = days != null && v.prepared_at ? addDaysISO(v.prepared_at, days) : v.expiration_date || null;
   const targets: PrepTarget[] = v.targets
     .map((t, idx) => {
-      const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+      const rawConc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+      const conc = rawConc != null && Number.isFinite(rawConc)
+        ? toMgPerMl(rawConc, t.target_concentration_unit)
+        : null;
       const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
       const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purity) : null;
       const stockVol = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;
@@ -141,6 +146,7 @@ export function prepValuesToPayload(v: PrepFormValues) {
         row_no: idx + 1,
         name: t.name,
         target_concentration_mg_per_ml: conc,
+        target_concentration_unit: t.target_concentration_unit,
         target_volume_ml: vol,
         calculated_mass_mg: mass,
         calculated_volume_ml: isLiquid ? stockVol : vol,

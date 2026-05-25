@@ -3,6 +3,7 @@
  * `use-prep-form.ts` so the hook stays focused on state + side effects.
  */
 import { addDaysISO, calcMassMg, calcStockVolMl, periodDays, type PrepFormValues } from "./prep-form-logic";
+import { toMgPerMl } from "./target-units";
 
 export type CalcRow = {
   idx: number;
@@ -23,7 +24,8 @@ export function deriveCalcRows(v: PrepFormValues): CalcRow[] {
   const stockConc = v.ref_concentration_mg_per_ml === "" ? null : Number(v.ref_concentration_mg_per_ml);
   const isLiquid = v.ref_form === "liquid";
   return v.targets.map((t, i) => {
-    const conc = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+    const raw = t.target_concentration_mg_per_ml === "" ? null : Number(t.target_concentration_mg_per_ml);
+    const conc = raw != null && Number.isFinite(raw) ? toMgPerMl(raw, t.target_concentration_unit) : null;
     const vol = t.target_volume_ml === "" ? null : Number(t.target_volume_ml);
     const mass = !isLiquid && conc != null && vol != null ? calcMassMg(conc, vol, purityNum) : null;
     const stockVolMl = isLiquid && conc != null && vol != null ? calcStockVolMl(conc, vol, stockConc) : null;

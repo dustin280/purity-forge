@@ -7,6 +7,7 @@ import { Plus, Trash2, Copy, ExternalLink, AlertTriangle, Calculator } from "luc
 import { toast } from "sonner";
 import { Field } from "./prep-form-field";
 import type { ExpirationCode, RefForm } from "./prep-form-logic";
+import { CONC_UNITS, type ConcUnit } from "./target-units";
 import type { UsePrepFormReturn } from "./use-prep-form";
 
 export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UsePrepFormReturn; batchMode: boolean; synPreviewPrefix?: string }) {
@@ -126,7 +127,7 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
                 <th className="py-1 pr-2 w-8">#</th>
                 {batchMode && <th className="py-1 pr-2 w-40">SYN ID (preview)</th>}
                 <th className="py-1 pr-2 min-w-[160px]">Name</th>
-                <th className="py-1 pr-2 w-32">Conc (mg/mL)</th>
+                <th className="py-1 pr-2 w-44">Concentration</th>
                 <th className="py-1 pr-2 w-28">Vol (mL)</th>
                 <th className="py-1 pr-2 w-32">{isLiquid ? "Stock vol (mL)" : "Mass (mg)"}</th>
                 <th className="py-1 pr-2">Notes</th>
@@ -145,7 +146,28 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
                       </td>
                     )}
                     <td className="py-1 pr-2"><Input value={t.name} onChange={e => updateTarget(idx, { name: e.target.value })} maxLength={255} /></td>
-                    <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_concentration_mg_per_ml} onChange={e => updateTarget(idx, { target_concentration_mg_per_ml: e.target.value })} /></td>
+                    <td className="py-1 pr-2">
+                      <div className="flex gap-1">
+                        <Input
+                          type="number"
+                          step="any"
+                          value={t.target_concentration_mg_per_ml}
+                          onChange={e => updateTarget(idx, { target_concentration_mg_per_ml: e.target.value })}
+                          className="flex-1 min-w-0"
+                        />
+                        <Select
+                          value={t.target_concentration_unit}
+                          onValueChange={val => updateTarget(idx, { target_concentration_unit: val as ConcUnit })}
+                        >
+                          <SelectTrigger className="w-[88px] shrink-0"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CONC_UNITS.map(u => (
+                              <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </td>
                     <td className="py-1 pr-2"><Input type="number" step="any" value={t.target_volume_ml} onChange={e => updateTarget(idx, { target_volume_ml: e.target.value })} /></td>
                     <td className="py-1 pr-2 text-xs font-mono">
                       {isLiquid

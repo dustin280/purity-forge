@@ -34,7 +34,7 @@ function PrepDetail() {
   const actorName = profileDisplayName(profile, user?.email) || user?.email || "";
 
   if (editing) {
-    const initial = buildPrepEditInitial(r, linked);
+    const initial = buildPrepEditInitial(r, linked, data.targets);
     return (
       <div className="p-6 md:p-8 max-w-5xl">
         <h1 className="text-2xl font-bold tracking-tight mb-4">Edit {r.log_number}</h1>

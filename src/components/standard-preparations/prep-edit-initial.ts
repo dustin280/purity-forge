@@ -1,5 +1,7 @@
 import type { PrepFormValues } from "@/components/standard-preparations/prep-form";
 import type { LinkedReceipt } from "@/lib/standard-preparation-pdf";
+import { DEFAULT_CONC_UNIT, fromMgPerMl, isConcUnit, type ConcUnit } from "./target-units";
+import type { PrepTargetRow } from "@/lib/standard-preparations.functions";
 
 type PrepRow = {
   prepared_at: string;
@@ -27,7 +29,25 @@ type PrepRow = {
   ref_receipt_date?: string | null;
 };
 
-export function buildPrepEditInitial(r: PrepRow, linked: LinkedReceipt): Partial<PrepFormValues> {
+export function buildPrepEditInitial(
+  r: PrepRow,
+  linked: LinkedReceipt,
+  targets?: PrepTargetRow[],
+): Partial<PrepFormValues> {
+  const hydratedTargets = (targets ?? []).map(t => {
+    const tu = (t as PrepTargetRow & { target_concentration_unit?: string | null }).target_concentration_unit;
+    const unit: ConcUnit = isConcUnit(tu) ? tu : DEFAULT_CONC_UNIT;
+    const conc = t.target_concentration_mg_per_ml != null
+      ? fromMgPerMl(Number(t.target_concentration_mg_per_ml), unit)
+      : null;
+    return {
+      name: t.name ?? "",
+      target_concentration_mg_per_ml: conc != null ? String(conc) : "",
+      target_concentration_unit: unit,
+      target_volume_ml: t.target_volume_ml != null ? String(t.target_volume_ml) : "",
+      notes: t.notes ?? "",
+    };
+  });
   return {
     prepared_at: r.prepared_at.slice(0, 16),
     analyst_name: r.analyst_name,
@@ -57,5 +77,6 @@ export function buildPrepEditInitial(r: PrepRow, linked: LinkedReceipt): Partial
     ref_concentration_mg_per_ml: r.ref_concentration_mg_per_ml != null ? String(r.ref_concentration_mg_per_ml) : "",
     ref_molecular_weight: r.ref_molecular_weight != null ? String(r.ref_molecular_weight) : "",
     ref_receipt_date: r.ref_receipt_date ?? "",
+    ...(hydratedTargets.length > 0 ? { targets: hydratedTargets } : {}),
   };
 }

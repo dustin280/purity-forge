@@ -23,6 +23,7 @@ export interface PrepTarget {
   row_no: number;
   name: string;
   target_concentration_mg_per_ml: number | null;
+  target_concentration_unit?: string;
   target_volume_ml: number | null;
   calculated_mass_mg: number | null;
   calculated_volume_ml: number | null;
@@ -106,6 +107,7 @@ export const targetSchema = z.object({
   row_no: z.number().int().min(1).max(999),
   name: z.string().max(255),
   target_concentration_mg_per_ml: z.number().nullable(),
+  target_concentration_unit: z.enum(["mg/mL", "mg/L"]).optional().default("mg/mL"),
   target_volume_ml: z.number().nullable(),
   calculated_mass_mg: z.number().nullable(),
   calculated_volume_ml: z.number().nullable(),
@@ -148,6 +150,7 @@ export const payloadSchema = z.object({
 export const batchTargetSchema = z.object({
   name: z.string().max(255),
   target_concentration_mg_per_ml: z.number().nullable(),
+  target_concentration_unit: z.enum(["mg/mL", "mg/L"]).optional().default("mg/mL"),
   target_volume_ml: z.number().nullable(),
   calculated_mass_mg: z.number().nullable(),
   calculated_stock_volume_ml: z.number().nullable().optional(),

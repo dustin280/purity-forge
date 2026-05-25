@@ -17,6 +17,7 @@ import {
   emptyTarget,
   loadDraft,
 } from "./prep-form-logic";
+import { DEFAULT_CONC_UNIT } from "./target-units";
 import {
   deriveCalcRows,
   deriveComputedExpiration,
@@ -184,6 +185,7 @@ export function usePrepForm(opts: {
       return {
         name: cols[0] ?? "",
         target_concentration_mg_per_ml: cols[1] ?? "",
+        target_concentration_unit: DEFAULT_CONC_UNIT,
         target_volume_ml: cols[2] ?? "",
         notes: cols[3] ?? "",
       };
