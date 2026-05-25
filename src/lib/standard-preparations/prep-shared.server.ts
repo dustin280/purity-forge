@@ -75,7 +75,9 @@ export interface StandardPrepRow {
   material_overridden: boolean;
   ref_material_name: string | null;
   ref_lot: string | null;
+  ref_form: "solid" | "liquid";
   ref_purity_percent: number | null;
+  ref_concentration_mg_per_ml: number | null;
   ref_molecular_weight: number | null;
   ref_receipt_date: string | null;
 }
@@ -135,7 +137,9 @@ export const payloadSchema = z.object({
   material_overridden: z.boolean().optional(),
   ref_material_name: z.string().max(255).nullable().optional(),
   ref_lot: z.string().max(255).nullable().optional(),
+  ref_form: z.enum(["solid", "liquid"]).optional(),
   ref_purity_percent: z.number().nullable().optional(),
+  ref_concentration_mg_per_ml: z.number().nullable().optional(),
   ref_molecular_weight: z.number().nullable().optional(),
   ref_receipt_date: z.string().nullable().optional(),
   targets: z.array(targetSchema).max(500).optional(),
@@ -146,6 +150,7 @@ export const batchTargetSchema = z.object({
   target_concentration_mg_per_ml: z.number().nullable(),
   target_volume_ml: z.number().nullable(),
   calculated_mass_mg: z.number().nullable(),
+  calculated_stock_volume_ml: z.number().nullable().optional(),
   notes: z.string().max(2000),
 });
 
@@ -171,7 +176,9 @@ export const batchPayloadSchema = z.object({
   material_overridden: z.boolean().optional(),
   ref_material_name: z.string().max(255).nullable().optional(),
   ref_lot: z.string().max(255).nullable().optional(),
+  ref_form: z.enum(["solid", "liquid"]).optional(),
   ref_purity_percent: z.number().nullable().optional(),
+  ref_concentration_mg_per_ml: z.number().nullable().optional(),
   ref_molecular_weight: z.number().nullable().optional(),
   ref_receipt_date: z.string().nullable().optional(),
   targets: z.array(batchTargetSchema).min(1).max(200),
