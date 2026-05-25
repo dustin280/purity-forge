@@ -1037,6 +1037,7 @@ export type Database = {
           prep_id: string
           row_no: number
           target_concentration_mg_per_ml: number | null
+          target_concentration_unit: string
           target_volume_ml: number | null
         }
         Insert: {
@@ -1049,6 +1050,7 @@ export type Database = {
           prep_id: string
           row_no: number
           target_concentration_mg_per_ml?: number | null
+          target_concentration_unit?: string
           target_volume_ml?: number | null
         }
         Update: {
@@ -1061,6 +1063,7 @@ export type Database = {
           prep_id?: string
           row_no?: number
           target_concentration_mg_per_ml?: number | null
+          target_concentration_unit?: string
           target_volume_ml?: number | null
         }
         Relationships: [
