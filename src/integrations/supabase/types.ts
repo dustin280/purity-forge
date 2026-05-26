@@ -791,6 +791,99 @@ export type Database = {
         }
         Relationships: []
       }
+      openlab_methods: {
+        Row: {
+          description: string | null
+          id: string
+          last_modified: string | null
+          name: string
+          relative_path: string
+          size_bytes: number | null
+          synced_at: string
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          last_modified?: string | null
+          name: string
+          relative_path: string
+          size_bytes?: number | null
+          synced_at?: string
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          last_modified?: string | null
+          name?: string
+          relative_path?: string
+          size_bytes?: number | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      openlab_sequences: {
+        Row: {
+          id: string
+          last_modified: string | null
+          line_count: number
+          name: string
+          relative_path: string
+          status: string
+          synced_at: string
+        }
+        Insert: {
+          id?: string
+          last_modified?: string | null
+          line_count?: number
+          name: string
+          relative_path: string
+          status?: string
+          synced_at?: string
+        }
+        Update: {
+          id?: string
+          last_modified?: string | null
+          line_count?: number
+          name?: string
+          relative_path?: string
+          status?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      openlab_settings: {
+        Row: {
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          notes: string | null
+          project_folder_path: string
+          singleton: boolean
+          storage_prefix: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          notes?: string | null
+          project_folder_path?: string
+          singleton?: boolean
+          storage_prefix?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          notes?: string | null
+          project_folder_path?: string
+          singleton?: boolean
+          storage_prefix?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       parameter_scouting_logs: {
         Row: {
           comments: string | null

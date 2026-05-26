@@ -22,11 +22,13 @@ import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
 import { Route as AuthenticatedLabJournalIndexRouteImport } from './routes/_authenticated/lab-journal/index'
 import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
+import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_authenticated/instrument-comm/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
+import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
@@ -113,6 +115,12 @@ const AuthenticatedIssuesIndexRoute =
     path: '/issues/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInstrumentCommIndexRoute =
+  AuthenticatedInstrumentCommIndexRouteImport.update({
+    id: '/instrument-comm/',
+    path: '/instrument-comm/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -139,6 +147,12 @@ const AuthenticatedMaterialReceiptsIdRoute =
   AuthenticatedMaterialReceiptsIdRouteImport.update({
     id: '/material-receipts/$id',
     path: '/material-receipts/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInstrumentCommOpenlabRoute =
+  AuthenticatedInstrumentCommOpenlabRouteImport.update({
+    id: '/instrument-comm/openlab',
+    path: '/instrument-comm/openlab',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminParametersRoute =
@@ -232,11 +246,13 @@ export interface FileRoutesByFullPath {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
   '/issues/': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -264,11 +280,13 @@ export interface FileRoutesByTo {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/instrument-comm': typeof AuthenticatedInstrumentCommIndexRoute
   '/issues': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
@@ -298,11 +316,13 @@ export interface FileRoutesById {
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
   '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
   '/_authenticated/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -332,11 +352,13 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/instruments'
     | '/admin/parameters'
+    | '/instrument-comm/openlab'
     | '/material-receipts/$id'
     | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
+    | '/instrument-comm/'
     | '/issues/'
     | '/lab-journal/'
     | '/lab-logs/'
@@ -364,11 +386,13 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/instruments'
     | '/admin/parameters'
+    | '/instrument-comm/openlab'
     | '/material-receipts/$id'
     | '/material-receipts/new'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
+    | '/instrument-comm'
     | '/issues'
     | '/lab-journal'
     | '/lab-logs'
@@ -397,11 +421,13 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/compounds'
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/parameters'
+    | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
+    | '/_authenticated/instrument-comm/'
     | '/_authenticated/issues/'
     | '/_authenticated/lab-journal/'
     | '/_authenticated/lab-logs/'
@@ -516,6 +542,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIssuesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/instrument-comm/': {
+      id: '/_authenticated/instrument-comm/'
+      path: '/instrument-comm'
+      fullPath: '/instrument-comm/'
+      preLoaderRoute: typeof AuthenticatedInstrumentCommIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
       path: '/admin'
@@ -549,6 +582,13 @@ declare module '@tanstack/react-router' {
       path: '/material-receipts/$id'
       fullPath: '/material-receipts/$id'
       preLoaderRoute: typeof AuthenticatedMaterialReceiptsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/instrument-comm/openlab': {
+      id: '/_authenticated/instrument-comm/openlab'
+      path: '/instrument-comm/openlab'
+      fullPath: '/instrument-comm/openlab'
+      preLoaderRoute: typeof AuthenticatedInstrumentCommOpenlabRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/parameters': {
@@ -657,11 +697,13 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
+  AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedInstrumentCommIndexRoute: typeof AuthenticatedInstrumentCommIndexRoute
   AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
   AuthenticatedLabJournalIndexRoute: typeof AuthenticatedLabJournalIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
@@ -688,11 +730,14 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
+  AuthenticatedInstrumentCommOpenlabRoute:
+    AuthenticatedInstrumentCommOpenlabRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedInstrumentCommIndexRoute: AuthenticatedInstrumentCommIndexRoute,
   AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
   AuthenticatedLabJournalIndexRoute: AuthenticatedLabJournalIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
@@ -726,13 +771,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
