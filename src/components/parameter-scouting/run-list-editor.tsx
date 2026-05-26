@@ -1,6 +1,7 @@
-import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2 } from "lucide-react";
 import { CompoundPicker, type CompoundOption } from "./compound-picker";
 import type { RunListItem } from "@/lib/parameter-scouting.functions";
 
@@ -29,7 +30,7 @@ export function RunListEditor({
     if (rows.length >= 400) return;
     onChange([
       ...rows,
-      { parameter_id: null, name: "", concentration_mg_per_l: null },
+      { parameter_id: null, name: "", concentration_mg_per_l: null, comment: "" },
     ]);
   };
 
@@ -47,45 +48,52 @@ export function RunListEditor({
           </div>
         )}
         {rows.map((r, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-[1fr_180px_auto] gap-2 px-3 py-2 items-center"
-          >
-            <CompoundPicker
-              options={options}
-              value={{ parameter_id: r.parameter_id, name: r.name }}
-              onChange={(v) => update(i, v)}
-              onCreateCompound={onCreateCompound}
+          <div key={i} className="px-3 py-2 space-y-2">
+            <div className="grid grid-cols-[1fr_180px_auto] gap-2 items-center">
+              <CompoundPicker
+                options={options}
+                value={{ parameter_id: r.parameter_id, name: r.name }}
+                onChange={(v) => update(i, v)}
+                onCreateCompound={onCreateCompound}
+                disabled={disabled}
+              />
+              <Input
+                type="number"
+                step="0.01"
+                value={
+                  r.concentration_mg_per_l === null ||
+                  r.concentration_mg_per_l === undefined
+                    ? ""
+                    : r.concentration_mg_per_l
+                }
+                onChange={(e) =>
+                  update(i, {
+                    concentration_mg_per_l:
+                      e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="mg/L"
+                disabled={disabled}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="size-8 text-destructive"
+                onClick={() => remove(i)}
+                disabled={disabled}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+            <Textarea
+              value={r.comment ?? ""}
+              onChange={(e) => update(i, { comment: e.target.value })}
+              placeholder="Per-compound notes (elution time, peak quality, etc.)"
+              rows={2}
+              className="text-xs"
               disabled={disabled}
             />
-            <Input
-              type="number"
-              step="0.01"
-              value={
-                r.concentration_mg_per_l === null ||
-                r.concentration_mg_per_l === undefined
-                  ? ""
-                  : r.concentration_mg_per_l
-              }
-              onChange={(e) =>
-                update(i, {
-                  concentration_mg_per_l:
-                    e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-              placeholder="mg/L"
-              disabled={disabled}
-            />
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="size-8 text-destructive"
-              onClick={() => remove(i)}
-              disabled={disabled}
-            >
-              <Trash2 className="size-4" />
-            </Button>
           </div>
         ))}
       </div>
