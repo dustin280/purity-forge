@@ -30,6 +30,7 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
+import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
@@ -37,10 +38,13 @@ import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
+import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/new'
 import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
+import { Route as AuthenticatedLabLogsMobilePhaseNewRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/new'
+import { Route as AuthenticatedLabLogsMobilePhaseIdRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/$id'
 import { Route as AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/batch.$groupId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -161,6 +165,12 @@ const AuthenticatedAdminParametersRoute =
     path: '/admin/parameters',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminMobilePhaseReagentsRoute =
+  AuthenticatedAdminMobilePhaseReagentsRouteImport.update({
+    id: '/admin/mobile-phase-reagents',
+    path: '/admin/mobile-phase-reagents',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminInstrumentsRoute =
   AuthenticatedAdminInstrumentsRouteImport.update({
     id: '/admin/instruments',
@@ -203,6 +213,12 @@ const AuthenticatedLabLogsParameterScoutingIndexRoute =
     path: '/lab-logs/parameter-scouting/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsMobilePhaseIndexRoute =
+  AuthenticatedLabLogsMobilePhaseIndexRouteImport.update({
+    id: '/lab-logs/mobile-phase/',
+    path: '/lab-logs/mobile-phase/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsDailyBackpressureIndexRoute =
   AuthenticatedLabLogsDailyBackpressureIndexRouteImport.update({
     id: '/lab-logs/daily-backpressure/',
@@ -226,6 +242,18 @@ const AuthenticatedLabLogsStandardPreparationsIdRoute =
     path: '/lab-logs/standard-preparations/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsMobilePhaseNewRoute =
+  AuthenticatedLabLogsMobilePhaseNewRouteImport.update({
+    id: '/lab-logs/mobile-phase/new',
+    path: '/lab-logs/mobile-phase/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabLogsMobilePhaseIdRoute =
+  AuthenticatedLabLogsMobilePhaseIdRouteImport.update({
+    id: '/lab-logs/mobile-phase/$id',
+    path: '/lab-logs/mobile-phase/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute =
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport.update({
     id: '/lab-logs/standard-preparations/batch/$groupId',
@@ -245,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -259,10 +288,13 @@ export interface FileRoutesByFullPath {
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -279,6 +311,7 @@ export interface FileRoutesByTo {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -293,10 +326,13 @@ export interface FileRoutesByTo {
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/scheduler': typeof AuthenticatedSchedulerIndexRoute
+  '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -315,6 +351,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -329,10 +366,13 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/_authenticated/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/_authenticated/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -351,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/compounds'
     | '/admin/instruments'
+    | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -365,10 +406,13 @@ export interface FileRouteTypes {
     | '/material-receipts/'
     | '/samples/'
     | '/scheduler/'
+    | '/lab-logs/mobile-phase/$id'
+    | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure/'
+    | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/standard-preparations/batch/$groupId'
@@ -385,6 +429,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/compounds'
     | '/admin/instruments'
+    | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -399,10 +444,13 @@ export interface FileRouteTypes {
     | '/material-receipts'
     | '/samples'
     | '/scheduler'
+    | '/lab-logs/mobile-phase/$id'
+    | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure'
+    | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/standard-preparations/batch/$groupId'
@@ -420,6 +468,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
     | '/_authenticated/admin/instruments'
+    | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/material-receipts/$id'
@@ -434,10 +483,13 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
     | '/_authenticated/scheduler/'
+    | '/_authenticated/lab-logs/mobile-phase/$id'
+    | '/_authenticated/lab-logs/mobile-phase/new'
     | '/_authenticated/lab-logs/standard-preparations/$id'
     | '/_authenticated/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
+    | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
@@ -598,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/mobile-phase-reagents': {
+      id: '/_authenticated/admin/mobile-phase-reagents'
+      path: '/admin/mobile-phase-reagents'
+      fullPath: '/admin/mobile-phase-reagents'
+      preLoaderRoute: typeof AuthenticatedAdminMobilePhaseReagentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/instruments': {
       id: '/_authenticated/admin/instruments'
       path: '/admin/instruments'
@@ -647,6 +706,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/mobile-phase/': {
+      id: '/_authenticated/lab-logs/mobile-phase/'
+      path: '/lab-logs/mobile-phase'
+      fullPath: '/lab-logs/mobile-phase/'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/daily-backpressure/': {
       id: '/_authenticated/lab-logs/daily-backpressure/'
       path: '/lab-logs/daily-backpressure'
@@ -675,6 +741,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/mobile-phase/new': {
+      id: '/_authenticated/lab-logs/mobile-phase/new'
+      path: '/lab-logs/mobile-phase/new'
+      fullPath: '/lab-logs/mobile-phase/new'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-logs/mobile-phase/$id': {
+      id: '/_authenticated/lab-logs/mobile-phase/$id'
+      path: '/lab-logs/mobile-phase/$id'
+      fullPath: '/lab-logs/mobile-phase/$id'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/standard-preparations/batch/$groupId': {
       id: '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
       path: '/lab-logs/standard-preparations/batch/$groupId'
@@ -696,6 +776,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
+  AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
@@ -710,9 +791,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
+  AuthenticatedLabLogsMobilePhaseIdRoute: typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  AuthenticatedLabLogsMobilePhaseNewRoute: typeof AuthenticatedLabLogsMobilePhaseNewRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -729,6 +813,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
+  AuthenticatedAdminMobilePhaseReagentsRoute:
+    AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
@@ -745,12 +831,18 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
+  AuthenticatedLabLogsMobilePhaseIdRoute:
+    AuthenticatedLabLogsMobilePhaseIdRoute,
+  AuthenticatedLabLogsMobilePhaseNewRoute:
+    AuthenticatedLabLogsMobilePhaseNewRoute,
   AuthenticatedLabLogsStandardPreparationsIdRoute:
     AuthenticatedLabLogsStandardPreparationsIdRoute,
   AuthenticatedLabLogsStandardPreparationsNewRoute:
     AuthenticatedLabLogsStandardPreparationsNewRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
+  AuthenticatedLabLogsMobilePhaseIndexRoute:
+    AuthenticatedLabLogsMobilePhaseIndexRoute,
   AuthenticatedLabLogsParameterScoutingIndexRoute:
     AuthenticatedLabLogsParameterScoutingIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIndexRoute:
@@ -771,13 +863,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

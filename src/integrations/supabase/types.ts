@@ -791,6 +791,105 @@ export type Database = {
         }
         Relationships: []
       }
+      mobile_phase_prep_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
+      mobile_phase_prep_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          log_number: string
+          lot_number: string
+          prep_a: Json
+          prep_b: Json
+          preparation: string
+          prepared_at: string
+          total_volume: number
+          total_volume_unit: string
+          updated_at: string
+          user_id: string | null
+          user_initials: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          log_number?: string
+          lot_number: string
+          prep_a?: Json
+          prep_b?: Json
+          preparation?: string
+          prepared_at?: string
+          total_volume: number
+          total_volume_unit?: string
+          updated_at?: string
+          user_id?: string | null
+          user_initials: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          log_number?: string
+          lot_number?: string
+          prep_a?: Json
+          prep_b?: Json
+          preparation?: string
+          prepared_at?: string
+          total_volume?: number
+          total_volume_unit?: string
+          updated_at?: string
+          user_id?: string | null
+          user_initials?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      mobile_phase_reagents: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kinds: string[]
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kinds?: string[]
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kinds?: string[]
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       openlab_methods: {
         Row: {
           description: string | null
@@ -1558,6 +1657,7 @@ export type Database = {
         Returns: boolean
       }
       next_material_receipt_number: { Args: never; Returns: string }
+      next_mobile_phase_prep_number: { Args: never; Returns: string }
       next_standard_preparation_number: { Args: never; Returns: string }
       next_syn_id: {
         Args: { p_day: string; p_user_token: string }

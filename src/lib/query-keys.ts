@@ -142,4 +142,11 @@ export const qk = {
     method: (name: string) => ["openlab", "method", name] as const,
     sequence: (name: string) => ["openlab", "sequence", name] as const,
   },
+
+  mobilePhase: {
+    all: ["mobile-phase"] as const,
+    list: () => ["mobile-phase"] as const,
+    detail: (id: string) => ["mobile-phase", id] as const,
+    reagents: () => ["mobile-phase-reagents"] as const,
+  },
 } as const;
