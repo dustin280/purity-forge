@@ -36,6 +36,7 @@ function LabJournalPage() {
       <div className="space-y-6">
         <EntryForm
           defaultUserName={defaultName}
+          userId={user?.id ?? null}
           editing={editing}
           saving={createMut.isPending || updateMut.isPending}
           deleting={deleteMut.isPending}
@@ -46,6 +47,7 @@ function LabJournalPage() {
                 entry_at: payload.entry_at,
                 title: payload.title,
                 body: payload.body,
+                tags: payload.tags,
               });
               setEditing(null);
             } else {
@@ -66,6 +68,7 @@ function LabJournalPage() {
         <EntriesList
           rows={rows}
           loading={query.isLoading}
+          defaultAuthor={defaultName}
           onEdit={(r) => {
             setEditing(r);
             if (typeof window !== "undefined")

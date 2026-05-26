@@ -15,6 +15,7 @@ export type CreatePayload = {
   user_name: string;
   title: string | null;
   body: string;
+  tags?: string[];
 };
 
 export type UpdatePayload = {
@@ -22,6 +23,7 @@ export type UpdatePayload = {
   entry_at?: string;
   title?: string | null;
   body?: string;
+  tags?: string[];
 };
 
 export function useLabJournal() {
