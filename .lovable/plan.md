@@ -1,71 +1,70 @@
-## Goal
 
-Add a per-row **unit selector** for the "Conc" column in the Desired Standards table, with `mg/mL` and `mg/L` as the two starting options, structured so more units (e.g. `µg/mL`, `ng/mL`, `µM`) can be added later in one place.
+## Parameter Scouting Log
 
-## Approach
+A new lab log under **Logs → Parameter Scouting Log** for capturing HPLC method scouting conditions and the compound run list.
 
-Storage stays normalized in **mg/mL** (the existing `target_concentration_mg_per_ml` column), so all downstream calculations, PDFs, batch logic, and historical records keep working unchanged. We add a new field that remembers the unit the user typed in, used purely for display and edit.
+### Database (one migration)
 
-### 1. Units registry (single source of truth)
+Two new tables, RLS modeled on `daily_backpressure_logs` (any tech/reviewer/admin can read/write; admin or creator can delete/update):
 
-New file `src/components/standard-preparations/target-units.ts`:
+- `parameter_scouting_logs`
+  - `run_at` (date/time, defaults now)
+  - `user_id`, `user_name`
+  - `flow_rate_ml_per_min` (numeric)
+  - `temperature_c` (numeric)
+  - `mobile_phase_a` (text, default `"H2O + 0.1% TFA"`)
+  - `mobile_phase_b` (text, default `"ACN + 0.1% TFA"`)
+  - `sample_diluent` (text)
+  - `comments` (text)
+  - `gradient` (jsonb: `[{ time_min, percent_a, percent_b }]`)
+  - `run_list` (jsonb: `[{ parameter_id, name, concentration_mg_per_l }]`)
+  - `created_by`, timestamps
 
-```ts
-export type ConcUnit = "mg/mL" | "mg/L";
-export const CONC_UNITS: { value: ConcUnit; label: string; toMgPerMl: number }[] = [
-  { value: "mg/mL", label: "mg/mL", toMgPerMl: 1 },
-  { value: "mg/L",  label: "mg/L",  toMgPerMl: 0.001 },
-];
-// helpers: toMgPerMl(value, unit), fromMgPerMl(mgPerMl, unit)
-```
+Storing `run_list` and `gradient` as JSON keeps the schema tight (matches how `preparation_steps` is stored on standard preps). No child tables needed since rows are bounded (≤400 compounds, gradient typically <20 rows) and are always read with the parent.
 
-Adding a future unit = one line in this array.
+### Compounds source
 
-### 2. Form values
+The Run List picker queries `test_parameters` (the existing admin "Parameters" list). Each row stores `parameter_id` + denormalized `name` snapshot so historical logs still read correctly if a parameter is renamed/deactivated.
 
-In `prep-form-logic.ts`, extend `TargetRow`:
-- add `target_concentration_unit: ConcUnit` (default `"mg/mL"`)
-- `emptyTarget()` sets it to `"mg/mL"`
-- `prepValuesToPayload`: convert the typed value through `toMgPerMl(...)` before writing to `target_concentration_mg_per_ml` (DB stays in mg/mL).
+### UI
 
-### 3. Derivations
+**Route:** `/lab-logs/parameter-scouting` (added as a 4th card in `lab-logs/index.tsx`).
 
-In `prep-form-derive.ts`:
-- `deriveCalcRows`: convert each row's input to mg/mL before computing mass / stock volume (no math change, just normalization).
-- `deriveProcedureText`: when echoing the target concentration in text, render it in the user's chosen unit.
+**Page layout:**
+- Top: "New entry" form card (collapsible / always-visible like Daily Backpressure).
+- Below: table of saved entries with Edit button per row.
 
-### 4. UI — `prep-calculator-card.tsx`
+**Form fields:**
+- Date/time (datetime-local, defaults now) — read-only display of user name from session.
+- Flow Rate (mL/min), Temperature (°C) — number inputs, units locked.
+- Mobile Phase A / B — text inputs prefilled with the TFA defaults, editable.
+- **Gradient editor** — small table with columns Time (min) | %A | %B | × ; "+ Add step" button. Auto-fill %B = 100 − %A on edit (still editable).
+- **Run List** — repeating row of `[Compound select][Concentration mg/L][×]`, with "+ Add compound" button. Compound select is a searchable dropdown (Command/Popover) of active `test_parameters`. Supports up to 400 rows.
+- Sample Diluent (text), Comments (textarea).
+- Save / Cancel buttons.
 
-In the Desired Standards table:
-- Replace the static `Conc (mg/mL)` header with `Concentration`.
-- The concentration cell becomes an input + a compact `Select` populated from `CONC_UNITS`.
-- Changing the unit only updates `target_concentration_unit`; it does NOT re-scale the number the user typed (so switching mg/mL ↔ mg/L treats the entered value as the new unit's value — same UX as a calculator).
-- Mass / Stock vol cell unchanged (still computed in mg / mL).
+**Saved entries table** (`readings-table` style):
+Columns: Date, User, # compounds, Flow, Temp, Gradient summary (e.g. "5 steps, 5→95% B"), Actions (Edit, Delete for admin/creator). Clicking Edit reopens the form pre-populated.
 
-### 5. Paste support
+### Code structure
 
-`pasteTargets` in `use-prep-form.ts` currently parses tab/CSV rows assuming mg/mL. Keep that assumption — pasted rows default to `"mg/mL"`. No change to paste format.
+- `supabase/migrations/<ts>_parameter_scouting.sql` — table + RLS.
+- `src/lib/parameter-scouting.functions.ts` — `listParameterScoutingLogs`, `createParameterScoutingLog`, `updateParameterScoutingLog`, `deleteParameterScoutingLog` (all `createServerFn` + `requireSupabaseAuth`).
+- `src/components/parameter-scouting/`
+  - `types.ts` (RunListItem, GradientStep, FormValues)
+  - `use-parameter-scouting.ts` (list + mutations via TanStack Query)
+  - `scouting-form.tsx` (the form card)
+  - `gradient-editor.tsx`
+  - `run-list-editor.tsx` (with compound combobox)
+  - `compound-picker.tsx` (reuses `test_parameters` lookup; new server fn `listTestParameters` if not already exposed)
+  - `entries-table.tsx`
+- `src/routes/_authenticated/lab-logs/parameter-scouting/index.tsx`
+- Update `src/routes/_authenticated/lab-logs/index.tsx` to add the new card with a `FlaskRound`/`Beaker` icon.
 
-### 6. Persistence + edit hydration
+### Out of scope
 
-- **Migration:** add column `target_concentration_unit text not null default 'mg/mL'` to `standard_preparation_targets`. Existing rows back-fill to `'mg/mL'`.
-- Server: extend `payloadSchema` and `batchPayloadSchema` target item with `target_concentration_unit: z.enum(["mg/mL","mg/L"]).default("mg/mL")`; insert it alongside the existing target columns.
-- `prep-edit-initial.ts`: hydrate `target_concentration_unit` from the row (fallback `"mg/mL"`); convert the stored mg/mL value back into the chosen unit for display via `fromMgPerMl`.
+- No PDF export, no review/approval workflow, no batch/group, no attachments — kept "simple save/edit" per your answer. Easy to layer on later if needed.
 
-### 7. Read-side display
+### Verification
 
-- `targets-table.tsx` (detail view), `traceability-snapshot.tsx`, `standard-preparation-pdf.ts`, batch view: show the concentration in its original unit (e.g. `"5 mg/L"`) using the stored unit + converted value. Falls back gracefully for legacy rows (unit = mg/mL).
-
-## What stays untouched
-
-- All existing calculations (mass, stock volume, dilution math) — they keep operating in mg/mL internally.
-- DB column `target_concentration_mg_per_ml` and all queries against it.
-- Solid/liquid reference toggle, status flow, RLS, batch logic.
-- Existing saved records — they read back as `mg/mL` because of the column default.
-
-## Files touched
-
-- **New:** `src/components/standard-preparations/target-units.ts`
-- **Edit:** `prep-form-logic.ts`, `prep-form-derive.ts`, `prep-calculator-card.tsx`, `use-prep-form.ts`, `prep-edit-initial.ts`, `prep-batch-payload.ts`, `targets-table.tsx`, `traceability-snapshot.tsx`
-- **Edit (server):** `src/lib/standard-preparations/prep-shared.server.ts`, `prep-batch.functions.ts`, `prep-crud.functions.ts`, `src/lib/standard-preparation-pdf.ts`
-- **Migration:** add `target_concentration_unit` column to `standard_preparation_targets`.
+After build: create an entry with 3 compounds + 5-step gradient, save, confirm it appears in the table, edit it, confirm changes persist, delete as admin.
