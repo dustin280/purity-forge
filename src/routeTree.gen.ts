@@ -30,6 +30,7 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
+import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
@@ -164,6 +165,12 @@ const AuthenticatedAdminParametersRoute =
     path: '/admin/parameters',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminMobilePhaseReagentsRoute =
+  AuthenticatedAdminMobilePhaseReagentsRouteImport.update({
+    id: '/admin/mobile-phase-reagents',
+    path: '/admin/mobile-phase-reagents',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminInstrumentsRoute =
   AuthenticatedAdminInstrumentsRouteImport.update({
     id: '/admin/instruments',
@@ -266,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -303,6 +311,7 @@ export interface FileRoutesByTo {
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -342,6 +351,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/compounds'
     | '/admin/instruments'
+    | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -418,6 +429,7 @@ export interface FileRouteTypes {
     | '/admin/coc-fields'
     | '/admin/compounds'
     | '/admin/instruments'
+    | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -456,6 +468,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
     | '/_authenticated/admin/instruments'
+    | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/material-receipts/$id'
@@ -637,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/mobile-phase-reagents': {
+      id: '/_authenticated/admin/mobile-phase-reagents'
+      path: '/admin/mobile-phase-reagents'
+      fullPath: '/admin/mobile-phase-reagents'
+      preLoaderRoute: typeof AuthenticatedAdminMobilePhaseReagentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/instruments': {
       id: '/_authenticated/admin/instruments'
       path: '/admin/instruments'
@@ -756,6 +776,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
+  AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
@@ -792,6 +813,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
+  AuthenticatedAdminMobilePhaseReagentsRoute:
+    AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
