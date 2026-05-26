@@ -13,15 +13,22 @@ export interface LabJournalEntry {
   entry_at: string;
   title: string | null;
   body: string;
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
+
+const tagSchema = z
+  .array(z.string().min(1).max(40))
+  .max(20)
+  .optional();
 
 const createSchema = z.object({
   entry_at: z.string().min(1),
   user_name: z.string().min(1).max(255),
   title: z.string().max(200).nullable().optional(),
   body: z.string().max(50000),
+  tags: tagSchema,
 });
 
 const updateSchema = z.object({
@@ -29,6 +36,7 @@ const updateSchema = z.object({
   entry_at: z.string().min(1).optional(),
   title: z.string().max(200).nullable().optional(),
   body: z.string().max(50000).optional(),
+  tags: tagSchema,
 });
 
 export const listLabJournalEntries = createServerFn({ method: "GET" })
@@ -54,6 +62,7 @@ export const createLabJournalEntry = createServerFn({ method: "POST" })
         user_name: data.user_name,
         title: data.title || null,
         body: data.body,
+        tags: data.tags ?? [],
         user_id: context.userId,
       })
       .select()
@@ -71,10 +80,12 @@ export const updateLabJournalEntry = createServerFn({ method: "POST" })
       entry_at?: string;
       title?: string | null;
       body?: string;
+      tags?: string[];
     } = {};
     if (patch.entry_at !== undefined) cleanPatch.entry_at = patch.entry_at;
     if (patch.title !== undefined) cleanPatch.title = patch.title || null;
     if (patch.body !== undefined) cleanPatch.body = patch.body;
+    if (patch.tags !== undefined) cleanPatch.tags = patch.tags;
     const { data: row, error } = await context.supabase
       .from("lab_journal_entries")
       .update(cleanPatch)
