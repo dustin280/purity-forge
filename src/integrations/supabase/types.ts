@@ -339,6 +339,83 @@ export type Database = {
           },
         ]
       }
+      instrument_bookings: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          instrument_id: string
+          notes: string | null
+          purpose: string
+          starts_at: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          instrument_id: string
+          notes?: string | null
+          purpose: string
+          starts_at: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          instrument_id?: string
+          notes?: string | null
+          purpose?: string
+          starts_at?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instrument_bookings_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instruments: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          location: string | null
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       issue_report_attachments: {
         Row: {
           content_type: string | null
