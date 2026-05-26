@@ -200,35 +200,39 @@ export function SchedulerPage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Operations</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Instrument Scheduler</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Instrument Scheduler</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Reserve instrument time. Bookings cannot overlap on the same instrument.
         </p>
       </div>
 
-      <Card className="p-3 mb-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" onClick={goPrev}><ChevronLeft className="size-4" /></Button>
-        <Button size="sm" variant="outline" onClick={() => setCursor(startOfDay(new Date()))}>Today</Button>
-        <Button size="sm" variant="outline" onClick={goNext}><ChevronRight className="size-4" /></Button>
-        <div className="font-semibold ml-2 min-w-[10rem]">{headerLabel}</div>
-        <div className="flex-1" />
-        <Select value={instrumentFilter} onValueChange={setInstrumentFilter}>
-          <SelectTrigger className="w-[14rem]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All instruments</SelectItem>
-            {instruments.filter(i => i.is_active).map(i => (
-              <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as ViewMode)}>
-          <ToggleGroupItem value="day">Day</ToggleGroupItem>
-          <ToggleGroupItem value="week">Week</ToggleGroupItem>
-          <ToggleGroupItem value="month">Month</ToggleGroupItem>
-        </ToggleGroup>
-        <Button size="sm" onClick={() => openNewAt(new Date())} disabled={instruments.filter(i => i.is_active).length === 0}>
-          <Plus className="size-4 mr-1" /> New booking
-        </Button>
+      <Card className="p-3 mb-4 flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-2">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={goPrev}><ChevronLeft className="size-4" /></Button>
+          <Button size="sm" variant="outline" onClick={() => setCursor(startOfDay(new Date()))}>Today</Button>
+          <Button size="sm" variant="outline" onClick={goNext}><ChevronRight className="size-4" /></Button>
+          <div className="font-semibold ml-2 min-w-[10rem] text-sm sm:text-base">{headerLabel}</div>
+        </div>
+        <div className="lg:flex-1" />
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2">
+          <Select value={instrumentFilter} onValueChange={setInstrumentFilter}>
+            <SelectTrigger className="w-full sm:w-[14rem]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All instruments</SelectItem>
+              {instruments.filter(i => i.is_active).map(i => (
+                <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ToggleGroup type="single" value={view} onValueChange={(v) => v && setView(v as ViewMode)} className="justify-start">
+            <ToggleGroupItem value="day">Day</ToggleGroupItem>
+            <ToggleGroupItem value="week">Week</ToggleGroupItem>
+            <ToggleGroupItem value="month">Month</ToggleGroupItem>
+          </ToggleGroup>
+          <Button size="sm" onClick={() => openNewAt(new Date())} disabled={instruments.filter(i => i.is_active).length === 0} className="w-full sm:w-auto">
+            <Plus className="size-4 mr-1" /> New booking
+          </Button>
+        </div>
       </Card>
 
       {instruments.filter(i => i.is_active).length === 0 ? (
@@ -237,23 +241,31 @@ export function SchedulerPage() {
           No active instruments yet. {isAdmin ? "Add one from Admin → Instruments." : "Ask an admin to add one."}
         </Card>
       ) : view === "month" ? (
-        <MonthGrid
-          days={days}
-          cursor={cursor}
-          bookings={bookings}
-          onPickDay={(d) => { setCursor(d); setView("day"); }}
-          onPickBooking={openEdit}
-          instrumentName={instrumentName}
-        />
+        <div className="-mx-4 sm:mx-0 overflow-x-auto">
+          <div className="min-w-[640px] px-4 sm:px-0">
+            <MonthGrid
+              days={days}
+              cursor={cursor}
+              bookings={bookings}
+              onPickDay={(d) => { setCursor(d); setView("day"); }}
+              onPickBooking={openEdit}
+              instrumentName={instrumentName}
+            />
+          </div>
+        </div>
       ) : (
-        <TimelineGrid
-          days={days}
-          bookings={bookings}
-          currentUserId={user?.id ?? null}
-          onSlotClick={openNewAt}
-          onBookingClick={openEdit}
-          instrumentName={instrumentName}
-        />
+        <div className="-mx-4 sm:mx-0 overflow-x-auto">
+          <div className={`px-4 sm:px-0 ${view === "week" ? "min-w-[860px]" : "min-w-[360px]"}`}>
+            <TimelineGrid
+              days={days}
+              bookings={bookings}
+              currentUserId={user?.id ?? null}
+              onSlotClick={openNewAt}
+              onBookingClick={openEdit}
+              instrumentName={instrumentName}
+            />
+          </div>
+        </div>
       )}
 
       <BookingDialog
