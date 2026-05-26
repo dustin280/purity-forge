@@ -71,6 +71,11 @@ export const qk = {
     list: () => ["parameter-scouting"] as const,
   },
 
+  compounds: {
+    all: ["compounds"] as const,
+    list: () => ["compounds"] as const,
+  },
+
   auditLog: {
     all: ["audit_log"] as const,
     list: (from: string, to: string, table: string) =>
