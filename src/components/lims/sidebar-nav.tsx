@@ -91,7 +91,7 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 
 export function SidebarNav() {
   return (
-    <aside className="hidden md:flex w-60 border-r border-sidebar-border shrink-0">
+    <aside className="hidden lg:flex w-60 border-r border-sidebar-border shrink-0">
       <SidebarBody />
     </aside>
   );
@@ -102,14 +102,14 @@ export function MobileTopBar() {
   const pathname = useRouterState({ select: r => r.location.pathname });
   useEffect(() => { setOpen(false); }, [pathname]);
   return (
-    <header className="md:hidden sticky top-0 z-40 flex items-center gap-2 h-12 px-3 bg-sidebar text-sidebar-foreground border-b border-sidebar-border">
+    <header className="lg:hidden sticky top-0 z-40 flex items-center gap-2 h-14 px-3 bg-sidebar text-sidebar-foreground border-b border-sidebar-border">
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
-          <Button size="icon" variant="ghost" className="text-white hover:bg-sidebar-accent">
+          <Button size="icon" variant="ghost" className="h-11 w-11 text-white hover:bg-sidebar-accent">
             <Menu className="size-5" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64 bg-sidebar border-sidebar-border">
+        <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBody onNavigate={() => setOpen(false)} />
         </SheetContent>
