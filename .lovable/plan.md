@@ -1,58 +1,63 @@
-## Goal
+## Lab Journal (personal, per-user)
 
-Replace the `test_parameters` source for the Parameter Scouting Run List picker with a dedicated, user-manageable compound list, seeded with 26 peptides/compounds. Provide both admin management and inline "+ Add" from the picker.
+Add a **Lab Journal** item to the sidebar for every authenticated user. Each entry is private to its author (only the author and admins can read/write/delete).
 
-## Database
+### Database
+New table `public.lab_journal_entries`:
+- `id`, `user_id` (auth user), `user_name` (snapshot)
+- `entry_at` (timestamptz, default now — captured when form opens, editable)
+- `title` (text, nullable, optional)
+- `body` (text, large free-write)
+- `created_at`, `updated_at` (+ trigger)
 
-New table `public.compounds`:
-- `id uuid pk`, `name text not null unique`, `is_active boolean default true`, `created_by uuid`, `created_at`, `updated_at` (+ `set_updated_at` trigger).
-- RLS:
-  - select: any authenticated user
-  - insert: tech / reviewer / admin (so inline-add from the picker works for techs)
-  - update / delete: admin only
-- Seed the 26 compounds:
-  TB500 (Thymosin β4 fragment), Ipamorelin, BPC-157 Acetate, Semax, SS-31 (Elamipritide), Melanotan (MT-II), NAD (NAD+), Glutathione, Tesamorelin, Retatrutide, GHK-Cu, Tirzepatide, Semaglutide, Selank, Cagrilintide, Sermorelin, Tadalafil, Epitalon, Pinealon, CJC-1295, KPV, PT-141 (Bremelanotide), BPC-157 (free), MOTS-C, Thymosin Beta 4.
+RLS:
+- SELECT: `user_id = auth.uid()` OR admin
+- INSERT: `user_id = auth.uid()`
+- UPDATE/DELETE: `user_id = auth.uid()` OR admin
 
-## Server functions (`src/lib/compounds.functions.ts`)
+### Server functions (`src/lib/lab-journal.functions.ts`)
+- `listJournalEntries()` — returns current user's entries, newest first
+- `createJournalEntry({ entry_at, title?, body })`
+- `updateJournalEntry({ id, entry_at?, title?, body? })`
+- `deleteJournalEntry({ id })`
 
-- `listCompounds()` — active compounds, ordered by name.
-- `createCompound({ name })` — Zod-validated, trimmed, case-insensitive duplicate check.
-- `updateCompound({ id, name?, is_active? })` — admin only (enforced server-side).
-- `deleteCompound({ id })` — admin only.
+All Zod-validated; `body` up to ~50k chars, `title` up to 200.
 
-## Parameter Scouting changes
+### UI
+- Sidebar: add **Lab Journal** (Notebook icon) under Operations, visible to everyone.
+- Route `/_authenticated/lab-journal/index.tsx`:
+  - Left/top: "New entry" button + searchable list of past entries (date · title · snippet).
+  - Right/below: editor panel.
+- `src/components/lab-journal/`:
+  - `entry-form.tsx` — date+time input prefilled with `new Date()` on open, optional Title, large `Textarea` (autosize, ~20+ rows) for body, Save / Save & Export PDF / Delete.
+  - `entries-list.tsx` — list with search box (title + body contains).
+  - `use-lab-journal.ts` — TanStack Query hooks.
+  - `journal-pdf.ts` — generate PDF via existing `pdf-lib`/`jspdf` pattern used in the project (matches `coc-pdf.ts` / `coa-pdf.ts` style): header with Synthesyx logo, user name, entry date/time, title, body (wrapped), page numbers.
 
-- `use-parameter-scouting.ts`: swap `listParameters` → `listCompounds`; expose `createCompound` mutation.
-- `compound-picker.tsx`: keep Command/Popover, add a footer row "+ Add '<typed text>'" that calls `createCompound`, then selects the new entry. Available to any user who can save a scouting entry.
-- Stored `run_list[].parameter_id` is renamed conceptually to `compound_id` (jsonb stays free-form, but the new code writes `compound_id` + `name`; reads tolerate the legacy `parameter_id` for any pre-existing rows).
+### Suggested extras (included unless you say otherwise)
+1. **Search** across title + body.
+2. **Edit anytime** (entries are personal notes, not approved records — no review workflow).
+3. **Markdown rendering** in a read view (write in plain text/markdown, render headings/lists/bold on view + PDF). Lightweight, no new heavy deps.
+4. **Tags** (free-text chips) for grouping ideas across entries — filterable in the list.
+5. **Attachments**: optional file/image uploads per entry, stored in a private `lab-journal` bucket scoped by `user_id/`. Useful for pasting chromatograms, photos of plates, etc.
+6. **"Insert timestamp" button** inside the body so users can mark sub-steps while writing.
+7. **Auto-save draft** to localStorage so an accidental nav doesn't lose work.
+8. **Export all my entries** (date range → single combined PDF) for record-keeping.
+9. **Privacy note** in the UI: "Only you and admins can read your journal."
 
-## Admin page
+### Out of scope
+- Sharing entries between users / comments / mentions.
+- Rich-text WYSIWYG editor (Markdown keeps it simple + PDF-friendly).
+- Linking entries to specific samples/preparations (could add later as a `related_*` field).
 
-- New route `src/routes/_authenticated/admin/compounds.tsx` + components under `src/components/admin/compounds/` (add form + list with rename / deactivate / delete), modeled on `admin/parameters`.
-- Add a "Compounds" tile to the Admin index.
+### Files to create/edit
+- Migration: `lab_journal_entries` + RLS + storage bucket `lab-journal` (if attachments approved).
+- `src/lib/lab-journal.functions.ts`
+- `src/routes/_authenticated/lab-journal/index.tsx`
+- `src/components/lab-journal/entry-form.tsx`, `entries-list.tsx`, `use-lab-journal.ts`, `journal-pdf.ts`
+- Edits: `src/components/lims/sidebar-nav.tsx` (add nav item), `src/lib/query-keys.ts`
 
-## "Shared across modules"
-
-Audit confirms the only true compound picker today is in Parameter Scouting. Standard Preparations uses `standard_suggestions` (standard names with typical solvent/concentration), which is a different concept and is left as-is. The new `compounds` table is the canonical compound list — any future picker should source from it.
-
-## Out of scope
-
-- No data migration of `test_parameters` (that table stays for HPLC test parameter definitions).
-- No edits to Standard Preparations or other existing flows.
-- No extra compound metadata (MW, CAS, default conc) — name only for now; easy to extend later.
-
-## Files
-
-Created:
-- `supabase/migrations/<ts>_compounds.sql`
-- `src/lib/compounds.functions.ts`
-- `src/routes/_authenticated/admin/compounds.tsx`
-- `src/components/admin/compounds/add-form.tsx`
-- `src/components/admin/compounds/compounds-list.tsx`
-
-Edited:
-- `src/lib/query-keys.ts` (add `compounds` key)
-- `src/components/parameter-scouting/use-parameter-scouting.ts` (swap source, add create mutation)
-- `src/components/parameter-scouting/compound-picker.tsx` (inline add)
-- `src/components/parameter-scouting/run-list-editor.tsx` (pass through create handler if needed)
-- `src/routes/_authenticated/admin/index.tsx` (Compounds tile)
+### Quick questions before I build
+1. Include all 9 suggested extras, or only a subset? (Especially: attachments, markdown, tags — each adds some surface area.)
+2. Should **admins** be able to read other users' journals (for compliance), or strictly private even from admins?
+3. PDF style: match the existing CoA/CoC branded header, or a simpler plain layout?

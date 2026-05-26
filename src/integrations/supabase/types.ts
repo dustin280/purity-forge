@@ -416,6 +416,39 @@ export type Database = {
         }
         Relationships: []
       }
+      lab_journal_entries: {
+        Row: {
+          body: string
+          created_at: string
+          entry_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          entry_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          entry_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       material_receipt_attachments: {
         Row: {
           content_type: string | null
