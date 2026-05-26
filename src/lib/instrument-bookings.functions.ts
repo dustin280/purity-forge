@@ -87,7 +87,13 @@ export const updateBooking = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => updateSchema.parse(d))
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
-    const clean: Record<string, unknown> = {};
+    const clean: {
+      instrument_id?: string;
+      starts_at?: string;
+      ends_at?: string;
+      purpose?: string;
+      notes?: string | null;
+    } = {};
     if (patch.instrument_id !== undefined) clean.instrument_id = patch.instrument_id;
     if (patch.starts_at !== undefined) clean.starts_at = patch.starts_at;
     if (patch.ends_at !== undefined) clean.ends_at = patch.ends_at;
