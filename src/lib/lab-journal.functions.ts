@@ -67,7 +67,11 @@ export const updateLabJournalEntry = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => updateSchema.parse(d))
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
-    const cleanPatch: Record<string, unknown> = {};
+    const cleanPatch: {
+      entry_at?: string;
+      title?: string | null;
+      body?: string;
+    } = {};
     if (patch.entry_at !== undefined) cleanPatch.entry_at = patch.entry_at;
     if (patch.title !== undefined) cleanPatch.title = patch.title || null;
     if (patch.body !== undefined) cleanPatch.body = patch.body;
