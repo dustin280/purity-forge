@@ -48,20 +48,20 @@ function AccessLogsAdmin() {
 
   if (role && role !== "admin") {
     return (
-      <div className="p-6 md:p-8 max-w-3xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-3xl">
         <p className="text-sm text-muted-foreground">Admins only.</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <Link to="/admin" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="size-4" /> Back to Admin
       </Link>
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Access Logs</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Access Logs</h1>
         <p className="text-sm text-muted-foreground mt-1">User sign-in and sign-out activity. Showing up to 1,000 most recent events in range.</p>
       </div>
 

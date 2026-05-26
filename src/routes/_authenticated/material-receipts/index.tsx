@@ -35,11 +35,11 @@ function ReceiptsIndex() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Lab Records</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Material Receipts</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Material Receipts</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Log incoming controlled and uncontrolled materials. Full audit trail and printable records.
           </p>

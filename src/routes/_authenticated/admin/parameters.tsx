@@ -46,13 +46,13 @@ function ParametersAdmin() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Link to="/admin" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4">
         <ArrowLeft className="size-3" /> Back to Admin
       </Link>
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Requested Tests</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Requested Tests</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Tests available for selection on each compound row of the Chain of Custody (e.g. Endotoxin, Heavy Metals, Sterility). Deactivate to hide without losing history.
         </p>

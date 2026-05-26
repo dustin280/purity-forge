@@ -40,7 +40,7 @@ function ParameterScoutingPage() {
   );
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <Link to="/lab-logs">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2">
           <ArrowLeft className="size-4 mr-1" /> Back to Logs
@@ -50,7 +50,7 @@ function ParameterScoutingPage() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
           Logs
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
           Parameter Scouting Log
         </h1>
         <p className="text-sm text-muted-foreground mt-1">

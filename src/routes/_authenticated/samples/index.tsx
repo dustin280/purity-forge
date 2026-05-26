@@ -23,11 +23,11 @@ function SamplesList() {
   });
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px]">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Specimen Registry</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Samples</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Samples</h1>
         </div>
         <Button asChild><Link to="/samples/new"><Plus className="size-4 mr-1" />New Sample</Link></Button>
       </div>

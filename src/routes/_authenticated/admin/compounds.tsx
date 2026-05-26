@@ -69,7 +69,7 @@ function CompoundsAdmin() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Link
         to="/admin"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4"
@@ -80,7 +80,7 @@ function CompoundsAdmin() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
           Administration
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Compounds</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Compounds</h1>
         <p className="text-sm text-muted-foreground mt-1">
           The compound list used by the Parameter Scouting Run List picker
           (and any future module that picks compounds). Deactivate to hide

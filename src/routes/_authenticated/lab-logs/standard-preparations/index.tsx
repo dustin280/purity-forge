@@ -32,12 +32,12 @@ function StandardPrepsIndex() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <Link to="/lab-logs"><Button variant="ghost" size="sm" className="-ml-2 mb-2"><ArrowLeft className="size-4 mr-1" /> Back to Logs</Button></Link>
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Logs</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Standard Preparation Log</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Standard Preparation Log</h1>
           <p className="text-sm text-muted-foreground mt-1">Reference standards, system suitability, check standards, working solutions.</p>
         </div>
         <Link to="/lab-logs/standard-preparations/new"><Button><Plus className="size-4 mr-1" /> New Preparation</Button></Link>
