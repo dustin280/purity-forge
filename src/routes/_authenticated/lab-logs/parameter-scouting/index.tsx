@@ -22,7 +22,8 @@ function ParameterScoutingPage() {
   const isAdmin = role === "admin";
   const {
     query,
-    paramsQuery,
+    compoundsQuery,
+    createCompoundMut,
     createMut,
     updateMut,
     deleteMut,
@@ -32,10 +33,10 @@ function ParameterScoutingPage() {
 
   const compoundOptions = useMemo(
     () =>
-      (paramsQuery.data ?? [])
+      (compoundsQuery.data ?? [])
         .filter((p) => p.is_active)
         .map((p) => ({ id: p.id, name: p.name })),
-    [paramsQuery.data],
+    [compoundsQuery.data],
   );
 
   return (
@@ -61,6 +62,11 @@ function ParameterScoutingPage() {
         <ScoutingForm
           defaultUserName={defaultName}
           compoundOptions={compoundOptions}
+          onCreateCompound={(name) =>
+            createCompoundMut
+              .mutateAsync(name)
+              .then((c) => ({ id: c.id, name: c.name }))
+          }
           editing={editing}
           loading={createMut.isPending || updateMut.isPending}
           onSubmit={(payload) => {

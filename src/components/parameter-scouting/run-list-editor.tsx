@@ -8,6 +8,7 @@ interface RunListEditorProps {
   rows: RunListItem[];
   options: CompoundOption[];
   onChange: (next: RunListItem[]) => void;
+  onCreateCompound?: (name: string) => Promise<CompoundOption>;
   disabled?: boolean;
 }
 
@@ -15,6 +16,7 @@ export function RunListEditor({
   rows,
   options,
   onChange,
+  onCreateCompound,
   disabled,
 }: RunListEditorProps) {
   const update = (i: number, patch: Partial<RunListItem>) => {
@@ -53,6 +55,7 @@ export function RunListEditor({
               options={options}
               value={{ parameter_id: r.parameter_id, name: r.name }}
               onChange={(v) => update(i, v)}
+              onCreateCompound={onCreateCompound}
               disabled={disabled}
             />
             <Input

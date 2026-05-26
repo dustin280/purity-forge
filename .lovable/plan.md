@@ -1,70 +1,58 @@
+## Goal
 
-## Parameter Scouting Log
+Replace the `test_parameters` source for the Parameter Scouting Run List picker with a dedicated, user-manageable compound list, seeded with 26 peptides/compounds. Provide both admin management and inline "+ Add" from the picker.
 
-A new lab log under **Logs → Parameter Scouting Log** for capturing HPLC method scouting conditions and the compound run list.
+## Database
 
-### Database (one migration)
+New table `public.compounds`:
+- `id uuid pk`, `name text not null unique`, `is_active boolean default true`, `created_by uuid`, `created_at`, `updated_at` (+ `set_updated_at` trigger).
+- RLS:
+  - select: any authenticated user
+  - insert: tech / reviewer / admin (so inline-add from the picker works for techs)
+  - update / delete: admin only
+- Seed the 26 compounds:
+  TB500 (Thymosin β4 fragment), Ipamorelin, BPC-157 Acetate, Semax, SS-31 (Elamipritide), Melanotan (MT-II), NAD (NAD+), Glutathione, Tesamorelin, Retatrutide, GHK-Cu, Tirzepatide, Semaglutide, Selank, Cagrilintide, Sermorelin, Tadalafil, Epitalon, Pinealon, CJC-1295, KPV, PT-141 (Bremelanotide), BPC-157 (free), MOTS-C, Thymosin Beta 4.
 
-Two new tables, RLS modeled on `daily_backpressure_logs` (any tech/reviewer/admin can read/write; admin or creator can delete/update):
+## Server functions (`src/lib/compounds.functions.ts`)
 
-- `parameter_scouting_logs`
-  - `run_at` (date/time, defaults now)
-  - `user_id`, `user_name`
-  - `flow_rate_ml_per_min` (numeric)
-  - `temperature_c` (numeric)
-  - `mobile_phase_a` (text, default `"H2O + 0.1% TFA"`)
-  - `mobile_phase_b` (text, default `"ACN + 0.1% TFA"`)
-  - `sample_diluent` (text)
-  - `comments` (text)
-  - `gradient` (jsonb: `[{ time_min, percent_a, percent_b }]`)
-  - `run_list` (jsonb: `[{ parameter_id, name, concentration_mg_per_l }]`)
-  - `created_by`, timestamps
+- `listCompounds()` — active compounds, ordered by name.
+- `createCompound({ name })` — Zod-validated, trimmed, case-insensitive duplicate check.
+- `updateCompound({ id, name?, is_active? })` — admin only (enforced server-side).
+- `deleteCompound({ id })` — admin only.
 
-Storing `run_list` and `gradient` as JSON keeps the schema tight (matches how `preparation_steps` is stored on standard preps). No child tables needed since rows are bounded (≤400 compounds, gradient typically <20 rows) and are always read with the parent.
+## Parameter Scouting changes
 
-### Compounds source
+- `use-parameter-scouting.ts`: swap `listParameters` → `listCompounds`; expose `createCompound` mutation.
+- `compound-picker.tsx`: keep Command/Popover, add a footer row "+ Add '<typed text>'" that calls `createCompound`, then selects the new entry. Available to any user who can save a scouting entry.
+- Stored `run_list[].parameter_id` is renamed conceptually to `compound_id` (jsonb stays free-form, but the new code writes `compound_id` + `name`; reads tolerate the legacy `parameter_id` for any pre-existing rows).
 
-The Run List picker queries `test_parameters` (the existing admin "Parameters" list). Each row stores `parameter_id` + denormalized `name` snapshot so historical logs still read correctly if a parameter is renamed/deactivated.
+## Admin page
 
-### UI
+- New route `src/routes/_authenticated/admin/compounds.tsx` + components under `src/components/admin/compounds/` (add form + list with rename / deactivate / delete), modeled on `admin/parameters`.
+- Add a "Compounds" tile to the Admin index.
 
-**Route:** `/lab-logs/parameter-scouting` (added as a 4th card in `lab-logs/index.tsx`).
+## "Shared across modules"
 
-**Page layout:**
-- Top: "New entry" form card (collapsible / always-visible like Daily Backpressure).
-- Below: table of saved entries with Edit button per row.
+Audit confirms the only true compound picker today is in Parameter Scouting. Standard Preparations uses `standard_suggestions` (standard names with typical solvent/concentration), which is a different concept and is left as-is. The new `compounds` table is the canonical compound list — any future picker should source from it.
 
-**Form fields:**
-- Date/time (datetime-local, defaults now) — read-only display of user name from session.
-- Flow Rate (mL/min), Temperature (°C) — number inputs, units locked.
-- Mobile Phase A / B — text inputs prefilled with the TFA defaults, editable.
-- **Gradient editor** — small table with columns Time (min) | %A | %B | × ; "+ Add step" button. Auto-fill %B = 100 − %A on edit (still editable).
-- **Run List** — repeating row of `[Compound select][Concentration mg/L][×]`, with "+ Add compound" button. Compound select is a searchable dropdown (Command/Popover) of active `test_parameters`. Supports up to 400 rows.
-- Sample Diluent (text), Comments (textarea).
-- Save / Cancel buttons.
+## Out of scope
 
-**Saved entries table** (`readings-table` style):
-Columns: Date, User, # compounds, Flow, Temp, Gradient summary (e.g. "5 steps, 5→95% B"), Actions (Edit, Delete for admin/creator). Clicking Edit reopens the form pre-populated.
+- No data migration of `test_parameters` (that table stays for HPLC test parameter definitions).
+- No edits to Standard Preparations or other existing flows.
+- No extra compound metadata (MW, CAS, default conc) — name only for now; easy to extend later.
 
-### Code structure
+## Files
 
-- `supabase/migrations/<ts>_parameter_scouting.sql` — table + RLS.
-- `src/lib/parameter-scouting.functions.ts` — `listParameterScoutingLogs`, `createParameterScoutingLog`, `updateParameterScoutingLog`, `deleteParameterScoutingLog` (all `createServerFn` + `requireSupabaseAuth`).
-- `src/components/parameter-scouting/`
-  - `types.ts` (RunListItem, GradientStep, FormValues)
-  - `use-parameter-scouting.ts` (list + mutations via TanStack Query)
-  - `scouting-form.tsx` (the form card)
-  - `gradient-editor.tsx`
-  - `run-list-editor.tsx` (with compound combobox)
-  - `compound-picker.tsx` (reuses `test_parameters` lookup; new server fn `listTestParameters` if not already exposed)
-  - `entries-table.tsx`
-- `src/routes/_authenticated/lab-logs/parameter-scouting/index.tsx`
-- Update `src/routes/_authenticated/lab-logs/index.tsx` to add the new card with a `FlaskRound`/`Beaker` icon.
+Created:
+- `supabase/migrations/<ts>_compounds.sql`
+- `src/lib/compounds.functions.ts`
+- `src/routes/_authenticated/admin/compounds.tsx`
+- `src/components/admin/compounds/add-form.tsx`
+- `src/components/admin/compounds/compounds-list.tsx`
 
-### Out of scope
-
-- No PDF export, no review/approval workflow, no batch/group, no attachments — kept "simple save/edit" per your answer. Easy to layer on later if needed.
-
-### Verification
-
-After build: create an entry with 3 compounds + 5-step gradient, save, confirm it appears in the table, edit it, confirm changes persist, delete as admin.
+Edited:
+- `src/lib/query-keys.ts` (add `compounds` key)
+- `src/components/parameter-scouting/use-parameter-scouting.ts` (swap source, add create mutation)
+- `src/components/parameter-scouting/compound-picker.tsx` (inline add)
+- `src/components/parameter-scouting/run-list-editor.tsx` (pass through create handler if needed)
+- `src/routes/_authenticated/admin/index.tsx` (Compounds tile)

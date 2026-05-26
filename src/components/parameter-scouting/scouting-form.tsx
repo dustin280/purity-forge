@@ -55,6 +55,7 @@ function Field({
 interface ScoutingFormProps {
   defaultUserName: string;
   compoundOptions: CompoundOption[];
+  onCreateCompound?: (name: string) => Promise<CompoundOption>;
   editing: ParameterScoutingRow | null;
   loading: boolean;
   onSubmit: (payload: ScoutingPayload) => void;
@@ -64,6 +65,7 @@ interface ScoutingFormProps {
 export function ScoutingForm({
   defaultUserName,
   compoundOptions,
+  onCreateCompound,
   editing,
   loading,
   onSubmit,
@@ -221,6 +223,7 @@ export function ScoutingForm({
             rows={runList}
             options={compoundOptions}
             onChange={setRunList}
+            onCreateCompound={onCreateCompound}
           />
         </Field>
 
