@@ -19,6 +19,7 @@ import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authe
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
+import { Route as AuthenticatedLabJournalIndexRouteImport } from './routes/_authenticated/lab-journal/index'
 import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
@@ -90,6 +91,12 @@ const AuthenticatedLabLogsIndexRoute =
   AuthenticatedLabLogsIndexRouteImport.update({
     id: '/lab-logs/',
     path: '/lab-logs/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabJournalIndexRoute =
+  AuthenticatedLabJournalIndexRouteImport.update({
+    id: '/lab-journal/',
+    path: '/lab-journal/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedIssuesIndexRoute =
@@ -216,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/issues/': typeof AuthenticatedIssuesIndexRoute
+  '/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
@@ -245,6 +253,7 @@ export interface FileRoutesByTo {
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/issues': typeof AuthenticatedIssuesIndexRoute
+  '/lab-journal': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
@@ -276,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
+  '/_authenticated/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
@@ -307,6 +317,7 @@ export interface FileRouteTypes {
     | '/samples/new'
     | '/admin/'
     | '/issues/'
+    | '/lab-journal/'
     | '/lab-logs/'
     | '/material-receipts/'
     | '/samples/'
@@ -336,6 +347,7 @@ export interface FileRouteTypes {
     | '/samples/new'
     | '/admin'
     | '/issues'
+    | '/lab-journal'
     | '/lab-logs'
     | '/material-receipts'
     | '/samples'
@@ -366,6 +378,7 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
     | '/_authenticated/issues/'
+    | '/_authenticated/lab-journal/'
     | '/_authenticated/lab-logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
@@ -454,6 +467,13 @@ declare module '@tanstack/react-router' {
       path: '/lab-logs'
       fullPath: '/lab-logs/'
       preLoaderRoute: typeof AuthenticatedLabLogsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-journal/': {
+      id: '/_authenticated/lab-journal/'
+      path: '/lab-journal'
+      fullPath: '/lab-journal/'
+      preLoaderRoute: typeof AuthenticatedLabJournalIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/issues/': {
@@ -602,6 +622,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
+  AuthenticatedLabJournalIndexRoute: typeof AuthenticatedLabJournalIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
@@ -630,6 +651,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
+  AuthenticatedLabJournalIndexRoute: AuthenticatedLabJournalIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
@@ -660,13 +682,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
