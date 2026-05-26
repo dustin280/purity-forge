@@ -9,7 +9,11 @@ import {
   type GradientStep,
   type RunListItem,
 } from "@/lib/parameter-scouting.functions";
-import { listParameters } from "@/lib/lims/parameters.functions";
+import {
+  listCompounds,
+  createCompound,
+  type Compound,
+} from "@/lib/compounds.functions";
 import { qk } from "@/lib/query-keys";
 
 export type ScoutingPayload = {
@@ -31,16 +35,25 @@ export function useParameterScouting() {
   const create = useServerFn(createParameterScoutingLog);
   const update = useServerFn(updateParameterScoutingLog);
   const del = useServerFn(deleteParameterScoutingLog);
-  const fetchParams = useServerFn(listParameters);
+  const fetchCompounds = useServerFn(listCompounds);
+  const addCompound = useServerFn(createCompound);
 
   const query = useQuery({
     queryKey: qk.parameterScouting.list(),
     queryFn: () => list(),
   });
 
-  const paramsQuery = useQuery({
-    queryKey: qk.testParameters.list(),
-    queryFn: () => fetchParams(),
+  const compoundsQuery = useQuery({
+    queryKey: qk.compounds.list(),
+    queryFn: () => fetchCompounds(),
+  });
+
+  const createCompoundMut = useMutation({
+    mutationFn: (name: string) => addCompound({ data: { name } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.compounds.all });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const createMut = useMutation({
@@ -71,5 +84,14 @@ export function useParameterScouting() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { query, paramsQuery, createMut, updateMut, deleteMut };
+  return {
+    query,
+    compoundsQuery,
+    createCompoundMut,
+    createMut,
+    updateMut,
+    deleteMut,
+  };
 }
+
+export type { Compound };
