@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +25,7 @@ interface CompoundPickerProps {
   options: CompoundOption[];
   value: { parameter_id: string | null; name: string };
   onChange: (next: { parameter_id: string | null; name: string }) => void;
+  onCreateCompound?: (name: string) => Promise<CompoundOption>;
   disabled?: boolean;
 }
 
@@ -32,11 +33,41 @@ export function CompoundPicker({
   options,
   value,
   onChange,
+  onCreateCompound,
   disabled,
 }: CompoundPickerProps) {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const trimmed = search.trim();
+  const hasExact = options.some(
+    (o) => o.name.toLowerCase() === trimmed.toLowerCase(),
+  );
+  const canCreate = !!onCreateCompound && trimmed.length > 0 && !hasExact;
+
+  async function handleCreate() {
+    if (!onCreateCompound || !trimmed || creating) return;
+    try {
+      setCreating(true);
+      const created = await onCreateCompound(trimmed);
+      onChange({ parameter_id: created.id, name: created.name });
+      setSearch("");
+      setOpen(false);
+    } catch {
+      /* mutation onError already toasts */
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setSearch("");
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -55,9 +86,27 @@ export function CompoundPicker({
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[280px]" align="start">
         <Command>
-          <CommandInput placeholder="Search compound…" />
+          <CommandInput
+            placeholder="Search or add compound…"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
-            <CommandEmpty>No compounds found.</CommandEmpty>
+            <CommandEmpty>
+              {canCreate ? (
+                <button
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={creating}
+                  className="w-full text-left px-2 py-1.5 text-sm hover:bg-accent rounded-sm flex items-center"
+                >
+                  <Plus className="mr-2 size-4" />
+                  {creating ? "Adding…" : `Add "${trimmed}"`}
+                </button>
+              ) : (
+                "No compounds found."
+              )}
+            </CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
                 <CommandItem
@@ -79,6 +128,16 @@ export function CompoundPicker({
                   {o.name}
                 </CommandItem>
               ))}
+              {canCreate && (
+                <CommandItem
+                  value={`__create_${trimmed}`}
+                  onSelect={handleCreate}
+                  disabled={creating}
+                >
+                  <Plus className="mr-2 size-4" />
+                  {creating ? "Adding…" : `Add "${trimmed}"`}
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
