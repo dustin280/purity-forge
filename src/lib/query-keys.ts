@@ -66,6 +66,11 @@ export const qk = {
     list: () => ["daily-backpressure"] as const,
   },
 
+  parameterScouting: {
+    all: ["parameter-scouting"] as const,
+    list: () => ["parameter-scouting"] as const,
+  },
+
   auditLog: {
     all: ["audit_log"] as const,
     list: (from: string, to: string, table: string) =>
