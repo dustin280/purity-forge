@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker } from "lucide-react";
+import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker, Droplets } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/")({ component: LogsIndex });
 
@@ -9,6 +9,7 @@ const ITEMS = [
   { to: "/lab-logs/standard-preparations", title: "Standard Preparation Log", description: "Reference standards, system suitability, check standards, and working solutions.", icon: FlaskConical },
   { to: "/lab-logs/daily-backpressure", title: "Daily Backpressure Log", description: "Quick daily HPLC backpressure readings.", icon: Gauge },
   { to: "/lab-logs/parameter-scouting", title: "Parameter Scouting Log", description: "HPLC method scouting: flow, temperature, gradient, and the compound run list.", icon: Beaker },
+  { to: "/lab-logs/mobile-phase", title: "Mobile Phase Prep Log", description: "Document mobile phase A/B preparations with auto-generated step-by-step instructions.", icon: Droplets },
 ] as const;
 
 function LogsIndex() {
