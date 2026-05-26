@@ -37,10 +37,13 @@ import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
+import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/new'
 import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
+import { Route as AuthenticatedLabLogsMobilePhaseNewRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/new'
+import { Route as AuthenticatedLabLogsMobilePhaseIdRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/$id'
 import { Route as AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/batch.$groupId'
 
 const LoginRoute = LoginRouteImport.update({
@@ -203,6 +206,12 @@ const AuthenticatedLabLogsParameterScoutingIndexRoute =
     path: '/lab-logs/parameter-scouting/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsMobilePhaseIndexRoute =
+  AuthenticatedLabLogsMobilePhaseIndexRouteImport.update({
+    id: '/lab-logs/mobile-phase/',
+    path: '/lab-logs/mobile-phase/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsDailyBackpressureIndexRoute =
   AuthenticatedLabLogsDailyBackpressureIndexRouteImport.update({
     id: '/lab-logs/daily-backpressure/',
@@ -224,6 +233,18 @@ const AuthenticatedLabLogsStandardPreparationsIdRoute =
   AuthenticatedLabLogsStandardPreparationsIdRouteImport.update({
     id: '/lab-logs/standard-preparations/$id',
     path: '/lab-logs/standard-preparations/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabLogsMobilePhaseNewRoute =
+  AuthenticatedLabLogsMobilePhaseNewRouteImport.update({
+    id: '/lab-logs/mobile-phase/new',
+    path: '/lab-logs/mobile-phase/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabLogsMobilePhaseIdRoute =
+  AuthenticatedLabLogsMobilePhaseIdRouteImport.update({
+    id: '/lab-logs/mobile-phase/$id',
+    path: '/lab-logs/mobile-phase/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute =
@@ -259,10 +280,13 @@ export interface FileRoutesByFullPath {
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -293,10 +317,13 @@ export interface FileRoutesByTo {
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/scheduler': typeof AuthenticatedSchedulerIndexRoute
+  '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -329,10 +356,13 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/_authenticated/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  '/_authenticated/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -365,10 +395,13 @@ export interface FileRouteTypes {
     | '/material-receipts/'
     | '/samples/'
     | '/scheduler/'
+    | '/lab-logs/mobile-phase/$id'
+    | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure/'
+    | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/standard-preparations/batch/$groupId'
@@ -399,10 +432,13 @@ export interface FileRouteTypes {
     | '/material-receipts'
     | '/samples'
     | '/scheduler'
+    | '/lab-logs/mobile-phase/$id'
+    | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure'
+    | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/standard-preparations/batch/$groupId'
@@ -434,10 +470,13 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
     | '/_authenticated/scheduler/'
+    | '/_authenticated/lab-logs/mobile-phase/$id'
+    | '/_authenticated/lab-logs/mobile-phase/new'
     | '/_authenticated/lab-logs/standard-preparations/$id'
     | '/_authenticated/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
+    | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
@@ -647,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/mobile-phase/': {
+      id: '/_authenticated/lab-logs/mobile-phase/'
+      path: '/lab-logs/mobile-phase'
+      fullPath: '/lab-logs/mobile-phase/'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/daily-backpressure/': {
       id: '/_authenticated/lab-logs/daily-backpressure/'
       path: '/lab-logs/daily-backpressure'
@@ -673,6 +719,20 @@ declare module '@tanstack/react-router' {
       path: '/lab-logs/standard-preparations/$id'
       fullPath: '/lab-logs/standard-preparations/$id'
       preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-logs/mobile-phase/new': {
+      id: '/_authenticated/lab-logs/mobile-phase/new'
+      path: '/lab-logs/mobile-phase/new'
+      fullPath: '/lab-logs/mobile-phase/new'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-logs/mobile-phase/$id': {
+      id: '/_authenticated/lab-logs/mobile-phase/$id'
+      path: '/lab-logs/mobile-phase/$id'
+      fullPath: '/lab-logs/mobile-phase/$id'
+      preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/lab-logs/standard-preparations/batch/$groupId': {
@@ -710,9 +770,12 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
+  AuthenticatedLabLogsMobilePhaseIdRoute: typeof AuthenticatedLabLogsMobilePhaseIdRoute
+  AuthenticatedLabLogsMobilePhaseNewRoute: typeof AuthenticatedLabLogsMobilePhaseNewRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -745,12 +808,18 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
+  AuthenticatedLabLogsMobilePhaseIdRoute:
+    AuthenticatedLabLogsMobilePhaseIdRoute,
+  AuthenticatedLabLogsMobilePhaseNewRoute:
+    AuthenticatedLabLogsMobilePhaseNewRoute,
   AuthenticatedLabLogsStandardPreparationsIdRoute:
     AuthenticatedLabLogsStandardPreparationsIdRoute,
   AuthenticatedLabLogsStandardPreparationsNewRoute:
     AuthenticatedLabLogsStandardPreparationsNewRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
+  AuthenticatedLabLogsMobilePhaseIndexRoute:
+    AuthenticatedLabLogsMobilePhaseIndexRoute,
   AuthenticatedLabLogsParameterScoutingIndexRoute:
     AuthenticatedLabLogsParameterScoutingIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIndexRoute:
