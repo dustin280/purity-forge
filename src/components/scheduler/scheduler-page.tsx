@@ -250,7 +250,6 @@ export function SchedulerPage() {
           days={days}
           bookings={bookings}
           currentUserId={user?.id ?? null}
-          isAdmin={isAdmin}
           onSlotClick={openNewAt}
           onBookingClick={openEdit}
           instrumentName={instrumentName}
@@ -280,7 +279,6 @@ function TimelineGrid({
   days,
   bookings,
   currentUserId,
-  isAdmin,
   onSlotClick,
   onBookingClick,
   instrumentName,
@@ -288,7 +286,6 @@ function TimelineGrid({
   days: Date[];
   bookings: InstrumentBooking[];
   currentUserId: string | null;
-  isAdmin: boolean;
   onSlotClick: (d: Date) => void;
   onBookingClick: (b: InstrumentBooking) => void;
   instrumentName: (id: string) => string;
@@ -370,7 +367,6 @@ function TimelineGrid({
               })}
             </div>
           );
-          void isAdmin;
         })}
       </div>
     </Card>
