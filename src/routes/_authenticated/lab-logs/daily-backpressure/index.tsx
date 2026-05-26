@@ -22,7 +22,7 @@ function BackpressureLog() {
   const { data: rows = [], isLoading } = query;
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <Link to="/lab-logs">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2">
           <ArrowLeft className="size-4 mr-1" /> Back to Logs

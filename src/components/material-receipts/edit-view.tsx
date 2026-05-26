@@ -85,7 +85,7 @@ export function ReceiptEditView({
   onCancel: () => void;
 }) {
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <h1 className="text-2xl font-bold tracking-tight mb-4">Edit {r.receipt_number}</h1>
       <ReceiptForm
         initial={receiptToFormValues(r)}

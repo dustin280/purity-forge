@@ -26,7 +26,7 @@ function SampleDetail() {
   const peaks: Peak[] = (latestResult?.peak_details as Peak[] | null) ?? [];
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px]">
       <SampleDetailHeader
         batchId={sample.batch_id}
         client={sample.client}

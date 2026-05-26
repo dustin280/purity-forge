@@ -23,7 +23,7 @@ function SamplesList() {
   });
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-[1400px]">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px]">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Specimen Registry</div>

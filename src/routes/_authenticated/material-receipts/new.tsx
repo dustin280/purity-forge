@@ -36,7 +36,7 @@ function NewReceipt() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <Link to="/material-receipts">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2"><ArrowLeft className="size-4 mr-1" /> Back</Button>
       </Link>

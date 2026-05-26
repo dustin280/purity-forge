@@ -26,7 +26,7 @@ function Users() {
   const [resetUserId, setResetUserId] = useState<string | null>(null);
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl">
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>

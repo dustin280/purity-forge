@@ -36,7 +36,7 @@ function PrepDetail() {
   if (editing) {
     const initial = buildPrepEditInitial(r, linked, data.targets);
     return (
-      <div className="p-6 md:p-8 max-w-5xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
         <h1 className="text-2xl font-bold tracking-tight mb-4">Edit {r.log_number}</h1>
         <PrepForm
           initial={initial}
@@ -52,7 +52,7 @@ function PrepDetail() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <PrepDetailHeader
         row={r}
         canEdit={canEdit}
