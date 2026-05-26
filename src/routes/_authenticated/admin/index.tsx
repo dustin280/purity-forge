@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
 const TILES = [
   { to: "/admin/parameters", title: "Requested Tests", desc: "Manage the test list shown on each compound row (Endotoxin, Heavy Metals, Sterility, etc.).", icon: FlaskConical },
+  { to: "/admin/compounds", title: "Compounds", desc: "Manage the compound list used by the Parameter Scouting Run List picker.", icon: Beaker },
   { to: "/admin/coc-fields", title: "Chain of Custody Fields", desc: "Add, edit, reorder, or remove fields on the Chain of Custody form.", icon: ClipboardList },
   { to: "/admin/access-logs", title: "Access Logs", desc: "View user sign-in and sign-out activity. Filter by date and export to PDF.", icon: ShieldCheck },
   { to: "/admin/audit-log", title: "Audit Trail", desc: "Review all database changes — who changed what, when, with before/after diffs.", icon: History },
