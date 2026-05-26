@@ -134,4 +134,12 @@ export const qk = {
     list: (fromISO: string, toISO: string, instrumentId: string | null) =>
       ["instrument-bookings", fromISO, toISO, instrumentId ?? "all"] as const,
   },
+
+  openlab: {
+    settings: ["openlab", "settings"] as const,
+    methods: ["openlab", "methods"] as const,
+    sequences: ["openlab", "sequences"] as const,
+    method: (name: string) => ["openlab", "method", name] as const,
+    sequence: (name: string) => ["openlab", "sequence", name] as const,
+  },
 } as const;
