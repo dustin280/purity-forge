@@ -61,7 +61,7 @@ function AccessLogsAdmin() {
       </Link>
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Access Logs</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Access Logs</h1>
         <p className="text-sm text-muted-foreground mt-1">User sign-in and sign-out activity. Showing up to 1,000 most recent events in range.</p>
       </div>
 

@@ -40,7 +40,7 @@ function NewReceipt() {
       <Link to="/material-receipts">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2"><ArrowLeft className="size-4 mr-1" /> Back</Button>
       </Link>
-      <h1 className="text-3xl font-bold tracking-tight mb-1">New Material Receipt</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">New Material Receipt</h1>
       <p className="text-sm text-muted-foreground mb-6">
         A unique receipt number will be assigned automatically once saved.
       </p>

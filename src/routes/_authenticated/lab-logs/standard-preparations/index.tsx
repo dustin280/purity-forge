@@ -37,7 +37,7 @@ function StandardPrepsIndex() {
       <div className="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Logs</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Standard Preparation Log</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Standard Preparation Log</h1>
           <p className="text-sm text-muted-foreground mt-1">Reference standards, system suitability, check standards, working solutions.</p>
         </div>
         <Link to="/lab-logs/standard-preparations/new"><Button><Plus className="size-4 mr-1" /> New Preparation</Button></Link>

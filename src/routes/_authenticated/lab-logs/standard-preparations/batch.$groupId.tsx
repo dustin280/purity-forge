@@ -45,7 +45,7 @@ function BatchView() {
       <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Batch</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">{rows.length} standards prepared</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">{rows.length} standards prepared</h1>
           <div className="text-sm text-muted-foreground mt-1">
             {new Date(head.prepared_at).toLocaleString()} · {head.analyst_name}
           </div>

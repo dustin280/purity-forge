@@ -30,7 +30,7 @@ function Users() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-          <h1 className="text-3xl font-bold tracking-tight mt-1">Users & Roles</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Users & Roles</h1>
           <p className="text-sm text-muted-foreground mt-1">Create accounts, assign roles, and remove users.</p>
         </div>
         <div className="flex gap-2">

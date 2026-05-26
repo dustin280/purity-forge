@@ -16,7 +16,7 @@ function Dashboard() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1400px]">
       <header>
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Operations · Live</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Lab Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Lab Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Real-time sample workflow and instrument throughput.</p>
       </header>
 

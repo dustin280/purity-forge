@@ -26,7 +26,7 @@ function LabJournalPage() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
           Personal
         </div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Lab Journal</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Lab Journal</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Your private notebook. Free-write observations, ideas, and decisions —
           export any entry to PDF.

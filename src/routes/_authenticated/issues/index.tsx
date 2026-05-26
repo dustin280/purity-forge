@@ -39,7 +39,7 @@ function IssuesPage() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Lab Notes</div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1">Notes & Issues</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Notes & Issues</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Report problems, observations, or maintenance items. Attach files or capture a photo on the spot.
         </p>

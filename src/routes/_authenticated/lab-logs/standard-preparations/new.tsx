@@ -38,7 +38,7 @@ function NewPrep() {
       <Link to="/lab-logs/standard-preparations">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2"><ArrowLeft className="size-4 mr-1" /> Back</Button>
       </Link>
-      <h1 className="text-3xl font-bold tracking-tight mb-1">New Standard Preparation</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">New Standard Preparation</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Each row in the calculator becomes its own journal line. A unique SYN ID (<span className="font-mono">{synPreviewPrefix}n</span>) is assigned per standard on save; the per-day counter is shared across all analysts.
       </p>
