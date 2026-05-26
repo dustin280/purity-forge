@@ -607,6 +607,60 @@ export type Database = {
         }
         Relationships: []
       }
+      parameter_scouting_logs: {
+        Row: {
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          flow_rate_ml_per_min: number | null
+          gradient: Json
+          id: string
+          mobile_phase_a: string
+          mobile_phase_b: string
+          run_at: string
+          run_list: Json
+          sample_diluent: string | null
+          temperature_c: number | null
+          updated_at: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          flow_rate_ml_per_min?: number | null
+          gradient?: Json
+          id?: string
+          mobile_phase_a?: string
+          mobile_phase_b?: string
+          run_at?: string
+          run_list?: Json
+          sample_diluent?: string | null
+          temperature_c?: number | null
+          updated_at?: string
+          user_id?: string | null
+          user_name: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          flow_rate_ml_per_min?: number | null
+          gradient?: Json
+          id?: string
+          mobile_phase_a?: string
+          mobile_phase_b?: string
+          run_at?: string
+          run_list?: Json
+          sample_diluent?: string | null
+          temperature_c?: number | null
+          updated_at?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
