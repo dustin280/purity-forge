@@ -16,6 +16,7 @@ const runListItemSchema = z.object({
   parameter_id: z.string().uuid().nullable(),
   name: z.string().min(1).max(255),
   concentration_mg_per_l: z.number().finite().nullable(),
+  comment: z.string().max(2000).nullable().optional(),
 });
 
 export type GradientStep = z.infer<typeof gradientStepSchema>;
