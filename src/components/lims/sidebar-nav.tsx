@@ -2,7 +2,7 @@
  * Primary app navigation: persistent sidebar on desktop, slide-over sheet on mobile. Highlights the active route via TanStack Router state and gates admin links by role.
  */
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen } from "lucide-react";
+import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
@@ -15,6 +15,7 @@ const NAV = [
   { to: "/intake", label: "Intake", icon: Inbox },
   { to: "/samples", label: "Samples", icon: FlaskConical },
   { to: "/lab-logs", label: "Logs", icon: NotebookPen },
+  { to: "/scheduler", label: "Scheduler", icon: CalendarDays },
   { to: "/lab-journal", label: "Lab Journal", icon: BookOpen },
   { to: "/issues", label: "Notes", icon: MessageSquareWarning },
   { to: "/integrations", label: "Integrations", icon: Webhook },

@@ -1,67 +1,86 @@
-# Lab Journal — Tags, Markdown, Attachments, Combined PDF
+# Instrument Scheduler
 
-Adds four enhancements to the existing personal Lab Journal. Search now also matches tags. Editing, PDF export, and RLS (per-user + admin) stay as today.
+A new sidebar item **Scheduler** (calendar icon) under Operations, accessible to all authenticated users. Admins additionally manage the instrument list.
 
-## 1. Tags + filtering
-- DB: add `tags text[] not null default '{}'` to `lab_journal_entries`; GIN index for fast contains/search.
-- Server fn schema: `tags: z.array(z.string().min(1).max(40)).max(20).optional()` on create/update.
-- Entry form: tag input chip editor (comma/Enter to add, click × to remove), max 20 tags, 40 chars each.
-- Entries list:
-  - Render tag chips next to each row.
-  - Search box matches title, body, **or** tag (case-insensitive).
-  - Add a "Filter by tag" dropdown showing all distinct tags across the user's entries; clicking a tag chip in a row also filters.
-- PDF: tags shown under "Date / Time" line.
+## Data model (new migration)
 
-## 2. Markdown rendering
-- Add `react-markdown` + `remark-gfm` (GitHub-flavored: tables, task lists, strikethrough, autolinks).
-- Entries list: snippet stays plain-text; add an expand/collapse caret on each row that reveals the full entry rendered as markdown (read-only).
-- Entry form body stays a plain `<Textarea>` (write markdown source). Add a "Preview" toggle that swaps the textarea for the rendered output.
-- PDF stays plain-text (current renderer); markdown source is preserved verbatim.
+**`instruments`** — admin-curated list
+- `id uuid pk`, `name text not null unique`, `location text`, `notes text`, `is_active boolean default true`, `created_at`, `updated_at`
+- RLS: select for all authenticated; insert/update/delete admin only.
 
-## 3. File attachments (per entry)
-- New private storage bucket `lab-journal-attachments` (not public). Path convention: `{user_id}/{entry_id}/{uuid}-{filename}`.
-- Storage RLS: only the owning user (path's first folder = `auth.uid()`) or an admin can SELECT / INSERT / DELETE.
-- New table `lab_journal_attachments` (`id`, `entry_id`, `user_id`, `file_path`, `file_name`, `content_type`, `size_bytes`, `uploaded_by`, `uploaded_at`). RLS mirrors the parent entry (owner or admin).
-- Server fns in `src/lib/lab-journal-attachments.functions.ts`:
-  - `listAttachments(entry_id)`, `signAttachmentUrl(id)` (returns short-lived signed URL), `deleteAttachment(id)` (removes row + storage object).
-- Upload happens client-side via `supabase.storage.from(...).upload(...)` after the entry exists, then a server fn inserts the row.
-- Limits: 10 files per entry, 20 MB each, common types (images, PDF, CSV, TXT, XLSX, DOCX).
-- Entry form: attachment panel (only visible when editing or after first save) with drag-and-drop + file picker, thumbnail for images, filename + size for others, download and delete buttons.
-- New entries: show attachments panel as disabled with a hint "Save the entry first to attach files."
+**`instrument_bookings`** — reservations
+- `id uuid pk`
+- `instrument_id uuid not null` (references instruments)
+- `user_id uuid not null` (booker)
+- `user_name text not null` (snapshot for display)
+- `starts_at timestamptz not null`
+- `ends_at timestamptz not null`
+- `purpose text` (short title shown on the calendar block)
+- `notes text` (optional longer description)
+- `created_at`, `updated_at`
+- Index on `(instrument_id, starts_at, ends_at)`
+- Validation trigger: `ends_at > starts_at`, max duration 14 days, `starts_at >= now() - interval '1 day'` on insert.
+- **No-overlap enforcement**: trigger `prevent_booking_overlap()` runs on INSERT/UPDATE — rejects if any other booking for the same `instrument_id` has `tstzrange(starts_at, ends_at, '[)')` overlapping the new row. Returns a clear error message naming the conflicting booker + time.
+- RLS:
+  - select: all authenticated
+  - insert: any tech/reviewer/admin where `user_id = auth.uid()`
+  - update/delete: `user_id = auth.uid()` OR admin
 
-## 4. Combined PDF export
-- New "Export combined PDF" button above the entries list with a date-range picker (from / to, both optional) and an optional tag filter.
-- New helper `downloadCombinedJournalPdf(entries)` in `src/lib/journal-pdf.ts`:
-  - Shared Synthesyx header on every page.
-  - Cover page: title, author, range, tag filter, total entry count.
-  - Each entry: H2 title + metadata + tags + body, separated by a page break.
-  - Footer: `Page X of Y · Confidential — personal lab journal`.
-- Filename: `lab-journal-combined-{from}_{to}.pdf` (or `-all` when unbounded).
+## Server functions (`src/lib/instruments.functions.ts`, `src/lib/instrument-bookings.functions.ts`)
+
+All use `requireSupabaseAuth`.
+
+- `listInstruments()` → active instruments
+- `adminUpsertInstrument(input)` / `adminDeleteInstrument({id})` — admin-only guard
+- `listBookings({ from, to, instrumentId? })` → bookings in range with booker name
+- `createBooking({ instrumentId, startsAt, endsAt, purpose, notes })`
+- `updateBooking({ id, ... })`
+- `deleteBooking({ id })`
+
+Zod-validated inputs (ISO datetime strings, length caps). Surface overlap trigger errors as user-friendly messages.
+
+## UI
+
+**Route:** `src/routes/_authenticated/scheduler/index.tsx`
+- Header: instrument selector (dropdown of active instruments; "All instruments" option for week/day views colored per instrument), view toggle (Week / Day / Month), prev/today/next nav, "New booking" button.
+- **Week view** (default): horizontal day columns × hour rows (6am–10pm by default, scrollable), bookings rendered as positioned blocks showing purpose + booker initials. Click empty slot → new booking dialog prefilled; click block → details popover with edit/delete (own bookings or admin).
+- **Day view**: single-day vertical timeline, same interactions.
+- **Month view**: standard month grid; each cell lists up to 3 bookings (compact chips), "+N more" reveals day view.
+- Color: each instrument gets a stable hue from semantic tokens; current user's own bookings get a subtle ring.
+- Booking dialog: instrument, start date+time, end date+time (date pickers + time inputs), purpose (required, ≤80 chars), notes (optional, ≤500). Live conflict check before submit (client query against the loaded range). Server-side trigger is the source of truth.
+
+**Components** (`src/components/scheduler/`):
+- `scheduler-page.tsx` (orchestrator)
+- `week-view.tsx`, `day-view.tsx`, `month-view.tsx`
+- `booking-dialog.tsx`
+- `booking-block.tsx` (renders a positioned block)
+- `instrument-picker.tsx`
+- `use-scheduler.ts` (TanStack Query hooks keyed on `[scope, instrumentId, fromISO, toISO]`)
+
+**Admin instrument management:** new card on `/admin` route — list + add/edit/deactivate instruments. Existing admin page pattern reused.
 
 ## Files
 
-**Migrations (1 new):**
-- `supabase/migrations/<ts>_lab_journal_extras.sql` — adds `tags` column + GIN index to `lab_journal_entries`; creates `lab_journal_attachments` table with RLS; creates `lab-journal-attachments` storage bucket + storage.objects policies.
+**New**
+- `supabase/migrations/{ts}_instrument_scheduler.sql`
+- `src/lib/instruments.functions.ts`
+- `src/lib/instrument-bookings.functions.ts`
+- `src/routes/_authenticated/scheduler/index.tsx`
+- `src/components/scheduler/scheduler-page.tsx`
+- `src/components/scheduler/week-view.tsx`
+- `src/components/scheduler/day-view.tsx`
+- `src/components/scheduler/month-view.tsx`
+- `src/components/scheduler/booking-dialog.tsx`
+- `src/components/scheduler/booking-block.tsx`
+- `src/components/scheduler/instrument-picker.tsx`
+- `src/components/scheduler/use-scheduler.ts`
+- `src/components/admin/instruments-admin.tsx`
 
-**New files:**
-- `src/lib/lab-journal-attachments.functions.ts`
-- `src/components/lab-journal/tag-input.tsx`
-- `src/components/lab-journal/attachment-panel.tsx`
-- `src/components/lab-journal/markdown-view.tsx`
-- `src/components/lab-journal/combined-export-dialog.tsx`
-
-**Edited files:**
-- `src/lib/lab-journal.functions.ts` — add `tags` to create/update schemas and `LabJournalEntry`.
-- `src/lib/journal-pdf.ts` — render tags; add `downloadCombinedJournalPdf`.
-- `src/components/lab-journal/entry-form.tsx` — tag editor, markdown preview toggle, attachments panel (edit mode).
-- `src/components/lab-journal/entries-list.tsx` — tag chips, tag filter, expand/collapse markdown view, combined-export button.
-- `src/components/lab-journal/use-lab-journal.ts` — pass `tags` through.
-- `src/lib/query-keys.ts` — add `labJournalAttachments` keys.
-
-## Dependencies
-- `bun add react-markdown remark-gfm`
+**Edited**
+- `src/components/lims/sidebar-nav.tsx` — add "Scheduler" (CalendarDays icon)
+- `src/lib/query-keys.ts` — add scheduler keys
+- `src/routes/_authenticated/admin/index.tsx` (or equivalent) — mount `InstrumentsAdmin`
+- `src/integrations/supabase/types.ts` — regenerated post-migration
 
 ## Out of scope
-- Sharing entries between users.
-- WYSIWYG editor (markdown source only).
-- Server-side full-text search (client-side filtering is fast enough at the 500-entry cap).
+- Recurring bookings, email/Slack reminders, ICS export, cross-day repeat patterns, sample/test linkage. Easy follow-ups once core is in.

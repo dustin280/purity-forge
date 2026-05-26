@@ -16,6 +16,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
+import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
@@ -27,6 +28,7 @@ import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authe
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
+import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
@@ -73,6 +75,12 @@ const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
     path: '/chain-of-custody',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSchedulerIndexRoute =
+  AuthenticatedSchedulerIndexRouteImport.update({
+    id: '/scheduler/',
+    path: '/scheduler/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSamplesIndexRoute =
@@ -137,6 +145,12 @@ const AuthenticatedAdminParametersRoute =
   AuthenticatedAdminParametersRouteImport.update({
     id: '/admin/parameters',
     path: '/admin/parameters',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminInstrumentsRoute =
+  AuthenticatedAdminInstrumentsRouteImport.update({
+    id: '/admin/instruments',
+    path: '/admin/instruments',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminCompoundsRoute =
@@ -216,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -227,6 +242,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -246,6 +262,7 @@ export interface FileRoutesByTo {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -257,6 +274,7 @@ export interface FileRoutesByTo {
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/scheduler': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -278,6 +296,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -289,6 +308,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -310,6 +330,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/instruments'
     | '/admin/parameters'
     | '/material-receipts/$id'
     | '/material-receipts/new'
@@ -321,6 +342,7 @@ export interface FileRouteTypes {
     | '/lab-logs/'
     | '/material-receipts/'
     | '/samples/'
+    | '/scheduler/'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -340,6 +362,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/instruments'
     | '/admin/parameters'
     | '/material-receipts/$id'
     | '/material-receipts/new'
@@ -351,6 +374,7 @@ export interface FileRouteTypes {
     | '/lab-logs'
     | '/material-receipts'
     | '/samples'
+    | '/scheduler'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -371,6 +395,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/audit-log'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
+    | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/new'
@@ -382,6 +407,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
+    | '/_authenticated/scheduler/'
     | '/_authenticated/lab-logs/standard-preparations/$id'
     | '/_authenticated/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -446,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/chain-of-custody'
       fullPath: '/chain-of-custody'
       preLoaderRoute: typeof AuthenticatedChainOfCustodyRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/scheduler/': {
+      id: '/_authenticated/scheduler/'
+      path: '/scheduler'
+      fullPath: '/scheduler/'
+      preLoaderRoute: typeof AuthenticatedSchedulerIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/samples/': {
@@ -523,6 +556,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/parameters'
       fullPath: '/admin/parameters'
       preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/instruments': {
+      id: '/_authenticated/admin/instruments'
+      path: '/admin/instruments'
+      fullPath: '/admin/instruments'
+      preLoaderRoute: typeof AuthenticatedAdminInstrumentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/compounds': {
@@ -615,6 +655,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminAuditLogRoute: typeof AuthenticatedAdminAuditLogRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
+  AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
@@ -626,6 +667,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+  AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
@@ -644,6 +686,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminAuditLogRoute: AuthenticatedAdminAuditLogRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
+  AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
@@ -656,6 +699,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+  AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIdRoute:
     AuthenticatedLabLogsStandardPreparationsIdRoute,
   AuthenticatedLabLogsStandardPreparationsNewRoute:

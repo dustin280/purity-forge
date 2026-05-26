@@ -123,4 +123,15 @@ export const qk = {
     exportConfig: () => ["export_config"] as const,
     sftpConfig: () => ["sftp_config"] as const,
   },
+
+  instruments: {
+    all: ["instruments"] as const,
+    list: () => ["instruments"] as const,
+  },
+
+  instrumentBookings: {
+    all: ["instrument-bookings"] as const,
+    list: (fromISO: string, toISO: string, instrumentId: string | null) =>
+      ["instrument-bookings", fromISO, toISO, instrumentId ?? "all"] as const,
+  },
 } as const;
