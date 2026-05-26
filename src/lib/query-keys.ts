@@ -81,6 +81,11 @@ export const qk = {
     list: () => ["lab-journal"] as const,
   },
 
+  labJournalAttachments: {
+    all: ["lab-journal-attachments"] as const,
+    list: (entryId: string) => ["lab-journal-attachments", entryId] as const,
+  },
+
   auditLog: {
     all: ["audit_log"] as const,
     list: (from: string, to: string, table: string) =>

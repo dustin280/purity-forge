@@ -3,9 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Clock, FileDown, Save, Trash2, X } from "lucide-react";
+import { Clock, Eye, FileDown, Pencil, Save, Trash2, X } from "lucide-react";
 import { downloadJournalPdf } from "@/lib/journal-pdf";
 import type { LabJournalEntry } from "@/lib/lab-journal.functions";
+import { TagInput } from "./tag-input";
+import { MarkdownView } from "./markdown-view";
+import { AttachmentPanel } from "./attachment-panel";
 
 function toLocalInput(iso: string) {
   const d = new Date(iso);
@@ -21,6 +24,7 @@ const DRAFT_KEY = "lab-journal-draft-v1";
 
 export interface EntryFormProps {
   defaultUserName: string;
+  userId: string | null;
   editing: LabJournalEntry | null;
   saving: boolean;
   deleting: boolean;
@@ -29,6 +33,7 @@ export interface EntryFormProps {
     title: string | null;
     body: string;
     user_name: string;
+    tags: string[];
   }) => Promise<unknown> | unknown;
   onDelete?: () => void;
   onCancelEdit: () => void;
@@ -36,6 +41,7 @@ export interface EntryFormProps {
 
 export function EntryForm({
   defaultUserName,
+  userId,
   editing,
   saving,
   deleting,
@@ -46,6 +52,8 @@ export function EntryForm({
   const [entryAt, setEntryAt] = useState(nowLocalInput());
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [preview, setPreview] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const initialized = useRef(false);
 
@@ -56,6 +64,7 @@ export function EntryForm({
       setEntryAt(toLocalInput(editing.entry_at));
       setTitle(editing.title ?? "");
       setBody(editing.body ?? "");
+      setTags(editing.tags ?? []);
       initialized.current = true;
       return;
     }
@@ -69,10 +78,12 @@ export function EntryForm({
             entry_at?: string;
             title?: string;
             body?: string;
+            tags?: string[];
           };
           if (draft.entry_at) setEntryAt(draft.entry_at);
           if (draft.title) setTitle(draft.title);
           if (draft.body) setBody(draft.body);
+          if (Array.isArray(draft.tags)) setTags(draft.tags);
           return;
         }
       } catch {
@@ -90,19 +101,21 @@ export function EntryForm({
       try {
         window.localStorage.setItem(
           DRAFT_KEY,
-          JSON.stringify({ entry_at: entryAt, title, body }),
+          JSON.stringify({ entry_at: entryAt, title, body, tags }),
         );
       } catch {
         /* ignore */
       }
     }, 400);
     return () => window.clearTimeout(t);
-  }, [editing, entryAt, title, body]);
+  }, [editing, entryAt, title, body, tags]);
 
   const reset = () => {
     setEntryAt(nowLocalInput());
     setTitle("");
     setBody("");
+    setTags([]);
+    setPreview(false);
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(DRAFT_KEY);
     }
@@ -114,8 +127,9 @@ export function EntryForm({
       title: title.trim() ? title.trim() : null,
       body,
       user_name: defaultUserName || "Unknown",
+      tags,
     }),
-    [entryAt, title, body, defaultUserName],
+    [entryAt, title, body, defaultUserName, tags],
   );
 
   const insertTimestamp = () => {
@@ -190,30 +204,72 @@ export function EntryForm({
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="lj-body">Entry</Label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={insertTimestamp}
-          >
-            <Clock className="size-4 mr-1" /> Insert time
-          </Button>
+          <Label htmlFor="lj-body">Entry (Markdown supported)</Label>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={insertTimestamp}
+              disabled={preview}
+            >
+              <Clock className="size-4 mr-1" /> Insert time
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setPreview((p) => !p)}
+            >
+              {preview ? (
+                <>
+                  <Pencil className="size-4 mr-1" /> Edit
+                </>
+              ) : (
+                <>
+                  <Eye className="size-4 mr-1" /> Preview
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-        <Textarea
-          id="lj-body"
-          ref={bodyRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Free-write observations, decisions, results, next steps…"
-          rows={18}
-          className="min-h-[420px] font-mono text-sm leading-relaxed"
-          maxLength={50000}
-        />
+        {preview ? (
+          <div className="min-h-[420px] rounded-md border bg-background p-4 overflow-auto">
+            {body.trim() ? (
+              <MarkdownView source={body} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Nothing to preview.</p>
+            )}
+          </div>
+        ) : (
+          <Textarea
+            id="lj-body"
+            ref={bodyRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Free-write observations, decisions, results, next steps…  Markdown like **bold**, lists, and tables works."
+            rows={18}
+            className="min-h-[420px] font-mono text-sm leading-relaxed"
+            maxLength={50000}
+          />
+        )}
         <div className="text-[11px] text-muted-foreground text-right">
           {body.length.toLocaleString()} / 50,000
         </div>
       </div>
+
+      <div className="space-y-1.5">
+        <Label>Tags</Label>
+        <TagInput value={tags} onChange={setTags} />
+        <p className="text-[11px] text-muted-foreground">
+          Press Enter or comma to add. Up to 20 tags, 40 characters each.
+        </p>
+      </div>
+
+      <AttachmentPanel
+        entryId={editing ? editing.id : null}
+        userId={userId}
+      />
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <Button

@@ -11,6 +11,7 @@ export interface JournalPdfInput {
   entry_at: string;
   title?: string | null;
   body: string;
+  tags?: string[];
 }
 
 function fmt(iso: string) {
@@ -66,6 +67,11 @@ export function generateJournalPdf(data: JournalPdfInput): jsPDF {
   doc.text(`Date / Time: ${fmt(data.entry_at)}`, margin, y);
   y += 18;
 
+  if (data.tags && data.tags.length) {
+    doc.text(`Tags: ${data.tags.map((t) => `#${t}`).join("  ")}`, margin, y);
+    y += 18;
+  }
+
   doc.setDrawColor(220);
   doc.line(margin, y, W - margin, y);
   y += 18;
@@ -118,4 +124,146 @@ export function downloadJournalPdf(data: JournalPdfInput) {
     .replace(/^-|-$/g, "")
     .slice(0, 40) || "entry";
   doc.save(`lab-journal-${date}-${slug}.pdf`);
+}
+
+export interface CombinedJournalPdfInput {
+  author: string;
+  from: string | null;
+  to: string | null;
+  tag: string | null;
+  entries: JournalPdfInput[];
+}
+
+export function downloadCombinedJournalPdf(input: CombinedJournalPdfInput) {
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const margin = 48;
+
+  const drawHeader = () => {
+    doc.addImage(SYNTHESYX_LOGO_PNG_BASE64, "PNG", margin, 22, 130, 39);
+    doc.setTextColor(31, 41, 55);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text("Lab Journal — Combined", W - margin, 46, { align: "right" });
+    doc.setDrawColor(31, 41, 55);
+    doc.setLineWidth(1);
+    doc.line(margin, 72, W - margin, 72);
+  };
+
+  drawHeader();
+  let y = 110;
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(31, 41, 55);
+  doc.text("Lab Journal", margin, y);
+  y += 24;
+
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(80);
+  doc.text(`Author: ${input.author}`, margin, y);
+  y += 16;
+  const range =
+    input.from || input.to
+      ? `${input.from || "earliest"} — ${input.to || "latest"}`
+      : "All entries";
+  doc.text(`Range: ${range}`, margin, y);
+  y += 16;
+  if (input.tag) {
+    doc.text(`Tag filter: #${input.tag}`, margin, y);
+    y += 16;
+  }
+  doc.text(`Entries: ${input.entries.length}`, margin, y);
+  y += 16;
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(
+    `Generated ${new Date().toLocaleString()}  ·  Confidential`,
+    margin,
+    y,
+  );
+
+  const maxWidth = W - margin * 2;
+  const lineHeight = 15;
+  const bottomLimit = H - 48;
+
+  for (const entry of input.entries) {
+    doc.addPage();
+    drawHeader();
+    let py = 96;
+
+    doc.setTextColor(31, 41, 55);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    const titleLines = doc.splitTextToSize(
+      entry.title?.trim() || "Untitled entry",
+      maxWidth,
+    ) as string[];
+    for (const tl of titleLines) {
+      doc.text(tl, margin, py);
+      py += 18;
+    }
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80);
+    doc.text(`Author: ${entry.user_name}`, margin, py);
+    py += 14;
+    doc.text(`Date / Time: ${fmt(entry.entry_at)}`, margin, py);
+    py += 14;
+    if (entry.tags && entry.tags.length) {
+      doc.text(
+        `Tags: ${entry.tags.map((t) => `#${t}`).join("  ")}`,
+        margin,
+        py,
+      );
+      py += 14;
+    }
+    py += 4;
+    doc.setDrawColor(220);
+    doc.line(margin, py, W - margin, py);
+    py += 14;
+
+    doc.setTextColor(20);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+
+    const paragraphs = (entry.body || "").split(/\n/);
+    const lines: string[] = [];
+    for (const p of paragraphs) {
+      if (p.length === 0) {
+        lines.push("");
+        continue;
+      }
+      const wrapped = doc.splitTextToSize(p, maxWidth) as string[];
+      lines.push(...wrapped);
+    }
+    for (const line of lines) {
+      if (py > bottomLimit) {
+        doc.addPage();
+        drawHeader();
+        py = 96;
+      }
+      doc.text(line, margin, py);
+      py += lineHeight;
+    }
+  }
+
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      `Page ${i} of ${total}  ·  Confidential — personal lab journal`,
+      W / 2,
+      H - 24,
+      { align: "center" },
+    );
+  }
+
+  const fromS = input.from || "all";
+  const toS = input.to || "all";
+  doc.save(`lab-journal-combined-${fromS}_${toS}.pdf`);
 }
