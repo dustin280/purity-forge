@@ -16,6 +16,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
+import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
@@ -73,6 +74,12 @@ const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
     path: '/chain-of-custody',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSchedulerIndexRoute =
+  AuthenticatedSchedulerIndexRouteImport.update({
+    id: '/scheduler/',
+    path: '/scheduler/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSamplesIndexRoute =
@@ -227,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -257,6 +265,7 @@ export interface FileRoutesByTo {
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
+  '/scheduler': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -289,6 +298,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
+  '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
@@ -321,6 +331,7 @@ export interface FileRouteTypes {
     | '/lab-logs/'
     | '/material-receipts/'
     | '/samples/'
+    | '/scheduler/'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -351,6 +362,7 @@ export interface FileRouteTypes {
     | '/lab-logs'
     | '/material-receipts'
     | '/samples'
+    | '/scheduler'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -382,6 +394,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/samples/'
+    | '/_authenticated/scheduler/'
     | '/_authenticated/lab-logs/standard-preparations/$id'
     | '/_authenticated/lab-logs/standard-preparations/new'
     | '/api/public/exports/$batchId'
@@ -446,6 +459,13 @@ declare module '@tanstack/react-router' {
       path: '/chain-of-custody'
       fullPath: '/chain-of-custody'
       preLoaderRoute: typeof AuthenticatedChainOfCustodyRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/scheduler/': {
+      id: '/_authenticated/scheduler/'
+      path: '/scheduler'
+      fullPath: '/scheduler/'
+      preLoaderRoute: typeof AuthenticatedSchedulerIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/samples/': {
@@ -626,6 +646,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
+  AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
@@ -656,6 +677,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
+  AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIdRoute:
     AuthenticatedLabLogsStandardPreparationsIdRoute,
   AuthenticatedLabLogsStandardPreparationsNewRoute:
