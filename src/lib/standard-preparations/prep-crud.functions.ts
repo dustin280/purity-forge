@@ -13,6 +13,16 @@ import {
   type PrepTargetRow,
 } from "./prep-shared.server";
 
+const SORT_COLUMNS = [
+  "syn_id",
+  "log_number",
+  "prepared_at",
+  "created_at",
+  "standard_name",
+  "analyst_name",
+  "status",
+] as const;
+
 export const listStandardPreparations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -21,17 +31,27 @@ export const listStandardPreparations = createServerFn({ method: "GET" })
       status: z.enum(PREP_STATUSES).nullable().optional(),
       from: z.string().nullable().optional(),
       to: z.string().nullable().optional(),
+      analyst: z.string().nullable().optional(),
+      sortBy: z.enum(SORT_COLUMNS).nullable().optional(),
+      sortDir: z.enum(["asc", "desc"]).nullable().optional(),
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
+    const sortBy = data.sortBy ?? "syn_id";
+    const sortDir = data.sortDir ?? "desc";
+    const ascending = sortDir === "asc";
     let q = context.supabase
       .from("standard_preparation_logs")
       .select("*, material_receipt:material_receipts(receipt_number, internal_lot)")
-      .order("prepared_at", { ascending: false })
+      .order(sortBy, { ascending, nullsFirst: false })
+      .order("created_at", { ascending: false })
       .limit(500);
     if (data.status) q = q.eq("status", data.status);
     if (data.from) q = q.gte("prepared_at", data.from);
     if (data.to) q = q.lte("prepared_at", data.to + "T23:59:59");
+    if (data.analyst && data.analyst.trim()) {
+      q = q.ilike("analyst_name", `%${data.analyst.trim()}%`);
+    }
     if (data.q && data.q.trim()) {
       const term = `%${data.q.trim()}%`;
       q = q.or(

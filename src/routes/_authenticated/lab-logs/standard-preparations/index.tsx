@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
 import { qk } from "@/lib/query-keys";
 import { PrepsFiltersCard } from "@/components/standard-preparations/preps-filters-card";
-import { PrepsList } from "@/components/standard-preparations/preps-list";
+import { PrepsTable, type SortKey, type SortDir } from "@/components/standard-preparations/preps-table";
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/")({
   component: StandardPrepsIndex,
 });
@@ -18,18 +18,29 @@ function StandardPrepsIndex() {
   const [status, setStatus] = useState<string>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [analyst, setAnalyst] = useState("");
+  const [sortBy, setSortBy] = useState<SortKey>("syn_id");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const filters = useMemo(() => ({
     q: q || null,
     status: status === "all" ? null : (status as typeof PREP_STATUSES[number]),
     from: from || null,
     to: to || null,
-  }), [q, status, from, to]);
+    analyst: analyst || null,
+    sortBy,
+    sortDir,
+  }), [q, status, from, to, analyst, sortBy, sortDir]);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: qk.standardPreps.list(filters),
     queryFn: () => list({ data: filters }),
   });
+
+  function handleSort(k: SortKey) {
+    if (sortBy === k) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    else { setSortBy(k); setSortDir("desc"); }
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
@@ -43,8 +54,8 @@ function StandardPrepsIndex() {
         <Link to="/lab-logs/standard-preparations/new"><Button><Plus className="size-4 mr-1" /> New Preparation</Button></Link>
       </div>
 
-      <PrepsFiltersCard q={q} setQ={setQ} status={status} setStatus={setStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <PrepsList rows={rows} isLoading={isLoading} />
+      <PrepsFiltersCard q={q} setQ={setQ} status={status} setStatus={setStatus} from={from} setFrom={setFrom} to={to} setTo={setTo} analyst={analyst} setAnalyst={setAnalyst} />
+      <PrepsTable rows={rows} isLoading={isLoading} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
     </div>
   );
 }
