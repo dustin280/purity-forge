@@ -9,15 +9,20 @@ interface Props {
   status: string; setStatus: (v: string) => void;
   from: string; setFrom: (v: string) => void;
   to: string; setTo: (v: string) => void;
+  analyst: string; setAnalyst: (v: string) => void;
 }
 
-export function PrepsFiltersCard({ q, setQ, status, setStatus, from, setFrom, to, setTo }: Props) {
+export function PrepsFiltersCard({ q, setQ, status, setStatus, from, setFrom, to, setTo, analyst, setAnalyst }: Props) {
   return (
     <Card className="p-4 mb-4">
-      <div className="grid md:grid-cols-4 gap-3">
+      <div className="grid md:grid-cols-5 gap-3">
         <div className="md:col-span-2">
           <label className="text-xs text-muted-foreground">Search</label>
           <Input placeholder="Log #, standard, analyst, lot…" value={q} onChange={e => setQ(e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground">Analyst</label>
+          <Input placeholder="Filter by analyst" value={analyst} onChange={e => setAnalyst(e.target.value)} />
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Status</label>
