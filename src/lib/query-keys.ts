@@ -149,4 +149,13 @@ export const qk = {
     detail: (id: string) => ["mobile-phase", id] as const,
     reagents: () => ["mobile-phase-reagents"] as const,
   },
+
+  timesheets: {
+    all: ["timesheets"] as const,
+    list: (filters?: unknown) =>
+      filters === undefined
+        ? (["timesheets"] as const)
+        : (["timesheets", filters] as const),
+    projects: () => ["timesheet-projects"] as const,
+  },
 } as const;
