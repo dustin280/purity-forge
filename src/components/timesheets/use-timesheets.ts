@@ -12,6 +12,27 @@ import {
   updateTimesheetProject,
   type TimesheetEntry,
 } from "@/lib/timesheets.functions";
+
+type EntryInput = {
+  entry_date: string;
+  project: string;
+  task_description: string;
+  duration_hours: number;
+  start_time: string | null;
+  end_time: string | null;
+  notes: string | null;
+  user_name: string;
+};
+
+type EntryUpdateInput = EntryInput & { id: string };
+
+type ProjectInput = {
+  name: string;
+  is_active?: boolean;
+  sort_order?: number;
+};
+
+type ProjectUpdateInput = Partial<ProjectInput> & { id: string };
 import { qk } from "@/lib/query-keys";
 
 export interface TimesheetFilters {
@@ -41,7 +62,7 @@ export function useTimesheetMutations() {
 
   return {
     createMut: useMutation({
-      mutationFn: (data: Parameters<typeof create>[0]["data"]) => create({ data }),
+      mutationFn: (data: EntryInput) => create({ data }),
       onSuccess: () => {
         toast.success("Entry added");
         invalidate();
@@ -49,7 +70,7 @@ export function useTimesheetMutations() {
       onError: (e: Error) => toast.error(e.message),
     }),
     updateMut: useMutation({
-      mutationFn: (data: Parameters<typeof update>[0]["data"]) => update({ data }),
+      mutationFn: (data: EntryUpdateInput) => update({ data }),
       onSuccess: () => {
         toast.success("Entry updated");
         invalidate();
@@ -85,7 +106,7 @@ export function useTimesheetProjectMutations() {
 
   return {
     createMut: useMutation({
-      mutationFn: (data: Parameters<typeof create>[0]["data"]) => create({ data }),
+      mutationFn: (data: ProjectInput) => create({ data }),
       onSuccess: () => {
         toast.success("Project added");
         invalidate();
@@ -93,7 +114,7 @@ export function useTimesheetProjectMutations() {
       onError: (e: Error) => toast.error(e.message),
     }),
     updateMut: useMutation({
-      mutationFn: (data: Parameters<typeof update>[0]["data"]) => update({ data }),
+      mutationFn: (data: ProjectUpdateInput) => update({ data }),
       onSuccess: () => invalidate(),
       onError: (e: Error) => toast.error(e.message),
     }),

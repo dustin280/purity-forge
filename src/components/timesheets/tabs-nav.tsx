@@ -1,12 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
-const TABS = [
+const TABS: ReadonlyArray<{ to: string; label: string; exact?: boolean }> = [
   { to: "/lab-logs/timesheets", label: "Dashboard", exact: true },
   { to: "/lab-logs/timesheets/daily", label: "Daily" },
   { to: "/lab-logs/timesheets/history", label: "History" },
   { to: "/lab-logs/timesheets/reports", label: "Reports" },
-] as const;
+];
 
 export function TabsNav() {
   const { pathname } = useLocation();
@@ -18,7 +18,7 @@ export function TabsNav() {
           return (
             <Link
               key={t.to}
-              to={t.to}
+              to={t.to as "/lab-logs/timesheets"}
               className={cn(
                 "px-3 py-2 text-sm border-b-2 -mb-px whitespace-nowrap transition-colors",
                 active
