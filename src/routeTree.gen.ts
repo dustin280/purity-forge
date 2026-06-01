@@ -29,6 +29,7 @@ import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authe
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
+import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
@@ -36,11 +37,15 @@ import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
+import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
+import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
+import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
+import { Route as AuthenticatedLabLogsTimesheetsDailyRouteImport } from './routes/_authenticated/lab-logs/timesheets/daily'
 import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/new'
 import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
 import { Route as AuthenticatedLabLogsMobilePhaseNewRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/new'
@@ -159,6 +164,12 @@ const AuthenticatedInstrumentCommOpenlabRoute =
     path: '/instrument-comm/openlab',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminTimesheetProjectsRoute =
+  AuthenticatedAdminTimesheetProjectsRouteImport.update({
+    id: '/admin/timesheet-projects',
+    path: '/admin/timesheet-projects',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminParametersRoute =
   AuthenticatedAdminParametersRouteImport.update({
     id: '/admin/parameters',
@@ -201,6 +212,12 @@ const AuthenticatedAdminAccessLogsRoute =
     path: '/admin/access-logs',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsTimesheetsIndexRoute =
+  AuthenticatedLabLogsTimesheetsIndexRouteImport.update({
+    id: '/lab-logs/timesheets/',
+    path: '/lab-logs/timesheets/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsStandardPreparationsIndexRoute =
   AuthenticatedLabLogsStandardPreparationsIndexRouteImport.update({
     id: '/lab-logs/standard-preparations/',
@@ -230,6 +247,24 @@ const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedLabLogsTimesheetsReportsRoute =
+  AuthenticatedLabLogsTimesheetsReportsRouteImport.update({
+    id: '/lab-logs/timesheets/reports',
+    path: '/lab-logs/timesheets/reports',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabLogsTimesheetsHistoryRoute =
+  AuthenticatedLabLogsTimesheetsHistoryRouteImport.update({
+    id: '/lab-logs/timesheets/history',
+    path: '/lab-logs/timesheets/history',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedLabLogsTimesheetsDailyRoute =
+  AuthenticatedLabLogsTimesheetsDailyRouteImport.update({
+    id: '/lab-logs/timesheets/daily',
+    path: '/lab-logs/timesheets/daily',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsStandardPreparationsNewRoute =
   AuthenticatedLabLogsStandardPreparationsNewRouteImport.update({
     id: '/lab-logs/standard-preparations/new',
@@ -275,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -292,11 +328,15 @@ export interface FileRoutesByFullPath {
   '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
+  '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
+  '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
+  '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesByTo {
@@ -313,6 +353,7 @@ export interface FileRoutesByTo {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -330,11 +371,15 @@ export interface FileRoutesByTo {
   '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
+  '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
+  '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
+  '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesById {
@@ -353,6 +398,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -370,11 +416,15 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   '/_authenticated/lab-logs/standard-preparations/new': typeof AuthenticatedLabLogsStandardPreparationsNewRoute
+  '/_authenticated/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
+  '/_authenticated/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
+  '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRouteTypes {
@@ -393,6 +443,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
     | '/material-receipts/new'
@@ -410,11 +461,15 @@ export interface FileRouteTypes {
     | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
+    | '/lab-logs/timesheets/daily'
+    | '/lab-logs/timesheets/history'
+    | '/lab-logs/timesheets/reports'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/standard-preparations/'
+    | '/lab-logs/timesheets/'
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -431,6 +486,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
     | '/material-receipts/new'
@@ -448,11 +504,15 @@ export interface FileRouteTypes {
     | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
     | '/lab-logs/standard-preparations/new'
+    | '/lab-logs/timesheets/daily'
+    | '/lab-logs/timesheets/history'
+    | '/lab-logs/timesheets/reports'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/standard-preparations'
+    | '/lab-logs/timesheets'
     | '/lab-logs/standard-preparations/batch/$groupId'
   id:
     | '__root__'
@@ -470,6 +530,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
+    | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/new'
@@ -487,11 +548,15 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/mobile-phase/new'
     | '/_authenticated/lab-logs/standard-preparations/$id'
     | '/_authenticated/lab-logs/standard-preparations/new'
+    | '/_authenticated/lab-logs/timesheets/daily'
+    | '/_authenticated/lab-logs/timesheets/history'
+    | '/_authenticated/lab-logs/timesheets/reports'
     | '/api/public/exports/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/standard-preparations/'
+    | '/_authenticated/lab-logs/timesheets/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
 }
@@ -643,6 +708,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInstrumentCommOpenlabRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/timesheet-projects': {
+      id: '/_authenticated/admin/timesheet-projects'
+      path: '/admin/timesheet-projects'
+      fullPath: '/admin/timesheet-projects'
+      preLoaderRoute: typeof AuthenticatedAdminTimesheetProjectsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/parameters': {
       id: '/_authenticated/admin/parameters'
       path: '/admin/parameters'
@@ -692,6 +764,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAccessLogsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/timesheets/': {
+      id: '/_authenticated/lab-logs/timesheets/'
+      path: '/lab-logs/timesheets'
+      fullPath: '/lab-logs/timesheets/'
+      preLoaderRoute: typeof AuthenticatedLabLogsTimesheetsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/standard-preparations/': {
       id: '/_authenticated/lab-logs/standard-preparations/'
       path: '/lab-logs/standard-preparations'
@@ -726,6 +805,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/exports/$batchId'
       preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/lab-logs/timesheets/reports': {
+      id: '/_authenticated/lab-logs/timesheets/reports'
+      path: '/lab-logs/timesheets/reports'
+      fullPath: '/lab-logs/timesheets/reports'
+      preLoaderRoute: typeof AuthenticatedLabLogsTimesheetsReportsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-logs/timesheets/history': {
+      id: '/_authenticated/lab-logs/timesheets/history'
+      path: '/lab-logs/timesheets/history'
+      fullPath: '/lab-logs/timesheets/history'
+      preLoaderRoute: typeof AuthenticatedLabLogsTimesheetsHistoryRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/lab-logs/timesheets/daily': {
+      id: '/_authenticated/lab-logs/timesheets/daily'
+      path: '/lab-logs/timesheets/daily'
+      fullPath: '/lab-logs/timesheets/daily'
+      preLoaderRoute: typeof AuthenticatedLabLogsTimesheetsDailyRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/lab-logs/standard-preparations/new': {
       id: '/_authenticated/lab-logs/standard-preparations/new'
@@ -778,6 +878,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
+  AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
@@ -795,10 +896,14 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsMobilePhaseNewRoute: typeof AuthenticatedLabLogsMobilePhaseNewRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
   AuthenticatedLabLogsStandardPreparationsNewRoute: typeof AuthenticatedLabLogsStandardPreparationsNewRoute
+  AuthenticatedLabLogsTimesheetsDailyRoute: typeof AuthenticatedLabLogsTimesheetsDailyRoute
+  AuthenticatedLabLogsTimesheetsHistoryRoute: typeof AuthenticatedLabLogsTimesheetsHistoryRoute
+  AuthenticatedLabLogsTimesheetsReportsRoute: typeof AuthenticatedLabLogsTimesheetsReportsRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
+  AuthenticatedLabLogsTimesheetsIndexRoute: typeof AuthenticatedLabLogsTimesheetsIndexRoute
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 
@@ -816,6 +921,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
+  AuthenticatedAdminTimesheetProjectsRoute:
+    AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
@@ -839,6 +946,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsStandardPreparationsIdRoute,
   AuthenticatedLabLogsStandardPreparationsNewRoute:
     AuthenticatedLabLogsStandardPreparationsNewRoute,
+  AuthenticatedLabLogsTimesheetsDailyRoute:
+    AuthenticatedLabLogsTimesheetsDailyRoute,
+  AuthenticatedLabLogsTimesheetsHistoryRoute:
+    AuthenticatedLabLogsTimesheetsHistoryRoute,
+  AuthenticatedLabLogsTimesheetsReportsRoute:
+    AuthenticatedLabLogsTimesheetsReportsRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
   AuthenticatedLabLogsMobilePhaseIndexRoute:
@@ -847,6 +960,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsParameterScoutingIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIndexRoute:
     AuthenticatedLabLogsStandardPreparationsIndexRoute,
+  AuthenticatedLabLogsTimesheetsIndexRoute:
+    AuthenticatedLabLogsTimesheetsIndexRoute,
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute:
     AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute,
 }
