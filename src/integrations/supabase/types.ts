@@ -1619,6 +1619,78 @@ export type Database = {
           },
         ]
       }
+      timesheet_entries: {
+        Row: {
+          created_at: string
+          duration_hours: number
+          end_time: string | null
+          entry_date: string
+          id: string
+          notes: string | null
+          project: string
+          start_time: string | null
+          task_description: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          duration_hours: number
+          end_time?: string | null
+          entry_date: string
+          id?: string
+          notes?: string | null
+          project: string
+          start_time?: string | null
+          task_description: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          duration_hours?: number
+          end_time?: string | null
+          entry_date?: string
+          id?: string
+          notes?: string | null
+          project?: string
+          start_time?: string | null
+          task_description?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      timesheet_projects: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
