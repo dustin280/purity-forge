@@ -18,6 +18,7 @@ import { ReceiptCommonCard } from "./receipt-common-card";
 import { ReceiptManufacturerCard } from "./receipt-manufacturer-card";
 import { ReceiptDocsCard } from "./receipt-docs-card";
 import { ReceiptQcCard } from "./receipt-qc-card";
+import { ReceiptFinancialCard } from "./receipt-financial-card";
 
 // Re-exports for callers that imported from this module historically.
 export {
@@ -97,6 +98,7 @@ export function ReceiptForm({ initial, defaultReceiverName, submitting, submitLa
         filteredSuggestions={filteredSuggestions}
         onPickSuggestion={handleSuggestionPick}
       />
+      <ReceiptFinancialCard v={v} up={up} />
 
       {isControlled ? (
         <>
