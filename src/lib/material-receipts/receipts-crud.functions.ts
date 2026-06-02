@@ -143,3 +143,55 @@ export const approveMaterialReceipt = createServerFn({ method: "POST" })
     if (error) throw error;
     return row as MaterialReceiptRow;
   });
+
+export const listMaterialReceiptsForAccounting = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      from: z.string().min(1),
+      to: z.string().min(1),
+      material_type: z.enum(MATERIAL_TYPES).optional().nullable(),
+      date_field: z.enum(["received_at", "invoice_date"]).default("received_at"),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const col = data.date_field;
+    let q = context.supabase
+      .from("material_receipts")
+      .select(
+        "id,receipt_number,material_type,received_at,receiver_name,material_name,supplier,manufacturer,po_number,quantity,unit,unit_price,total_price,tax_amount,shipping_cost,currency,invoice_number,invoice_date,gl_account",
+      )
+      .order(col, { ascending: true })
+      .limit(5000);
+    if (col === "received_at") {
+      q = q.gte("received_at", data.from).lte("received_at", data.to + "T23:59:59");
+    } else {
+      q = q.gte("invoice_date", data.from).lte("invoice_date", data.to);
+    }
+    if (data.material_type) q = q.eq("material_type", data.material_type);
+    const { data: rows, error } = await q;
+    if (error) throw error;
+    return (rows ?? []) as AccountingReportRow[];
+  });
+
+export type AccountingReportRow = {
+  id: string;
+  receipt_number: string;
+  material_type: "controlled" | "uncontrolled";
+  received_at: string;
+  receiver_name: string;
+  material_name: string;
+  supplier: string | null;
+  manufacturer: string | null;
+  po_number: string | null;
+  quantity: number | null;
+  unit: string | null;
+  unit_price: number | null;
+  total_price: number | null;
+  tax_amount: number | null;
+  shipping_cost: number | null;
+  currency: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  gl_account: string | null;
+};
