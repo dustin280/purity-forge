@@ -59,6 +59,7 @@ export const qk = {
     preps: (receiptId: string) => ["receipt-preps", receiptId] as const,
     suggestions: () => ["material-suggestions"] as const,
     search: (q: string) => ["receipt-link-search", q] as const,
+    accountingReport: (filters: unknown) => ["material-receipts-accounting", filters] as const,
   },
 
   backpressure: {
