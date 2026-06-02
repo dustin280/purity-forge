@@ -642,10 +642,14 @@ export type Database = {
           container_details: string | null
           created_at: string
           created_by: string | null
+          currency: string | null
           expiry_date: string | null
           freight_tracking_number: string | null
+          gl_account: string | null
           id: string
           internal_lot: string | null
+          invoice_date: string | null
+          invoice_number: string | null
           manufacturer: string | null
           manufacturer_lot: string | null
           material_name: string
@@ -667,10 +671,14 @@ export type Database = {
           receiver_name: string
           sds_attached: boolean
           shelf_life_months: number | null
+          shipping_cost: number | null
           storage_location: string | null
           supplier: string | null
+          tax_amount: number | null
           temperature_on_receipt: number | null
+          total_price: number | null
           unit: string | null
+          unit_price: number | null
           updated_at: string
           visual_inspection: string | null
           visual_inspection_notes: string | null
@@ -684,10 +692,14 @@ export type Database = {
           container_details?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           expiry_date?: string | null
           freight_tracking_number?: string | null
+          gl_account?: string | null
           id?: string
           internal_lot?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
           manufacturer?: string | null
           manufacturer_lot?: string | null
           material_name: string
@@ -709,10 +721,14 @@ export type Database = {
           receiver_name: string
           sds_attached?: boolean
           shelf_life_months?: number | null
+          shipping_cost?: number | null
           storage_location?: string | null
           supplier?: string | null
+          tax_amount?: number | null
           temperature_on_receipt?: number | null
+          total_price?: number | null
           unit?: string | null
+          unit_price?: number | null
           updated_at?: string
           visual_inspection?: string | null
           visual_inspection_notes?: string | null
@@ -726,10 +742,14 @@ export type Database = {
           container_details?: string | null
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           expiry_date?: string | null
           freight_tracking_number?: string | null
+          gl_account?: string | null
           id?: string
           internal_lot?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
           manufacturer?: string | null
           manufacturer_lot?: string | null
           material_name?: string
@@ -751,10 +771,14 @@ export type Database = {
           receiver_name?: string
           sds_attached?: boolean
           shelf_life_months?: number | null
+          shipping_cost?: number | null
           storage_location?: string | null
           supplier?: string | null
+          tax_amount?: number | null
           temperature_on_receipt?: number | null
+          total_price?: number | null
           unit?: string | null
+          unit_price?: number | null
           updated_at?: string
           visual_inspection?: string | null
           visual_inspection_notes?: string | null
