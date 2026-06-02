@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listMaterialReceipts } from "@/lib/material-receipts.functions";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { qk } from "@/lib/query-keys";
 import { ReceiptsFiltersCard, type MaterialTypeFilter } from "@/components/material-receipts/filters-card";
 import { ReceiptsList } from "@/components/material-receipts/receipts-list";
@@ -44,9 +44,14 @@ function ReceiptsIndex() {
             Log incoming controlled and uncontrolled materials. Full audit trail and printable records.
           </p>
         </div>
-        <Link to="/material-receipts/new">
-          <Button><Plus className="size-4 mr-1" /> New Receipt</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/material-receipts/accounting-report">
+            <Button variant="outline"><FileText className="size-4 mr-1" /> Accounting Report</Button>
+          </Link>
+          <Link to="/material-receipts/new">
+            <Button><Plus className="size-4 mr-1" /> New Receipt</Button>
+          </Link>
+        </div>
       </div>
 
       <ReceiptsFiltersCard
