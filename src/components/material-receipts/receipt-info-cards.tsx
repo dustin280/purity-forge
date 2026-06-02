@@ -34,10 +34,32 @@ type ReceiptDetail = {
   qc_results: string | null;
   approved_at: string | null;
   approver_name: string | null;
+  unit_price: number | null;
+  total_price: number | null;
+  currency: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  gl_account: string | null;
+  tax_amount: number | null;
+  shipping_cost: number | null;
 };
 
 export function ReceiptInfoCards({ r }: { r: ReceiptDetail }) {
   const isControlled = r.material_type === "controlled";
+  const hasFinancials =
+    r.unit_price != null ||
+    r.total_price != null ||
+    r.invoice_number ||
+    r.invoice_date ||
+    r.gl_account ||
+    r.tax_amount != null ||
+    r.shipping_cost != null;
+  const grand = (() => {
+    const t = r.total_price ?? (r.unit_price != null && r.quantity != null ? r.unit_price * r.quantity : null);
+    if (t == null) return null;
+    return t + (r.tax_amount ?? 0) + (r.shipping_cost ?? 0);
+  })();
+  const cur = r.currency ?? "USD";
   return (
     <>
       <div className="grid md:grid-cols-2 gap-4 mb-6">
@@ -69,6 +91,28 @@ export function ReceiptInfoCards({ r }: { r: ReceiptDetail }) {
           </Card>
         )}
       </div>
+
+      {hasFinancials && (
+        <Card className="p-5 mb-6 space-y-2 text-sm">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            Financial / Accounting
+          </h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <InfoRow label="Unit price" value={r.unit_price != null ? `${r.unit_price} ${cur}` : null} />
+              <InfoRow label="Total price" value={r.total_price != null ? `${r.total_price} ${cur}` : null} />
+              <InfoRow label="Tax" value={r.tax_amount != null ? `${r.tax_amount} ${cur}` : null} />
+              <InfoRow label="Shipping" value={r.shipping_cost != null ? `${r.shipping_cost} ${cur}` : null} />
+              {grand != null && <InfoRow label="Grand total" value={`${grand.toFixed(2)} ${cur}`} />}
+            </div>
+            <div className="space-y-2">
+              <InfoRow label="Invoice #" value={r.invoice_number} />
+              <InfoRow label="Invoice date" value={r.invoice_date} />
+              <InfoRow label="GL / Cost center" value={r.gl_account} />
+            </div>
+          </div>
+        </Card>
+      )}
 
       {isControlled && (
         <Card className="p-5 mb-6 space-y-2 text-sm">

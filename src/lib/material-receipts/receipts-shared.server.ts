@@ -49,6 +49,14 @@ export interface MaterialReceiptRow {
   purity_percent: number | null;
   molecular_weight: number | null;
   shelf_life_months: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+  currency: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  gl_account: string | null;
+  tax_amount: number | null;
+  shipping_cost: number | null;
 }
 
 export interface AttachmentRow {
@@ -95,6 +103,14 @@ export const receiptPayloadSchema = z.object({
   purity_percent: z.number().nullable().optional(),
   molecular_weight: z.number().nullable().optional(),
   shelf_life_months: z.number().int().nullable().optional(),
+  unit_price: z.number().nullable().optional(),
+  total_price: z.number().nullable().optional(),
+  currency: z.string().max(10).nullable().optional(),
+  invoice_number: z.string().max(100).nullable().optional(),
+  invoice_date: z.string().nullable().optional(),
+  gl_account: z.string().max(100).nullable().optional(),
+  tax_amount: z.number().nullable().optional(),
+  shipping_cost: z.number().nullable().optional(),
 });
 
 export function emptyToNull<T extends Record<string, unknown>>(o: T): T {

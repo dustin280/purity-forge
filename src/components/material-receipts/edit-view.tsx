@@ -33,6 +33,14 @@ type ReceiptRow = {
   purity_percent: number | null;
   molecular_weight: number | null;
   shelf_life_months: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+  currency: string | null;
+  invoice_number: string | null;
+  invoice_date: string | null;
+  gl_account: string | null;
+  tax_amount: number | null;
+  shipping_cost: number | null;
 };
 
 /** Build initial ReceiptForm values from a server receipt row. */
@@ -69,6 +77,14 @@ export function receiptToFormValues(r: ReceiptRow): Partial<ReceiptFormValues> {
     purity_percent: r.purity_percent?.toString() ?? "",
     molecular_weight: r.molecular_weight?.toString() ?? "",
     shelf_life_months: r.shelf_life_months?.toString() ?? "",
+    unit_price: r.unit_price?.toString() ?? "",
+    total_price: r.total_price?.toString() ?? "",
+    currency: r.currency ?? "USD",
+    invoice_number: r.invoice_number ?? "",
+    invoice_date: r.invoice_date ?? "",
+    gl_account: r.gl_account ?? "",
+    tax_amount: r.tax_amount?.toString() ?? "",
+    shipping_cost: r.shipping_cost?.toString() ?? "",
   };
 }
 
