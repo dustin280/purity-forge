@@ -35,6 +35,14 @@ export interface ReceiptFormValues {
   purity_percent: string;
   molecular_weight: string;
   shelf_life_months: string;
+  unit_price: string;
+  total_price: string;
+  currency: string;
+  invoice_number: string;
+  invoice_date: string;
+  gl_account: string;
+  tax_amount: string;
+  shipping_cost: string;
 }
 
 export interface PendingAttachments {
@@ -84,6 +92,14 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     purity_percent: "",
     molecular_weight: "",
     shelf_life_months: "",
+    unit_price: "",
+    total_price: "",
+    currency: "USD",
+    invoice_number: "",
+    invoice_date: "",
+    gl_account: "",
+    tax_amount: "",
+    shipping_cost: "",
   };
 }
 
@@ -132,6 +148,14 @@ export function valuesToPayload(v: ReceiptFormValues) {
       v.material_type === "controlled" && v.shelf_life_months !== ""
         ? Number(v.shelf_life_months)
         : null,
+    unit_price: v.unit_price === "" ? null : Number(v.unit_price),
+    total_price: v.total_price === "" ? null : Number(v.total_price),
+    currency: v.currency || "USD",
+    invoice_number: v.invoice_number || null,
+    invoice_date: v.invoice_date || null,
+    gl_account: v.gl_account || null,
+    tax_amount: v.tax_amount === "" ? null : Number(v.tax_amount),
+    shipping_cost: v.shipping_cost === "" ? null : Number(v.shipping_cost),
   };
 }
 
