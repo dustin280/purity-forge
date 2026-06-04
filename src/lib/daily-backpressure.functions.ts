@@ -14,6 +14,13 @@ export interface BackpressureRow {
   backpressure: number;
   backpressure_unit: string;
   notes: string | null;
+  injections_count: number | null;
+  mobile_phase: string | null;
+  flow_rate: number | null;
+  flow_rate_unit: string | null;
+  column_temp: number | null;
+  column_temp_unit: string | null;
+  column_name: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -26,6 +33,13 @@ const payloadSchema = z.object({
   backpressure: z.number().finite(),
   backpressure_unit: z.string().min(1).max(32),
   notes: z.string().max(2000).nullable().optional(),
+  injections_count: z.number().int().min(0).max(100000).nullable().optional(),
+  mobile_phase: z.string().max(500).nullable().optional(),
+  flow_rate: z.number().finite().nullable().optional(),
+  flow_rate_unit: z.string().max(32).nullable().optional(),
+  column_temp: z.number().finite().nullable().optional(),
+  column_temp_unit: z.string().max(8).nullable().optional(),
+  column_name: z.string().max(255).nullable().optional(),
 });
 
 export const listBackpressureLogs = createServerFn({ method: "GET" })
