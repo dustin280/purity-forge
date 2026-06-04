@@ -15,6 +15,13 @@ type CreatePayload = {
   backpressure: number;
   backpressure_unit: string;
   notes: string | null;
+  injections_count: number | null;
+  mobile_phase: string | null;
+  flow_rate: number | null;
+  flow_rate_unit: string | null;
+  column_temp: number | null;
+  column_temp_unit: string | null;
+  column_name: string | null;
 };
 
 export function useBackpressure() {

@@ -221,10 +221,17 @@ export type Database = {
         Row: {
           backpressure: number
           backpressure_unit: string
+          column_name: string | null
+          column_temp: number | null
+          column_temp_unit: string | null
           created_at: string
           created_by: string | null
+          flow_rate: number | null
+          flow_rate_unit: string | null
           id: string
+          injections_count: number | null
           instrument: string
+          mobile_phase: string | null
           notes: string | null
           reading_at: string
           updated_at: string
@@ -234,10 +241,17 @@ export type Database = {
         Insert: {
           backpressure: number
           backpressure_unit?: string
+          column_name?: string | null
+          column_temp?: number | null
+          column_temp_unit?: string | null
           created_at?: string
           created_by?: string | null
+          flow_rate?: number | null
+          flow_rate_unit?: string | null
           id?: string
+          injections_count?: number | null
           instrument?: string
+          mobile_phase?: string | null
           notes?: string | null
           reading_at?: string
           updated_at?: string
@@ -247,10 +261,17 @@ export type Database = {
         Update: {
           backpressure?: number
           backpressure_unit?: string
+          column_name?: string | null
+          column_temp?: number | null
+          column_temp_unit?: string | null
           created_at?: string
           created_by?: string | null
+          flow_rate?: number | null
+          flow_rate_unit?: string | null
           id?: string
+          injections_count?: number | null
           instrument?: string
+          mobile_phase?: string | null
           notes?: string | null
           reading_at?: string
           updated_at?: string

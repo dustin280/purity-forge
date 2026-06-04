@@ -39,6 +39,11 @@ export function ReadingsTable({
                 <th className="text-left font-medium px-4 py-2">User</th>
                 <th className="text-left font-medium px-4 py-2">Instrument</th>
                 <th className="text-right font-medium px-4 py-2">Backpressure</th>
+                <th className="text-right font-medium px-4 py-2"># Inj.</th>
+                <th className="text-left font-medium px-4 py-2">Mobile Phase</th>
+                <th className="text-right font-medium px-4 py-2">Flow</th>
+                <th className="text-right font-medium px-4 py-2">Col. Temp</th>
+                <th className="text-left font-medium px-4 py-2">Column</th>
                 <th className="text-left font-medium px-4 py-2">Notes</th>
                 {isAdmin && <th className="w-10" />}
               </tr>
@@ -55,6 +60,31 @@ export function ReadingsTable({
                     {r.backpressure}{" "}
                     <span className="text-muted-foreground">{r.backpressure_unit}</span>
                   </td>
+                  <td className="px-4 py-2 text-right font-mono">
+                    {r.injections_count ?? "—"}
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">{r.mobile_phase ?? "—"}</td>
+                  <td className="px-4 py-2 text-right font-mono whitespace-nowrap">
+                    {r.flow_rate != null ? (
+                      <>
+                        {r.flow_rate}{" "}
+                        <span className="text-muted-foreground">{r.flow_rate_unit}</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono whitespace-nowrap">
+                    {r.column_temp != null ? (
+                      <>
+                        {r.column_temp}°{" "}
+                        <span className="text-muted-foreground">{r.column_temp_unit}</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">{r.column_name ?? "—"}</td>
                   <td className="px-4 py-2 text-muted-foreground">{r.notes ?? "—"}</td>
                   {isAdmin && (
                     <td className="px-2 py-2">
