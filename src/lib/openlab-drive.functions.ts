@@ -165,21 +165,38 @@ async function driveUpdateMedia(
 
 /* ---------------- Settings ---------------- */
 
+function extractFolderId(input: unknown): unknown {
+  if (typeof input !== "string") return input;
+  let s = input.trim();
+  if (!s) return s;
+  // If a Drive URL was pasted, pull the ID out.
+  const m =
+    s.match(/\/folders\/([A-Za-z0-9_-]+)/) ||
+    s.match(/[?&]id=([A-Za-z0-9_-]+)/) ||
+    s.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (m) s = m[1];
+  return s;
+}
+
 const driveSettingsSchema = z.object({
-  drive_methods_folder_id: z
-    .string()
-    .trim()
-    .max(200)
-    .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
-    .nullable()
-    .optional(),
-  drive_sequences_folder_id: z
-    .string()
-    .trim()
-    .max(200)
-    .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
-    .nullable()
-    .optional(),
+  drive_methods_folder_id: z.preprocess(
+    extractFolderId,
+    z
+      .string()
+      .max(200)
+      .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+      .nullable()
+      .optional(),
+  ),
+  drive_sequences_folder_id: z.preprocess(
+    extractFolderId,
+    z
+      .string()
+      .max(200)
+      .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+      .nullable()
+      .optional(),
+  ),
 });
 
 export const updateDriveSettings = createServerFn({ method: "POST" })
