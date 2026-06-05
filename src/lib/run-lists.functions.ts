@@ -250,16 +250,29 @@ export const generateRunListCsv = createServerFn({ method: "POST" })
     persist: z.boolean().default(false),
   }).parse(d))
   .handler(async ({ context, data }) => {
-    const [{ data: list }, { data: items }, { data: cols }] = await Promise.all([
-      context.supabase.from("run_lists").select("*").eq("id", data.run_list_id).maybeSingle(),
-      context.supabase.from("run_list_items").select("*").eq("run_list_id", data.run_list_id).order("row_no", { ascending: true }),
-      context.supabase.from("run_list_columns").select("*").eq("is_active", true).order("sort_order", { ascending: true }),
+    return await buildRunListCsv(context.supabase, context.userId, data.run_list_id, data.persist);
+  });
+
+/**
+ * Core CSV builder. Exported so other server functions (e.g. Drive push)
+ * can produce the same CSV without round-tripping through RPC.
+ */
+export async function buildRunListCsv(
+  supabase: any,
+  userId: string,
+  runListId: string,
+  persist: boolean,
+): Promise<{ filename: string; csv: string; storage_path: string | null }> {
+  const [{ data: list }, { data: items }, { data: cols }] = await Promise.all([
+      supabase.from("run_lists").select("*").eq("id", runListId).maybeSingle(),
+      supabase.from("run_list_items").select("*").eq("run_list_id", runListId).order("row_no", { ascending: true }),
+      supabase.from("run_list_columns").select("*").eq("is_active", true).order("sort_order", { ascending: true }),
     ]);
     if (!list) throw new Error("Run list not found");
     const sampleIds = (items ?? []).map((i: { sample_id: string | null }) => i.sample_id).filter(Boolean) as string[];
     const sampleMap = new Map<string, Record<string, unknown>>();
     if (sampleIds.length) {
-      const { data: s } = await context.supabase.from("samples").select("*").in("id", sampleIds);
+      const { data: s } = await supabase.from("samples").select("*").in("id", sampleIds);
       (s ?? []).forEach((row: Record<string, unknown>) => sampleMap.set(row.id as string, row));
     }
     const columns = (cols ?? []) as Array<{ key: string; source: string; default_value: string | null; sample_field: string | null }>;
@@ -300,22 +313,22 @@ export const generateRunListCsv = createServerFn({ method: "POST" })
     const filename = `${safeName}_${date.toISOString().slice(0, 10)}.csv`;
 
     let storagePath: string | null = null;
-    if (data.persist) {
-      storagePath = `exports/${data.run_list_id}.csv`;
-      const { error: upErr } = await context.supabase.storage
+    if (persist) {
+      storagePath = `exports/${runListId}.csv`;
+      const { error: upErr } = await supabase.storage
         .from("openlab-cds")
         .upload(storagePath, new Blob([csv], { type: "text/csv" }), { upsert: true, contentType: "text/csv" });
       if (upErr) throw upErr;
-      await context.supabase.from("run_lists").update({
+      await supabase.from("run_lists").update({
         status: "exported",
         exported_at: new Date().toISOString(),
-        exported_by: context.userId,
+        exported_by: userId,
         csv_storage_path: storagePath,
-      }).eq("id", data.run_list_id);
+      }).eq("id", runListId);
     }
 
     return { filename, csv, storage_path: storagePath };
-  });
+}
 
 export const markRunListSent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
