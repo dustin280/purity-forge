@@ -171,4 +171,12 @@ export const qk = {
         : (["timesheets", filters] as const),
     projects: () => ["timesheet-projects"] as const,
   },
+
+  runLists: {
+    all: ["run-lists"] as const,
+    list: () => ["run-lists"] as const,
+    detail: (id: string) => ["run-list", id] as const,
+    prepFlagged: () => ["prep-flagged-samples"] as const,
+    columns: () => ["run-list-columns"] as const,
+  },
 } as const;

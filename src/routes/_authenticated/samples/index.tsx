@@ -15,9 +15,11 @@ function SamplesList() {
   const { data, isLoading } = useQuery({ queryKey: qk.samples.list(), queryFn: () => fn() });
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<SampleStatusFilter>("all");
+  const [prepOnly, setPrepOnly] = useState(false);
 
   const filtered = (data ?? []).filter(s => {
     if (filter !== "all" && s.status !== filter) return false;
+    if (prepOnly && !(s as { prep_flag?: boolean | null }).prep_flag) return false;
     if (q && !`${s.batch_id} ${s.client} ${s.project ?? ""} ${(s as { compound?: string | null }).compound ?? ""} ${(s as { lot?: string | null }).lot ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
@@ -32,7 +34,7 @@ function SamplesList() {
         <Button asChild><Link to="/samples/new"><Plus className="size-4 mr-1" />New Sample</Link></Button>
       </div>
 
-      <SamplesFiltersCard q={q} setQ={setQ} filter={filter} setFilter={setFilter} />
+      <SamplesFiltersCard q={q} setQ={setQ} filter={filter} setFilter={setFilter} prepOnly={prepOnly} setPrepOnly={setPrepOnly} />
       <SamplesTable rows={filtered} isLoading={isLoading} />
     </div>
   );
