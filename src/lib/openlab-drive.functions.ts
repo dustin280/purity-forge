@@ -10,7 +10,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { generateRunListCsv } from "@/lib/run-lists.functions";
+import { buildRunListCsv } from "@/lib/run-lists.functions";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const BUCKET = "openlab-cds";
@@ -369,11 +369,14 @@ export const pushRunListToDrive = createServerFn({ method: "POST" })
       );
     }
 
-    // Reuse the existing CSV generator. Calling the server fn directly from
-    // inside another server fn invokes the handler in-process.
-    const csvResult = await generateRunListCsv({
-      data: { run_list_id: data.run_list_id, persist: true },
-    });
+    // Reuse the shared CSV builder so the file pushed to Drive is bit-identical
+    // to what the analyst downloads from the "Download & Export" button.
+    const csvResult = await buildRunListCsv(
+      context.supabase,
+      context.userId,
+      data.run_list_id,
+      true,
+    );
 
     const existingId = await driveFindByName(folderId, csvResult.filename);
     const uploaded = existingId
