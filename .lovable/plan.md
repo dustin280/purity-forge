@@ -1,79 +1,75 @@
 ## Goal
 
-Introduce a managed **Clients** directory backed by a new table, link it into the Chain of Custody (CoC) form for autopopulation, and add a "New Client" checkbox so a CoC submission can register a new client on the fly.
+Let an analyst flag samples as "ready for instrument run", assemble them into an ordered run list (picking instrument / method / starting vial position), and export an OpenLab CDS sequence CSV — either downloaded in the browser now, or POSTed to an on-prem agent later.
 
-## 1. New tables
+## 1. Database
 
-### `clients`
-Primary client record. Fields:
-- `company_name` (text, unique, required) — main search key
-- `address` (text)
-- `primary_contact_name` (text)
-- `primary_contact_title` (text) — **new**
-- `primary_contact_email` (text)
-- `primary_contact_phone` (text)
-- `is_active` (boolean, default true)
-- standard `id`, `created_at`, `updated_at`, `created_by`
+New migration:
 
-### `client_contacts`
-Additional contacts (up to 10 enforced via a trigger or UI cap). Fields:
-- `client_id` (uuid, FK → clients, on delete cascade)
-- `name` (text, required)
-- `title` (text)
-- `email` (text)
-- `phone` (text)
-- `sort_order` (int)
-- standard `id`, `created_at`, `updated_at`
+- `samples.prep_flag boolean not null default false` — quick flag on the sample row.
+- `samples.prep_flagged_at timestamptz`, `samples.prep_flagged_by uuid` — light audit.
+- `run_list_columns` (admin-managed extra columns appended to the exported CSV):
+  - `key text` (CSV header), `label text`, `source` enum (`literal`, `sample_field`, `method`, `vial`, `data_file_pattern`), `default_value text`, `sample_field text` nullable, `sort_order int`, `is_active bool`.
+  - Seeded with the OpenLab CDS Workstation/Server standard set: Sample Name, Sample Type, Method, Inj/Vial, Vial, Data File, Sample Info, Level, Sample Amount, ISTD Amount, Multiplier, Dilution, Comment.
+- `run_lists` — saved/exported run lists:
+  - `name text`, `instrument_id uuid` (→ `instruments`), `method_name text`, `starting_vial int`, `inj_per_vial int default 1`, `data_file_pattern text` (e.g. `{sample}_{yyyyMMdd}_{seq}`), `notes text`, `status text default 'draft'` (`draft` | `exported`), `exported_at timestamptz`, `exported_by uuid`, `csv_storage_path text` nullable, `created_by`, timestamps.
+- `run_list_items` — ordered samples in a list:
+  - `run_list_id uuid` (cascade), `sample_id uuid` (→ `samples`), `row_no int`, `sample_type text default 'Sample'`, `method_override text`, `vial int`, `data_file text`, `comment text`, `extras jsonb default '{}'`.
+- RLS: select for any authenticated user; insert/update for tech/reviewer/admin; delete admin (matches the rest of the LIMS). Standard GRANTs.
+- Trigger on `run_list_items` to keep `row_no` consecutive on insert if not provided.
 
-### RLS (mirrors `hplc_columns`)
-- Select: any authenticated user
-- Insert/Update: tech, reviewer, admin
-- Delete: admin only
+## 2. Server functions
 
-## 2. Server functions — `src/lib/clients.functions.ts`
+`src/lib/run-lists.functions.ts` (createServerFn + requireSupabaseAuth):
 
-- `listClients({ search? })` — active clients ordered by company, optional ILIKE filter on company/contact
-- `getClient({ id })` — client + contacts
-- `createClient({ ...client, contacts: [] })` — used by both the Clients page and the CoC "new client" flow
-- `updateClient({ id, ...patch, contacts? })` — replace contacts list on save
-- `deactivateClient({ id })`
+- `setSamplePrepFlag({ sample_id, flag })` — toggles `prep_flag` on samples, writes audit row.
+- `listPrepFlaggedSamples()` — returns samples with `prep_flag = true`, joined to CoC client/project, ordered oldest-first.
+- `createRunList({...})` / `updateRunList` / `deleteRunList` / `getRunList` / `listRunLists`.
+- `addSamplesToRunList({ run_list_id, sample_ids[] })` — appends in given order, assigns sequential `row_no` and `vial` starting from list's `starting_vial`.
+- `reorderRunListItems` / `removeRunListItem` / `updateRunListItem`.
+- `generateRunListCsv({ run_list_id })` — pulls items + list + active `run_list_columns` and returns `{ filename, csv }`. Resolves each column by source:
+  - `literal` → `default_value`
+  - `sample_field` → `samples.<sample_field>` (whitelisted)
+  - `method` → item override else list method
+  - `vial` → item vial
+  - `data_file_pattern` → render `data_file_pattern` substituting `{sample}`, `{seq}`, `{yyyyMMdd}`, `{vial}`
+  Properly RFC-4180 quotes fields containing commas/quotes/newlines. Sets `status='exported'`, stamps `exported_at/by`, uploads CSV to `openlab-cds` storage at `exports/<run_list_id>.csv` and stores path.
+- `markRunListSent({ run_list_id })` — manual ack after analyst drops the CSV.
 
-## 3. Clients page — `/_authenticated/clients`
+`src/lib/run-list-columns.functions.ts`:
 
-- New sidebar entry "Clients"
-- Top bar: search input (debounced, filters by company / contact / email) + **Add Client** button
-- Card grid of clients; each card shows company, address, primary contact, count of extra contacts, and an **Edit** button
-- **Add Client** and **Edit** open the same dialog: a form with the primary client fields plus a dynamic list of up to 10 additional contacts (Add Contact / Remove buttons; each row has name, title, email, phone)
-- Form uses zod validation (required company, email format, phone length caps, max 10 contacts)
+- `listRunListColumns()` / `upsertRunListColumn` / `deleteRunListColumn` / `reorderRunListColumns` — admin-only writes.
 
-## 4. CoC form integration
+Future hook (not built now, but designed for): `src/routes/api/public/run-list-agent.ts` POST endpoint authenticated by an HMAC secret that on-prem agent polls or that we push to. Mentioned as a TODO comment, not implemented this round.
 
-- Add a new CoC field **`client_address`** (text, sort_order between contact phone and packaging condition) via migration seed
-- In the CoC form's client info area, replace the free-text "Client Company Name" input with a **Client picker**:
-  - Combobox listing active clients (search by company)
-  - On select, autopopulate `client_company`, `client_contact_name`, `client_contact_email`, `client_contact_phone`, and the new `client_address`
-- Add a **"New client — add to directory"** checkbox below the picker
-  - When checked, the picker is hidden and the four contact fields + address become directly editable
-  - On successful CoC submit, client-side calls `createClient` with those fields (primary contact only, no extras) and shows a toast "Client added to directory"
+## 3. UI
 
-## 5. Out of scope (phase 1)
+### Samples table
+- Add a "Prep" toggle column (checkbox) to `samples-table.tsx`; clicking calls `setSamplePrepFlag`. Add a filter chip "Prep flagged" to `filters-card.tsx`.
 
-- Per-client document storage
-- Bulk import / CSV upload
-- Linking historical CoC records back to client rows retroactively
-- Soft-delete restore UI (admin can re-activate via DB)
+### New section: Run List Builder
+Sidebar entry **Run Lists** (icon `ListChecks`) → `/run-lists` with:
+- List of saved/exported run lists, "New Run List" button.
+- New/edit page `/run-lists/$id` shows:
+  - Header card: name, instrument (select from `instruments`), method (combobox from `openlab_methods`), starting vial, inj/vial, data file pattern, notes.
+  - "Add prep-flagged samples" panel: searchable picker of `listPrepFlaggedSamples` with multi-select + "Add selected".
+  - Items table with reorderable rows (up/down buttons), per-row Sample Type / Method override / Vial / Comment, Remove.
+  - Footer: "Preview CSV" (modal, monospace), "Download CSV" (calls `generateRunListCsv`, triggers browser download via blob), "Mark exported", "Save".
+- Generated CSV header set = active `run_list_columns` in sort order.
+
+### Admin
+New admin page `/admin/run-list-columns` to manage the column list. Linked from `/admin/index.tsx`.
+
+## 4. Out of scope this round
+
+- On-prem agent (delivery option 2) — only schema/UI hooks added; no agent code or POST endpoint yet.
+- ChemStation Edition variant — single column-set today, admin can edit it.
+- Auto-status transition of the source `samples.status` on export (leave as-is until user asks).
 
 ## Technical notes
 
-- Reuse the existing `Combobox` pattern (see `coc-multiselect-field.tsx` / hplc column select) for the client picker.
-- Contact rows in the edit dialog managed with local state array; submit replaces all contacts in a single server call (delete + insert in a transaction inside the server fn).
-- Hard cap of 10 enforced both in the form (disable "Add Contact" at 10) and in the server function (reject >10).
-- The CoC `client_address` field is stored in the existing `chain_of_custody_records.data` jsonb — no schema change to that table.
+Files added: `supabase/migrations/<ts>_run_lists.sql`, `src/lib/run-lists.functions.ts`, `src/lib/run-list-columns.functions.ts`, `src/routes/_authenticated/run-lists/index.tsx`, `src/routes/_authenticated/run-lists/$id.tsx`, `src/routes/_authenticated/admin/run-list-columns.tsx`, `src/components/run-lists/*` (`run-list-form.tsx`, `prep-samples-picker.tsx`, `run-list-items-table.tsx`, `csv-preview-dialog.tsx`).
 
-## Open question
+Files edited: `src/components/samples/samples-table.tsx`, `src/components/samples/filters-card.tsx`, `src/components/lims/sidebar-nav.tsx` (add Run Lists entry, icon `ListChecks`), `src/routes/_authenticated/admin/index.tsx`, `src/lib/query-keys.ts`.
 
-When a user picks an existing client in the CoC form and then edits one of the autopopulated fields (e.g. corrects a phone number), should we:
-1. Just save the edited value on the CoC record only (default), or
-2. Prompt "Update this client's directory entry too?"
-
-Plan currently assumes option 1.
+CSV is generated server-side so the same exact bytes can later be POSTed to the on-prem agent without re-deriving them in the browser.
