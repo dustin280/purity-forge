@@ -6,6 +6,7 @@ import {
   getOpenLabSettings,
   listOpenLabMethods,
   listOpenLabSequences,
+  listOpenLabReports,
 } from "@/lib/openlab.functions";
 import { qk } from "@/lib/query-keys";
 
@@ -36,4 +37,8 @@ export function useOpenLabSequence(name: string | null) {
     queryFn: () => fn({ data: { name: name! } }),
     enabled: !!name,
   });
+}
+export function useOpenLabReports() {
+  const fn = useServerFn(listOpenLabReports);
+  return useQuery({ queryKey: qk.openlab.reports, queryFn: () => fn() });
 }

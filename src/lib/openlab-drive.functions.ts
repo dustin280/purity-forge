@@ -15,7 +15,7 @@ import { buildRunListCsv } from "@/lib/run-lists.functions";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 const BUCKET = "openlab-cds";
 
-type Kind = "Methods" | "Sequences";
+type Kind = "Methods" | "Sequences" | "Reports";
 
 interface DriveFile {
   id: string;
@@ -197,6 +197,15 @@ const driveSettingsSchema = z.object({
       .nullable()
       .optional(),
   ),
+  drive_reports_folder_id: z.preprocess(
+    extractFolderId,
+    z
+      .string()
+      .max(200)
+      .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+      .nullable()
+      .optional(),
+  ),
 });
 
 export const updateDriveSettings = createServerFn({ method: "POST" })
@@ -212,6 +221,7 @@ export const updateDriveSettings = createServerFn({ method: "POST" })
     const payload = {
       drive_methods_folder_id: data.drive_methods_folder_id || null,
       drive_sequences_folder_id: data.drive_sequences_folder_id || null,
+      drive_reports_folder_id: data.drive_reports_folder_id || null,
     };
     if (existing?.id) {
       const { error } = await context.supabase
@@ -235,7 +245,7 @@ export const testDriveFolder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
-        kind: z.enum(["Methods", "Sequences"]),
+        kind: z.enum(["Methods", "Sequences", "Reports"]),
         folder_id: z.preprocess(
           extractFolderId,
           z
@@ -253,13 +263,15 @@ export const testDriveFolder = createServerFn({ method: "POST" })
     if (!folderId) {
       const { data: settings } = await context.supabase
         .from("openlab_settings")
-        .select("drive_methods_folder_id,drive_sequences_folder_id")
+        .select("drive_methods_folder_id,drive_sequences_folder_id,drive_reports_folder_id")
         .limit(1)
         .maybeSingle();
       folderId =
         data.kind === "Methods"
           ? settings?.drive_methods_folder_id
-          : settings?.drive_sequences_folder_id;
+          : data.kind === "Sequences"
+            ? settings?.drive_sequences_folder_id
+            : settings?.drive_reports_folder_id;
     }
     if (!folderId) {
       throw new Error(`No Drive ${data.kind} folder configured`);
@@ -292,8 +304,10 @@ async function syncKind(
   // existing manual sync in openlab.functions.ts.)
   if (kind === "Methods") {
     await supabase.from("openlab_methods").delete().neq("name", "");
-  } else {
+  } else if (kind === "Sequences") {
     await supabase.from("openlab_sequences").delete().neq("name", "");
+  } else {
+    await supabase.from("openlab_reports").delete().neq("name", "");
   }
 
   for (const f of files) {
@@ -314,7 +328,7 @@ async function syncKind(
           synced_at: stamp,
         });
         if (error) throw error;
-      } else {
+      } else if (kind === "Sequences") {
         // Best-effort: look inside the .S folder for a sequence table file
         // and count its lines. Swallow errors so one bad folder doesn't
         // abort the whole pull.
@@ -338,6 +352,15 @@ async function syncKind(
           relative_path: path,
           last_modified: f.modifiedTime ?? null,
           line_count: lineCount,
+          synced_at: stamp,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("openlab_reports").insert({
+          name: f.name,
+          relative_path: path,
+          last_modified: f.modifiedTime ?? null,
+          size_bytes: null,
           synced_at: stamp,
         });
         if (error) throw error;
@@ -366,7 +389,7 @@ async function syncKind(
         synced_at: stamp,
       });
       if (error) throw error;
-    } else {
+    } else if (kind === "Sequences") {
       let lineCount = 0;
       if (f.name.toLowerCase().endsWith(".csv")) {
         lineCount = parseCsvLineCount(new TextDecoder().decode(bytes));
@@ -377,6 +400,15 @@ async function syncKind(
         relative_path: path,
         last_modified: f.modifiedTime ?? null,
         line_count: lineCount,
+        synced_at: stamp,
+      });
+      if (error) throw error;
+    } else {
+      const { error } = await supabase.from("openlab_reports").insert({
+        name: f.name,
+        relative_path: path,
+        last_modified: f.modifiedTime ?? null,
+        size_bytes: f.size ? Number(f.size) : null,
         synced_at: stamp,
       });
       if (error) throw error;
@@ -407,6 +439,14 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
             .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
             .optional(),
         ),
+        reports_folder_id: z.preprocess(
+          extractFolderId,
+          z
+            .string()
+            .max(200)
+            .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+            .optional(),
+        ),
       })
       .partial()
       .parse(d ?? {}),
@@ -429,15 +469,20 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
       (data?.sequences_folder_id && data.sequences_folder_id.length > 0
         ? data.sequences_folder_id
         : settings.drive_sequences_folder_id) || null;
+    const reportsId =
+      (data?.reports_folder_id && data.reports_folder_id.length > 0
+        ? data.reports_folder_id
+        : settings.drive_reports_folder_id) || null;
 
-    if (!methodsId && !sequencesId) {
+    if (!methodsId && !sequencesId && !reportsId) {
       throw new Error(
-        "No Drive folders configured. Enter a Methods or Sequences folder ID first.",
+        "No Drive folders configured. Enter a Methods, Sequences, or Reports folder ID first.",
       );
     }
 
     let methods = 0;
     let sequences = 0;
+    let reports = 0;
     if (methodsId) {
       methods = await syncKind(
         context.supabase,
@@ -454,6 +499,14 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
         prefix,
       );
     }
+    if (reportsId) {
+      reports = await syncKind(
+        context.supabase,
+        "Reports",
+        reportsId,
+        prefix,
+      );
+    }
 
     const stamp = new Date().toISOString();
     await context.supabase
@@ -461,7 +514,7 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
       .update({ drive_last_pulled_at: stamp, last_synced_at: stamp })
       .eq("id", settings.id);
 
-    return { ok: true, methods, sequences, last_pulled_at: stamp };
+    return { ok: true, methods, sequences, reports, last_pulled_at: stamp };
   });
 
 /* ---------------- Push ---------------- */

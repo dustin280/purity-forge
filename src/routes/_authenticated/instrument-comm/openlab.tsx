@@ -9,6 +9,7 @@ import { ChevronLeft } from "lucide-react";
 import { ConnectionStatusCard } from "@/components/instrument-comm/connection-status-card";
 import { MethodsTable } from "@/components/instrument-comm/methods-table";
 import { SequencesTable } from "@/components/instrument-comm/sequences-table";
+import { ReportsTable } from "@/components/instrument-comm/reports-table";
 import { SettingsCard } from "@/components/instrument-comm/settings-card";
 
 export const Route = createFileRoute("/_authenticated/instrument-comm/openlab")({
@@ -39,6 +40,7 @@ function OpenLabPage() {
         <TabsList>
           <TabsTrigger value="sequences">Sequences</TabsTrigger>
           <TabsTrigger value="methods">Methods</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="sequences" className="mt-4">
@@ -46,6 +48,9 @@ function OpenLabPage() {
         </TabsContent>
         <TabsContent value="methods" className="mt-4">
           <MethodsTable />
+        </TabsContent>
+        <TabsContent value="reports" className="mt-4">
+          <ReportsTable />
         </TabsContent>
         <TabsContent value="settings" className="mt-4">
           <SettingsCard />

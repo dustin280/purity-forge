@@ -18,6 +18,7 @@ export interface OpenLabSettings {
   updated_at: string;
   drive_methods_folder_id: string | null;
   drive_sequences_folder_id: string | null;
+  drive_reports_folder_id: string | null;
   drive_last_pulled_at: string | null;
   drive_last_pushed_at: string | null;
 }
@@ -39,6 +40,15 @@ export interface OpenLabSequence {
   relative_path: string;
   last_modified: string | null;
   line_count: number;
+  synced_at: string;
+}
+
+export interface OpenLabReport {
+  id: string;
+  name: string;
+  relative_path: string;
+  last_modified: string | null;
+  size_bytes: number | null;
   synced_at: string;
 }
 
@@ -155,6 +165,17 @@ export const listOpenLabSequences = createServerFn({ method: "GET" })
       .order("name", { ascending: true });
     if (error) throw error;
     return (data ?? []) as unknown as OpenLabSequence[];
+  });
+
+export const listOpenLabReports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("openlab_reports")
+      .select("*")
+      .order("name", { ascending: true });
+    if (error) throw error;
+    return (data ?? []) as unknown as OpenLabReport[];
   });
 
 export const getOpenLabMethod = createServerFn({ method: "GET" })

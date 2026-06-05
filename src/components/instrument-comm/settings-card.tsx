@@ -30,10 +30,11 @@ export function SettingsCard() {
   const [path, setPath] = useState("");
   const [prefix, setPrefix] = useState("default/");
   const [notes, setNotes] = useState("");
-  const [uploadKind, setUploadKind] = useState<"Methods" | "Sequences">("Sequences");
+  const [uploadKind, setUploadKind] = useState<"Methods" | "Sequences" | "Reports">("Sequences");
   const [uploading, setUploading] = useState(false);
   const [methodsFolderId, setMethodsFolderId] = useState("");
   const [sequencesFolderId, setSequencesFolderId] = useState("");
+  const [reportsFolderId, setReportsFolderId] = useState("");
 
   const updateDrive = useServerFn(updateDriveSettings);
   const pullDrive = useServerFn(pullDriveSnapshot);
@@ -46,6 +47,7 @@ export function SettingsCard() {
     setNotes(data.settings.notes ?? "");
     setMethodsFolderId(data.settings.drive_methods_folder_id ?? "");
     setSequencesFolderId(data.settings.drive_sequences_folder_id ?? "");
+    setReportsFolderId(data.settings.drive_reports_folder_id ?? "");
   }, [data?.settings]);
 
   const save = useMutation({
@@ -70,6 +72,7 @@ export function SettingsCard() {
         data: {
           drive_methods_folder_id: methodsFolderId || null,
           drive_sequences_folder_id: sequencesFolderId || null,
+          drive_reports_folder_id: reportsFolderId || null,
         },
       }),
     onSuccess: () => {
@@ -86,25 +89,34 @@ export function SettingsCard() {
         data: {
           drive_methods_folder_id: methodsFolderId || null,
           drive_sequences_folder_id: sequencesFolderId || null,
+          drive_reports_folder_id: reportsFolderId || null,
         },
       });
       return pullDrive({
         data: {
           methods_folder_id: methodsFolderId || undefined,
           sequences_folder_id: sequencesFolderId || undefined,
+          reports_folder_id: reportsFolderId || undefined,
         },
       });
     },
     onSuccess: (r) => {
-      toast.success(`Pulled ${r.methods} methods, ${r.sequences} sequences from Drive`);
+      toast.success(
+        `Pulled ${r.methods} methods, ${r.sequences} sequences, ${r.reports} reports from Drive`,
+      );
       qc.invalidateQueries({ queryKey: ["openlab"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Drive pull failed"),
   });
 
-  async function testFolder(kind: "Methods" | "Sequences") {
+  async function testFolder(kind: "Methods" | "Sequences" | "Reports") {
     try {
-      const folderId = kind === "Methods" ? methodsFolderId : sequencesFolderId;
+      const folderId =
+        kind === "Methods"
+          ? methodsFolderId
+          : kind === "Sequences"
+            ? sequencesFolderId
+            : reportsFolderId;
       const r = await testDrive({
         data: { kind, folder_id: folderId || undefined },
       });
@@ -193,7 +205,7 @@ export function SettingsCard() {
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-md border overflow-hidden text-sm">
-                {(["Sequences", "Methods"] as const).map((k) => (
+                {(["Sequences", "Methods", "Reports"] as const).map((k) => (
                   <button
                     key={k}
                     type="button"
@@ -248,14 +260,15 @@ export function SettingsCard() {
             <p className="text-xs text-muted-foreground">
               Install Google Drive for desktop on the OpenLab PC, sign in as the shared
               lab account, and mirror the OpenLab project folder. Paste the folder IDs
-              for <span className="font-mono">Methods</span> and{" "}
-              <span className="font-mono">Sequences</span> below (the ID is the last
+              for <span className="font-mono">Methods</span>,{" "}
+              <span className="font-mono">Sequences</span>, and{" "}
+              <span className="font-mono">Reports</span> below (the ID is the last
               segment of <span className="font-mono">drive.google.com/drive/folders/&lt;ID&gt;</span>).
               Then click <span className="font-medium">Pull from Drive</span> to refresh
               the index. Run lists you send from LIMS land in the Sequences folder and
               appear on the PC within seconds.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label>Methods folder ID</Label>
                 <div className="flex gap-2">
@@ -292,6 +305,24 @@ export function SettingsCard() {
                   </Button>
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Reports folder ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={reportsFolderId}
+                    onChange={(e) => setReportsFolderId(e.target.value.trim())}
+                    placeholder="1RpT..."
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testFolder("Reports")}
+                    disabled={!reportsFolderId}
+                  >
+                    Test
+                  </Button>
+                </div>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -307,7 +338,7 @@ export function SettingsCard() {
                 onClick={() => pullMut.mutate()}
                 disabled={
                   pullMut.isPending ||
-                  (!methodsFolderId && !sequencesFolderId)
+                  (!methodsFolderId && !sequencesFolderId && !reportsFolderId)
                 }
               >
                 <CloudDownload
