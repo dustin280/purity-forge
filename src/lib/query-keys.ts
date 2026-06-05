@@ -99,6 +99,12 @@ export const qk = {
     list: (entryId: string) => ["lab-journal-attachments", entryId] as const,
   },
 
+  parameterScoutingAttachments: {
+    all: ["parameter-scouting-attachments"] as const,
+    list: (entryId: string) =>
+      ["parameter-scouting-attachments", entryId] as const,
+  },
+
   auditLog: {
     all: ["audit_log"] as const,
     list: (from: string, to: string, table: string) =>
