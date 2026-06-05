@@ -360,6 +360,39 @@ export type Database = {
           },
         ]
       }
+      hplc_columns: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          name: string
+          part_number: string | null
+          source_receipt_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          part_number?: string | null
+          source_receipt_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          part_number?: string | null
+          source_receipt_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       instrument_bookings: {
         Row: {
           created_at: string
