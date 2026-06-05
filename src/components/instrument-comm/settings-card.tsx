@@ -90,7 +90,10 @@ export function SettingsCard() {
 
   async function testFolder(kind: "Methods" | "Sequences") {
     try {
-      const r = await testDrive({ data: { kind } });
+      const folderId = kind === "Methods" ? methodsFolderId : sequencesFolderId;
+      const r = await testDrive({
+        data: { kind, folder_id: folderId || undefined },
+      });
       toast.success(
         `${kind}: ${r.count} file(s)` +
           (r.sample.length ? ` \u2014 ${r.sample.slice(0, 3).join(", ")}` : ""),

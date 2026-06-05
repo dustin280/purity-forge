@@ -216,19 +216,32 @@ export const updateDriveSettings = createServerFn({ method: "POST" })
 export const testDriveFolder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ kind: z.enum(["Methods", "Sequences"]) }).parse(d),
+    z
+      .object({
+        kind: z.enum(["Methods", "Sequences"]),
+        folder_id: z
+          .string()
+          .trim()
+          .max(200)
+          .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid Drive folder ID")
+          .optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
     await requireAdmin(context.supabase, context.userId);
-    const { data: settings } = await context.supabase
-      .from("openlab_settings")
-      .select("drive_methods_folder_id,drive_sequences_folder_id")
-      .limit(1)
-      .maybeSingle();
-    const folderId =
-      data.kind === "Methods"
-        ? settings?.drive_methods_folder_id
-        : settings?.drive_sequences_folder_id;
+    let folderId: string | null | undefined = data.folder_id;
+    if (!folderId) {
+      const { data: settings } = await context.supabase
+        .from("openlab_settings")
+        .select("drive_methods_folder_id,drive_sequences_folder_id")
+        .limit(1)
+        .maybeSingle();
+      folderId =
+        data.kind === "Methods"
+          ? settings?.drive_methods_folder_id
+          : settings?.drive_sequences_folder_id;
+    }
     if (!folderId) {
       throw new Error(`No Drive ${data.kind} folder configured`);
     }
