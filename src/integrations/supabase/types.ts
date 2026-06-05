@@ -1119,6 +1119,33 @@ export type Database = {
         }
         Relationships: []
       }
+      openlab_reports: {
+        Row: {
+          id: string
+          last_modified: string | null
+          name: string
+          relative_path: string
+          size_bytes: number | null
+          synced_at: string
+        }
+        Insert: {
+          id?: string
+          last_modified?: string | null
+          name: string
+          relative_path: string
+          size_bytes?: number | null
+          synced_at?: string
+        }
+        Update: {
+          id?: string
+          last_modified?: string | null
+          name?: string
+          relative_path?: string
+          size_bytes?: number | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
       openlab_sequences: {
         Row: {
           id: string
@@ -1155,6 +1182,7 @@ export type Database = {
           drive_last_pulled_at: string | null
           drive_last_pushed_at: string | null
           drive_methods_folder_id: string | null
+          drive_reports_folder_id: string | null
           drive_sequences_folder_id: string | null
           id: string
           last_synced_at: string | null
@@ -1169,6 +1197,7 @@ export type Database = {
           drive_last_pulled_at?: string | null
           drive_last_pushed_at?: string | null
           drive_methods_folder_id?: string | null
+          drive_reports_folder_id?: string | null
           drive_sequences_folder_id?: string | null
           id?: string
           last_synced_at?: string | null
@@ -1183,6 +1212,7 @@ export type Database = {
           drive_last_pulled_at?: string | null
           drive_last_pushed_at?: string | null
           drive_methods_folder_id?: string | null
+          drive_reports_folder_id?: string | null
           drive_sequences_folder_id?: string | null
           id?: string
           last_synced_at?: string | null
