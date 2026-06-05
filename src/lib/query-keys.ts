@@ -72,6 +72,13 @@ export const qk = {
     list: () => ["hplc-columns"] as const,
   },
 
+  clients: {
+    all: ["clients"] as const,
+    list: (search?: string) =>
+      search === undefined ? (["clients"] as const) : (["clients", search] as const),
+    detail: (id: string) => ["client", id] as const,
+  },
+
   parameterScouting: {
     all: ["parameter-scouting"] as const,
     list: () => ["parameter-scouting"] as const,
