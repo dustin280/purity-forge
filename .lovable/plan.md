@@ -1,75 +1,80 @@
 ## Goal
 
-Let an analyst flag samples as "ready for instrument run", assemble them into an ordered run list (picking instrument / method / starting vial position), and export an OpenLab CDS sequence CSV — either downloaded in the browser now, or POSTed to an on-prem agent later.
+Let the lab PC share its OpenLab `Methods\` and `Sequences\` folders via Google Drive for desktop, and let LIMS pull snapshots from Drive into the `openlab-cds` bucket and push generated run-list CSVs back into the Sequences folder — so the CSV lands on the OpenLab PC automatically.
 
-## 1. Database
+## Architecture
 
-New migration:
+```text
+OpenLab PC ──(Drive for desktop, two-way)── Google Drive ──(Lovable connector)── LIMS
+   Methods\          ▲                       Methods folder ID
+   Sequences\        │                       Sequences folder ID
+                     │
+            LIMS push: run-list CSV ──────────► Sequences folder ──► appears on PC
+            LIMS pull: list + download ◄─────── both folders ──────► openlab-cds bucket ──► sync indexer
+```
 
-- `samples.prep_flag boolean not null default false` — quick flag on the sample row.
-- `samples.prep_flagged_at timestamptz`, `samples.prep_flagged_by uuid` — light audit.
-- `run_list_columns` (admin-managed extra columns appended to the exported CSV):
-  - `key text` (CSV header), `label text`, `source` enum (`literal`, `sample_field`, `method`, `vial`, `data_file_pattern`), `default_value text`, `sample_field text` nullable, `sort_order int`, `is_active bool`.
-  - Seeded with the OpenLab CDS Workstation/Server standard set: Sample Name, Sample Type, Method, Inj/Vial, Vial, Data File, Sample Info, Level, Sample Amount, ISTD Amount, Multiplier, Dilution, Comment.
-- `run_lists` — saved/exported run lists:
-  - `name text`, `instrument_id uuid` (→ `instruments`), `method_name text`, `starting_vial int`, `inj_per_vial int default 1`, `data_file_pattern text` (e.g. `{sample}_{yyyyMMdd}_{seq}`), `notes text`, `status text default 'draft'` (`draft` | `exported`), `exported_at timestamptz`, `exported_by uuid`, `csv_storage_path text` nullable, `created_by`, timestamps.
-- `run_list_items` — ordered samples in a list:
-  - `run_list_id uuid` (cascade), `sample_id uuid` (→ `samples`), `row_no int`, `sample_type text default 'Sample'`, `method_override text`, `vial int`, `data_file text`, `comment text`, `extras jsonb default '{}'`.
-- RLS: select for any authenticated user; insert/update for tech/reviewer/admin; delete admin (matches the rest of the LIMS). Standard GRANTs.
-- Trigger on `run_list_items` to keep `row_no` consecutive on insert if not provided.
+- Drive account: shared lab Google account, linked once via the **Google Drive standard connector** (workspace-scoped, no per-user OAuth).
+- Folder layout: flat. Admin pastes a **Methods folder ID** and a **Sequences folder ID** into Settings; LIMS does not assume any subfolder structure inside Drive.
+- File transport: Drive for desktop on the lab PC. No Windows agent, no SMB, no scheduled robocopy.
 
-## 2. Server functions
+## Database
 
-`src/lib/run-lists.functions.ts` (createServerFn + requireSupabaseAuth):
+New columns on `openlab_settings` (singleton row):
+- `drive_methods_folder_id text` (nullable)
+- `drive_sequences_folder_id text` (nullable)
+- `drive_last_pulled_at timestamptz` (nullable)
+- `drive_last_pushed_at timestamptz` (nullable)
 
-- `setSamplePrepFlag({ sample_id, flag })` — toggles `prep_flag` on samples, writes audit row.
-- `listPrepFlaggedSamples()` — returns samples with `prep_flag = true`, joined to CoC client/project, ordered oldest-first.
-- `createRunList({...})` / `updateRunList` / `deleteRunList` / `getRunList` / `listRunLists`.
-- `addSamplesToRunList({ run_list_id, sample_ids[] })` — appends in given order, assigns sequential `row_no` and `vial` starting from list's `starting_vial`.
-- `reorderRunListItems` / `removeRunListItem` / `updateRunListItem`.
-- `generateRunListCsv({ run_list_id })` — pulls items + list + active `run_list_columns` and returns `{ filename, csv }`. Resolves each column by source:
-  - `literal` → `default_value`
-  - `sample_field` → `samples.<sample_field>` (whitelisted)
-  - `method` → item override else list method
-  - `vial` → item vial
-  - `data_file_pattern` → render `data_file_pattern` substituting `{sample}`, `{seq}`, `{yyyyMMdd}`, `{vial}`
-  Properly RFC-4180 quotes fields containing commas/quotes/newlines. Sets `status='exported'`, stamps `exported_at/by`, uploads CSV to `openlab-cds` storage at `exports/<run_list_id>.csv` and stores path.
-- `markRunListSent({ run_list_id })` — manual ack after analyst drops the CSV.
+New table `openlab_drive_pushes` to audit run-list pushes:
+- `run_list_id uuid` (FK to `run_lists`)
+- `drive_file_id text`, `drive_file_name text`, `pushed_by uuid`, `pushed_at timestamptz`
+- RLS: authenticated read, admin/reviewer write; service_role full.
 
-`src/lib/run-list-columns.functions.ts`:
+## Server functions (`src/lib/openlab-drive.functions.ts`)
 
-- `listRunListColumns()` / `upsertRunListColumn` / `deleteRunListColumn` / `reorderRunListColumns` — admin-only writes.
+All admin-gated via `requireAdmin` helper already used in `openlab.functions.ts`.
 
-Future hook (not built now, but designed for): `src/routes/api/public/run-list-agent.ts` POST endpoint authenticated by an HMAC secret that on-prem agent polls or that we push to. Mentioned as a TODO comment, not implemented this round.
+- `listDriveFolder({ kind: "Methods" | "Sequences" })` — calls Drive v3 `files.list?q='<folderId>' in parents and trashed=false&fields=files(id,name,mimeType,modifiedTime,size,md5Checksum)` through the gateway. Returns the file listing for the chosen folder. Used by a preview UI.
+- `pullDriveSnapshot()` — for each kind:
+  1. List files in the configured folder ID.
+  2. For each file, download via Drive `files/{id}?alt=media`, upload to `openlab-cds` at `<prefix><Kind>/<name>` with `upsert: true`.
+  3. Delete bucket entries under `<prefix><Kind>/` that no longer exist in Drive (keeps the bucket in sync with Drive).
+  4. Call the existing `syncOpenLabIndex` logic to rebuild the `openlab_methods` / `openlab_sequences` tables.
+  5. Stamp `drive_last_pulled_at`.
+- `pushRunListToDrive({ runListId })` — generate the OpenLab CSV (reuse existing `generateRunListCsv` from `run-lists.functions.ts`), upload it to the Sequences folder via Drive multipart upload (`POST /upload/drive/v3/files?uploadType=multipart` with `parents: [sequencesFolderId]`). If a file with the same name already exists in that folder, update it via `PATCH /upload/drive/v3/files/{id}?uploadType=media` instead of creating a duplicate. Insert an `openlab_drive_pushes` row and stamp `drive_last_pushed_at`.
 
-## 3. UI
+All gateway calls use:
+```
+GATEWAY_URL = https://connector-gateway.lovable.dev/google_drive/drive/v3
+Authorization: Bearer ${LOVABLE_API_KEY}
+X-Connection-Api-Key: ${GOOGLE_DRIVE_API_KEY}
+```
+Upload endpoint base: `https://connector-gateway.lovable.dev/google_drive/upload/drive/v3`.
 
-### Samples table
-- Add a "Prep" toggle column (checkbox) to `samples-table.tsx`; clicking calls `setSamplePrepFlag`. Add a filter chip "Prep flagged" to `filters-card.tsx`.
+## Connector
 
-### New section: Run List Builder
-Sidebar entry **Run Lists** (icon `ListChecks`) → `/run-lists` with:
-- List of saved/exported run lists, "New Run List" button.
-- New/edit page `/run-lists/$id` shows:
-  - Header card: name, instrument (select from `instruments`), method (combobox from `openlab_methods`), starting vial, inj/vial, data file pattern, notes.
-  - "Add prep-flagged samples" panel: searchable picker of `listPrepFlaggedSamples` with multi-select + "Add selected".
-  - Items table with reorderable rows (up/down buttons), per-row Sample Type / Method override / Vial / Comment, Remove.
-  - Footer: "Preview CSV" (modal, monospace), "Download CSV" (calls `generateRunListCsv`, triggers browser download via blob), "Mark exported", "Save".
-- Generated CSV header set = active `run_list_columns` in sort order.
+Link the **Google Drive** standard connector to the project (one shared lab account). This provisions `GOOGLE_DRIVE_API_KEY` and ensures `LOVABLE_API_KEY` is present — both read from `process.env` inside the server functions.
 
-### Admin
-New admin page `/admin/run-list-columns` to manage the column list. Linked from `/admin/index.tsx`.
+## UI
 
-## 4. Out of scope this round
+**Settings card** (`src/components/instrument-comm/settings-card.tsx`): add a "Google Drive" section visible to admins:
+- Two text inputs: Methods folder ID, Sequences folder ID (with helper text explaining how to copy the ID from a Drive folder URL).
+- "Test connection" button — calls `listDriveFolder` for each kind and shows file counts + first 5 names.
+- "Pull now" button — runs `pullDriveSnapshot`, shows toast with files pulled and last-pulled timestamp. Replaces the manual file uploader as the primary path (manual upload stays as fallback).
 
-- On-prem agent (delivery option 2) — only schema/UI hooks added; no agent code or POST endpoint yet.
-- ChemStation Edition variant — single column-set today, admin can edit it.
-- Auto-status transition of the source `samples.status` on export (leave as-is until user asks).
+**Connection status card**: surface `drive_last_pulled_at` next to the existing `last_synced_at`.
 
-## Technical notes
+**Run List detail page** (`src/routes/_authenticated/run-lists/$id.tsx`): add a "Send to OpenLab (Drive)" button next to the existing download/export buttons. Calls `pushRunListToDrive`, then toasts the Drive file name. Disabled if Sequences folder ID is not configured.
 
-Files added: `supabase/migrations/<ts>_run_lists.sql`, `src/lib/run-lists.functions.ts`, `src/lib/run-list-columns.functions.ts`, `src/routes/_authenticated/run-lists/index.tsx`, `src/routes/_authenticated/run-lists/$id.tsx`, `src/routes/_authenticated/admin/run-list-columns.tsx`, `src/components/run-lists/*` (`run-list-form.tsx`, `prep-samples-picker.tsx`, `run-list-items-table.tsx`, `csv-preview-dialog.tsx`).
+## What this does not change
 
-Files edited: `src/components/samples/samples-table.tsx`, `src/components/samples/filters-card.tsx`, `src/components/lims/sidebar-nav.tsx` (add Run Lists entry, icon `ListChecks`), `src/routes/_authenticated/admin/index.tsx`, `src/lib/query-keys.ts`.
+- The existing `syncOpenLabIndex` and manual upload panel keep working — Drive is an additional, preferred path, not a replacement.
+- No realtime HPLC status, no remote run start (OpenLab CDS still doesn't expose those without Agilent's Windows SDK).
+- Drive for desktop must stay signed in on the lab PC; if it logs out, pulls silently return the last snapshot. The "Test connection" button is how an analyst confirms freshness.
 
-CSV is generated server-side so the same exact bytes can later be POSTed to the on-prem agent without re-deriving them in the browser.
+## Setup instructions to surface in the Settings card
+
+1. On the OpenLab PC, install Google Drive for desktop, sign in as the shared lab account, and mark the OpenLab project folder (or a mirror containing `Methods\` and `Sequences\`) as "Available offline / Mirror".
+2. In Drive web, open the Methods folder, copy the ID from the URL (`drive.google.com/drive/folders/<ID>`), paste into Settings. Repeat for Sequences.
+3. Click **Test connection** → expect non-zero counts. Click **Pull now**.
+4. To send a run list to the instrument: open the run list → **Send to OpenLab (Drive)** → CSV appears in the PC's Sequences folder within seconds.
