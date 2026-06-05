@@ -37,6 +37,17 @@ export const Route = createFileRoute("/_authenticated/admin/run-list-columns")({
   component: RunListColumnsAdmin,
 });
 
+type UpsertInput = {
+  id?: string;
+  key: string;
+  label: string;
+  source: RunListColumnSource;
+  default_value: string | null;
+  sample_field: string | null;
+  sort_order: number;
+  is_active: boolean;
+};
+
 const SOURCES: { value: RunListColumnSource; label: string }[] = [
   { value: "literal", label: "Literal (default value)" },
   { value: "sample_field", label: "Sample field" },
@@ -61,7 +72,7 @@ function RunListColumnsAdmin() {
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.runLists.columns() });
 
   const upsertMut = useMutation({
-    mutationFn: (d: Parameters<typeof upsert>[0]["data"]) => upsert({ data: d }),
+    mutationFn: (d: UpsertInput) => upsert({ data: d }),
     onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message),
   });
