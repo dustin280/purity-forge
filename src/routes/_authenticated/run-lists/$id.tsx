@@ -15,8 +15,8 @@ import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
 } from "@/lib/run-lists.functions";
-import { useInstruments } from "@/components/scheduler/use-scheduler";
 import { useOpenLabMethods } from "@/components/instrument-comm/use-openlab";
+import { listInstruments } from "@/lib/instruments.functions";
 import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/run-lists/$id")({
@@ -33,7 +33,8 @@ function RunListDetail() {
   const genCsv = useServerFn(generateRunListCsv);
   const markSent = useServerFn(markRunListSent);
   const listPrep = useServerFn(listPrepFlaggedSamples);
-  const instruments = useInstruments?.();
+  const listInstr = useServerFn(listInstruments);
+  const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
 
   const { data, isLoading } = useQuery({ queryKey: qk.runLists.detail(id), queryFn: () => get({ data: { id } }) });
@@ -115,7 +116,7 @@ function RunListDetail() {
             <Select value={current.instrument_id} onValueChange={(v) => setForm({ ...current, instrument_id: v })}>
               <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
-                {(instruments?.data ?? []).filter(i => i.is_active).map(i => (
+                {(instruments.data ?? []).filter((i: { is_active: boolean }) => i.is_active).map((i: { id: string; name: string }) => (
                   <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
                 ))}
               </SelectContent>
