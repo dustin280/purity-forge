@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Plus, Trash2, ArrowLeft, FileText } from "lucide-react";
+import { Download, Plus, Trash2, ArrowLeft, FileText, Send } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
 } from "@/lib/run-lists.functions";
-import { useOpenLabMethods } from "@/components/instrument-comm/use-openlab";
+import { useOpenLabMethods, useOpenLabSettings } from "@/components/instrument-comm/use-openlab";
+import { pushRunListToDrive } from "@/lib/openlab-drive.functions";
 import { listInstruments } from "@/lib/instruments.functions";
 import { qk } from "@/lib/query-keys";
 
@@ -34,8 +35,11 @@ function RunListDetail() {
   const markSent = useServerFn(markRunListSent);
   const listPrep = useServerFn(listPrepFlaggedSamples);
   const listInstr = useServerFn(listInstruments);
+  const pushDrive = useServerFn(pushRunListToDrive);
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
+  const openlab = useOpenLabSettings();
+  const driveReady = !!openlab.data?.settings?.drive_sequences_folder_id;
 
   const { data, isLoading } = useQuery({ queryKey: qk.runLists.detail(id), queryFn: () => get({ data: { id } }) });
   const { data: prepSamples } = useQuery({ queryKey: qk.runLists.prepFlagged(), queryFn: () => listPrep() });
@@ -75,6 +79,16 @@ function RunListDetail() {
   const rmMut = useMutation({
     mutationFn: (itemId: string) => removeItem({ data: { id: itemId } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.runLists.detail(id) }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const pushMut = useMutation({
+    mutationFn: () => pushDrive({ data: { run_list_id: id } }),
+    onSuccess: (r) => {
+      toast.success(`Sent to OpenLab Drive: ${r.drive_file_name}`);
+      qc.invalidateQueries({ queryKey: qk.runLists.detail(id) });
+      qc.invalidateQueries({ queryKey: ["openlab"] });
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -150,6 +164,15 @@ function RunListDetail() {
             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><Plus className="size-4 mr-1" />Add prep-flagged</Button>
             <Button size="sm" variant="outline" onClick={showPreview}><FileText className="size-4 mr-1" />Preview CSV</Button>
             <Button size="sm" onClick={() => downloadCsv(true)}><Download className="size-4 mr-1" />Download &amp; Export</Button>
+            <Button
+              size="sm"
+              onClick={() => pushMut.mutate()}
+              disabled={!driveReady || pushMut.isPending || items.length === 0}
+              title={driveReady ? "Upload to the Google Drive Sequences folder" : "Configure Drive in Instrument Communication \u2192 Settings"}
+            >
+              <Send className={`size-4 mr-1 ${pushMut.isPending ? "animate-pulse" : ""}`} />
+              {pushMut.isPending ? "Sending\u2026" : "Send to OpenLab (Drive)"}
+            </Button>
             {l.status === "draft" && <Button size="sm" variant="ghost" onClick={() => markSent({ data: { id } }).then(() => { qc.invalidateQueries({ queryKey: qk.runLists.detail(id) }); toast.success("Marked exported"); })}>Mark exported</Button>}
           </div>
         </div>
