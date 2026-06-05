@@ -10,12 +10,14 @@ export type SampleStatusFilter = SampleStatus | "all";
  * parent owns the filter state.
  */
 export function SamplesFiltersCard({
-  q, setQ, filter, setFilter,
+  q, setQ, filter, setFilter, prepOnly, setPrepOnly,
 }: {
   q: string;
   setQ: (v: string) => void;
   filter: SampleStatusFilter;
   setFilter: (v: SampleStatusFilter) => void;
+  prepOnly?: boolean;
+  setPrepOnly?: (v: boolean) => void;
 }) {
   return (
     <Card className="p-4 border-border">
@@ -41,6 +43,16 @@ export function SamplesFiltersCard({
               {f === "all" ? "All" : STATUS_LABEL[f as SampleStatus]}
             </button>
           ))}
+          {setPrepOnly && (
+            <button
+              onClick={() => setPrepOnly(!prepOnly)}
+              className={`px-3 py-1.5 rounded-md border transition-colors uppercase tracking-wider font-semibold ${
+                prepOnly ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"
+              }`}
+            >
+              Prep Flagged
+            </button>
+          )}
         </div>
       </div>
     </Card>
