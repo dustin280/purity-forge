@@ -43,6 +43,7 @@ export interface ReceiptFormValues {
   gl_account: string;
   tax_amount: string;
   shipping_cost: string;
+  register_as_column: boolean;
 }
 
 export interface PendingAttachments {
@@ -100,6 +101,7 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     gl_account: "",
     tax_amount: "",
     shipping_cost: "",
+    register_as_column: false,
   };
 }
 
