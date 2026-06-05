@@ -297,8 +297,55 @@ async function syncKind(
   }
 
   for (const f of files) {
-    // Skip nested folders
-    if (f.mimeType === "application/vnd.google-apps.folder") continue;
+    const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+
+    if (isFolder) {
+      // OpenLab stores methods/sequences as .M / .S directories. Index the
+      // folder itself as a single entry; do not download contents.
+      const path = `${prefix}${kind}/${f.name}/`;
+
+      if (kind === "Methods") {
+        const { error } = await supabase.from("openlab_methods").insert({
+          name: f.name.replace(/\.[Mm]$/, ""),
+          description: null,
+          relative_path: path,
+          last_modified: f.modifiedTime ?? null,
+          size_bytes: null,
+          synced_at: stamp,
+        });
+        if (error) throw error;
+      } else {
+        // Best-effort: look inside the .S folder for a sequence table file
+        // and count its lines. Swallow errors so one bad folder doesn't
+        // abort the whole pull.
+        let lineCount = 0;
+        try {
+          const children = await driveList(f.id);
+          const table = children.find((c) =>
+            /\.(csv|seq|s)$/i.test(c.name) &&
+            c.mimeType !== "application/vnd.google-apps.folder",
+          );
+          if (table) {
+            const bytes = await driveDownload(table.id);
+            lineCount = parseCsvLineCount(new TextDecoder().decode(bytes));
+          }
+        } catch {
+          /* ignore */
+        }
+        const { error } = await supabase.from("openlab_sequences").insert({
+          name: f.name.replace(/\.[Ss]$/, ""),
+          status: "Ready",
+          relative_path: path,
+          last_modified: f.modifiedTime ?? null,
+          line_count: lineCount,
+          synced_at: stamp,
+        });
+        if (error) throw error;
+      }
+      continue;
+    }
+
+    // Flat-file layout: download and store the file itself.
     const bytes = await driveDownload(f.id);
     const path = `${prefix}${kind}/${f.name}`;
     const { error: upErr } = await supabase.storage
@@ -336,9 +383,7 @@ async function syncKind(
     }
   }
 
-  return files.filter(
-    (f) => f.mimeType !== "application/vnd.google-apps.folder",
-  ).length;
+  return files.length;
 }
 
 export const pullDriveSnapshot = createServerFn({ method: "POST" })
