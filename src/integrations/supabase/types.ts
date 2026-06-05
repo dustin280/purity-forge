@@ -1224,6 +1224,50 @@ export type Database = {
         }
         Relationships: []
       }
+      parameter_scouting_attachments: {
+        Row: {
+          content_type: string | null
+          entry_id: string
+          file_name: string
+          file_path: string
+          id: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+          user_id: string
+        }
+        Insert: {
+          content_type?: string | null
+          entry_id: string
+          file_name: string
+          file_path: string
+          id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          user_id: string
+        }
+        Update: {
+          content_type?: string | null
+          entry_id?: string
+          file_name?: string
+          file_path?: string
+          id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parameter_scouting_attachments_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "parameter_scouting_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       parameter_scouting_logs: {
         Row: {
           comments: string | null

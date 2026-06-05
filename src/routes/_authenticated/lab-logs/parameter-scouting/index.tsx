@@ -62,6 +62,7 @@ function ParameterScoutingPage() {
         <ScoutingForm
           defaultUserName={defaultName}
           compoundOptions={compoundOptions}
+          currentUserId={user?.id ?? null}
           onCreateCompound={(name) =>
             createCompoundMut
               .mutateAsync(name)
