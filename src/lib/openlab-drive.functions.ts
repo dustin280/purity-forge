@@ -170,14 +170,14 @@ const driveSettingsSchema = z.object({
     .string()
     .trim()
     .max(200)
-    .regex(/^[a-zA-Z0-9_\-]*$/, "Invalid Drive folder ID")
+    .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
     .nullable()
     .optional(),
   drive_sequences_folder_id: z
     .string()
     .trim()
     .max(200)
-    .regex(/^[a-zA-Z0-9_\-]*$/, "Invalid Drive folder ID")
+    .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
     .nullable()
     .optional(),
 });
@@ -223,7 +223,7 @@ export const testDriveFolder = createServerFn({ method: "POST" })
           .string()
           .trim()
           .max(200)
-          .regex(/^[a-zA-Z0-9_\-]+$/, "Invalid Drive folder ID")
+          .regex(/^[A-Za-z0-9_\-]+$/, "Invalid Drive folder ID")
           .optional(),
       })
       .parse(d),
