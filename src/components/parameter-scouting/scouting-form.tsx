@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { GradientEditor } from "./gradient-editor";
 import { RunListEditor } from "./run-list-editor";
+import { ScoutingAttachmentPanel } from "./attachment-panel";
 import type { CompoundOption } from "./compound-picker";
 import type {
   GradientStep,
@@ -60,6 +61,7 @@ interface ScoutingFormProps {
   loading: boolean;
   onSubmit: (payload: ScoutingPayload) => void;
   onCancelEdit: () => void;
+  currentUserId: string | null;
 }
 
 export function ScoutingForm({
@@ -70,6 +72,7 @@ export function ScoutingForm({
   loading,
   onSubmit,
   onCancelEdit,
+  currentUserId,
 }: ScoutingFormProps) {
   const [runAt, setRunAt] = useState(nowLocal());
   const [userName, setUserName] = useState(defaultUserName);
@@ -242,6 +245,13 @@ export function ScoutingForm({
             rows={1}
             maxLength={4000}
             placeholder="Anything noteworthy…"
+          />
+        </Field>
+
+        <Field className="md:col-span-6" label="Attachments">
+          <ScoutingAttachmentPanel
+            entryId={editing?.id ?? null}
+            userId={currentUserId}
           />
         </Field>
 
