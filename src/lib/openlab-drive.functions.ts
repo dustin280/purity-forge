@@ -236,12 +236,14 @@ export const testDriveFolder = createServerFn({ method: "POST" })
     z
       .object({
         kind: z.enum(["Methods", "Sequences"]),
-        folder_id: z
-          .string()
-          .trim()
-          .max(200)
-          .regex(/^[A-Za-z0-9_\-]+$/, "Invalid Drive folder ID")
-          .optional(),
+        folder_id: z.preprocess(
+          extractFolderId,
+          z
+            .string()
+            .max(200)
+            .regex(/^[A-Za-z0-9_\-]+$/, "Invalid Drive folder ID")
+            .optional(),
+        ),
       })
       .parse(d),
   )
