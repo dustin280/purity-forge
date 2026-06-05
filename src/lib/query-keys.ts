@@ -152,6 +152,7 @@ export const qk = {
     settings: ["openlab", "settings"] as const,
     methods: ["openlab", "methods"] as const,
     sequences: ["openlab", "sequences"] as const,
+    reports: ["openlab", "reports"] as const,
     method: (name: string) => ["openlab", "method", name] as const,
     sequence: (name: string) => ["openlab", "sequence", name] as const,
   },
