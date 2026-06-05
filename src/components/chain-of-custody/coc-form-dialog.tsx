@@ -14,6 +14,7 @@ import { AttachmentsSection } from "./attachments-section";
 import { MultiselectField } from "./coc-multiselect-field";
 import { CocLineItemsSection } from "./coc-line-items-section";
 import { useCocForm } from "./use-coc-form";
+import { ClientPicker } from "./client-picker";
 import type { CocField } from "./types";
 
 export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
@@ -29,6 +30,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
     pendingByLine, setPendingByLine,
     saveMut, attemptClose,
     openExistingAttachment, deleteExistingAttachment,
+    registerNewClient, setRegisterNewClient, applyClient,
   } = f;
 
   function renderField(field: CocField) {
@@ -98,6 +100,14 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
             .filter(field => field.field_key !== "requested_tests")
             .map(field => (
               <React.Fragment key={field.id}>
+                {field.field_key === "client_company" && (
+                  <ClientPicker
+                    selectedCompany={(values.client_company as string) ?? ""}
+                    onPick={applyClient}
+                    registerNewClient={registerNewClient}
+                    onToggleRegister={setRegisterNewClient}
+                  />
+                )}
                 <div className={field.field_type === "textarea" || field.field_type === "multiselect" ? "sm:col-span-2" : ""}>
                   <Label htmlFor={field.field_key} className="text-xs">
                     {field.label}{field.is_required && <span className="text-destructive ml-0.5">*</span>}
