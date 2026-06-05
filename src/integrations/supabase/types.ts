@@ -1284,6 +1284,167 @@ export type Database = {
           },
         ]
       }
+      run_list_columns: {
+        Row: {
+          created_at: string
+          default_value: string | null
+          id: string
+          is_active: boolean
+          key: string
+          label: string
+          sample_field: string | null
+          sort_order: number
+          source: Database["public"]["Enums"]["run_list_column_source"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_value?: string | null
+          id?: string
+          is_active?: boolean
+          key: string
+          label: string
+          sample_field?: string | null
+          sort_order?: number
+          source?: Database["public"]["Enums"]["run_list_column_source"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_value?: string | null
+          id?: string
+          is_active?: boolean
+          key?: string
+          label?: string
+          sample_field?: string | null
+          sort_order?: number
+          source?: Database["public"]["Enums"]["run_list_column_source"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      run_list_items: {
+        Row: {
+          comment: string | null
+          created_at: string
+          data_file: string | null
+          extras: Json
+          id: string
+          method_override: string | null
+          row_no: number
+          run_list_id: string
+          sample_id: string | null
+          sample_type: string
+          updated_at: string
+          vial: number | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          data_file?: string | null
+          extras?: Json
+          id?: string
+          method_override?: string | null
+          row_no?: number
+          run_list_id: string
+          sample_id?: string | null
+          sample_type?: string
+          updated_at?: string
+          vial?: number | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          data_file?: string | null
+          extras?: Json
+          id?: string
+          method_override?: string | null
+          row_no?: number
+          run_list_id?: string
+          sample_id?: string | null
+          sample_type?: string
+          updated_at?: string
+          vial?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_list_items_run_list_id_fkey"
+            columns: ["run_list_id"]
+            isOneToOne: false
+            referencedRelation: "run_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_list_items_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      run_lists: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          csv_storage_path: string | null
+          data_file_pattern: string
+          exported_at: string | null
+          exported_by: string | null
+          id: string
+          inj_per_vial: number
+          instrument_id: string | null
+          method_name: string | null
+          name: string
+          notes: string | null
+          starting_vial: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          csv_storage_path?: string | null
+          data_file_pattern?: string
+          exported_at?: string | null
+          exported_by?: string | null
+          id?: string
+          inj_per_vial?: number
+          instrument_id?: string | null
+          method_name?: string | null
+          name: string
+          notes?: string | null
+          starting_vial?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          csv_storage_path?: string | null
+          data_file_pattern?: string
+          exported_at?: string | null
+          exported_by?: string | null
+          id?: string
+          inj_per_vial?: number
+          instrument_id?: string | null
+          method_name?: string | null
+          name?: string
+          notes?: string | null
+          starting_vial?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_lists_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       samples: {
         Row: {
           batch_id: string
@@ -1304,6 +1465,9 @@ export type Database = {
           notes: string | null
           parameters: string[]
           physical_description: string | null
+          prep_flag: boolean
+          prep_flagged_at: string | null
+          prep_flagged_by: string | null
           project: string | null
           raw_data_file_path: string | null
           receipt_date: string
@@ -1330,6 +1494,9 @@ export type Database = {
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
+          prep_flag?: boolean
+          prep_flagged_at?: string | null
+          prep_flagged_by?: string | null
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -1356,6 +1523,9 @@ export type Database = {
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
+          prep_flag?: boolean
+          prep_flagged_at?: string | null
+          prep_flagged_by?: string | null
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -1920,6 +2090,12 @@ export type Database = {
         | "photo"
         | "other"
       material_type: "controlled" | "uncontrolled"
+      run_list_column_source:
+        | "literal"
+        | "sample_field"
+        | "method"
+        | "vial"
+        | "data_file_pattern"
       sample_status:
         | "received"
         | "in_progress"
@@ -2085,6 +2261,13 @@ export const Constants = {
         "other",
       ],
       material_type: ["controlled", "uncontrolled"],
+      run_list_column_source: [
+        "literal",
+        "sample_field",
+        "method",
+        "vial",
+        "data_file_pattern",
+      ],
       sample_status: [
         "received",
         "in_progress",
