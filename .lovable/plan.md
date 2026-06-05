@@ -1,58 +1,53 @@
-## Add Financial Tracking + Accounting Report to Material Receipts
+## Goal
 
-Extend Material Receipts (controlled + uncontrolled) with financial fields and a date-range Accounting Report that exports to CSV and PDF for the accounting department.
+Convert the "Column" field in the Daily Backpressure Log into a dropdown sourced from a managed list of HPLC columns, and let users register a new column directly from a Material Receipt by ticking a checkbox.
 
-### 1. Database migration
+## 1. New table: `hplc_columns`
 
-Add columns to `public.material_receipts`:
-- `unit_price numeric(14,4)` — price per unit
-- `total_price numeric(14,2)` — total cost (optional override; otherwise derived from `quantity * unit_price`)
-- `currency text default 'USD'`
-- `invoice_number text`
-- `invoice_date date`
-- `gl_account text` — accounting / GL / cost center code
-- `tax_amount numeric(14,2)`
-- `shipping_cost numeric(14,2)`
+Columns:
+- `name` (text, unique) — display label shown in the dropdown
+- `part_number` (text, optional)
+- `source_receipt_id` (uuid, optional) — link back to the material receipt that registered it
+- `is_active` (boolean, default true)
+- standard `id`, `created_at`, `updated_at`, `created_by`
 
-All nullable so existing rows keep working. Index on `invoice_date` and existing `received_at` for report queries. No RLS changes needed (existing policies cover new columns).
+RLS:
+- Select: any authenticated user
+- Insert/Update: tech, reviewer, admin
+- Delete: admin only
 
-### 2. Form & types
+Seed three rows:
+- AdvanceBio Peptide Plus 3.0 x 150 mm, 2.7 µm — P/N 693975-349
+- Altura ZORBAX Eclipse Plus C18 1.8 µm, 2.1×50 mm — P/N 204205-308
+- Altura ZORBAX Eclipse Plus C18 1.8 µm, 2.1×150 mm — P/N 204215-308
 
-Update `src/components/material-receipts/receipt-form-logic.ts`:
-- Add the financial fields to `ReceiptFormValues`, `emptyValues()`, and `valuesToPayload()` (string→number conversion, empty→null).
+## 2. Server functions (`src/lib/hplc-columns.functions.ts`)
 
-Add a new card `src/components/material-receipts/receipt-financial-card.tsx` rendered for **both** controlled and uncontrolled receipts (inserted in `receipt-form.tsx` after the common card). Fields: Unit price, Currency (default USD), Total price (auto-calculated from qty × unit price, editable override), Tax, Shipping, Invoice number, Invoice date, GL/Cost center account.
+- `listHplcColumns()` — active columns, ordered by name
+- `createHplcColumn({ name, part_number?, source_receipt_id? })` — used by both the admin screen and the material‑receipt "new column" flow; no-ops if the same name already exists
 
-### 3. Detail view
+## 3. Backpressure log form
 
-Update `src/components/material-receipts/edit-view.tsx` (and `receipt-info-cards.tsx` as needed) to display the financial card in both view and edit modes. Show computed grand total = total + tax + shipping.
+- Replace the "Column" text input with a `Select` populated from `listHplcColumns`
+- Keep the existing `column_name` text field in the DB (store the selected column's display name)
+- Add a small "Manage columns" link for admins pointing to a new admin route
 
-### 4. Server function for report
+## 4. Material Receipt form
 
-Add `getMaterialReceiptsForAccounting` in `src/lib/material-receipts/receipts-crud.functions.ts`:
-- Inputs: `from`, `to` (dates), optional `material_type`, optional `date_field` (`received_at` | `invoice_date`, default `received_at`).
-- Returns rows with: receipt_number, received_at, invoice_date, invoice_number, material_name, supplier, manufacturer, po_number, quantity, unit, unit_price, total_price, tax_amount, shipping_cost, currency, gl_account, material_type, receiver_name.
-- Uses `requireSupabaseAuth` (any authenticated user; tighten to admin/reviewer if preferred — confirm below).
+- Add a checkbox **"Register this as a new HPLC column"** on the form (visible for both controlled and uncontrolled types, since columns can be either)
+- When checked, on successful receipt creation the client calls `createHplcColumn` with the material name (and catalog number as part number) plus `source_receipt_id`
+- Show a confirmation toast: "Column added to backpressure log selector"
 
-### 5. Accounting Report page
+## 5. Admin management page (light)
 
-New route `src/routes/_authenticated/material-receipts/accounting-report.tsx`:
-- Date-range picker (from / to), date-field toggle (Received date vs Invoice date), material-type filter.
-- Table preview with totals row (sum of total_price + tax + shipping, grouped by currency).
-- Buttons: **Export CSV** and **Export PDF** (uses existing `jsPDF` + `jspdf-autotable` stack, similar to `src/lib/material-receipt-pdf.ts` and `src/lib/timesheet-exports.ts`).
-- New helper `src/lib/material-receipts/accounting-export.ts` for CSV + PDF generation. PDF includes header (date range, generated-on, by), table, totals.
+New route `/_authenticated/admin/hplc-columns` listing columns with the ability to deactivate or rename them. Linked from the existing admin index.
 
-Add a link/button "Accounting Report" on the Material Receipts list page header.
+## Out of scope (phase 1)
 
-### 6. Query keys
+- Tracking column usage history / serial numbers
+- Auto‑linking past receipts retroactively
+- Column lifecycle (injections per column, retirement)
 
-Add `qk.materialReceipts.accountingReport(params)` to `src/lib/query-keys.ts`.
+## Open question
 
-### Out of scope (Phase 1)
-- Multi-currency conversion (totals grouped per currency).
-- Approval workflow specific to financials.
-- Direct email send to accounting (export-and-attach instead).
-
-### Questions before build
-1. Should the Accounting Report be restricted to **admin/reviewer** roles only, or available to any authenticated user?
-2. Any required field among the financial inputs (e.g., should unit price be mandatory), or all optional?
+Should the "Register as new HPLC column" checkbox be **always visible** on every material receipt, or **only visible when the material name contains "column"** (auto‑detected)? Default in the plan is always visible.

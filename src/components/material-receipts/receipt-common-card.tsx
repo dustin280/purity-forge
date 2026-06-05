@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { ReceiptField } from "./receipt-field";
 import type { ReceiptFormValues, MaterialSuggestion } from "./receipt-form-logic";
 
@@ -55,6 +57,23 @@ export function ReceiptCommonCard({
       <ReceiptField label="Notes / comments">
         <Textarea value={v.notes} onChange={e => up("notes", e.target.value)} rows={3} maxLength={4000} />
       </ReceiptField>
+      <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 p-3">
+        <Checkbox
+          id="register_as_column"
+          checked={v.register_as_column}
+          onCheckedChange={(c) => up("register_as_column", Boolean(c))}
+          className="mt-0.5"
+        />
+        <div className="grid gap-0.5">
+          <Label htmlFor="register_as_column" className="text-sm font-medium cursor-pointer">
+            Register this as a new HPLC column
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Adds this item to the Column selector in the Daily Backpressure Log.
+            Uses the material name (and catalog number, if provided) as the part number.
+          </p>
+        </div>
+      </div>
     </Card>
   );
 }

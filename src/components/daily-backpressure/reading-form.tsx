@@ -1,4 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Info } from "lucide-react";
@@ -13,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { listHplcColumns } from "@/lib/hplc-columns.functions";
+import { qk } from "@/lib/query-keys";
 
 const DEFAULT_INSTRUMENT = "Infinity III HPLC-DAD";
 
@@ -84,6 +88,12 @@ export function ReadingForm({
   const [columnTemp, setColumnTemp] = useState("");
   const [columnTempUnit, setColumnTempUnit] = useState("C");
   const [columnName, setColumnName] = useState("");
+  const listCols = useServerFn(listHplcColumns);
+  const { data: columns = [] } = useQuery({
+    queryKey: qk.hplcColumns.list(),
+    queryFn: () => listCols(),
+  });
+  const activeColumns = columns.filter((c) => c.is_active);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -202,12 +212,23 @@ export function ReadingForm({
           />
         </Field>
         <Field className="md:col-span-3" label="Column">
-          <Input
-            value={columnName}
-            onChange={(e) => setColumnName(e.target.value)}
-            placeholder="e.g. Zorbax SB-C18 4.6x150mm"
-            maxLength={255}
-          />
+          <Select
+            value={columnName || "__none__"}
+            onValueChange={(val) => setColumnName(val === "__none__" ? "" : val)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select a column…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— None —</SelectItem>
+              {activeColumns.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name}
+                  {c.part_number ? ` — P/N ${c.part_number}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field className="md:col-span-2" label="Flow rate">
           <Input

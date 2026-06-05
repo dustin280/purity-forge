@@ -67,6 +67,11 @@ export const qk = {
     list: () => ["daily-backpressure"] as const,
   },
 
+  hplcColumns: {
+    all: ["hplc-columns"] as const,
+    list: () => ["hplc-columns"] as const,
+  },
+
   parameterScouting: {
     all: ["parameter-scouting"] as const,
     list: () => ["parameter-scouting"] as const,

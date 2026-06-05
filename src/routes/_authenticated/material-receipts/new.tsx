@@ -4,7 +4,10 @@ import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { createMaterialReceipt, recordAttachment } from "@/lib/material-receipts.functions";
+import { createHplcColumn } from "@/lib/hplc-columns.functions";
 import { ReceiptForm, valuesToPayload, type PendingAttachments } from "@/components/material-receipts/receipt-form";
+import { qk } from "@/lib/query-keys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,16 +19,37 @@ export const Route = createFileRoute("/_authenticated/material-receipts/new")({
 function NewReceipt() {
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const qc = useQueryClient();
   // Only prefill when we actually have a human name on the profile —
   // never fall back to email for the Receiver field.
   const defaultName = profileDisplayName(profile, null);
   const create = useServerFn(createMaterialReceipt);
   const record = useServerFn(recordAttachment);
+  const addColumn = useServerFn(createHplcColumn);
 
   const mut = useMutation({
-    mutationFn: async (args: { payload: ReturnType<typeof valuesToPayload>; pending: PendingAttachments }) => {
+    mutationFn: async (args: {
+      payload: ReturnType<typeof valuesToPayload>;
+      pending: PendingAttachments;
+      registerColumn: { name: string; part_number: string | null } | null;
+    }) => {
       const row = await create({ data: args.payload });
       await uploadPending(row.id, args.pending, record);
+      if (args.registerColumn) {
+        try {
+          await addColumn({
+            data: {
+              name: args.registerColumn.name,
+              part_number: args.registerColumn.part_number,
+              source_receipt_id: row.id,
+            },
+          });
+          qc.invalidateQueries({ queryKey: qk.hplcColumns.list() });
+          toast.success("Column added to backpressure log selector");
+        } catch (e) {
+          toast.error(`Receipt saved, but column registration failed: ${(e as Error).message}`);
+        }
+      }
       return row;
     },
     onSuccess: (row) => {
@@ -48,7 +72,15 @@ function NewReceipt() {
         defaultReceiverName={defaultName}
         submitting={mut.isPending}
         submitLabel="Create Receipt"
-        onSubmit={(v, pending) => mut.mutate({ payload: valuesToPayload(v), pending })}
+        onSubmit={(v, pending) =>
+          mut.mutate({
+            payload: valuesToPayload(v),
+            pending,
+            registerColumn: v.register_as_column && v.material_name.trim()
+              ? { name: v.material_name.trim(), part_number: v.catalog_number.trim() || null }
+              : null,
+          })
+        }
         onCancel={() => navigate({ to: "/material-receipts" })}
       />
     </div>
