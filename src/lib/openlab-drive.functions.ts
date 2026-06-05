@@ -343,7 +343,30 @@ async function syncKind(
 
 export const pullDriveSnapshot = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        methods_folder_id: z.preprocess(
+          extractFolderId,
+          z
+            .string()
+            .max(200)
+            .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+            .optional(),
+        ),
+        sequences_folder_id: z.preprocess(
+          extractFolderId,
+          z
+            .string()
+            .max(200)
+            .regex(/^[A-Za-z0-9_\-]*$/, "Invalid Drive folder ID")
+            .optional(),
+        ),
+      })
+      .partial()
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     await requireAdmin(context.supabase, context.userId);
     const { data: settings } = await context.supabase
       .from("openlab_settings")
@@ -353,21 +376,36 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
     if (!settings) throw new Error("OpenLab settings not configured");
     const prefix = normalizePrefix(settings.storage_prefix ?? "default/");
 
+    const methodsId =
+      (data?.methods_folder_id && data.methods_folder_id.length > 0
+        ? data.methods_folder_id
+        : settings.drive_methods_folder_id) || null;
+    const sequencesId =
+      (data?.sequences_folder_id && data.sequences_folder_id.length > 0
+        ? data.sequences_folder_id
+        : settings.drive_sequences_folder_id) || null;
+
+    if (!methodsId && !sequencesId) {
+      throw new Error(
+        "No Drive folders configured. Enter a Methods or Sequences folder ID first.",
+      );
+    }
+
     let methods = 0;
     let sequences = 0;
-    if (settings.drive_methods_folder_id) {
+    if (methodsId) {
       methods = await syncKind(
         context.supabase,
         "Methods",
-        settings.drive_methods_folder_id,
+        methodsId,
         prefix,
       );
     }
-    if (settings.drive_sequences_folder_id) {
+    if (sequencesId) {
       sequences = await syncKind(
         context.supabase,
         "Sequences",
-        settings.drive_sequences_folder_id,
+        sequencesId,
         prefix,
       );
     }

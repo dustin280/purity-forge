@@ -80,7 +80,21 @@ export function SettingsCard() {
   });
 
   const pullMut = useMutation({
-    mutationFn: () => pullDrive(),
+    mutationFn: async () => {
+      // Persist whatever the admin has typed so subsequent push/pull use it.
+      await updateDrive({
+        data: {
+          drive_methods_folder_id: methodsFolderId || null,
+          drive_sequences_folder_id: sequencesFolderId || null,
+        },
+      });
+      return pullDrive({
+        data: {
+          methods_folder_id: methodsFolderId || undefined,
+          sequences_folder_id: sequencesFolderId || undefined,
+        },
+      });
+    },
     onSuccess: (r) => {
       toast.success(`Pulled ${r.methods} methods, ${r.sequences} sequences from Drive`);
       qc.invalidateQueries({ queryKey: ["openlab"] });
