@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './route
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
+import { Route as AuthenticatedAdminHplcColumnsRouteImport } from './routes/_authenticated/admin/hplc-columns'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
@@ -195,6 +196,12 @@ const AuthenticatedAdminInstrumentsRoute =
     path: '/admin/instruments',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminHplcColumnsRoute =
+  AuthenticatedAdminHplcColumnsRouteImport.update({
+    id: '/admin/hplc-columns',
+    path: '/admin/hplc-columns',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminCompoundsRoute =
   AuthenticatedAdminCompoundsRouteImport.update({
     id: '/admin/compounds',
@@ -314,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
@@ -358,6 +366,7 @@ export interface FileRoutesByTo {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
@@ -404,6 +413,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/_authenticated/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
@@ -450,6 +460,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/hplc-columns'
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/hplc-columns'
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
@@ -539,6 +551,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/audit-log'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
+    | '/_authenticated/admin/hplc-columns'
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
@@ -756,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminInstrumentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/hplc-columns': {
+      id: '/_authenticated/admin/hplc-columns'
+      path: '/admin/hplc-columns'
+      fullPath: '/admin/hplc-columns'
+      preLoaderRoute: typeof AuthenticatedAdminHplcColumnsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/compounds': {
       id: '/_authenticated/admin/compounds'
       path: '/admin/compounds'
@@ -895,6 +915,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminAuditLogRoute: typeof AuthenticatedAdminAuditLogRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
+  AuthenticatedAdminHplcColumnsRoute: typeof AuthenticatedAdminHplcColumnsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
@@ -938,6 +959,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminAuditLogRoute: AuthenticatedAdminAuditLogRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
+  AuthenticatedAdminHplcColumnsRoute: AuthenticatedAdminHplcColumnsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
