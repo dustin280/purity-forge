@@ -7,9 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Upload, CloudDownload, Plug } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { updateOpenLabSettings } from "@/lib/openlab.functions";
+import {
+  updateDriveSettings,
+  pullDriveSnapshot,
+  testDriveFolder,
+} from "@/lib/openlab-drive.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useOpenLabSettings } from "./use-openlab";
 
@@ -27,12 +32,20 @@ export function SettingsCard() {
   const [notes, setNotes] = useState("");
   const [uploadKind, setUploadKind] = useState<"Methods" | "Sequences">("Sequences");
   const [uploading, setUploading] = useState(false);
+  const [methodsFolderId, setMethodsFolderId] = useState("");
+  const [sequencesFolderId, setSequencesFolderId] = useState("");
+
+  const updateDrive = useServerFn(updateDriveSettings);
+  const pullDrive = useServerFn(pullDriveSnapshot);
+  const testDrive = useServerFn(testDriveFolder);
 
   useEffect(() => {
     if (!data?.settings) return;
     setPath(data.settings.project_folder_path ?? "");
     setPrefix(data.settings.storage_prefix ?? "default/");
     setNotes(data.settings.notes ?? "");
+    setMethodsFolderId(data.settings.drive_methods_folder_id ?? "");
+    setSequencesFolderId(data.settings.drive_sequences_folder_id ?? "");
   }, [data?.settings]);
 
   const save = useMutation({
@@ -50,6 +63,42 @@ export function SettingsCard() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Save failed"),
   });
+
+  const saveDrive = useMutation({
+    mutationFn: () =>
+      updateDrive({
+        data: {
+          drive_methods_folder_id: methodsFolderId || null,
+          drive_sequences_folder_id: sequencesFolderId || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Drive folders saved");
+      qc.invalidateQueries({ queryKey: ["openlab"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Save failed"),
+  });
+
+  const pullMut = useMutation({
+    mutationFn: () => pullDrive(),
+    onSuccess: (r) => {
+      toast.success(`Pulled ${r.methods} methods, ${r.sequences} sequences from Drive`);
+      qc.invalidateQueries({ queryKey: ["openlab"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Drive pull failed"),
+  });
+
+  async function testFolder(kind: "Methods" | "Sequences") {
+    try {
+      const r = await testDrive({ data: { kind } });
+      toast.success(
+        `${kind}: ${r.count} file(s)` +
+          (r.sample.length ? ` \u2014 ${r.sample.slice(0, 3).join(", ")}` : ""),
+      );
+    } catch (e: any) {
+      toast.error(e?.message ?? "Test failed");
+    }
+  }
 
   const canEdit = role === "admin";
 
@@ -173,6 +222,95 @@ export function SettingsCard() {
             that streams changes is planned for Phase 2.
           </p>
         </div>
+
+        {canEdit && (
+          <div className="border-t pt-4 space-y-3">
+            <div className="font-medium text-sm flex items-center gap-2">
+              <Plug className="size-4" /> Google Drive sync (recommended)
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Install Google Drive for desktop on the OpenLab PC, sign in as the shared
+              lab account, and mirror the OpenLab project folder. Paste the folder IDs
+              for <span className="font-mono">Methods</span> and{" "}
+              <span className="font-mono">Sequences</span> below (the ID is the last
+              segment of <span className="font-mono">drive.google.com/drive/folders/&lt;ID&gt;</span>).
+              Then click <span className="font-medium">Pull from Drive</span> to refresh
+              the index. Run lists you send from LIMS land in the Sequences folder and
+              appear on the PC within seconds.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Methods folder ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={methodsFolderId}
+                    onChange={(e) => setMethodsFolderId(e.target.value.trim())}
+                    placeholder="1AbCdEf..."
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testFolder("Methods")}
+                    disabled={!methodsFolderId}
+                  >
+                    Test
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Sequences folder ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={sequencesFolderId}
+                    onChange={(e) => setSequencesFolderId(e.target.value.trim())}
+                    placeholder="1XyZ..."
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testFolder("Sequences")}
+                    disabled={!sequencesFolderId}
+                  >
+                    Test
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => saveDrive.mutate()}
+                disabled={saveDrive.isPending}
+              >
+                Save Drive folders
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => pullMut.mutate()}
+                disabled={
+                  pullMut.isPending ||
+                  (!methodsFolderId && !sequencesFolderId)
+                }
+              >
+                <CloudDownload
+                  className={`size-4 mr-2 ${pullMut.isPending ? "animate-pulse" : ""}`}
+                />
+                {pullMut.isPending ? "Pulling\u2026" : "Pull from Drive"}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Last pull:{" "}
+              {data?.settings?.drive_last_pulled_at
+                ? new Date(data.settings.drive_last_pulled_at).toLocaleString()
+                : "never"}
+              {" \u00b7 "}Last push:{" "}
+              {data?.settings?.drive_last_pushed_at
+                ? new Date(data.settings.drive_last_pushed_at).toLocaleString()
+                : "never"}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

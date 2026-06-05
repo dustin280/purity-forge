@@ -16,6 +16,10 @@ export interface OpenLabSettings {
   last_synced_at: string | null;
   notes: string | null;
   updated_at: string;
+  drive_methods_folder_id: string | null;
+  drive_sequences_folder_id: string | null;
+  drive_last_pulled_at: string | null;
+  drive_last_pushed_at: string | null;
 }
 
 export interface OpenLabMethod {

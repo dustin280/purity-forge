@@ -72,6 +72,18 @@ export function ConnectionStatusCard() {
               ? new Date(data.settings.last_synced_at).toLocaleString()
               : "never"}
           </div>
+          <div>
+            Last Drive pull:{" "}
+            {data?.settings?.drive_last_pulled_at
+              ? new Date(data.settings.drive_last_pulled_at).toLocaleString()
+              : "never"}
+          </div>
+          <div>
+            Last Drive push:{" "}
+            {data?.settings?.drive_last_pushed_at
+              ? new Date(data.settings.drive_last_pushed_at).toLocaleString()
+              : "never"}
+          </div>
         </div>
         {role === "admin" && (
           <Button

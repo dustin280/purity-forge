@@ -1054,6 +1054,41 @@ export type Database = {
         }
         Relationships: []
       }
+      openlab_drive_pushes: {
+        Row: {
+          drive_file_id: string
+          drive_file_name: string
+          id: string
+          pushed_at: string
+          pushed_by: string | null
+          run_list_id: string
+        }
+        Insert: {
+          drive_file_id: string
+          drive_file_name: string
+          id?: string
+          pushed_at?: string
+          pushed_by?: string | null
+          run_list_id: string
+        }
+        Update: {
+          drive_file_id?: string
+          drive_file_name?: string
+          id?: string
+          pushed_at?: string
+          pushed_by?: string | null
+          run_list_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "openlab_drive_pushes_run_list_id_fkey"
+            columns: ["run_list_id"]
+            isOneToOne: false
+            referencedRelation: "run_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       openlab_methods: {
         Row: {
           description: string | null
@@ -1117,6 +1152,10 @@ export type Database = {
       openlab_settings: {
         Row: {
           created_at: string
+          drive_last_pulled_at: string | null
+          drive_last_pushed_at: string | null
+          drive_methods_folder_id: string | null
+          drive_sequences_folder_id: string | null
           id: string
           last_synced_at: string | null
           notes: string | null
@@ -1127,6 +1166,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          drive_last_pulled_at?: string | null
+          drive_last_pushed_at?: string | null
+          drive_methods_folder_id?: string | null
+          drive_sequences_folder_id?: string | null
           id?: string
           last_synced_at?: string | null
           notes?: string | null
@@ -1137,6 +1180,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          drive_last_pulled_at?: string | null
+          drive_last_pushed_at?: string | null
+          drive_methods_folder_id?: string | null
+          drive_sequences_folder_id?: string | null
           id?: string
           last_synced_at?: string | null
           notes?: string | null
