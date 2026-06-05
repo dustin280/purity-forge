@@ -34,6 +34,7 @@ import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } fro
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
+import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
@@ -198,6 +199,12 @@ const AuthenticatedAdminTimesheetProjectsRoute =
     path: '/admin/timesheet-projects',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminRunListColumnsRoute =
+  AuthenticatedAdminRunListColumnsRouteImport.update({
+    id: '/admin/run-list-columns',
+    path: '/admin/run-list-columns',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminParametersRoute =
   AuthenticatedAdminParametersRouteImport.update({
     id: '/admin/parameters',
@@ -345,6 +352,7 @@ export interface FileRoutesByFullPath {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -393,6 +401,7 @@ export interface FileRoutesByTo {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -443,6 +452,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -493,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -541,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
     | '/material-receipts/$id'
@@ -590,6 +602,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
+    | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/material-receipts/$id'
@@ -807,6 +820,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTimesheetProjectsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/run-list-columns': {
+      id: '/_authenticated/admin/run-list-columns'
+      path: '/admin/run-list-columns'
+      fullPath: '/admin/run-list-columns'
+      preLoaderRoute: typeof AuthenticatedAdminRunListColumnsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/parameters': {
       id: '/_authenticated/admin/parameters'
       path: '/admin/parameters'
@@ -978,6 +998,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
+  AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
@@ -1026,6 +1047,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
+  AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
