@@ -34,7 +34,7 @@ export interface RunListItem {
   vial: number | null;
   data_file: string | null;
   comment: string | null;
-  extras: Record<string, unknown>;
+  extras: Record<string, string | number | boolean | null>;
 }
 
 export interface PrepFlaggedSample {
