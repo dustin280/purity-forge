@@ -61,7 +61,7 @@ export function RecordsList({
         ) : records.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
             <ClipboardList className="size-8 mx-auto mb-2 opacity-40" />
-            No chain of custody records yet. Click <span className="font-medium">New Chain of Custody</span> to create one.
+            No sample receipt records yet. Click <span className="font-medium">New Sample Receipt</span> to create one.
           </div>
         ) : (
           <ul className="divide-y divide-border">

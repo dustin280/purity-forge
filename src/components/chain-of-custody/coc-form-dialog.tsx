@@ -89,7 +89,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
         onInteractOutside={(e) => { e.preventDefault(); attemptClose(); }}
       >
         <DialogHeader>
-          <DialogTitle>{recordId ? "Edit Chain of Custody" : "New Chain of Custody"}</DialogTitle>
+          <DialogTitle>{recordId ? "Edit Sample Receipt" : "New Sample Receipt"}</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}
