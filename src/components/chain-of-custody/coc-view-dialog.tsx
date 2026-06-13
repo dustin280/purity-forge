@@ -32,7 +32,7 @@ export function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Chain of Custody {rec ? `— ${rec.sample_id}` : ""}
+            Sample Receipt {rec ? `— ${rec.sample_id}` : ""}
           </DialogTitle>
         </DialogHeader>
         {!rec ? (

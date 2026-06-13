@@ -34,7 +34,7 @@ export function IntakeQueueList({
       ) : rows.length === 0 ? (
         <div className="p-10 text-center text-sm text-muted-foreground">
           <Inbox className="size-8 mx-auto mb-2 opacity-40" />
-          Intake queue is empty. Submit a Chain of Custody to stage new samples.
+          Intake queue is empty. Submit a Sample Receipt to stage new samples.
         </div>
       ) : (
         <div className="divide-y divide-border">

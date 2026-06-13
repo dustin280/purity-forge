@@ -34,7 +34,7 @@ export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPD
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(31, 41, 55);
-  doc.text("Chain of Custody", pageW - margin, y + 14, { align: "right" });
+  doc.text("Sample Receipt", pageW - margin, y + 14, { align: "right" });
   y += 36;
   doc.setDrawColor(31, 41, 55);
   doc.setLineWidth(0.8);
