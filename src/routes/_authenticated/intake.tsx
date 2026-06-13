@@ -26,7 +26,7 @@ function IntakePage() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Sample Intake</div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Intake Queue</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Samples staged from received Chain of Custody records. Verify each one to release it to prep.
+          Samples staged from received Sample Receipt records. Verify each one to release it to prep.
         </p>
       </div>
 

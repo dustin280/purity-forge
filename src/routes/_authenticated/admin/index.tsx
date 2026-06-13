@@ -12,7 +12,7 @@ const TILES = [
   { to: "/admin/hplc-columns", title: "HPLC Columns", desc: "Column options shown in the Daily Backpressure Log selector.", icon: Columns3 },
   { to: "/admin/run-list-columns", title: "Run List Columns", desc: "Manage the columns exported in the OpenLab CDS sequence CSV.", icon: ListChecks },
   { to: "/admin/timesheet-projects", title: "Timesheet Projects", desc: "Project options shown in the Timesheets dropdown.", icon: Clock },
-  { to: "/admin/coc-fields", title: "Chain of Custody Fields", desc: "Add, edit, reorder, or remove fields on the Chain of Custody form.", icon: ClipboardList },
+  { to: "/admin/coc-fields", title: "Sample Receipt Fields", desc: "Add, edit, reorder, or remove fields on the Sample Receipt form.", icon: ClipboardList },
   { to: "/admin/access-logs", title: "Access Logs", desc: "View user sign-in and sign-out activity. Filter by date and export to PDF.", icon: ShieldCheck },
   { to: "/admin/audit-log", title: "Audit Trail", desc: "Review all database changes — who changed what, when, with before/after diffs.", icon: History },
   { to: "/users", title: "Users & Roles", desc: "Grant or revoke admin, reviewer, and tech roles.", icon: Users },

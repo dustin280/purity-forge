@@ -1,45 +1,36 @@
-## Goal
+## Rename "Chain of Custody" to "Sample Receipt" (UI labels only — Option 1)
 
-Treat Drive "Reports" as a first-class kind next to Methods and Sequences in the OpenLab CDS module: configurable Drive folder, Pull/Test, indexed in the database, and browsable as its own tab.
+### Goal
+Replace every user-facing "Chain of Custody" label with "Sample Receipt" without renaming files, routes, database tables, storage buckets, or the `COC…` invoice prefix. Zero breakage risk.
 
-## Changes
+### Files to edit
 
-### 1. Database (new migration)
+| File | What changes |
+|------|-------------|
+| `src/components/chain-of-custody/page-header.tsx` | Page heading `Chain of Custody` → `Sample Receipt`; button `New Chain of Custody` → `New Sample Receipt` |
+| `src/components/lims/sidebar-nav.tsx` | Sidebar nav label `Chain of Custody` → `Sample Receipt` |
+| `src/routes/_authenticated/chain-of-custody.tsx` | Route comment |
+| `src/routes/_authenticated/intake.tsx` | Description: "received Chain of Custody records" → "received Sample Receipt records" |
+| `src/routes/_authenticated/clients/index.tsx` | Description: "used by the Chain of Custody form" → "used by the Sample Receipt form" |
+| `src/routes/_authenticated/admin/index.tsx` | Tile title `Chain of Custody Fields` → `Sample Receipt Fields`; description |
+| `src/routes/_authenticated/admin/coc-fields.tsx` | Page title + description |
+| `src/routes/_authenticated/admin/parameters.tsx` | Description text |
+| `src/components/chain-of-custody/coc-view-dialog.tsx` | Dialog title `Chain of Custody` → `Sample Receipt` |
+| `src/components/chain-of-custody/use-coc-form.ts` | Toast message + comments |
+| `src/components/chain-of-custody/types.ts` | Comments |
+| `src/components/chain-of-custody/records-list.tsx` | Comments |
+| `src/components/chain-of-custody/coc-form-dialog.tsx` | Comments |
+| `src/components/intake/queue-list.tsx` | Empty-state text |
+| `src/lib/coc-pdf.ts` | PDF heading `Chain of Custody` → `Sample Receipt` + comments |
+| `src/lib/clients.functions.ts` | Comments |
 
-- `openlab_settings`: add `drive_reports_folder_id text` and `drive_last_pulled_reports_at` is not needed — reuse the existing `drive_last_pulled_at`.
-- New table `public.openlab_reports` mirroring `openlab_sequences` shape:
-  - `id uuid pk`, `name text not null`, `relative_path text`, `last_modified timestamptz`, `size_bytes bigint`, `synced_at timestamptz`, `created_at timestamptz default now()`.
-  - Grants: `authenticated` select/insert/update/delete, `service_role` all.
-  - RLS enabled with the same policies used for `openlab_sequences` (auth-only read; admin write — match exactly what's there today).
+### What does NOT change
+- File names, component names, function names (`coc-*`, `Coc*`, `useCoc*`, etc.)
+- Route paths (`/chain-of-custody`, `/admin/coc-fields`)
+- Database tables (`chain_of_custody_records`, `chain_of_custody_fields`, `coc_attachments`)
+- Storage bucket name for attachments
+- Invoice prefix (`COC…`) on existing records
+- All `coc` / `COC` / `CoC` variable names and code identifiers
 
-### 2. Server functions (`src/lib/openlab-drive.functions.ts`)
-
-- Extend `Kind` to `"Methods" | "Sequences" | "Reports"`.
-- `syncKind`: when `kind === "Reports"`, wipe + reinsert into `openlab_reports`. Folder entries indexed as a single row (same `.M`/`.S` folder pattern, no `line_count`); flat files downloaded into the bucket under `${prefix}Reports/`.
-- `driveSettingsSchema` + `updateDriveSettings`: accept and persist `drive_reports_folder_id`.
-- `pullDriveSnapshot`: accept optional `reports_folder_id`, fall back to settings, return `{ methods, sequences, reports }`.
-- `testDriveFolder`: extend `kind` enum to include `"Reports"`.
-
-### 3. Settings UI (`src/components/instrument-comm/settings-card.tsx`)
-
-- Add `reportsFolderId` state, hydrate from settings.
-- Add a third "Reports folder ID" input + Test button in the Drive grid (grid becomes `sm:grid-cols-3` or stacks gracefully).
-- `saveDrive` / `pullMut` pass the new ID. Toast becomes `"Pulled X methods, Y sequences, Z reports from Drive"`.
-- Upload-kind toggle in the upload block: add `"Reports"` as a third option.
-
-### 4. Reports tab (`src/routes/_authenticated/instrument-comm/openlab.tsx`)
-
-- Add a `<TabsTrigger value="reports">Reports</TabsTrigger>` and matching `TabsContent` rendering a new `ReportsTable` component.
-
-### 5. ReportsTable (`src/components/instrument-comm/reports-table.tsx`)
-
-- Mirror `sequences-table.tsx` but read from `openlab_reports`. Columns: name, relative path, last modified, size, synced at. No `line_count`/`status`.
-
-### 6. Hook (`src/components/instrument-comm/use-openlab.ts`)
-
-- Add a `useOpenLabReports` query similar to `useOpenLabSequences`.
-
-## Out of scope
-
-- No changes to push (run-lists are still pushed only to the Sequences folder).
-- No changes to the run-list/sample workflow.
+### Validation
+After edits, run a search to confirm no remaining user-facing "Chain of Custody" strings exist in rendered UI (comments may remain in some places).

@@ -11,7 +11,7 @@ import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
 const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/chain-of-custody", label: "Chain of Custody", icon: ClipboardList },
+  { to: "/chain-of-custody", label: "Sample Receipt", icon: ClipboardList },
   { to: "/clients", label: "Clients", icon: Building2 },
   { to: "/intake", label: "Intake", icon: Inbox },
   { to: "/samples", label: "Samples", icon: FlaskConical },

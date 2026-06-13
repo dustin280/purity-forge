@@ -231,7 +231,7 @@ export function useCocForm({
     setIsDirty(false);
     setPendingFiles([]);
     if (draftId && getCocDraft(draftId)) {
-      toast.info("Draft saved — resume it from the Drafts panel on the Chain of Custody page.");
+      toast.info("Draft saved — resume it from the Drafts panel on the Sample Receipt page.");
     }
     onOpenChange(false);
   }

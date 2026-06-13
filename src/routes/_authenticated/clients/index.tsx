@@ -56,7 +56,7 @@ function ClientsPage() {
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Directory</div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Clients</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage clients used by the Chain of Custody form.
+            Manage clients used by the Sample Receipt form.
           </p>
         </div>
         <Button onClick={openNew}>

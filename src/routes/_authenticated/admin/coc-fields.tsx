@@ -23,9 +23,9 @@ function CocFieldsAdmin() {
       </Link>
       <div className="mb-6">
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Administration</div>
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Chain of Custody Fields</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Sample Receipt Fields</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Define the fields shown on the Chain of Custody intake form. Deactivate to hide without losing history.
+          Define the fields shown on the Sample Receipt intake form. Deactivate to hide without losing history.
         </p>
       </div>
 
