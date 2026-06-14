@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedVialLabelsRouteImport } from './routes/_authenticated/vial-labels'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
@@ -70,6 +71,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedVialLabelsRoute = AuthenticatedVialLabelsRouteImport.update({
+  id: '/vial-labels',
+  path: '/vial-labels',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
@@ -344,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
@@ -392,6 +399,7 @@ export interface FileRoutesByTo {
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
+  '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -443,6 +451,7 @@ export interface FileRoutesById {
   '/_authenticated/intake': typeof AuthenticatedIntakeRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
+  '/_authenticated/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -495,6 +504,7 @@ export interface FileRouteTypes {
     | '/intake'
     | '/integrations'
     | '/users'
+    | '/vial-labels'
     | '/admin/access-logs'
     | '/admin/audit-log'
     | '/admin/coc-fields'
@@ -543,6 +553,7 @@ export interface FileRouteTypes {
     | '/intake'
     | '/integrations'
     | '/users'
+    | '/vial-labels'
     | '/'
     | '/admin/access-logs'
     | '/admin/audit-log'
@@ -593,6 +604,7 @@ export interface FileRouteTypes {
     | '/_authenticated/intake'
     | '/_authenticated/integrations'
     | '/_authenticated/users'
+    | '/_authenticated/vial-labels'
     | '/_authenticated/'
     | '/_authenticated/admin/access-logs'
     | '/_authenticated/admin/audit-log'
@@ -664,6 +676,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/vial-labels': {
+      id: '/_authenticated/vial-labels'
+      path: '/vial-labels'
+      fullPath: '/vial-labels'
+      preLoaderRoute: typeof AuthenticatedVialLabelsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/users': {
@@ -989,6 +1008,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
+  AuthenticatedVialLabelsRoute: typeof AuthenticatedVialLabelsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminAccessLogsRoute: typeof AuthenticatedAdminAccessLogsRoute
   AuthenticatedAdminAuditLogRoute: typeof AuthenticatedAdminAuditLogRoute
@@ -1037,6 +1057,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIntakeRoute: AuthenticatedIntakeRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
+  AuthenticatedVialLabelsRoute: AuthenticatedVialLabelsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminAccessLogsRoute: AuthenticatedAdminAccessLogsRoute,
   AuthenticatedAdminAuditLogRoute: AuthenticatedAdminAuditLogRoute,
