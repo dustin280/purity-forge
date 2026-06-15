@@ -21,11 +21,11 @@ import { cn } from "@/lib/utils";
 import type { BackpressureRow } from "@/lib/daily-backpressure.functions";
 
 const SERIES_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--chart-2, 173 58% 39%))",
-  "hsl(var(--chart-3, 27 87% 67%))",
-  "hsl(var(--chart-4, 280 65% 60%))",
-  "hsl(var(--chart-5, 340 75% 55%))",
+  "var(--primary)",
+  "oklch(0.65 0.15 173)",
+  "oklch(0.72 0.17 50)",
+  "oklch(0.6 0.2 290)",
+  "oklch(0.62 0.22 12)",
 ];
 
 function fmtDate(ts: number) {
@@ -151,26 +151,26 @@ export function BackpressureTrendChart({
                   scale="time"
                   tickFormatter={fmtDate}
                   tick={{ fontSize: 11 }}
-                  stroke="hsl(var(--muted-foreground))"
+                  stroke="var(--muted-foreground)"
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
-                  stroke="hsl(var(--muted-foreground))"
+                  stroke="var(--muted-foreground)"
                   label={
                     unit
                       ? {
                           value: unit,
                           angle: -90,
                           position: "insideLeft",
-                          style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" },
+                          style: { fontSize: 11, fill: "var(--muted-foreground)" },
                         }
                       : undefined
                   }
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "hsl(var(--popover))",
-                    border: "1px solid hsl(var(--border))",
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
                     borderRadius: 6,
                     fontSize: 12,
                   }}
