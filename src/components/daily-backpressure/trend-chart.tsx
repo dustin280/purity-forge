@@ -1,4 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import {
   CartesianGrid,
   Line,
@@ -11,6 +14,10 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import type { BackpressureRow } from "@/lib/daily-backpressure.functions";
 
 const SERIES_COLORS = [
@@ -42,42 +49,87 @@ export function BackpressureTrendChart({
   rows: BackpressureRow[];
   isLoading?: boolean;
 }) {
-  const { data, instruments, unit, rangeLabel } = useMemo(() => {
-    const sorted = [...rows].sort(
+  const [range, setRange] = useState<DateRange | undefined>(() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 13);
+    from.setHours(0, 0, 0, 0);
+    return { from, to };
+  });
+
+  const { data, instruments, unit, count } = useMemo(() => {
+    const fromMs = range?.from ? new Date(range.from).setHours(0, 0, 0, 0) : -Infinity;
+    const toMs = range?.to
+      ? new Date(range.to).setHours(23, 59, 59, 999)
+      : range?.from
+        ? new Date(range.from).setHours(23, 59, 59, 999)
+        : Infinity;
+    const filtered = rows.filter((r) => {
+      const t = new Date(r.reading_at).getTime();
+      return t >= fromMs && t <= toMs;
+    });
+    const sorted = [...filtered].sort(
       (a, b) => new Date(a.reading_at).getTime() - new Date(b.reading_at).getTime(),
     );
     const instrumentsSet = new Set<string>();
+    sorted.forEach((r) => instrumentsSet.add(r.instrument));
+    const instruments = Array.from(instrumentsSet);
     const data = sorted.map((r) => {
-      instrumentsSet.add(r.instrument);
-      return {
+      const point: Record<string, number | null> = {
         t: new Date(r.reading_at).getTime(),
-        [r.instrument]: r.backpressure,
-      } as Record<string, number>;
+      };
+      for (const inst of instruments) {
+        point[inst] = inst === r.instrument ? r.backpressure : null;
+      }
+      return point;
     });
     const unit = sorted[0]?.backpressure_unit ?? "";
-    let rangeLabel = "";
-    if (sorted.length > 0) {
-      const first = fmtDate(new Date(sorted[0].reading_at).getTime());
-      const last = fmtDate(new Date(sorted[sorted.length - 1].reading_at).getTime());
-      rangeLabel = first === last ? first : `${first} – ${last}`;
-    }
     return {
       data,
-      instruments: Array.from(instrumentsSet),
+      instruments,
       unit,
-      rangeLabel,
+      count: sorted.length,
     };
-  }, [rows]);
+  }, [rows, range]);
+
+  const rangeLabel = range?.from
+    ? range.to && range.to.getTime() !== range.from.getTime()
+      ? `${format(range.from, "MMM d")} – ${format(range.to, "MMM d, yyyy")}`
+      : format(range.from, "MMM d, yyyy")
+    : "Pick a date range";
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <CardTitle className="text-base">Backpressure Trend</CardTitle>
-          <div className="text-xs text-muted-foreground">
-            {rows.length} reading{rows.length === 1 ? "" : "s"}
-            {rangeLabel ? ` · ${rangeLabel}` : ""}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <CardTitle className="text-base">Backpressure Trend</CardTitle>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {count} reading{count === 1 ? "" : "s"}
+            </div>
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn("justify-start text-left font-normal", !range && "text-muted-foreground")}
+              >
+                <CalendarIcon className="mr-2 size-4" />
+                {rangeLabel}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="range"
+                selected={range}
+                onSelect={setRange}
+                numberOfMonths={2}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </CardHeader>
       <CardContent>
@@ -85,7 +137,7 @@ export function BackpressureTrendChart({
           <Skeleton className="h-[240px] w-full" />
         ) : data.length === 0 ? (
           <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground">
-            No backpressure readings yet.
+            No readings in this date range.
           </div>
         ) : (
           <div className="h-[240px] w-full">
