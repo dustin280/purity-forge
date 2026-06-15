@@ -204,7 +204,34 @@ function VialLabelsPage() {
           </Card>
         </div>
 
-        <div className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Preview</div>
+        {items.length > 0 && (
+          <Card className="p-4 mb-6 vl-live">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="font-semibold">Live preview</div>
+                <div className="text-xs text-muted-foreground">
+                  Sheet 1 of {sheets.length} — updates as you adjust options.
+                </div>
+              </div>
+            </div>
+            <div className="vl-live-frame">
+              <div className="vl-live-scale">
+                <LabelSheets
+                  sheets={sheets.slice(0, 1)}
+                  fontSizePt={fontSize}
+                  showFooter={showFooter}
+                  showGuides={showGuides}
+                  hAlign={hAlign}
+                  vAlign={vAlign}
+                  wrap={wrap}
+                  bold={bold}
+                />
+              </div>
+            </div>
+          </Card>
+        )}
+
+        <div className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Full print preview</div>
       </div>
 
       <div className="vl-preview-wrap px-4 sm:px-6 lg:px-8 pb-12">
@@ -262,6 +289,24 @@ const PRINT_CSS = `
   overflow: hidden;
 }
 .vl-cell-guide { outline: 1px dashed rgba(0,0,0,0.18); outline-offset: -1px; }
+.vl-live-frame {
+  width: 100%;
+  overflow: auto;
+  background: oklch(0.96 0 0);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+}
+.vl-live-scale {
+  transform: scale(0.6);
+  transform-origin: top center;
+  width: 8.5in;
+  height: calc(11in * 0.6);
+}
+@media (max-width: 900px) {
+  .vl-live-scale { transform: scale(0.4); height: calc(11in * 0.4); }
+}
 .vl-footer {
   position: absolute;
   bottom: 0.15in;
@@ -276,6 +321,7 @@ const PRINT_CSS = `
   html, body { background: #fff !important; }
   body * { visibility: hidden !important; }
   .vl-print-root, .vl-print-root * { visibility: visible !important; }
+  .vl-live, .vl-live * { visibility: hidden !important; display: none !important; }
   .vl-preview-wrap { position: absolute; left: 0; top: 0; padding: 0 !important; margin: 0 !important; }
   .vl-print-root { gap: 0; }
   .vl-sheet {
