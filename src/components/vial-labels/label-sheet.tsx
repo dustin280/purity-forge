@@ -24,9 +24,26 @@ type Props = {
   fontSizePt: number;
   showFooter: boolean;
   showGuides: boolean;
+  hAlign?: "left" | "center" | "right";
+  vAlign?: "top" | "middle" | "bottom";
+  wrap?: boolean;
+  bold?: boolean;
 };
 
-export function LabelSheets({ sheets, fontSizePt, showFooter, showGuides }: Props) {
+export function LabelSheets({
+  sheets,
+  fontSizePt,
+  showFooter,
+  showGuides,
+  hAlign = "center",
+  vAlign = "middle",
+  wrap = true,
+  bold = false,
+}: Props) {
+  const justifyContent =
+    hAlign === "left" ? "flex-start" : hAlign === "right" ? "flex-end" : "center";
+  const alignItems =
+    vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
   return (
     <div className="vl-print-root">
       {sheets.map((sheet, sIdx) => (
@@ -36,9 +53,26 @@ export function LabelSheets({ sheets, fontSizePt, showFooter, showGuides }: Prop
               <div
                 key={i}
                 className={`vl-cell ${showGuides ? "vl-cell-guide" : ""}`}
-                style={{ fontSize: `${fontSizePt}pt` }}
+                style={{
+                  fontSize: `${fontSizePt}pt`,
+                  justifyContent,
+                  alignItems,
+                  textAlign: hAlign,
+                  fontWeight: bold ? 700 : 400,
+                  whiteSpace: wrap ? "normal" : "nowrap",
+                  wordBreak: wrap ? "break-word" : "normal",
+                }}
               >
-                <span className="vl-cell-text">{text}</span>
+                <span
+                  className="vl-cell-text"
+                  style={
+                    wrap
+                      ? undefined
+                      : { display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }
+                  }
+                >
+                  {text}
+                </span>
               </div>
             ))}
           </div>
