@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ReadingForm } from "@/components/daily-backpressure/reading-form";
 import { ReadingsTable } from "@/components/daily-backpressure/readings-table";
 import { useBackpressure } from "@/components/daily-backpressure/use-backpressure";
+import { BackpressureTrendChart } from "@/components/daily-backpressure/trend-chart";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressure/")({
   component: BackpressureLog,
@@ -38,6 +39,10 @@ function BackpressureLog() {
         <p className="text-sm text-muted-foreground mt-1">
           Quick daily readings from the HPLC system.
         </p>
+      </div>
+
+      <div className="mb-6">
+        <BackpressureTrendChart rows={rows} isLoading={isLoading} />
       </div>
 
       {canCreate && (
