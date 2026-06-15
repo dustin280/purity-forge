@@ -20,6 +20,10 @@ function VialLabelsPage() {
   const [fontSize, setFontSize] = useState(8);
   const [showFooter, setShowFooter] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
+  const [hAlign, setHAlign] = useState<"left" | "center" | "right">("center");
+  const [vAlign, setVAlign] = useState<"top" | "middle" | "bottom">("middle");
+  const [wrap, setWrap] = useState(true);
+  const [bold, setBold] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -142,6 +146,46 @@ function VialLabelsPage() {
                 />
                 <p className="text-xs text-muted-foreground mt-1">Default 8pt. Lower for long text.</p>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Horizontal align</Label>
+                  <div className="mt-1 inline-flex rounded-md border bg-background p-0.5">
+                    {(["left", "center", "right"] as const).map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setHAlign(v)}
+                        className={`px-3 py-1 text-xs rounded ${hAlign === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {v[0].toUpperCase() + v.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label>Vertical align</Label>
+                  <div className="mt-1 inline-flex rounded-md border bg-background p-0.5">
+                    {(["top", "middle", "bottom"] as const).map(v => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setVAlign(v)}
+                        className={`px-3 py-1 text-xs rounded ${vAlign === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {v[0].toUpperCase() + v.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="vl-wrap" type="checkbox" checked={wrap} onChange={e => setWrap(e.target.checked)} />
+                <Label htmlFor="vl-wrap" className="cursor-pointer">Word wrap (off = single line, truncated with ellipsis)</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="vl-bold" type="checkbox" checked={bold} onChange={e => setBold(e.target.checked)} />
+                <Label htmlFor="vl-bold" className="cursor-pointer">Bold text</Label>
+              </div>
               <div className="flex items-center gap-2">
                 <input id="vl-footer" type="checkbox" checked={showFooter} onChange={e => setShowFooter(e.target.checked)} />
                 <Label htmlFor="vl-footer" className="cursor-pointer">Show template footer</Label>
@@ -169,6 +213,10 @@ function VialLabelsPage() {
           fontSizePt={fontSize}
           showFooter={showFooter}
           showGuides={showGuides}
+          hAlign={hAlign}
+          vAlign={vAlign}
+          wrap={wrap}
+          bold={bold}
         />
       </div>
     </>
