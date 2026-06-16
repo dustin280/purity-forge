@@ -21,6 +21,7 @@ import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedRunListsIndexRouteImport } from './routes/_authenticated/run-lists/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
+import { Route as AuthenticatedMaintenanceIndexRouteImport } from './routes/_authenticated/maintenance/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
 import { Route as AuthenticatedLabJournalIndexRouteImport } from './routes/_authenticated/lab-journal/index'
 import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
@@ -33,6 +34,7 @@ import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
+import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
@@ -124,6 +126,12 @@ const AuthenticatedMaterialReceiptsIndexRoute =
     path: '/material-receipts/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMaintenanceIndexRoute =
+  AuthenticatedMaintenanceIndexRouteImport.update({
+    id: '/maintenance/',
+    path: '/maintenance/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsIndexRoute =
   AuthenticatedLabLogsIndexRouteImport.update({
     id: '/lab-logs/',
@@ -191,6 +199,12 @@ const AuthenticatedMaterialReceiptsIdRoute =
   AuthenticatedMaterialReceiptsIdRouteImport.update({
     id: '/material-receipts/$id',
     path: '/material-receipts/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaintenancePartPickerRoute =
+  AuthenticatedMaintenancePartPickerRouteImport.update({
+    id: '/maintenance/part-picker',
+    path: '/maintenance/part-picker',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInstrumentCommOpenlabRoute =
@@ -362,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -374,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/issues/': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
+  '/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/run-lists/': typeof AuthenticatedRunListsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
@@ -412,6 +428,7 @@ export interface FileRoutesByTo {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -424,6 +441,7 @@ export interface FileRoutesByTo {
   '/issues': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
+  '/maintenance': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/run-lists': typeof AuthenticatedRunListsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
@@ -464,6 +482,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -476,6 +495,7 @@ export interface FileRoutesById {
   '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
   '/_authenticated/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
+  '/_authenticated/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
   '/_authenticated/run-lists/': typeof AuthenticatedRunListsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
@@ -516,6 +536,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/maintenance/part-picker'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
@@ -528,6 +549,7 @@ export interface FileRouteTypes {
     | '/issues/'
     | '/lab-journal/'
     | '/lab-logs/'
+    | '/maintenance/'
     | '/material-receipts/'
     | '/run-lists/'
     | '/samples/'
@@ -566,6 +588,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/maintenance/part-picker'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
@@ -578,6 +601,7 @@ export interface FileRouteTypes {
     | '/issues'
     | '/lab-journal'
     | '/lab-logs'
+    | '/maintenance'
     | '/material-receipts'
     | '/run-lists'
     | '/samples'
@@ -617,6 +641,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
+    | '/_authenticated/maintenance/part-picker'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
@@ -629,6 +654,7 @@ export interface FileRouteTypes {
     | '/_authenticated/issues/'
     | '/_authenticated/lab-journal/'
     | '/_authenticated/lab-logs/'
+    | '/_authenticated/maintenance/'
     | '/_authenticated/material-receipts/'
     | '/_authenticated/run-lists/'
     | '/_authenticated/samples/'
@@ -741,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMaterialReceiptsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/maintenance/': {
+      id: '/_authenticated/maintenance/'
+      path: '/maintenance'
+      fullPath: '/maintenance/'
+      preLoaderRoute: typeof AuthenticatedMaintenanceIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/': {
       id: '/_authenticated/lab-logs/'
       path: '/lab-logs'
@@ -823,6 +856,13 @@ declare module '@tanstack/react-router' {
       path: '/material-receipts/$id'
       fullPath: '/material-receipts/$id'
       preLoaderRoute: typeof AuthenticatedMaterialReceiptsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/maintenance/part-picker': {
+      id: '/_authenticated/maintenance/part-picker'
+      path: '/maintenance/part-picker'
+      fullPath: '/maintenance/part-picker'
+      preLoaderRoute: typeof AuthenticatedMaintenancePartPickerRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/instrument-comm/openlab': {
@@ -1021,6 +1061,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
+  AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
@@ -1033,6 +1074,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
   AuthenticatedLabJournalIndexRoute: typeof AuthenticatedLabJournalIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
+  AuthenticatedMaintenanceIndexRoute: typeof AuthenticatedMaintenanceIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
   AuthenticatedRunListsIndexRoute: typeof AuthenticatedRunListsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
@@ -1073,6 +1115,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
+  AuthenticatedMaintenancePartPickerRoute:
+    AuthenticatedMaintenancePartPickerRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
   AuthenticatedMaterialReceiptsAccountingReportRoute:
     AuthenticatedMaterialReceiptsAccountingReportRoute,
@@ -1086,6 +1130,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
   AuthenticatedLabJournalIndexRoute: AuthenticatedLabJournalIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
+  AuthenticatedMaintenanceIndexRoute: AuthenticatedMaintenanceIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
   AuthenticatedRunListsIndexRoute: AuthenticatedRunListsIndexRoute,
@@ -1131,13 +1176,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

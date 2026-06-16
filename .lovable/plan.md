@@ -1,25 +1,30 @@
-## Backpressure Trending Chart
+## Plan: Maintenance menu + Part Picker
 
-Add a line chart showing backpressure readings over time, displayed at the top of both the Lab Dashboard and the Daily Backpressure Log page.
+### 1. Add Maintenance section to sidebar
+- In `src/components/lims/sidebar-nav.tsx`, add a new "Maintenance" nav entry (Wrench icon) pointing to `/maintenance` in the Operations group (or as its own section).
 
-### Component
-New `src/components/daily-backpressure/trend-chart.tsx`:
-- Uses Recharts (already available via `src/components/ui/chart.tsx`).
-- Props: `rows: BackpressureRow[]`, `isLoading: boolean`.
-- Line chart with `reading_at` (X, formatted date/time) and `backpressure` (Y).
-- One line per instrument (groups rows by `instrument`, color per series).
-- Tooltip shows: timestamp, instrument, backpressure + unit, user.
-- Wrapped in a `Card` with title "Backpressure Trend" and a subtitle showing reading count + date range.
-- Empty state when no rows; skeleton while loading.
-- Sorts rows ascending by `reading_at` (server returns descending).
+### 2. Maintenance landing + Part Picker routes
+- `src/routes/_authenticated/maintenance/index.tsx` — landing page with cards/tiles for each maintenance tool. First card: "Part Picker" → `/maintenance/part-picker`. Built as a tile grid so adding future items is a one-line change.
+- `src/routes/_authenticated/maintenance/part-picker.tsx` — the Part Picker page.
 
-### Dashboard integration (`src/routes/_authenticated/index.tsx`)
-- Fetch backpressure rows using the existing `listBackpressureLogs` server fn via `useQuery` (same `qk.backpressure.list()` key — shares cache with the log page).
-- Render `<BackpressureTrendChart />` above `<StatTiles />`.
+### 3. Parts data (kept flexible for later edits)
+- Copy the uploaded CSV to `src/data/agilent-parts.csv` (static asset, imported as raw text via Vite `?raw`).
+- Parse client-side with a tiny CSV parser (handles quoted commas) into typed rows. No backend / DB — easy to swap the file or migrate to a DB table later.
+- Define a `PartRow` type matching the 9 columns.
 
-### Log page integration (`src/routes/_authenticated/lab-logs/daily-backpressure/index.tsx`)
-- Render `<BackpressureTrendChart rows={rows} isLoading={isLoading} />` between the header and `ReadingForm`.
+### 4. Part Picker UI
+- Search input: filters across all columns (case-insensitive, debounced).
+- Filter dropdowns: Module/Category and Subsystem/Assembly (derived from data).
+- Table (shadcn `Table`) with sortable headers, columns:
+  Module, Subsystem, Description, Part #, Replaces, Status, Torque/Service Note, Where to Buy (rendered as live `<a target="_blank" rel="noopener noreferrer">` "Buy" link with external-link icon when URL present), Notes.
+- Row count + "Clear filters" button.
+- Horizontal scroll on small screens; sticky header.
 
-### Out of scope
-- Date range filtering, per-instrument toggles, exporting the chart — can be added later.
-- No DB or server function changes.
+### 5. Flexibility hooks for later
+- Parts source isolated in `src/lib/maintenance/parts.ts` (load + parse). Swapping to Supabase later = replace that module only.
+- Maintenance landing uses a `TILES` array, mirroring the admin index pattern, so new maintenance tools drop in with one entry + one route file.
+
+### Technical notes
+- No new dependencies; reuse shadcn `Input`, `Select`, `Table`, `Card`, `Button`, lucide `Wrench`, `ExternalLink`, `Search`.
+- CSV imported via `import partsCsv from "@/data/agilent-parts.csv?raw"` — Vite supports `?raw` out of the box.
+- No server functions, no migrations.
