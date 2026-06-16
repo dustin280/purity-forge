@@ -1,4 +1,5 @@
 import partsCsv from "@/data/agilent-parts.csv?raw";
+import pricesCsv from "@/data/agilent-parts-prices.csv?raw";
 
 export type PartRow = {
   module: string;
@@ -10,6 +11,8 @@ export type PartRow = {
   serviceNote: string;
   whereToBuy: string;
   notes: string;
+  price?: string;
+  priceStatus?: string;
 };
 
 /** Minimal CSV parser that handles quoted fields with embedded commas and "" escapes. */
@@ -43,16 +46,32 @@ export function loadParts(): PartRow[] {
   if (cache) return cache;
   const rows = parseCsv(partsCsv);
   const [, ...data] = rows;
-  cache = data.map(r => ({
+  const priceRows = parseCsv(pricesCsv);
+  const [, ...priceData] = priceRows;
+  const priceMap = new Map<string, { price: string; status: string }>();
+  for (const r of priceData) {
+    const pn = (r[0] ?? "").trim();
+    if (!pn) continue;
+    priceMap.set(pn, { price: (r[1] ?? "").trim(), status: (r[2] ?? "").trim() });
+  }
+  const UNKNOWN = "No public list price found";
+  cache = data.map(r => {
+    const partNumber = r[3] ?? "";
+    const pr = priceMap.get(partNumber.trim());
+    const rawPrice = pr?.price ?? "";
+    return {
     module: r[0] ?? "",
     subsystem: r[1] ?? "",
     description: r[2] ?? "",
-    partNumber: r[3] ?? "",
+      partNumber,
     replaces: r[4] ?? "",
     status: r[5] ?? "",
     serviceNote: r[6] ?? "",
     whereToBuy: r[7] ?? "",
     notes: r[8] ?? "",
-  }));
+      price: rawPrice && rawPrice !== UNKNOWN ? rawPrice : "",
+      priceStatus: pr?.status ?? "",
+    };
+  });
   return cache;
 }
