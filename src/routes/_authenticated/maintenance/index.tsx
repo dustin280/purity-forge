@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, Wrench } from "lucide-react";
+import { ChevronRight, Wrench, Columns3 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/maintenance/")({ component: MaintenanceIndex });
 
@@ -10,6 +10,12 @@ const TILES = [
     title: "Part Picker",
     desc: "Search Agilent instrument parts by module, subsystem, or part number. Live links to purchase pages.",
     icon: Wrench,
+  },
+  {
+    to: "/maintenance/hplc-columns",
+    title: "HPLC Columns",
+    desc: "Browse Agilent HPLC/UHPLC columns with Agilent and eBay links. Includes an AI column-selection advisor.",
+    icon: Columns3,
   },
 ] as const;
 
