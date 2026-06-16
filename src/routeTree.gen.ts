@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as ApiChatColumnAdvisorRouteImport } from './routes/api/chat-column-advisor'
 import { Route as AuthenticatedVialLabelsRouteImport } from './routes/_authenticated/vial-labels'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
@@ -35,6 +36,7 @@ import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
+import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
@@ -74,6 +76,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiChatColumnAdvisorRoute = ApiChatColumnAdvisorRouteImport.update({
+  id: '/api/chat-column-advisor',
+  path: '/api/chat-column-advisor',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVialLabelsRoute = AuthenticatedVialLabelsRouteImport.update({
   id: '/vial-labels',
@@ -205,6 +212,12 @@ const AuthenticatedMaintenancePartPickerRoute =
   AuthenticatedMaintenancePartPickerRouteImport.update({
     id: '/maintenance/part-picker',
     path: '/maintenance/part-picker',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaintenanceHplcColumnsRoute =
+  AuthenticatedMaintenanceHplcColumnsRouteImport.update({
+    id: '/maintenance/hplc-columns',
+    path: '/maintenance/hplc-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInstrumentCommOpenlabRoute =
@@ -365,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
+  '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
@@ -376,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
@@ -416,6 +431,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
+  '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -428,6 +444,7 @@ export interface FileRoutesByTo {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
@@ -470,6 +487,7 @@ export interface FileRoutesById {
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/vial-labels': typeof AuthenticatedVialLabelsRoute
+  '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -482,6 +500,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
@@ -525,6 +544,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/users'
     | '/vial-labels'
+    | '/api/chat-column-advisor'
     | '/admin/access-logs'
     | '/admin/audit-log'
     | '/admin/coc-fields'
@@ -536,6 +556,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
@@ -576,6 +597,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/users'
     | '/vial-labels'
+    | '/api/chat-column-advisor'
     | '/'
     | '/admin/access-logs'
     | '/admin/audit-log'
@@ -588,6 +610,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
@@ -629,6 +652,7 @@ export interface FileRouteTypes {
     | '/_authenticated/integrations'
     | '/_authenticated/users'
     | '/_authenticated/vial-labels'
+    | '/api/chat-column-advisor'
     | '/_authenticated/'
     | '/_authenticated/admin/access-logs'
     | '/_authenticated/admin/audit-log'
@@ -641,6 +665,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
+    | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/part-picker'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/accounting-report'
@@ -678,6 +703,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
 }
 
@@ -703,6 +729,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/chat-column-advisor': {
+      id: '/api/chat-column-advisor'
+      path: '/api/chat-column-advisor'
+      fullPath: '/api/chat-column-advisor'
+      preLoaderRoute: typeof ApiChatColumnAdvisorRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/vial-labels': {
       id: '/_authenticated/vial-labels'
@@ -863,6 +896,13 @@ declare module '@tanstack/react-router' {
       path: '/maintenance/part-picker'
       fullPath: '/maintenance/part-picker'
       preLoaderRoute: typeof AuthenticatedMaintenancePartPickerRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/maintenance/hplc-columns': {
+      id: '/_authenticated/maintenance/hplc-columns'
+      path: '/maintenance/hplc-columns'
+      fullPath: '/maintenance/hplc-columns'
+      preLoaderRoute: typeof AuthenticatedMaintenanceHplcColumnsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/instrument-comm/openlab': {
@@ -1061,6 +1101,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
+  AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
@@ -1115,6 +1156,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
+  AuthenticatedMaintenanceHplcColumnsRoute:
+    AuthenticatedMaintenanceHplcColumnsRoute,
   AuthenticatedMaintenancePartPickerRoute:
     AuthenticatedMaintenancePartPickerRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
@@ -1171,6 +1214,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
 }
 export const routeTree = rootRouteImport
