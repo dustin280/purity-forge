@@ -103,6 +103,8 @@ function PartPicker() {
                 <TableHead className="min-w-[130px]">Replaces</TableHead>
                 <TableHead className="min-w-[140px]">Status</TableHead>
                 <TableHead className="min-w-[150px]">Torque / Service</TableHead>
+                <TableHead className="min-w-[120px] text-right">Price</TableHead>
+                <TableHead className="min-w-[90px]">eBay</TableHead>
                 <TableHead className="min-w-[110px]">Where to Buy</TableHead>
                 <TableHead className="min-w-[240px]">Notes</TableHead>
               </TableRow>
@@ -110,7 +112,7 @@ function PartPicker() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">
+                  <TableCell colSpan={11} className="text-center text-sm text-muted-foreground py-8">
                     No parts match your filters.
                   </TableCell>
                 </TableRow>
@@ -133,6 +135,22 @@ function PartRowView({ p }: { p: PartRow }) {
       <TableCell className="text-sm font-mono text-muted-foreground">{p.replaces}</TableCell>
       <TableCell className="text-xs">{p.status}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{p.serviceNote}</TableCell>
+      <TableCell className="text-sm font-mono text-right whitespace-nowrap">
+        {p.price ? p.price : <span className="text-muted-foreground">—</span>}
+      </TableCell>
+      <TableCell>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!p.partNumber}
+          onClick={() => {
+            const query = encodeURIComponent(`Agilent ${p.partNumber}`);
+            window.open(`https://www.ebay.com/sch/i.html?_nkw=${query}`, "_blank", "noopener,noreferrer");
+          }}
+        >
+          eBay <ExternalLink className="size-3 ml-1" />
+        </Button>
+      </TableCell>
       <TableCell>
         {p.whereToBuy && /^https?:\/\//i.test(p.whereToBuy) ? (
           <a
