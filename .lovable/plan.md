@@ -1,52 +1,51 @@
-## Library — Searchable Reference Table
+## Standalone Column Selector — implementation plan
 
-Add a new **Library** item at the bottom of the main sidebar, backed by a database table seeded from the uploaded peptide/bioregulator/SARM CSV. Admins can add rows and upload more CSVs; all signed-in users can browse, select, view, and print.
+This plan assumes you've created a blank Lovable project named **Column Selector** and opened it. From that project, paste this same prompt (or say "build the column selector") and I'll execute the steps below.
 
-### Database (Lovable Cloud)
+### What gets built
 
-New table `public.library_items` with columns matching the CSV:
-`category, names, cas_number, molecular_weight, molecular_size, size_basis, chemical_formula, sequence, salt_form, termini_modifications, notes, confidence, ambiguity_notes, source_url`, plus `id`, `created_by`, `created_at`, `updated_at`.
+A single-page public app: the HPLC column selector (Agilent / Waters / Phenomenex) with filters, vendor/eBay links, and the AI advisor chat panel. No login, no sidebar, no other modules.
 
-- Unique partial indexes for dedupe: lower(cas_number) and lower(names) (where not null).
-- RLS: all `authenticated` users SELECT; only admins INSERT/UPDATE/DELETE (via `has_role(auth.uid(), 'admin')`).
-- Seed the 87 rows from the attached CSV in the same migration.
+### Data sync strategy
 
-### Server functions (`src/lib/library.functions.ts`)
+- **CSV catalogs** are fetched at runtime from Purity Forge's published URL (`https://purity-forge.lovable.app/...`). When you update the CSVs in Purity Forge and republish, the Column Selector picks up the new data automatically — no copy needed.
+- **UI / parsing logic / AI advisor prompt** are bundled. When you change those in Purity Forge, ping me from the Column Selector project saying "pull latest column selector code" and I'll re-copy the changed files.
 
-- `listLibraryItems()` — auth, returns all rows.
-- `createLibraryItem(row)` — admin-only.
-- `updateLibraryItem(id, row)` — admin-only.
-- `deleteLibraryItem(id)` — admin-only.
-- `bulkUploadLibraryItems(rows)` — admin-only, append + dedupe by lowercased CAS# or Name (skip duplicates, return inserted/skipped counts).
+To make CSV fetching work, Purity Forge needs to serve the CSVs at a public URL. Two options — I'll do **(A)** by default unless you say otherwise:
 
-### UI
+- **(A)** Add a public route `src/routes/api/public/columns-data/$vendor.ts` to Purity Forge that returns the bundled CSV text for `agilent | waters | phenomenex`. Public-API routes under `/api/public/*` bypass auth.
+- **(B)** Move the CSVs to a public storage bucket and link directly.
 
-**Sidebar:** add **Library** (BookOpen icon) at the bottom of `NAV` in `src/components/lims/sidebar-nav.tsx`, route `/library`.
+### Files I'll create in the Column Selector project
 
-**Route:** `src/routes/_authenticated/library.tsx`
+```text
+src/lib/columns.ts                       # ported from Purity Forge, fetches CSVs by URL
+src/lib/ai-gateway.server.ts             # Lovable AI Gateway provider helper
+src/routes/__root.tsx                    # minimal shell (title, meta, Outlet)
+src/routes/index.tsx                     # the column selector page + advisor panel
+src/routes/api/chat-column-advisor.ts    # AI advisor streaming endpoint
+src/components/ui/*                      # shadcn primitives the page uses
+```
 
-- Top controls: search box (matches name/CAS/formula/sequence/category), category filter dropdown, and (admins only) **Add item** and **Upload CSV** buttons.
-- Table with a leading checkbox column + select-all, then key columns (Category, Name, CAS#, MW, Formula, Sequence, Confidence). Row click opens a detail dialog with every field including source URL and notes.
-- Footer bar shows selected count + **View selected** and **Print selected** actions (disabled when none selected). A **Print all (filtered)** option is also available.
-- Add-item dialog: form with all CSV fields.
-- Upload-CSV dialog: file picker, parses client-side, calls bulk upload, shows "X added, Y skipped as duplicates".
-- Delete action per row for admins (confirmation prompt).
+### Files I'll add to Purity Forge (one small edit)
 
-**Print view:** dedicated `/library/print` route (or a print-only container on the same page) that renders selected rows as a compact landscape-friendly table.
-- `@media print { @page { size: landscape; margin: 0.4in; } }` in `src/styles.css`, plus `print:hidden` on sidebar/header/controls and `print:block` on the print table.
-- Small font, tight padding, repeats `<thead>` on each page; long fields wrap.
+```text
+src/routes/api/public/columns-data/$vendor.ts   # returns CSV text for the named vendor
+```
 
-### Files
+### Key technical changes from the Purity Forge version
 
-Created:
-- `supabase/migrations/<timestamp>_library_items.sql` (table + grants + RLS + seed)
-- `src/lib/library.functions.ts`
-- `src/routes/_authenticated/library.tsx`
-- `src/components/library/library-table.tsx`
-- `src/components/library/add-item-dialog.tsx`
-- `src/components/library/upload-csv-dialog.tsx`
-- `src/components/library/print-view.tsx`
+- `loadVendorColumns()` becomes async and fetches from `https://purity-forge.lovable.app/api/public/columns-data/<vendor>` with a short in-memory cache (5 min TTL). Falls back to a bundled snapshot if the fetch fails so the app still works offline.
+- Page moves from `_authenticated/maintenance/hplc-columns.tsx` to `/` (no auth wrapper, no `AppShell`).
+- Advisor endpoint is identical in shape; uses Lovable Cloud + `LOVABLE_API_KEY` in the new project (Cloud will be enabled automatically when the AI route is added).
+- SEO: title "HPLC Column Selector", description, OG tags on the index route.
 
-Edited:
-- `src/components/lims/sidebar-nav.tsx` (add Library nav entry at the bottom)
-- `src/styles.css` (print styles for landscape)
+### What you need to do first
+
+1. Create a new blank Lovable project named **Column Selector** (Dashboard → New project → blank template).
+2. Open it and message me: "build the column selector — pull from Purity Forge".
+
+I'll then run the file copies, add the public CSV endpoint here in Purity Forge, and wire the AI advisor. After that, ongoing updates work like this:
+
+- **CSV changes** in Purity Forge → republish Purity Forge → Column Selector sees them automatically.
+- **Code/UI/prompt changes** in Purity Forge → ping me in Column Selector to re-sync.

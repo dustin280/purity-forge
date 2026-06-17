@@ -57,6 +57,7 @@ import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from '
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
+import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
 import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
 import { Route as AuthenticatedLabLogsTimesheetsDailyRouteImport } from './routes/_authenticated/lab-logs/timesheets/daily'
@@ -340,6 +341,12 @@ const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   path: '/api/public/exports/$batchId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicColumnsDataVendorRoute =
+  ApiPublicColumnsDataVendorRouteImport.update({
+    id: '/api/public/columns-data/$vendor',
+    path: '/api/public/columns-data/$vendor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedLabLogsTimesheetsReportsRoute =
   AuthenticatedLabLogsTimesheetsReportsRouteImport.update({
     id: '/lab-logs/timesheets/reports',
@@ -438,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -495,6 +503,7 @@ export interface FileRoutesByTo {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -554,6 +563,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/_authenticated/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -613,6 +623,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
@@ -670,6 +681,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
@@ -728,6 +740,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/timesheets/daily'
     | '/_authenticated/lab-logs/timesheets/history'
     | '/_authenticated/lab-logs/timesheets/reports'
+    | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
@@ -742,6 +755,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
+  ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
 }
 
@@ -1083,6 +1097,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicExportsBatchIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/columns-data/$vendor': {
+      id: '/api/public/columns-data/$vendor'
+      path: '/api/public/columns-data/$vendor'
+      fullPath: '/api/public/columns-data/$vendor'
+      preLoaderRoute: typeof ApiPublicColumnsDataVendorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/lab-logs/timesheets/reports': {
       id: '/_authenticated/lab-logs/timesheets/reports'
       path: '/lab-logs/timesheets/reports'
@@ -1280,18 +1301,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
+  ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
