@@ -36,6 +36,7 @@ import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authentic
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
+import { Route as AuthenticatedMaintenanceTroubleshootingRouteImport } from './routes/_authenticated/maintenance/troubleshooting'
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
@@ -212,6 +213,12 @@ const AuthenticatedMaterialReceiptsIdRoute =
   AuthenticatedMaterialReceiptsIdRouteImport.update({
     id: '/material-receipts/$id',
     path: '/material-receipts/$id',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMaintenanceTroubleshootingRoute =
+  AuthenticatedMaintenanceTroubleshootingRouteImport.update({
+    id: '/maintenance/troubleshooting',
+    path: '/maintenance/troubleshooting',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedMaintenancePartPickerRoute =
@@ -399,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
+  '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -454,6 +462,7 @@ export interface FileRoutesByTo {
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
+  '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -511,6 +520,7 @@ export interface FileRoutesById {
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
+  '/_authenticated/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
@@ -568,6 +578,7 @@ export interface FileRouteTypes {
     | '/instrument-comm/openlab'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
+    | '/maintenance/troubleshooting'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
@@ -623,6 +634,7 @@ export interface FileRouteTypes {
     | '/instrument-comm/openlab'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
+    | '/maintenance/troubleshooting'
     | '/material-receipts/$id'
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
@@ -679,6 +691,7 @@ export interface FileRouteTypes {
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/part-picker'
+    | '/_authenticated/maintenance/troubleshooting'
     | '/_authenticated/material-receipts/$id'
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
@@ -911,6 +924,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMaterialReceiptsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/maintenance/troubleshooting': {
+      id: '/_authenticated/maintenance/troubleshooting'
+      path: '/maintenance/troubleshooting'
+      fullPath: '/maintenance/troubleshooting'
+      preLoaderRoute: typeof AuthenticatedMaintenanceTroubleshootingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/maintenance/part-picker': {
       id: '/_authenticated/maintenance/part-picker'
       path: '/maintenance/part-picker'
@@ -1123,6 +1143,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
+  AuthenticatedMaintenanceTroubleshootingRoute: typeof AuthenticatedMaintenanceTroubleshootingRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
@@ -1180,6 +1201,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMaintenanceHplcColumnsRoute,
   AuthenticatedMaintenancePartPickerRoute:
     AuthenticatedMaintenancePartPickerRoute,
+  AuthenticatedMaintenanceTroubleshootingRoute:
+    AuthenticatedMaintenanceTroubleshootingRoute,
   AuthenticatedMaterialReceiptsIdRoute: AuthenticatedMaterialReceiptsIdRoute,
   AuthenticatedMaterialReceiptsAccountingReportRoute:
     AuthenticatedMaterialReceiptsAccountingReportRoute,
