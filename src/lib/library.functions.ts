@@ -159,7 +159,7 @@ export const bulkUploadLibraryItems = createServerFn({ method: "POST" })
       if (r.cas_number) casSet.add(String(r.cas_number).toLowerCase().trim());
     }
 
-    const toInsert: Array<Record<string, string | null>> = [];
+    const toInsert: Array<LibraryInsert & { created_by: string | null }> = [];
     let skipped = 0;
     const seenNames = new Set<string>();
     const seenCas = new Set<string>();
@@ -171,7 +171,7 @@ export const bulkUploadLibraryItems = createServerFn({ method: "POST" })
       if (casKey && (casSet.has(casKey) || seenCas.has(casKey))) { skipped++; continue; }
       seenNames.add(nameKey);
       if (casKey) seenCas.add(casKey);
-      toInsert.push({ ...normalized, created_by: context.userId });
+      toInsert.push({ ...normalized, created_by: context.userId ?? null });
     }
 
     let inserted = 0;
