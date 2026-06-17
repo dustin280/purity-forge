@@ -1,46 +1,52 @@
-# HPLC Columns: Multi-Vendor Catalog + AI Advisor
+## Library — Searchable Reference Table
 
-Restructure the HPLC Columns page so the AI Column Advisor sits at the top, and the catalog tables are nested beneath it under vendor buttons (tabs). Add Waters as the second vendor now; Phenomenex slot ready for next upload.
+Add a new **Library** item at the bottom of the main sidebar, backed by a database table seeded from the uploaded peptide/bioregulator/SARM CSV. Admins can add rows and upload more CSVs; all signed-in users can browse, select, view, and print.
 
-## 1. Data
+### Database (Lovable Cloud)
 
-- Save uploaded `waters.csv` → `src/data/waters-columns.csv` (same shape as `hplc-columns.csv`, identical headers including guard-match fields).
-- Generalize the loader: rename concept from "hplc-columns" to vendor-aware modules.
-  - Keep `src/lib/maintenance/columns.ts` exporting the shared `ColumnRow` type and parser.
-  - Add `loadVendorColumns(vendor)` that picks the right CSV (Agilent → existing `hplc-columns.csv`, Waters → new `waters-columns.csv`).
-  - Add a `VENDORS` registry: `[{ id: "agilent", label: "Agilent", csv: ..., searchPrefix: "Agilent" }, { id: "waters", label: "Waters", csv: ..., searchPrefix: "Waters" }, { id: "phenomenex", label: "Phenomenex", csv: null, comingSoon: true }]`. The `searchPrefix` is used for the eBay query.
+New table `public.library_items` with columns matching the CSV:
+`category, names, cas_number, molecular_weight, molecular_size, size_basis, chemical_formula, sequence, salt_form, termini_modifications, notes, confidence, ambiguity_notes, source_url`, plus `id`, `created_by`, `created_at`, `updated_at`.
 
-## 2. UI: `src/routes/_authenticated/maintenance/hplc-columns.tsx`
+- Unique partial indexes for dedupe: lower(cas_number) and lower(names) (where not null).
+- RLS: all `authenticated` users SELECT; only admins INSERT/UPDATE/DELETE (via `has_role(auth.uid(), 'admin')`).
+- Seed the 87 rows from the attached CSV in the same migration.
 
-New layout, top to bottom:
+### Server functions (`src/lib/library.functions.ts`)
 
-1. **Page header** — "HPLC Columns".
-2. **AI Column Selection Advisor** (the existing `AdvisorPanel`) — moved to the top, full width, always visible. Update its system prompt context to include rows from **all loaded vendor catalogs** (tagged with vendor) so it can recommend across vendors.
-3. **Vendor catalog section** below the advisor:
-   - A row of vendor buttons (shadcn `Tabs` or styled `Button` group): **Agilent | Waters | Phenomenex (coming soon, disabled)**.
-   - Selecting a vendor swaps the table beneath it. State held in `useState<'agilent' | 'waters'>('agilent')`.
-   - The existing search bar, filter dropdowns (Family / Mode / Particle / Hardware), and table render per-vendor using the same components (table is generic on `ColumnRow[]`).
-   - **Vendor link column** is renamed dynamically: "Agilent" when vendor=agilent, "Waters" when vendor=waters. Opens `sourceUrl` in new tab.
-   - **eBay button** uses the vendor's `searchPrefix` + part number (e.g. `"Waters " + partNumber`).
+- `listLibraryItems()` — auth, returns all rows.
+- `createLibraryItem(row)` — admin-only.
+- `updateLibraryItem(id, row)` — admin-only.
+- `deleteLibraryItem(id)` — admin-only.
+- `bulkUploadLibraryItems(rows)` — admin-only, append + dedupe by lowercased CAS# or Name (skip duplicates, return inserted/skipped counts).
 
-## 3. AI Advisor server route
+### UI
 
-- `src/routes/api/chat-column-advisor.ts`: load **both** vendor catalogs, concatenate via `catalogForPrompt()`, and pass to the system prompt. Tag each row with `[Vendor: Agilent|Waters]` so the model can cite vendor when recommending.
-- No other changes; still uses `google/gemini-3-flash-preview` via the Lovable AI Gateway.
+**Sidebar:** add **Library** (BookOpen icon) at the bottom of `NAV` in `src/components/lims/sidebar-nav.tsx`, route `/library`.
 
-## 4. Out of scope (this round)
+**Route:** `src/routes/_authenticated/library.tsx`
 
-- Phenomenex data (tab is shown disabled / "coming soon" until you upload).
-- No schema/UI changes to Part Picker or other Maintenance items.
-- No persistence of advisor chats.
+- Top controls: search box (matches name/CAS/formula/sequence/category), category filter dropdown, and (admins only) **Add item** and **Upload CSV** buttons.
+- Table with a leading checkbox column + select-all, then key columns (Category, Name, CAS#, MW, Formula, Sequence, Confidence). Row click opens a detail dialog with every field including source URL and notes.
+- Footer bar shows selected count + **View selected** and **Print selected** actions (disabled when none selected). A **Print all (filtered)** option is also available.
+- Add-item dialog: form with all CSV fields.
+- Upload-CSV dialog: file picker, parses client-side, calls bulk upload, shows "X added, Y skipped as duplicates".
+- Delete action per row for admins (confirmation prompt).
 
-## Technical notes
+**Print view:** dedicated `/library/print` route (or a print-only container on the same page) that renders selected rows as a compact landscape-friendly table.
+- `@media print { @page { size: landscape; margin: 0.4in; } }` in `src/styles.css`, plus `print:hidden` on sidebar/header/controls and `print:block` on the print table.
+- Small font, tight padding, repeats `<thead>` on each page; long fields wrap.
 
-- `ColumnRow` schema works as-is for Waters (the headers match).
-- Filter dropdown options are computed from the **currently selected vendor's rows** so they stay relevant.
-- Family/index rows (Row Type = "Family") rendered muted, same as today.
-- File touch list:
-  - add `src/data/waters-columns.csv`
-  - edit `src/lib/maintenance/columns.ts` (vendor registry + multi-CSV loader)
-  - edit `src/routes/_authenticated/maintenance/hplc-columns.tsx` (advisor on top, vendor tabs, dynamic link column + eBay prefix)
-  - edit `src/routes/api/chat-column-advisor.ts` (multi-vendor context)
+### Files
+
+Created:
+- `supabase/migrations/<timestamp>_library_items.sql` (table + grants + RLS + seed)
+- `src/lib/library.functions.ts`
+- `src/routes/_authenticated/library.tsx`
+- `src/components/library/library-table.tsx`
+- `src/components/library/add-item-dialog.tsx`
+- `src/components/library/upload-csv-dialog.tsx`
+- `src/components/library/print-view.tsx`
+
+Edited:
+- `src/components/lims/sidebar-nav.tsx` (add Library nav entry at the bottom)
+- `src/styles.css` (print styles for landscape)
