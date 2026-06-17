@@ -45,17 +45,41 @@ const itemSchema = z.object({
   source_url: z.string().max(1000).nullable().optional(),
 });
 
-function normalize(input: z.infer<typeof itemSchema>) {
-  const out: Record<string, string | null> = { names: input.names.trim() };
-  for (const k of [
-    "category", "cas_number", "molecular_weight", "molecular_size", "size_basis",
-    "chemical_formula", "sequence", "salt_form", "termini_modifications",
-    "notes", "confidence", "ambiguity_notes", "source_url",
-  ] as const) {
-    const v = input[k];
-    out[k] = v == null ? null : (String(v).trim() || null);
-  }
-  return out;
+type LibraryInsert = {
+  names: string;
+  category: string | null;
+  cas_number: string | null;
+  molecular_weight: string | null;
+  molecular_size: string | null;
+  size_basis: string | null;
+  chemical_formula: string | null;
+  sequence: string | null;
+  salt_form: string | null;
+  termini_modifications: string | null;
+  notes: string | null;
+  confidence: string | null;
+  ambiguity_notes: string | null;
+  source_url: string | null;
+};
+
+function normalize(input: z.infer<typeof itemSchema>): LibraryInsert {
+  const s = (v: string | null | undefined) => (v == null ? null : (String(v).trim() || null));
+  return {
+    names: input.names.trim(),
+    category: s(input.category),
+    cas_number: s(input.cas_number),
+    molecular_weight: s(input.molecular_weight),
+    molecular_size: s(input.molecular_size),
+    size_basis: s(input.size_basis),
+    chemical_formula: s(input.chemical_formula),
+    sequence: s(input.sequence),
+    salt_form: s(input.salt_form),
+    termini_modifications: s(input.termini_modifications),
+    notes: s(input.notes),
+    confidence: s(input.confidence),
+    ambiguity_notes: s(input.ambiguity_notes),
+    source_url: s(input.source_url),
+  };
 }
 
 export const listLibraryItems = createServerFn({ method: "GET" })
@@ -95,9 +119,9 @@ export const updateLibraryItem = createServerFn({ method: "POST" })
     for (const [k, v] of Object.entries(rest)) {
       patch[k] = v == null ? null : (String(v).trim() || null);
     }
-    const { data: row, error } = await context.supabase
+    const { data: row, error } = await (context.supabase
       .from("library_items")
-      .update(patch)
+      .update as (p: Record<string, unknown>) => ReturnType<typeof context.supabase.from>["update"] extends infer _ ? any : any)(patch)
       .eq("id", id)
       .select()
       .single();
