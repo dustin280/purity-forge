@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, Wrench, Columns3 } from "lucide-react";
+import { ChevronRight, Wrench, Columns3, Stethoscope } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/maintenance/")({ component: MaintenanceIndex });
 
@@ -16,6 +16,12 @@ const TILES = [
     title: "HPLC Columns",
     desc: "Browse Agilent HPLC/UHPLC columns with Agilent and eBay links. Includes an AI column-selection advisor.",
     icon: Columns3,
+  },
+  {
+    to: "/maintenance/troubleshooting",
+    title: "Troubleshooting",
+    desc: "Diagnose HPLC analysis problems and instrument malfunctions with an AI expert. Upload chromatogram screenshots for diagnosis.",
+    icon: Stethoscope,
   },
 ] as const;
 
