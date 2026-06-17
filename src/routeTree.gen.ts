@@ -16,6 +16,7 @@ import { Route as ApiChatTroubleshootingRouteImport } from './routes/api/chat-tr
 import { Route as ApiChatColumnAdvisorRouteImport } from './routes/api/chat-column-advisor'
 import { Route as AuthenticatedVialLabelsRouteImport } from './routes/_authenticated/vial-labels'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
+import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
@@ -97,6 +98,11 @@ const AuthenticatedVialLabelsRoute = AuthenticatedVialLabelsRouteImport.update({
 const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedIntegrationsRoute =
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
@@ -444,6 +451,7 @@ export interface FileRoutesByTo {
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
+  '/library': typeof AuthenticatedLibraryRoute
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
@@ -502,6 +510,7 @@ export interface FileRoutesById {
   '/_authenticated/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
   '/_authenticated/intake': typeof AuthenticatedIntakeRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
+  '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/chain-of-custody'
     | '/intake'
     | '/integrations'
+    | '/library'
     | '/users'
     | '/vial-labels'
     | '/api/chat-column-advisor'
@@ -616,6 +626,7 @@ export interface FileRouteTypes {
     | '/chain-of-custody'
     | '/intake'
     | '/integrations'
+    | '/library'
     | '/users'
     | '/vial-labels'
     | '/api/chat-column-advisor'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chain-of-custody'
     | '/_authenticated/intake'
     | '/_authenticated/integrations'
+    | '/_authenticated/library'
     | '/_authenticated/users'
     | '/_authenticated/vial-labels'
     | '/api/chat-column-advisor'
@@ -782,6 +794,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/library': {
+      id: '/_authenticated/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AuthenticatedLibraryRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/integrations': {
@@ -1127,6 +1146,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedChainOfCustodyRoute: typeof AuthenticatedChainOfCustodyRoute
   AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
+  AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
   AuthenticatedVialLabelsRoute: typeof AuthenticatedVialLabelsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -1180,6 +1200,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChainOfCustodyRoute: AuthenticatedChainOfCustodyRoute,
   AuthenticatedIntakeRoute: AuthenticatedIntakeRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
+  AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedUsersRoute: AuthenticatedUsersRoute,
   AuthenticatedVialLabelsRoute: AuthenticatedVialLabelsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
@@ -1264,13 +1285,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

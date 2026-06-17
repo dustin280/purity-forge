@@ -90,3 +90,14 @@
   }
   .font-mono, code, pre { font-family: var(--font-mono); }
 }
+
+@media print {
+  @page { size: landscape; margin: 0.4in; }
+  .print-hide { display: none !important; }
+  body { background: white !important; color: black !important; }
+  .print-area { display: block !important; }
+  .print-area table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  .print-area thead { display: table-header-group; }
+  .print-area th, .print-area td { border: 1px solid #999; padding: 3px 5px; text-align: left; vertical-align: top; word-break: break-word; }
+  .print-area th { background: #eee; }
+}

@@ -713,6 +713,69 @@ export type Database = {
         }
         Relationships: []
       }
+      library_items: {
+        Row: {
+          ambiguity_notes: string | null
+          cas_number: string | null
+          category: string | null
+          chemical_formula: string | null
+          confidence: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          molecular_size: string | null
+          molecular_weight: string | null
+          names: string
+          notes: string | null
+          salt_form: string | null
+          sequence: string | null
+          size_basis: string | null
+          source_url: string | null
+          termini_modifications: string | null
+          updated_at: string
+        }
+        Insert: {
+          ambiguity_notes?: string | null
+          cas_number?: string | null
+          category?: string | null
+          chemical_formula?: string | null
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          molecular_size?: string | null
+          molecular_weight?: string | null
+          names: string
+          notes?: string | null
+          salt_form?: string | null
+          sequence?: string | null
+          size_basis?: string | null
+          source_url?: string | null
+          termini_modifications?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ambiguity_notes?: string | null
+          cas_number?: string | null
+          category?: string | null
+          chemical_formula?: string | null
+          confidence?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          molecular_size?: string | null
+          molecular_weight?: string | null
+          names?: string
+          notes?: string | null
+          salt_form?: string | null
+          sequence?: string | null
+          size_basis?: string | null
+          source_url?: string | null
+          termini_modifications?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       material_receipt_attachments: {
         Row: {
           content_type: string | null
