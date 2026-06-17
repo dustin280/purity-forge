@@ -1,5 +1,6 @@
 import agilentCsv from "@/data/hplc-columns.csv?raw";
 import watersCsv from "@/data/waters-columns.csv?raw";
+import phenomenexCsv from "@/data/phenomenex-columns.csv?raw";
 
 export type ColumnRow = {
   rowType: string;
@@ -44,7 +45,7 @@ export type VendorMeta = {
 export const VENDORS: VendorMeta[] = [
   { id: "agilent",    label: "Agilent",    searchPrefix: "Agilent",    linkLabel: "Agilent" },
   { id: "waters",     label: "Waters",     searchPrefix: "Waters",     linkLabel: "Waters" },
-  { id: "phenomenex", label: "Phenomenex", searchPrefix: "Phenomenex", linkLabel: "Phenomenex", comingSoon: true },
+  { id: "phenomenex", label: "Phenomenex", searchPrefix: "Phenomenex", linkLabel: "Phenomenex" },
 ];
 
 function parseCsv(text: string): string[][] {
@@ -105,16 +106,50 @@ function parseRows(csv: string): ColumnRow[] {
   }));
 }
 
-const CSV_BY_VENDOR: Partial<Record<VendorId, string>> = {
-  agilent: agilentCsv,
-  waters: watersCsv,
+/** Phenomenex CSV has no SKU Count / Completeness Note columns. */
+function parseRowsPhenomenex(csv: string): ColumnRow[] {
+  const rows = parseCsv(csv);
+  const [, ...data] = rows;
+  return data.map(r => ({
+    rowType: r[0] ?? "",
+    name: r[1] ?? "",
+    partNumber: r[2] ?? "",
+    description: r[3] ?? "",
+    specs: r[4] ?? "",
+    application: r[5] ?? "",
+    price: r[6] ?? "",
+    productFamily: r[7] ?? "",
+    separationMode: r[8] ?? "",
+    particleSize: r[9] ?? "",
+    innerDiameter: r[10] ?? "",
+    length: r[11] ?? "",
+    poreSize: r[12] ?? "",
+    hardware: r[13] ?? "",
+    guardColumn: r[14] ?? "",
+    unit: r[15] ?? "",
+    skuCount: "",
+    sourceUrl: r[16] ?? "",
+    completenessNote: "",
+    guardPartNumber: r[17] ?? "",
+    guardName: r[18] ?? "",
+    guardAgilentLink: r[19] ?? "",
+    guardHolderLink: r[20] ?? "",
+    guardMatchStatus: r[21] ?? "",
+    guardMatchingNotes: r[22] ?? "",
+  }));
+}
+
+const VENDOR_PARSERS: Record<VendorId, () => ColumnRow[]> = {
+  agilent: () => parseRows(agilentCsv),
+  waters: () => parseRows(watersCsv),
+  phenomenex: () => parseRowsPhenomenex(phenomenexCsv),
 };
 
 export function loadVendorColumns(vendor: VendorId): ColumnRow[] {
   const cached = cache.get(vendor);
   if (cached) return cached;
-  const csv = CSV_BY_VENDOR[vendor];
-  const rows = csv ? parseRows(csv) : [];
+  const parse = VENDOR_PARSERS[vendor];
+  const rows = parse ? parse() : [];
   cache.set(vendor, rows);
   return rows;
 }
