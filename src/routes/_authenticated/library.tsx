@@ -163,7 +163,7 @@ function LibraryPage() {
 
   const createMut = useMutation({
     mutationFn: (data: Record<string, string | null>) =>
-      create({ data: data as Parameters<typeof create>[0]["data"] }),
+      create({ data } as never),
     onSuccess: () => {
       toast.success("Item added");
       qc.invalidateQueries({ queryKey: ["library"] });
@@ -174,7 +174,7 @@ function LibraryPage() {
 
   const uploadMut = useMutation({
     mutationFn: (rows: Array<Record<string, string | null>>) =>
-      bulk({ data: { rows: rows as Parameters<typeof bulk>[0]["data"]["rows"] } }),
+      bulk({ data: { rows } } as never),
     onSuccess: (res) => {
       toast.success(`${res.inserted} added · ${res.skipped} skipped (duplicates)`);
       qc.invalidateQueries({ queryKey: ["library"] });
