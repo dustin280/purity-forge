@@ -1,46 +1,46 @@
-## HPLC Columns Picker + AI Assistant
+# HPLC Columns: Multi-Vendor Catalog + AI Advisor
 
-### 1. Data
-- Save uploaded CSV as `src/data/hplc-columns.csv` (123 rows).
-- New loader `src/lib/maintenance/columns.ts`:
-  - Reuse `parseCsv` helper (extract to shared `src/lib/maintenance/csv.ts`, or duplicate locally for simplicity).
-  - `ColumnRow` type with the full set of fields from the CSV (Row Type, Model/Name, Part Number, Description, Specs, Application, Price, Product Family, Separation Mode, Particle Size, ID, Length, Pore Size, Hardware, Guard Column, Unit, Source URL, Matching Guard Part #, Guard Name, Guard Link, Guard Holder Link, Guard Match Status, Guard Notes).
-  - In-memory cache via `loadColumns()`.
+Restructure the HPLC Columns page so the AI Column Advisor sits at the top, and the catalog tables are nested beneath it under vendor buttons (tabs). Add Waters as the second vendor now; Phenomenex slot ready for next upload.
 
-### 2. Maintenance landing tile
-- `src/routes/_authenticated/maintenance/index.tsx`: add an **HPLC Columns** tile (lucide `Columns3` icon) linking to `/maintenance/hplc-columns`.
+## 1. Data
 
-### 3. HPLC Columns route
-- New file `src/routes/_authenticated/maintenance/hplc-columns.tsx` modeled on `part-picker.tsx`:
-  - Search box (matches Model/Name, Part Number, Description, Application, Specs).
-  - Filters: Product Family, Separation Mode, Particle Size, Hardware (selects populated from data).
-  - Table columns: Family · Model/Name · Part # · Description · Specs · Particle · ID · Length · Pore · Hardware · Guard · Price · Agilent · eBay.
-  - **Agilent** column: button/link opens `Source URL` (or Guard Agilent Link in guard rows) in a new tab when present.
-  - **eBay** column: button opens `https://www.ebay.com/sch/i.html?_nkw=` + `encodeURIComponent("Agilent " + partNumber)`. Disabled when Part Number is `MULTIPLE`/blank.
-  - Family/index rows visually de-emphasized (muted row) so the user can tell SKU rows from family rows.
+- Save uploaded `waters.csv` → `src/data/waters-columns.csv` (same shape as `hplc-columns.csv`, identical headers including guard-match fields).
+- Generalize the loader: rename concept from "hplc-columns" to vendor-aware modules.
+  - Keep `src/lib/maintenance/columns.ts` exporting the shared `ColumnRow` type and parser.
+  - Add `loadVendorColumns(vendor)` that picks the right CSV (Agilent → existing `hplc-columns.csv`, Waters → new `waters-columns.csv`).
+  - Add a `VENDORS` registry: `[{ id: "agilent", label: "Agilent", csv: ..., searchPrefix: "Agilent" }, { id: "waters", label: "Waters", csv: ..., searchPrefix: "Waters" }, { id: "phenomenex", label: "Phenomenex", csv: null, comingSoon: true }]`. The `searchPrefix` is used for the eBay query.
 
-### 4. AI Column Selection Assistant
-- New server route `src/routes/api/chat-column-advisor.ts` (TanStack server route, streaming):
-  - Uses Lovable AI Gateway via `createLovableAiGatewayProvider` (new `src/lib/ai-gateway.server.ts`).
-  - Model: `google/gemini-3-flash-preview`.
-  - System prompt: expert in Agilent HPLC/UHPLC column selection. Receives the full parsed column catalog (CSV is small, ~120 rows) as context each request so it only recommends columns that actually exist in the catalog. Asks clarifying questions when needed (analytes, polarity, mass range, pH, mode, instrument pressure limit, sample matrix, throughput).
-  - Returns up to ~3 ranked recommendations with Part Number + brief rationale; user can then click through to the table.
-  - Streams via `toUIMessageStreamResponse` with `withLovableAiGatewayRunIdHeader`.
-- On `/maintenance/hplc-columns`:
-  - A collapsible "Ask the Column Advisor" panel above the table.
-  - Uses `useChat` (`@ai-sdk/react`) + `DefaultChatTransport({ api: "/api/chat-column-advisor" })`.
-  - Single-session, no persistence (matches the maintenance tool style); a "Clear" button resets messages.
-  - Renders `message.parts` with markdown (`react-markdown` if already present; otherwise plain whitespace-pre-wrap text to avoid adding a dep — confirm before adding).
-  - Textarea auto-focuses; submit disabled during `submitted`/`streaming`.
+## 2. UI: `src/routes/_authenticated/maintenance/hplc-columns.tsx`
 
-### 5. Wiring
-- Register `attachSupabaseAuth` is not required (route is unauthenticated within `_authenticated` layout; the chat route under `/api/` is public — gate it with a simple check that the request originates from the app via same-origin only, no secrets exposed).
-- No new tables, no migrations.
-- `LOVABLE_API_KEY` already managed by Lovable Cloud; provision via `lovable_api_key--create` if missing.
+New layout, top to bottom:
 
-### Out of scope
-- No editing/uploading of the catalog from the UI (CSV remains static, swappable later).
-- No saving of chat history.
-- No changes to existing Part Picker.
+1. **Page header** — "HPLC Columns".
+2. **AI Column Selection Advisor** (the existing `AdvisorPanel`) — moved to the top, full width, always visible. Update its system prompt context to include rows from **all loaded vendor catalogs** (tagged with vendor) so it can recommend across vendors.
+3. **Vendor catalog section** below the advisor:
+   - A row of vendor buttons (shadcn `Tabs` or styled `Button` group): **Agilent | Waters | Phenomenex (coming soon, disabled)**.
+   - Selecting a vendor swaps the table beneath it. State held in `useState<'agilent' | 'waters'>('agilent')`.
+   - The existing search bar, filter dropdowns (Family / Mode / Particle / Hardware), and table render per-vendor using the same components (table is generic on `ColumnRow[]`).
+   - **Vendor link column** is renamed dynamically: "Agilent" when vendor=agilent, "Waters" when vendor=waters. Opens `sourceUrl` in new tab.
+   - **eBay button** uses the vendor's `searchPrefix` + part number (e.g. `"Waters " + partNumber`).
 
-Confirm and I'll build it.
+## 3. AI Advisor server route
+
+- `src/routes/api/chat-column-advisor.ts`: load **both** vendor catalogs, concatenate via `catalogForPrompt()`, and pass to the system prompt. Tag each row with `[Vendor: Agilent|Waters]` so the model can cite vendor when recommending.
+- No other changes; still uses `google/gemini-3-flash-preview` via the Lovable AI Gateway.
+
+## 4. Out of scope (this round)
+
+- Phenomenex data (tab is shown disabled / "coming soon" until you upload).
+- No schema/UI changes to Part Picker or other Maintenance items.
+- No persistence of advisor chats.
+
+## Technical notes
+
+- `ColumnRow` schema works as-is for Waters (the headers match).
+- Filter dropdown options are computed from the **currently selected vendor's rows** so they stay relevant.
+- Family/index rows (Row Type = "Family") rendered muted, same as today.
+- File touch list:
+  - add `src/data/waters-columns.csv`
+  - edit `src/lib/maintenance/columns.ts` (vendor registry + multi-CSV loader)
+  - edit `src/routes/_authenticated/maintenance/hplc-columns.tsx` (advisor on top, vendor tabs, dynamic link column + eBay prefix)
+  - edit `src/routes/api/chat-column-advisor.ts` (multi-vendor context)
