@@ -1,4 +1,5 @@
-import columnsCsv from "@/data/hplc-columns.csv?raw";
+import agilentCsv from "@/data/hplc-columns.csv?raw";
+import watersCsv from "@/data/waters-columns.csv?raw";
 
 export type ColumnRow = {
   rowType: string;
@@ -28,6 +29,24 @@ export type ColumnRow = {
   guardMatchingNotes: string;
 };
 
+export type VendorId = "agilent" | "waters" | "phenomenex";
+
+export type VendorMeta = {
+  id: VendorId;
+  label: string;
+  /** Prefix prepended to part number when building an eBay search. */
+  searchPrefix: string;
+  /** Column header / link label for the vendor's product page. */
+  linkLabel: string;
+  comingSoon?: boolean;
+};
+
+export const VENDORS: VendorMeta[] = [
+  { id: "agilent",    label: "Agilent",    searchPrefix: "Agilent",    linkLabel: "Agilent" },
+  { id: "waters",     label: "Waters",     searchPrefix: "Waters",     linkLabel: "Waters" },
+  { id: "phenomenex", label: "Phenomenex", searchPrefix: "Phenomenex", linkLabel: "Phenomenex", comingSoon: true },
+];
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -52,13 +71,12 @@ function parseCsv(text: string): string[][] {
   return rows.filter(r => r.some(c => c.trim() !== ""));
 }
 
-let cache: ColumnRow[] | null = null;
+const cache = new Map<VendorId, ColumnRow[]>();
 
-export function loadColumns(): ColumnRow[] {
-  if (cache) return cache;
-  const rows = parseCsv(columnsCsv);
+function parseRows(csv: string): ColumnRow[] {
+  const rows = parseCsv(csv);
   const [, ...data] = rows;
-  cache = data.map(r => ({
+  return data.map(r => ({
     rowType: r[0] ?? "",
     name: r[1] ?? "",
     partNumber: r[2] ?? "",
@@ -85,29 +103,54 @@ export function loadColumns(): ColumnRow[] {
     guardMatchStatus: r[23] ?? "",
     guardMatchingNotes: r[24] ?? "",
   }));
-  return cache;
+}
+
+const CSV_BY_VENDOR: Partial<Record<VendorId, string>> = {
+  agilent: agilentCsv,
+  waters: watersCsv,
+};
+
+export function loadVendorColumns(vendor: VendorId): ColumnRow[] {
+  const cached = cache.get(vendor);
+  if (cached) return cached;
+  const csv = CSV_BY_VENDOR[vendor];
+  const rows = csv ? parseRows(csv) : [];
+  cache.set(vendor, rows);
+  return rows;
+}
+
+/** Back-compat: defaults to Agilent. */
+export function loadColumns(): ColumnRow[] {
+  return loadVendorColumns("agilent");
 }
 
 /** Compact catalog text for the AI advisor prompt. */
 export function catalogForPrompt(): string {
-  return loadColumns()
-    .filter(c => c.rowType !== "Family")
-    .map(c => {
-      const fields = [
-        `PN=${c.partNumber}`,
-        c.name && `Name=${c.name}`,
-        c.productFamily && `Family=${c.productFamily}`,
-        c.separationMode && `Mode=${c.separationMode}`,
-        c.particleSize && `Particle=${c.particleSize}`,
-        c.innerDiameter && `ID=${c.innerDiameter}`,
-        c.length && `Len=${c.length}`,
-        c.poreSize && `Pore=${c.poreSize}`,
-        c.hardware && `HW=${c.hardware}`,
-        c.application && `App=${c.application}`,
-        c.specs && `Specs=${c.specs}`,
-        c.guardPartNumber && `Guard=${c.guardPartNumber}`,
-      ].filter(Boolean);
-      return `- ${fields.join(" | ")}`;
-    })
-    .join("\n");
+  const sections: string[] = [];
+  for (const v of VENDORS) {
+    if (v.comingSoon) continue;
+    const rows = loadVendorColumns(v.id).filter(c => c.rowType !== "Family");
+    if (rows.length === 0) continue;
+    const body = rows
+      .map(c => {
+        const fields = [
+          `PN=${c.partNumber}`,
+          c.name && `Name=${c.name}`,
+          c.productFamily && `Family=${c.productFamily}`,
+          c.separationMode && `Mode=${c.separationMode}`,
+          c.particleSize && `Particle=${c.particleSize}`,
+          c.innerDiameter && `ID=${c.innerDiameter}`,
+          c.length && `Len=${c.length}`,
+          c.poreSize && `Pore=${c.poreSize}`,
+          c.hardware && `HW=${c.hardware}`,
+          c.application && `App=${c.application}`,
+          c.specs && `Specs=${c.specs}`,
+          c.guardPartNumber && `Guard=${c.guardPartNumber}`,
+        ].filter(Boolean);
+        return `- [${v.label}] ${fields.join(" | ")}`;
+      })
+      .join("\n");
+    sections.push(`## ${v.label}\n${body}`);
+  }
+  return sections.join("\n\n");
 }
