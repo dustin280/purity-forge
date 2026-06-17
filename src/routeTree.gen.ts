@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as ApiChatTroubleshootingRouteImport } from './routes/api/chat-troubleshooting'
 import { Route as ApiChatColumnAdvisorRouteImport } from './routes/api/chat-column-advisor'
 import { Route as AuthenticatedVialLabelsRouteImport } from './routes/_authenticated/vial-labels'
 import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
@@ -76,6 +77,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiChatTroubleshootingRoute = ApiChatTroubleshootingRouteImport.update({
+  id: '/api/chat-troubleshooting',
+  path: '/api/chat-troubleshooting',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatColumnAdvisorRoute = ApiChatColumnAdvisorRouteImport.update({
   id: '/api/chat-column-advisor',
@@ -379,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
+  '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
@@ -432,6 +439,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersRoute
   '/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
+  '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -488,6 +496,7 @@ export interface FileRoutesById {
   '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/vial-labels': typeof AuthenticatedVialLabelsRoute
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
+  '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
@@ -545,6 +554,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/vial-labels'
     | '/api/chat-column-advisor'
+    | '/api/chat-troubleshooting'
     | '/admin/access-logs'
     | '/admin/audit-log'
     | '/admin/coc-fields'
@@ -598,6 +608,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/vial-labels'
     | '/api/chat-column-advisor'
+    | '/api/chat-troubleshooting'
     | '/'
     | '/admin/access-logs'
     | '/admin/audit-log'
@@ -653,6 +664,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users'
     | '/_authenticated/vial-labels'
     | '/api/chat-column-advisor'
+    | '/api/chat-troubleshooting'
     | '/_authenticated/'
     | '/_authenticated/admin/access-logs'
     | '/_authenticated/admin/audit-log'
@@ -704,6 +716,7 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
+  ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
 }
 
@@ -729,6 +742,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/chat-troubleshooting': {
+      id: '/api/chat-troubleshooting'
+      path: '/api/chat-troubleshooting'
+      fullPath: '/api/chat-troubleshooting'
+      preLoaderRoute: typeof ApiChatTroubleshootingRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/chat-column-advisor': {
       id: '/api/chat-column-advisor'
@@ -1215,6 +1235,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
+  ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
 }
 export const routeTree = rootRouteImport
