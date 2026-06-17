@@ -10,20 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { loadColumns, type ColumnRow } from "@/lib/maintenance/columns";
+import { loadVendorColumns, VENDORS, type ColumnRow, type VendorId, type VendorMeta } from "@/lib/maintenance/columns";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
 const ALL = "__all__";
 
 function HplcColumns() {
-  const columns = useMemo(() => loadColumns(), []);
+  const [vendorId, setVendorId] = useState<VendorId>("agilent");
+  const vendor = useMemo(() => VENDORS.find(v => v.id === vendorId)!, [vendorId]);
+  const columns = useMemo(() => loadVendorColumns(vendorId), [vendorId]);
   const [q, setQ] = useState("");
   const [familyFilter, setFamilyFilter] = useState<string>(ALL);
   const [modeFilter, setModeFilter] = useState<string>(ALL);
   const [particleFilter, setParticleFilter] = useState<string>(ALL);
   const [hardwareFilter, setHardwareFilter] = useState<string>(ALL);
-  const [showAdvisor, setShowAdvisor] = useState(false);
 
   const families = useMemo(
     () => Array.from(new Set(columns.map(c => c.productFamily).filter(Boolean))).sort(),
@@ -59,27 +60,44 @@ function HplcColumns() {
     setQ(""); setFamilyFilter(ALL); setModeFilter(ALL); setParticleFilter(ALL); setHardwareFilter(ALL);
   };
 
+  // Reset filters when switching vendor so stale options don't apply.
+  useEffect(() => { clear(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendorId]);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1500px]">
       <div className="mb-6">
         <Link to="/maintenance" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
           <ArrowLeft className="size-3" /> Maintenance
         </Link>
-        <div className="flex items-start justify-between gap-4 mt-2 flex-wrap">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">HPLC Columns</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Browse Agilent HPLC/UHPLC columns. Use the AI advisor to get column recommendations for your application.
-            </p>
-          </div>
-          <Button onClick={() => setShowAdvisor(s => !s)} variant={showAdvisor ? "secondary" : "default"}>
-            <Sparkles className="size-4 mr-1" />
-            {showAdvisor ? "Hide Advisor" : "Ask the Column Advisor"}
-          </Button>
+        <div className="mt-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">HPLC Columns</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Ask the AI advisor for recommendations across vendors, then browse each vendor's catalog below.
+          </p>
         </div>
       </div>
 
-      {showAdvisor && <AdvisorPanel onClose={() => setShowAdvisor(false)} />}
+      <AdvisorPanel />
+
+      {/* Vendor selector */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {VENDORS.map(v => {
+          const active = v.id === vendorId;
+          return (
+            <Button
+              key={v.id}
+              size="sm"
+              variant={active ? "default" : "outline"}
+              disabled={v.comingSoon}
+              onClick={() => setVendorId(v.id)}
+              title={v.comingSoon ? "Coming soon" : `View ${v.label} columns`}
+            >
+              {v.label}
+              {v.comingSoon && <span className="ml-2 text-[10px] uppercase opacity-70">Soon</span>}
+            </Button>
+          );
+        })}
+      </div>
 
       <Card className="p-4 mb-4">
         <div className="grid gap-3 md:grid-cols-[1fr_repeat(4,minmax(0,180px))_auto]">
@@ -120,7 +138,7 @@ function HplcColumns() {
           </Button>
         </div>
         <div className="text-xs text-muted-foreground mt-3">
-          Showing {filtered.length} of {columns.length} entries
+          {vendor.label}: showing {filtered.length} of {columns.length} entries
         </div>
       </Card>
 
@@ -141,7 +159,7 @@ function HplcColumns() {
                 <TableHead className="min-w-[110px]">Hardware</TableHead>
                 <TableHead className="min-w-[130px]">Guard PN</TableHead>
                 <TableHead className="min-w-[100px] text-right">Price</TableHead>
-                <TableHead className="min-w-[100px]">Agilent</TableHead>
+                <TableHead className="min-w-[100px]">{vendor.linkLabel}</TableHead>
                 <TableHead className="min-w-[90px]">eBay</TableHead>
               </TableRow>
             </TableHeader>
@@ -152,7 +170,7 @@ function HplcColumns() {
                     No columns match your filters.
                   </TableCell>
                 </TableRow>
-              ) : filtered.map((c, i) => <ColumnRowView key={`${c.partNumber}-${i}`} c={c} />)}
+              ) : filtered.map((c, i) => <ColumnRowView key={`${c.partNumber}-${i}`} c={c} vendor={vendor} />)}
             </TableBody>
           </Table>
         </div>
@@ -161,7 +179,7 @@ function HplcColumns() {
   );
 }
 
-function ColumnRowView({ c }: { c: ColumnRow }) {
+function ColumnRowView({ c, vendor }: { c: ColumnRow; vendor: VendorMeta }) {
   const isFamily = c.rowType === "Family";
   const hasPn = c.partNumber && c.partNumber !== "MULTIPLE";
   return (
@@ -184,7 +202,7 @@ function ColumnRowView({ c }: { c: ColumnRow }) {
         {c.sourceUrl && /^https?:\/\//i.test(c.sourceUrl) ? (
           <a href={c.sourceUrl} target="_blank" rel="noopener noreferrer"
              className="inline-flex items-center gap-1 text-primary hover:underline text-sm">
-            Agilent <ExternalLink className="size-3" />
+            {vendor.linkLabel} <ExternalLink className="size-3" />
           </a>
         ) : <span className="text-xs text-muted-foreground">—</span>}
       </TableCell>
@@ -194,7 +212,7 @@ function ColumnRowView({ c }: { c: ColumnRow }) {
           variant="outline"
           disabled={!hasPn}
           onClick={() => {
-            const query = encodeURIComponent(`Agilent ${c.partNumber}`);
+            const query = encodeURIComponent(`${vendor.searchPrefix} ${c.partNumber}`);
             window.open(`https://www.ebay.com/sch/i.html?_nkw=${query}`, "_blank", "noopener,noreferrer");
           }}
         >
@@ -205,7 +223,7 @@ function ColumnRowView({ c }: { c: ColumnRow }) {
   );
 }
 
-function AdvisorPanel({ onClose }: { onClose: () => void }) {
+function AdvisorPanel() {
   const [input, setInput] = useState("");
   const taRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -239,14 +257,11 @@ function AdvisorPanel({ onClose }: { onClose: () => void }) {
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
           <h2 className="font-semibold">Column Advisor</h2>
-          <span className="text-xs text-muted-foreground">AI-powered</span>
+          <span className="text-xs text-muted-foreground">AI-powered · Agilent + Waters</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="ghost" onClick={() => setMessages([])} disabled={messages.length === 0 || isLoading}>
-            <Eraser className="size-3 mr-1" /> Clear
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onClose}><X className="size-4" /></Button>
-        </div>
+        <Button size="sm" variant="ghost" onClick={() => setMessages([])} disabled={messages.length === 0 || isLoading}>
+          <Eraser className="size-3 mr-1" /> Clear
+        </Button>
       </div>
 
       <div
@@ -255,7 +270,7 @@ function AdvisorPanel({ onClose }: { onClose: () => void }) {
       >
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Describe your application — analytes, mobile phase pH, instrument pressure limit, sample matrix, and throughput — and I'll recommend Agilent columns from the catalog.
+            Describe your application — analytes, mobile phase pH, instrument pressure limit, sample matrix, and throughput — and I'll recommend columns from the Agilent and Waters catalogs.
           </p>
         )}
         {messages.map(m => {
