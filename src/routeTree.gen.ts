@@ -41,6 +41,7 @@ import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_a
 import { Route as AuthenticatedMaintenanceTroubleshootingRouteImport } from './routes/_authenticated/maintenance/troubleshooting'
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
+import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
@@ -247,6 +248,12 @@ const AuthenticatedMaintenanceHplcColumnsRoute =
     path: '/maintenance/hplc-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInventoryNewRoute =
+  AuthenticatedInventoryNewRouteImport.update({
+    id: '/inventory/new',
+    path: '/inventory/new',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInstrumentCommOpenlabRoute =
   AuthenticatedInstrumentCommOpenlabRouteImport.update({
     id: '/instrument-comm/openlab',
@@ -425,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -484,6 +492,7 @@ export interface FileRoutesByTo {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -545,6 +554,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/_authenticated/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
@@ -665,6 +676,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
@@ -725,6 +737,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
+    | '/_authenticated/inventory/new'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/part-picker'
     | '/_authenticated/maintenance/troubleshooting'
@@ -998,6 +1011,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMaintenanceHplcColumnsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/inventory/new': {
+      id: '/_authenticated/inventory/new'
+      path: '/inventory/new'
+      fullPath: '/inventory/new'
+      preLoaderRoute: typeof AuthenticatedInventoryNewRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/instrument-comm/openlab': {
       id: '/_authenticated/instrument-comm/openlab'
       path: '/instrument-comm/openlab'
@@ -1202,6 +1222,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
+  AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
   AuthenticatedMaintenanceTroubleshootingRoute: typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -1260,6 +1281,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
+  AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
   AuthenticatedMaintenancePartPickerRoute:
