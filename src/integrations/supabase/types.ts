@@ -556,6 +556,110 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_components: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          installation_date: string | null
+          installer_initials: string | null
+          item_id: string
+          make: string | null
+          model: string | null
+          position: number
+          purchase_date: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          installation_date?: string | null
+          installer_initials?: string | null
+          item_id: string
+          make?: string | null
+          model?: string | null
+          position?: number
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          installation_date?: string | null
+          installer_initials?: string | null
+          item_id?: string
+          make?: string | null
+          model?: string | null
+          position?: number
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_components_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_items: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          installation_date: string | null
+          installer_initials: string | null
+          make: string | null
+          model: string | null
+          purchase_date: string | null
+          serial_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          installation_date?: string | null
+          installer_initials?: string | null
+          make?: string | null
+          model?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          installation_date?: string | null
+          installer_initials?: string | null
+          make?: string | null
+          model?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       issue_report_attachments: {
         Row: {
           content_type: string | null
