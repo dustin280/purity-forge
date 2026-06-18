@@ -108,14 +108,14 @@ export const createInventoryItem = createServerFn({ method: "POST" })
     const itemPayload = normalize({ category, ...rest, created_by: context.userId });
     const { data: inserted, error } = await context.supabase
       .from("inventory_items")
-      .insert(itemPayload)
+      .insert(itemPayload as never)
       .select()
       .single();
     if (error) throw error;
     const item = inserted as unknown as InventoryItem;
     if ((category === "instrument" || category === "other") && components && components.length) {
       const rows = components.map((c, idx) => normalize({ ...c, item_id: item.id, position: idx }));
-      const { error: cErr } = await context.supabase.from("inventory_components").insert(rows);
+      const { error: cErr } = await context.supabase.from("inventory_components").insert(rows as never);
       if (cErr) throw cErr;
     }
     return { id: item.id };
