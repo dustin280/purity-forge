@@ -1,52 +1,33 @@
-## Inventory module
+## Part-number lookup in Add Inventory
 
-Add a new "Inventory" section to the LIMS for tracking lab assets with category-specific structures and lifecycle status flags.
+Add a "Search part database" input at the top of each FieldGrid (main item + each component) on `/inventory/new`. The user types a part number, clicks Search (or hits Enter), and we try to match it against:
 
-### Navigation
-- Add `Inventory` item to the main sidebar (`src/components/lims/sidebar-nav.tsx`) with a `Boxes` icon, routing to `/inventory`.
-- Create routes:
-  - `src/routes/_authenticated/inventory/index.tsx` — list page
-  - `src/routes/_authenticated/inventory/new.tsx` — add-new form
+1. **HPLC columns CSVs** — Agilent, Waters, Phenomenex (via `loadVendorColumns` in `src/lib/maintenance/columns.ts`).
+2. **Agilent instrument parts CSV** — via `loadParts` in `src/lib/maintenance/parts.ts`.
 
-### Data model (one migration)
+### Match logic
+- Normalize: trim, uppercase, strip spaces/dashes.
+- Exact match first on normalized part number.
+- If none, substring match (typed value contained in a CSV part number) — first hit wins.
+- Search columns first, then parts. (Columns are more specific; parts catalog is large.)
 
-Two new tables in `public`:
+### When a match is found
+Auto-fill the FieldGrid fields:
+- **Column match** → `make` = vendor label (Agilent/Waters/Phenomenex), `model` = `name` (or productFamily), `description` = compact summary (specs/ID/length/particle), and a small note saying "Matched HPLC column".
+- **Part match** → `make` = "Agilent" (the parts CSV is Agilent-only), `model` = part number, `description` = `description` from CSV + module/subsystem context.
+- Show a green confirmation chip with the matched source and a "Clear" button to revert.
+- Do NOT touch user-entered serial number, dates, installer initials, or status — only the catalog-derived fields.
 
-**`inventory_items`** — the main entry
-- `id uuid pk`
-- `category text not null` — one of: `instrument`, `column`, `accessory`, `other`
-- `make text`, `model text`, `serial_number text`, `description text`
-- `purchase_date date`, `installation_date date`
-- `installer_initials text`
-- `status text not null default 'in_use'` — one of: `in_use`, `working_not_in_use`, `discarded` (single value, exclusive — see UX note)
-- `created_by uuid`, `created_at`, `updated_at`
+### When no match is found
+- Show an amber "No match — enter manually" message and leave the user's typed value populated into `model` (or `serial_number`? — defaulting to `model`) as a starting point. Fields stay editable.
 
-**`inventory_components`** — sub-components for `instrument` and `other` categories
-- `id uuid pk`
-- `item_id uuid fk → inventory_items.id on delete cascade`
-- Same fields: `make`, `model`, `serial_number`, `description`, `purchase_date`, `installation_date`, `installer_initials`, `status`
-- `position int` for ordering
-- `created_at`, `updated_at`
+### Implementation
+- New helper `src/lib/inventory/part-lookup.ts` exporting `lookupPartNumber(pn: string): { source: "column" | "part" | "none"; values?: Partial<FieldSet>; label?: string }`. Pure client-side — uses the existing CSV loaders, no DB or server fn needed.
+- Update `src/routes/_authenticated/inventory/new.tsx`:
+  - Add a `PartLookup` sub-component rendered inside `FieldGrid` (or above it) with input + Search button + status line.
+  - On match, call `onChange({...value, ...matchedValues})` to merge into the field set.
 
-Both tables: GRANT to `authenticated` + `service_role`, enable RLS, policies — authenticated users can SELECT all; INSERT/UPDATE/DELETE allowed for `tech`, `reviewer`, `admin` via `has_role()`. Updated-at trigger using existing `set_updated_at()`. Audit trigger via existing `audit_trigger()`.
-
-### UX note on the three flags
-The user described three checkboxes (in use / not in use but working / discarded) per entry and per component. These are mutually exclusive lifecycle states, so I'll render them as a 3-option control (radio group styled as checkbox tiles) backed by a single `status` column. This avoids invalid combinations like "in use AND discarded". If you actually want independent toggles, say so and I'll switch to three boolean columns.
-
-### Server functions
-`src/lib/inventory.functions.ts`:
-- `listInventory()` — returns items + nested components
-- `createInventoryItem({ item, components })` — creates item; if category is `instrument` or `other`, inserts components in a single call
-- (List/create only for this first pass — edit/delete can come later)
-
-### Add-new form (`/inventory/new`)
-- Category selector first (Instrument / Column / Accessory / Other)
-- Common fields: make, model, serial number, description, purchase date, installation date, installer initials, status (3-way)
-- If category ∈ {instrument, other}: a "Components" section with add/remove rows, each collecting the same 8 fields including its own status
-- Validate with Zod, submit via the server function, toast + navigate back to `/inventory`
-
-### List page (`/inventory`)
-- Simple table grouped or filterable by category, with status badge and component count. Click-through to detail can be added in a follow-up.
-
-### Out of scope for this pass
-Edit, delete, attachments, file uploads, PDF export, detail view — can be added in follow-ups once the data model is in place.
+### Out of scope
+- Searching by name/description (only by part number, per request).
+- Editing the CSV catalogs.
+- Showing all match candidates / picker UI (first/best match auto-applies; user can edit afterward).

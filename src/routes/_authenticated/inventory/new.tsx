@@ -3,7 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ import {
   type InventoryStatus,
 } from "@/lib/inventory.functions";
 import { qk } from "@/lib/query-keys";
+import { lookupPartNumber } from "@/lib/inventory/part-lookup";
 
 export const Route = createFileRoute("/_authenticated/inventory/new")({
   component: InventoryNew,
@@ -47,12 +48,87 @@ const STATUS_OPTIONS: { value: InventoryStatus; label: string }[] = [
   { value: "discarded", label: "Discarded" },
 ];
 
+type LookupState =
+  | { kind: "idle" }
+  | { kind: "found"; label: string }
+  | { kind: "not_found" };
+
+function PartLookup({
+  value, onChange, idPrefix,
+}: { value: FieldSet; onChange: (v: FieldSet) => void; idPrefix: string }) {
+  const [pn, setPn] = useState("");
+  const [state, setState] = useState<LookupState>({ kind: "idle" });
+
+  const runSearch = () => {
+    const q = pn.trim();
+    if (!q) return;
+    const result = lookupPartNumber(q);
+    if (result.source === "none") {
+      // Seed model with what they typed so manual entry is faster.
+      onChange({ ...value, model: value.model || q });
+      setState({ kind: "not_found" });
+      return;
+    }
+    onChange({
+      ...value,
+      make: result.values.make,
+      model: result.values.model,
+      description: result.values.description,
+    });
+    setState({ kind: "found", label: result.label });
+  };
+
+  return (
+    <div className="space-y-2 p-3 rounded-md border border-dashed bg-muted/30">
+      <Label htmlFor={`${idPrefix}-pn-search`} className="text-xs uppercase tracking-wider">
+        Search part database
+      </Label>
+      <div className="flex gap-2">
+        <Input
+          id={`${idPrefix}-pn-search`}
+          value={pn}
+          onChange={e => { setPn(e.target.value); setState({ kind: "idle" }); }}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); runSearch(); } }}
+          placeholder="Enter part number (e.g. 959963-902)"
+          className="font-mono"
+        />
+        <Button type="button" variant="secondary" onClick={runSearch}>
+          <Search className="size-4 mr-1" /> Search
+        </Button>
+      </div>
+      {state.kind === "found" && (
+        <div className="flex items-center justify-between gap-2 text-sm text-green-700 dark:text-green-400">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="size-4" /> Match found · {state.label} · fields auto-filled
+          </span>
+          <Button
+            type="button" size="sm" variant="ghost"
+            onClick={() => {
+              onChange({ ...value, make: "", model: "", description: "" });
+              setState({ kind: "idle" });
+              setPn("");
+            }}
+          >
+            <X className="size-3 mr-1" /> Clear
+          </Button>
+        </div>
+      )}
+      {state.kind === "not_found" && (
+        <div className="flex items-center gap-1.5 text-sm text-amber-700 dark:text-amber-400">
+          <AlertCircle className="size-4" /> Not found — enter the details manually below
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FieldGrid({
   value, onChange, idPrefix,
 }: { value: FieldSet; onChange: (v: FieldSet) => void; idPrefix: string }) {
   const set = <K extends keyof FieldSet>(k: K, v: FieldSet[K]) => onChange({ ...value, [k]: v });
   return (
     <div className="space-y-4">
+      <PartLookup value={value} onChange={onChange} idPrefix={idPrefix} />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor={`${idPrefix}-make`}>Make</Label>
