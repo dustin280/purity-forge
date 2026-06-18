@@ -28,6 +28,7 @@ import { Route as AuthenticatedMaintenanceIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
 import { Route as AuthenticatedLabJournalIndexRouteImport } from './routes/_authenticated/lab-journal/index'
 import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
+import { Route as AuthenticatedInventoryIndexRouteImport } from './routes/_authenticated/inventory/index'
 import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_authenticated/instrument-comm/index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -169,6 +170,12 @@ const AuthenticatedIssuesIndexRoute =
   AuthenticatedIssuesIndexRouteImport.update({
     id: '/issues/',
     path: '/issues/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInventoryIndexRoute =
+  AuthenticatedInventoryIndexRouteImport.update({
+    id: '/inventory/',
+    path: '/inventory/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInstrumentCommIndexRoute =
@@ -430,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
+  '/inventory/': typeof AuthenticatedInventoryIndexRoute
   '/issues/': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -488,6 +496,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm': typeof AuthenticatedInstrumentCommIndexRoute
+  '/inventory': typeof AuthenticatedInventoryIndexRoute
   '/issues': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
@@ -548,6 +557,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
+  '/_authenticated/inventory/': typeof AuthenticatedInventoryIndexRoute
   '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
   '/_authenticated/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -608,6 +618,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/clients/'
     | '/instrument-comm/'
+    | '/inventory/'
     | '/issues/'
     | '/lab-journal/'
     | '/lab-logs/'
@@ -666,6 +677,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/clients'
     | '/instrument-comm'
+    | '/inventory'
     | '/issues'
     | '/lab-journal'
     | '/lab-logs'
@@ -725,6 +737,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/clients/'
     | '/_authenticated/instrument-comm/'
+    | '/_authenticated/inventory/'
     | '/_authenticated/issues/'
     | '/_authenticated/lab-journal/'
     | '/_authenticated/lab-logs/'
@@ -892,6 +905,13 @@ declare module '@tanstack/react-router' {
       path: '/issues'
       fullPath: '/issues/'
       preLoaderRoute: typeof AuthenticatedIssuesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/inventory/': {
+      id: '/_authenticated/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof AuthenticatedInventoryIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/instrument-comm/': {
@@ -1194,6 +1214,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedInstrumentCommIndexRoute: typeof AuthenticatedInstrumentCommIndexRoute
+  AuthenticatedInventoryIndexRoute: typeof AuthenticatedInventoryIndexRoute
   AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
   AuthenticatedLabJournalIndexRoute: typeof AuthenticatedLabJournalIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
@@ -1255,6 +1276,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedInstrumentCommIndexRoute: AuthenticatedInstrumentCommIndexRoute,
+  AuthenticatedInventoryIndexRoute: AuthenticatedInventoryIndexRoute,
   AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
   AuthenticatedLabJournalIndexRoute: AuthenticatedLabJournalIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
