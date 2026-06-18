@@ -28,6 +28,7 @@ import { Route as AuthenticatedMaintenanceIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
 import { Route as AuthenticatedLabJournalIndexRouteImport } from './routes/_authenticated/lab-journal/index'
 import { Route as AuthenticatedIssuesIndexRouteImport } from './routes/_authenticated/issues/index'
+import { Route as AuthenticatedInventoryIndexRouteImport } from './routes/_authenticated/inventory/index'
 import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_authenticated/instrument-comm/index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
@@ -40,6 +41,7 @@ import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_a
 import { Route as AuthenticatedMaintenanceTroubleshootingRouteImport } from './routes/_authenticated/maintenance/troubleshooting'
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
+import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
@@ -171,6 +173,12 @@ const AuthenticatedIssuesIndexRoute =
     path: '/issues/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInventoryIndexRoute =
+  AuthenticatedInventoryIndexRouteImport.update({
+    id: '/inventory/',
+    path: '/inventory/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInstrumentCommIndexRoute =
   AuthenticatedInstrumentCommIndexRouteImport.update({
     id: '/instrument-comm/',
@@ -238,6 +246,12 @@ const AuthenticatedMaintenanceHplcColumnsRoute =
   AuthenticatedMaintenanceHplcColumnsRouteImport.update({
     id: '/maintenance/hplc-columns',
     path: '/maintenance/hplc-columns',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedInventoryNewRoute =
+  AuthenticatedInventoryNewRouteImport.update({
+    id: '/inventory/new',
+    path: '/inventory/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedInstrumentCommOpenlabRoute =
@@ -418,6 +432,7 @@ export interface FileRoutesByFullPath {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -430,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
+  '/inventory/': typeof AuthenticatedInventoryIndexRoute
   '/issues/': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -476,6 +492,7 @@ export interface FileRoutesByTo {
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -488,6 +505,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm': typeof AuthenticatedInstrumentCommIndexRoute
+  '/inventory': typeof AuthenticatedInventoryIndexRoute
   '/issues': typeof AuthenticatedIssuesIndexRoute
   '/lab-journal': typeof AuthenticatedLabJournalIndexRoute
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
@@ -536,6 +554,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
+  '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/_authenticated/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -548,6 +567,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
+  '/_authenticated/inventory/': typeof AuthenticatedInventoryIndexRoute
   '/_authenticated/issues/': typeof AuthenticatedIssuesIndexRoute
   '/_authenticated/lab-journal/': typeof AuthenticatedLabJournalIndexRoute
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
@@ -596,6 +616,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
@@ -608,6 +629,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/clients/'
     | '/instrument-comm/'
+    | '/inventory/'
     | '/issues/'
     | '/lab-journal/'
     | '/lab-logs/'
@@ -654,6 +676,7 @@ export interface FileRouteTypes {
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
+    | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
@@ -666,6 +689,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/clients'
     | '/instrument-comm'
+    | '/inventory'
     | '/issues'
     | '/lab-journal'
     | '/lab-logs'
@@ -713,6 +737,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
+    | '/_authenticated/inventory/new'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/part-picker'
     | '/_authenticated/maintenance/troubleshooting'
@@ -725,6 +750,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/'
     | '/_authenticated/clients/'
     | '/_authenticated/instrument-comm/'
+    | '/_authenticated/inventory/'
     | '/_authenticated/issues/'
     | '/_authenticated/lab-journal/'
     | '/_authenticated/lab-logs/'
@@ -894,6 +920,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIssuesIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/inventory/': {
+      id: '/_authenticated/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof AuthenticatedInventoryIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/instrument-comm/': {
       id: '/_authenticated/instrument-comm/'
       path: '/instrument-comm'
@@ -976,6 +1009,13 @@ declare module '@tanstack/react-router' {
       path: '/maintenance/hplc-columns'
       fullPath: '/maintenance/hplc-columns'
       preLoaderRoute: typeof AuthenticatedMaintenanceHplcColumnsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/inventory/new': {
+      id: '/_authenticated/inventory/new'
+      path: '/inventory/new'
+      fullPath: '/inventory/new'
+      preLoaderRoute: typeof AuthenticatedInventoryNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/instrument-comm/openlab': {
@@ -1182,6 +1222,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
+  AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
   AuthenticatedMaintenanceTroubleshootingRoute: typeof AuthenticatedMaintenanceTroubleshootingRoute
@@ -1194,6 +1235,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
   AuthenticatedInstrumentCommIndexRoute: typeof AuthenticatedInstrumentCommIndexRoute
+  AuthenticatedInventoryIndexRoute: typeof AuthenticatedInventoryIndexRoute
   AuthenticatedIssuesIndexRoute: typeof AuthenticatedIssuesIndexRoute
   AuthenticatedLabJournalIndexRoute: typeof AuthenticatedLabJournalIndexRoute
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
@@ -1239,6 +1281,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
+  AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
   AuthenticatedMaintenancePartPickerRoute:
@@ -1255,6 +1298,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,
   AuthenticatedInstrumentCommIndexRoute: AuthenticatedInstrumentCommIndexRoute,
+  AuthenticatedInventoryIndexRoute: AuthenticatedInventoryIndexRoute,
   AuthenticatedIssuesIndexRoute: AuthenticatedIssuesIndexRoute,
   AuthenticatedLabJournalIndexRoute: AuthenticatedLabJournalIndexRoute,
   AuthenticatedLabLogsIndexRoute: AuthenticatedLabLogsIndexRoute,
@@ -1307,13 +1351,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

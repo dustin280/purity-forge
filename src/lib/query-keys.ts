@@ -186,4 +186,9 @@ export const qk = {
     prepFlagged: () => ["prep-flagged-samples"] as const,
     columns: () => ["run-list-columns"] as const,
   },
+
+  inventory: {
+    all: ["inventory"] as const,
+    list: () => ["inventory"] as const,
+  },
 } as const;
