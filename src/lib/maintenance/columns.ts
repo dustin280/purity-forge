@@ -1,6 +1,7 @@
 import agilentCsv from "@/data/hplc-columns.csv?raw";
 import watersCsv from "@/data/waters-columns.csv?raw";
 import phenomenexCsv from "@/data/phenomenex-columns.csv?raw";
+import haloCsv from "@/data/halo-columns.csv?raw";
 
 export type ColumnRow = {
   rowType: string;
@@ -30,7 +31,7 @@ export type ColumnRow = {
   guardMatchingNotes: string;
 };
 
-export type VendorId = "agilent" | "waters" | "phenomenex";
+export type VendorId = "agilent" | "waters" | "phenomenex" | "halo";
 
 export type VendorMeta = {
   id: VendorId;
@@ -46,6 +47,7 @@ export const VENDORS: VendorMeta[] = [
   { id: "agilent",    label: "Agilent",    searchPrefix: "Agilent",    linkLabel: "Agilent" },
   { id: "waters",     label: "Waters",     searchPrefix: "Waters",     linkLabel: "Waters" },
   { id: "phenomenex", label: "Phenomenex", searchPrefix: "Phenomenex", linkLabel: "Phenomenex" },
+  { id: "halo",       label: "HALO",       searchPrefix: "HALO",       linkLabel: "HALO" },
 ];
 
 function parseCsv(text: string): string[][] {
@@ -143,6 +145,7 @@ const VENDOR_PARSERS: Record<VendorId, () => ColumnRow[]> = {
   agilent: () => parseRows(agilentCsv),
   waters: () => parseRows(watersCsv),
   phenomenex: () => parseRowsPhenomenex(phenomenexCsv),
+  halo: () => parseRowsPhenomenex(haloCsv),
 };
 
 export function loadVendorColumns(vendor: VendorId): ColumnRow[] {
