@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Sparkles, Send, Eraser, Paperclip, X, Stethoscope } from "lucide-react";
+import { ArrowLeft, Sparkles, Send, Paperclip, X, Stethoscope } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
+import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
 
 export const Route = createFileRoute("/_authenticated/maintenance/troubleshooting")({
   component: Troubleshooting,
@@ -29,7 +31,11 @@ function Troubleshooting() {
     () => new DefaultChatTransport({ api: "/api/chat-troubleshooting" }),
     [],
   );
-  const { messages, sendMessage, status, setMessages, error } = useChat({ transport });
+  const { activeThreadId, persist, loadThread, startNew } = useChatPersistence("troubleshooting");
+  const { messages, sendMessage, status, setMessages, error } = useChat({
+    transport,
+    onFinish: ({ messages: ms }) => { void persist(ms); },
+  });
 
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -105,15 +111,29 @@ function Troubleshooting() {
       </div>
 
       <Card className="p-4 border-primary/30">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
             <h2 className="font-semibold">Troubleshooting Advisor</h2>
             <span className="text-xs text-muted-foreground">AI-powered · vision-capable</span>
           </div>
-          <Button size="sm" variant="ghost" onClick={() => setMessages([])} disabled={messages.length === 0 || isLoading}>
-            <Eraser className="size-3 mr-1" /> Clear
-          </Button>
+          <ChatToolbar
+            agent="troubleshooting"
+            agentLabel="HPLC Troubleshooting"
+            messages={messages}
+            isLoading={isLoading}
+            activeThreadId={activeThreadId}
+            onNewChat={() => { setMessages([]); setAttachments([]); startNew(); taRef.current?.focus(); }}
+            onClear={() => setMessages([])}
+            onSelectThread={async (id) => {
+              try {
+                const msgs = await loadThread(id);
+                setMessages(msgs);
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          />
         </div>
 
         <div
