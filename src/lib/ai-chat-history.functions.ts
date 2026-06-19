@@ -20,7 +20,9 @@ export interface ChatMessageRow {
   id: string;
   thread_id: string;
   role: "user" | "assistant" | "system";
-  parts: unknown;
+  // jsonb from DB — typed as any to satisfy server-fn serializer constraint.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  parts: any;
   created_at: string;
 }
 
@@ -74,7 +76,8 @@ export const appendChatMessages = createServerFn({ method: "POST" })
   .inputValidator((d: {
     threadId: string;
     title?: string;
-    messages: { role: "user" | "assistant" | "system"; parts: unknown }[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    messages: { role: "user" | "assistant" | "system"; parts: any }[];
   }) => ({
     threadId: z.string().uuid().parse(d.threadId),
     title: d.title?.slice(0, 120),
@@ -98,7 +101,9 @@ export const appendChatMessages = createServerFn({ method: "POST" })
       const { error: insertErr } = await context.supabase.from("ai_chat_messages").insert(rows);
       if (insertErr) throw new Error(insertErr.message);
     }
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: { updated_at: string; title?: string } = {
+      updated_at: new Date().toISOString(),
+    };
     if (data.title) patch.title = data.title;
     const { error: updErr } = await context.supabase
       .from("ai_chat_threads")
@@ -113,7 +118,8 @@ export const replaceChatThreadMessages = createServerFn({ method: "POST" })
   .inputValidator((d: {
     threadId: string;
     title?: string;
-    messages: { role: "user" | "assistant" | "system"; parts: unknown }[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    messages: { role: "user" | "assistant" | "system"; parts: any }[];
   }) => ({
     threadId: z.string().uuid().parse(d.threadId),
     title: d.title?.slice(0, 120),
@@ -142,7 +148,9 @@ export const replaceChatThreadMessages = createServerFn({ method: "POST" })
       const { error: insErr } = await context.supabase.from("ai_chat_messages").insert(rows);
       if (insErr) throw new Error(insErr.message);
     }
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: { updated_at: string; title?: string } = {
+      updated_at: new Date().toISOString(),
+    };
     if (data.title) patch.title = data.title;
     const { error: updErr } = await context.supabase
       .from("ai_chat_threads")
