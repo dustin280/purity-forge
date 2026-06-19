@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Search, Sparkles, X, Send, Eraser } from "lucide-react";
+import { ArrowLeft, ExternalLink, Search, Sparkles, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { loadVendorColumns, VENDORS, type ColumnRow, type VendorId, type VendorMeta } from "@/lib/maintenance/columns";
+import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
+import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
@@ -232,8 +234,10 @@ function AdvisorPanel() {
     () => new DefaultChatTransport({ api: "/api/chat-column-advisor" }),
     [],
   );
+  const { activeThreadId, persist, loadThread, startNew } = useChatPersistence("column_advisor");
   const { messages, sendMessage, status, setMessages, error } = useChat({
     transport,
+    onFinish: ({ messages: ms }) => { void persist(ms); },
   });
 
   const isLoading = status === "submitted" || status === "streaming";
@@ -253,15 +257,29 @@ function AdvisorPanel() {
 
   return (
     <Card className="p-4 mb-4 border-primary/30">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
           <h2 className="font-semibold">Column Advisor</h2>
           <span className="text-xs text-muted-foreground">AI-powered · Agilent + Waters</span>
         </div>
-        <Button size="sm" variant="ghost" onClick={() => setMessages([])} disabled={messages.length === 0 || isLoading}>
-          <Eraser className="size-3 mr-1" /> Clear
-        </Button>
+        <ChatToolbar
+          agent="column_advisor"
+          agentLabel="Column Advisor"
+          messages={messages}
+          isLoading={isLoading}
+          activeThreadId={activeThreadId}
+          onNewChat={() => { setMessages([]); startNew(); taRef.current?.focus(); }}
+          onClear={() => setMessages([])}
+          onSelectThread={async (id) => {
+            try {
+              const msgs = await loadThread(id);
+              setMessages(msgs);
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+        />
       </div>
 
       <div
