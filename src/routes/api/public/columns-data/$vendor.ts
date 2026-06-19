@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import agilentCsv from "@/data/hplc-columns.csv?raw";
 import watersCsv from "@/data/waters-columns.csv?raw";
 import phenomenexCsv from "@/data/phenomenex-columns.csv?raw";
+import haloCsv from "@/data/halo-columns.csv?raw";
 
 const CSVS: Record<string, string> = {
   agilent: agilentCsv,
   waters: watersCsv,
   phenomenex: phenomenexCsv,
+  halo: haloCsv,
 };
 
 const CORS = {
