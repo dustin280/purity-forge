@@ -1,33 +1,64 @@
-## Part-number lookup in Add Inventory
+## What I'm changing
 
-Add a "Search part database" input at the top of each FieldGrid (main item + each component) on `/inventory/new`. The user types a part number, clicks Search (or hits Enter), and we try to match it against:
+Both AI assistants — **Column Advisor** (`/maintenance/hplc-columns`) and **Troubleshooting** (`/maintenance/troubleshooting`) — get the same toolbar treatment:
 
-1. **HPLC columns CSVs** — Agilent, Waters, Phenomenex (via `loadVendorColumns` in `src/lib/maintenance/columns.ts`).
-2. **Agilent instrument parts CSV** — via `loadParts` in `src/lib/maintenance/parts.ts`.
+- **Copy** — copies the full assistant response (plain text) to the clipboard
+- **PDF** — generates and downloads a clean PDF of the conversation (fixes the about:blank issue)
+- **Print** — opens a printable view (fixes the about:blank issue)
+- **History** — per-signed-in-user conversation history stored in Lovable Cloud
 
-### Match logic
-- Normalize: trim, uppercase, strip spaces/dashes.
-- Exact match first on normalized part number.
-- If none, substring match (typed value contained in a CSV part number) — first hit wins.
-- Search columns first, then parts. (Columns are more specific; parts catalog is large.)
+## Why PDF/Print currently fails
 
-### When a match is found
-Auto-fill the FieldGrid fields:
-- **Column match** → `make` = vendor label (Agilent/Waters/Phenomenex), `model` = `name` (or productFamily), `description` = compact summary (specs/ID/length/particle), and a small note saying "Matched HPLC column".
-- **Part match** → `make` = "Agilent" (the parts CSV is Agilent-only), `model` = part number, `description` = `description` from CSV + module/subsystem context.
-- Show a green confirmation chip with the matched source and a "Clear" button to revert.
-- Do NOT touch user-entered serial number, dates, installer initials, or status — only the catalog-derived fields.
+Today neither page has a working PDF or print control. The about:blank behavior is consistent with the previous implementation trying to `window.open()` a blob/URL that gets garbage-collected before the new tab loads, or a popup blocker swallowing it on subsequent attempts. The new implementation does it inline:
+- **PDF**: build the PDF with `jsPDF` (already used elsewhere in this project — `coc-pdf.ts`, `material-receipt-pdf.ts`) and trigger `doc.save(filename)` directly — no `window.open`.
+- **Print**: render the conversation into a hidden, print-only block on the same page and call `window.print()`. No new tab, no popup blocker, works every session.
 
-### When no match is found
-- Show an amber "No match — enter manually" message and leave the user's typed value populated into `model` (or `serial_number`? — defaulting to `model`) as a starting point. Fields stay editable.
+## History — per-user, DB-backed
 
-### Implementation
-- New helper `src/lib/inventory/part-lookup.ts` exporting `lookupPartNumber(pn: string): { source: "column" | "part" | "none"; values?: Partial<FieldSet>; label?: string }`. Pure client-side — uses the existing CSV loaders, no DB or server fn needed.
-- Update `src/routes/_authenticated/inventory/new.tsx`:
-  - Add a `PartLookup` sub-component rendered inside `FieldGrid` (or above it) with input + Search button + status line.
-  - On match, call `onChange({...value, ...matchedValues})` to merge into the field set.
+IP/device fingerprinting is unreliable (shared IPs, mobile carriers, VPNs, browser privacy features) and creates a privacy footprint with no real benefit when the app already requires sign-in. Per-user storage in Lovable Cloud is the better answer and it follows the rest of the app's auth model.
 
-### Out of scope
-- Searching by name/description (only by part number, per request).
-- Editing the CSV catalogs.
-- Showing all match candidates / picker UI (first/best match auto-applies; user can edit afterward).
+Shape:
+
+```text
+ai_chat_threads
+  id uuid pk
+  user_id uuid -> auth.users (RLS: auth.uid() = user_id)
+  agent text ('column_advisor' | 'troubleshooting')
+  title text  -- first user message, truncated
+  created_at, updated_at
+
+ai_chat_messages
+  id uuid pk
+  thread_id uuid -> ai_chat_threads
+  role text ('user' | 'assistant')
+  parts jsonb     -- AI SDK UIMessage parts
+  created_at
+```
+
+RLS scopes every read/write to `auth.uid()`. GRANTs to `authenticated` and `service_role`. Both tables follow the project's standard four-step pattern (CREATE → GRANT → ENABLE RLS → CREATE POLICY).
+
+## History UI
+
+A **History** popover button next to Clear opens a list of past threads for that agent (newest first, titled by first prompt). Clicking a thread loads its messages back into the chat. A **New chat** action starts a fresh thread. Active messages are persisted in the background as they stream (saved on `onFinish` via server function).
+
+Per project convention, history is kept inline in the existing page (no new route). The active thread id lives in component state for this iteration — switching is one click from the popover.
+
+## Files
+
+New:
+- `supabase/migrations/<ts>_ai_chat_history.sql` — tables, grants, RLS, updated_at trigger
+- `src/lib/ai-chat-history.functions.ts` — `listThreads`, `getThread`, `createThread`, `appendMessage`, `deleteThread` (all `requireSupabaseAuth`)
+- `src/lib/ai-chat-export.ts` — `buildChatPdf(messages, title)` and `printChat(messages, title)` helpers using jsPDF
+- `src/components/ai-chat/chat-toolbar.tsx` — Copy / PDF / Print / History / New / Clear buttons (shared by both agents)
+- `src/components/ai-chat/history-popover.tsx` — thread list + select/delete
+
+Edited:
+- `src/routes/_authenticated/maintenance/hplc-columns.tsx` — wire toolbar + history into `AdvisorPanel`
+- `src/routes/_authenticated/maintenance/troubleshooting.tsx` — wire toolbar + history
+- `src/lib/query-keys.ts` — add `aiChatThreads(agent)` key
+
+## Out of scope
+
+- Threaded URLs (`/maintenance/troubleshooting/$threadId`) — current pages aren't thread-routed and this iteration keeps the active thread in component state per your request scope.
+- Sharing threads between users.
+- Exporting attachments inside the PDF (troubleshooting images will be listed by filename in the PDF, not embedded, to keep file size sane).
