@@ -245,6 +245,14 @@ function AdvisorPanel() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Front-loaded context the user can set once and reuse on the first turn.
+  const [instrument, setInstrument] = useState<string>("");
+  const [maxPressure, setMaxPressure] = useState<string>("");
+  const [solvent, setSolvent] = useState<string>("");
+  const [modifier, setModifier] = useState<string>("");
+  const [compounds, setCompounds] = useState<string[]>([]);
+  const [contextOpen, setContextOpen] = useState(true);
+
   const transport = useMemo(
     () => new DefaultChatTransport({ api: "/api/chat-column-advisor" }),
     [],
@@ -262,11 +270,24 @@ function AdvisorPanel() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, status]);
 
+  const buildContextBlock = () => {
+    const parts: string[] = [];
+    if (instrument) parts.push(`Detector / instrument: ${instrument}`);
+    if (maxPressure.trim()) parts.push(`Max pressure: ${maxPressure.trim()}`);
+    if (solvent.trim()) parts.push(`Solvent preference: ${solvent.trim()}`);
+    if (modifier.trim()) parts.push(`Modifier preference: ${modifier.trim()}`);
+    if (compounds.length > 0) parts.push(`Target compounds: ${compounds.join(", ")}`);
+    if (parts.length === 0) return "";
+    return `Context:\n- ${parts.join("\n- ")}\n\n`;
+  };
+
   const submit = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+    // Only prepend context on the first turn so it isn't repeated.
+    const prefix = messages.length === 0 ? buildContextBlock() : "";
     setInput("");
-    await sendMessage({ text });
+    await sendMessage({ text: prefix ? `${prefix}Question: ${text}` : text });
     taRef.current?.focus();
   };
 
@@ -278,7 +299,9 @@ function AdvisorPanel() {
           <h2 className="font-semibold">Column Advisor</h2>
           <span className="text-xs text-muted-foreground">AI-powered · Agilent + Waters</span>
         </div>
-        <ChatToolbar
+        <div className="flex items-center gap-2 flex-wrap">
+          <AiCreditsBadge />
+          <ChatToolbar
           agent="column_advisor"
           agentLabel="Column Advisor"
           messages={messages}
@@ -295,11 +318,55 @@ function AdvisorPanel() {
             }
           }}
         />
+        </div>
       </div>
+
+      <Collapsible open={contextOpen} onOpenChange={setContextOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" type="button" className="mb-2 h-7 px-2 text-xs">
+            {contextOpen ? <ChevronDown className="size-3 mr-1" /> : <ChevronRight className="size-3 mr-1" />}
+            Application context {messages.length === 0 ? "(sent with first question)" : "(set — first turn already sent)"}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-3 p-3 rounded-md border bg-muted/10">
+            <div className="space-y-1">
+              <Label className="text-xs">Detector / instrument</Label>
+              <Select value={instrument} onValueChange={setInstrument}>
+                <SelectTrigger className="h-8"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAD">DAD (UV)</SelectItem>
+                  <SelectItem value="MS">MS</SelectItem>
+                  <SelectItem value="DAD + MS">DAD + MS</SelectItem>
+                  <SelectItem value="ELSD">ELSD</SelectItem>
+                  <SelectItem value="FLD">FLD</SelectItem>
+                  <SelectItem value="RID">RID</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Max pressure</Label>
+              <Input value={maxPressure} onChange={(e) => setMaxPressure(e.target.value)} placeholder="e.g. 600 bar" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Solvent preference</Label>
+              <Input value={solvent} onChange={(e) => setSolvent(e.target.value)} placeholder="e.g. ACN / water" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Modifier preference</Label>
+              <Input value={modifier} onChange={(e) => setModifier(e.target.value)} placeholder="e.g. 0.1% formic acid" className="h-8" />
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+              <Label className="text-xs">Target compounds</Label>
+              <CompoundMultiPicker value={compounds} onChange={setCompounds} />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div
         ref={scrollRef}
-        className="border rounded-md bg-muted/20 p-3 mb-3 max-h-[360px] min-h-[140px] overflow-y-auto space-y-3"
+        className="border rounded-md bg-muted/20 p-3 mb-3 max-h-[640px] min-h-[280px] overflow-y-auto space-y-3"
       >
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">
