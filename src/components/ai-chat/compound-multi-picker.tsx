@@ -26,7 +26,7 @@ export function CompoundMultiPicker({ value, onChange }: Props) {
 
   const itemsQuery = useQuery({
     queryKey: ["library_items", "compound-picker"],
-    queryFn: () => list({ data: undefined as never }),
+    queryFn: () => list(),
     enabled: open,
   });
 
