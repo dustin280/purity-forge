@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Search, Sparkles, X, Send } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Search, Sparkles, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -8,11 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { loadVendorColumns, VENDORS, type ColumnRow, type VendorId, type VendorMeta } from "@/lib/maintenance/columns";
 import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
+import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
+import { CompoundMultiPicker } from "@/components/ai-chat/compound-multi-picker";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
@@ -20,6 +24,7 @@ const ALL = "__all__";
 
 function HplcColumns() {
   const [vendorId, setVendorId] = useState<VendorId>("agilent");
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const vendor = useMemo(() => VENDORS.find(v => v.id === vendorId)!, [vendorId]);
   const columns = useMemo(() => loadVendorColumns(vendorId), [vendorId]);
   const [q, setQ] = useState("");
@@ -81,8 +86,16 @@ function HplcColumns() {
 
       <AdvisorPanel />
 
-      {/* Vendor selector */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <Collapsible open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="mb-3 w-full sm:w-auto">
+            {catalogOpen ? <ChevronDown className="size-4 mr-1" /> : <ChevronRight className="size-4 mr-1" />}
+            {catalogOpen ? "Hide vendor catalog" : "Browse vendor catalog"}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {/* Vendor selector */}
+          <div className="flex flex-wrap gap-2 mb-3">
         {VENDORS.map(v => {
           const active = v.id === vendorId;
           return (
@@ -177,6 +190,8 @@ function HplcColumns() {
           </Table>
         </div>
       </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
@@ -230,6 +245,14 @@ function AdvisorPanel() {
   const taRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Front-loaded context the user can set once and reuse on the first turn.
+  const [instrument, setInstrument] = useState<string>("");
+  const [maxPressure, setMaxPressure] = useState<string>("");
+  const [solvent, setSolvent] = useState<string>("");
+  const [modifier, setModifier] = useState<string>("");
+  const [compounds, setCompounds] = useState<string[]>([]);
+  const [contextOpen, setContextOpen] = useState(true);
+
   const transport = useMemo(
     () => new DefaultChatTransport({ api: "/api/chat-column-advisor" }),
     [],
@@ -247,11 +270,24 @@ function AdvisorPanel() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, status]);
 
+  const buildContextBlock = () => {
+    const parts: string[] = [];
+    if (instrument) parts.push(`Detector / instrument: ${instrument}`);
+    if (maxPressure.trim()) parts.push(`Max pressure: ${maxPressure.trim()}`);
+    if (solvent.trim()) parts.push(`Solvent preference: ${solvent.trim()}`);
+    if (modifier.trim()) parts.push(`Modifier preference: ${modifier.trim()}`);
+    if (compounds.length > 0) parts.push(`Target compounds: ${compounds.join(", ")}`);
+    if (parts.length === 0) return "";
+    return `Context:\n- ${parts.join("\n- ")}\n\n`;
+  };
+
   const submit = async () => {
     const text = input.trim();
     if (!text || isLoading) return;
+    // Only prepend context on the first turn so it isn't repeated.
+    const prefix = messages.length === 0 ? buildContextBlock() : "";
     setInput("");
-    await sendMessage({ text });
+    await sendMessage({ text: prefix ? `${prefix}Question: ${text}` : text });
     taRef.current?.focus();
   };
 
@@ -263,7 +299,9 @@ function AdvisorPanel() {
           <h2 className="font-semibold">Column Advisor</h2>
           <span className="text-xs text-muted-foreground">AI-powered · Agilent + Waters</span>
         </div>
-        <ChatToolbar
+        <div className="flex items-center gap-2 flex-wrap">
+          <AiCreditsBadge />
+          <ChatToolbar
           agent="column_advisor"
           agentLabel="Column Advisor"
           messages={messages}
@@ -280,11 +318,55 @@ function AdvisorPanel() {
             }
           }}
         />
+        </div>
       </div>
+
+      <Collapsible open={contextOpen} onOpenChange={setContextOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" size="sm" type="button" className="mb-2 h-7 px-2 text-xs">
+            {contextOpen ? <ChevronDown className="size-3 mr-1" /> : <ChevronRight className="size-3 mr-1" />}
+            Application context {messages.length === 0 ? "(sent with first question)" : "(set — first turn already sent)"}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-3 p-3 rounded-md border bg-muted/10">
+            <div className="space-y-1">
+              <Label className="text-xs">Detector / instrument</Label>
+              <Select value={instrument} onValueChange={setInstrument}>
+                <SelectTrigger className="h-8"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAD">DAD (UV)</SelectItem>
+                  <SelectItem value="MS">MS</SelectItem>
+                  <SelectItem value="DAD + MS">DAD + MS</SelectItem>
+                  <SelectItem value="ELSD">ELSD</SelectItem>
+                  <SelectItem value="FLD">FLD</SelectItem>
+                  <SelectItem value="RID">RID</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Max pressure</Label>
+              <Input value={maxPressure} onChange={(e) => setMaxPressure(e.target.value)} placeholder="e.g. 600 bar" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Solvent preference</Label>
+              <Input value={solvent} onChange={(e) => setSolvent(e.target.value)} placeholder="e.g. ACN / water" className="h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Modifier preference</Label>
+              <Input value={modifier} onChange={(e) => setModifier(e.target.value)} placeholder="e.g. 0.1% formic acid" className="h-8" />
+            </div>
+            <div className="space-y-1 sm:col-span-2 lg:col-span-1">
+              <Label className="text-xs">Target compounds</Label>
+              <CompoundMultiPicker value={compounds} onChange={setCompounds} />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div
         ref={scrollRef}
-        className="border rounded-md bg-muted/20 p-3 mb-3 max-h-[360px] min-h-[140px] overflow-y-auto space-y-3"
+        className="border rounded-md bg-muted/20 p-3 mb-3 max-h-[640px] min-h-[280px] overflow-y-auto space-y-3"
       >
         {messages.length === 0 && (
           <p className="text-sm text-muted-foreground">

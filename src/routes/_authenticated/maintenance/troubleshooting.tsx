@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
+import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
 
 export const Route = createFileRoute("/_authenticated/maintenance/troubleshooting")({
   component: Troubleshooting,
@@ -23,6 +24,7 @@ const MAX_BYTES = 8 * 1024 * 1024; // 8 MB each
 function Troubleshooting() {
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ function Troubleshooting() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, status]);
 
-  const onPickFiles = async (files: FileList | null) => {
+  const onPickFiles = async (files: FileList | File[] | null) => {
     if (!files) return;
     const next: Attachment[] = [...attachments];
     for (const f of Array.from(files)) {
@@ -70,6 +72,23 @@ function Troubleshooting() {
     }
     setAttachments(next);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer?.types?.includes("Files")) {
+      e.preventDefault();
+      setIsDragging(true);
+    }
+  };
+  const onDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) await onPickFiles(files);
   };
 
   const removeAttachment = (i: number) => {
@@ -117,7 +136,9 @@ function Troubleshooting() {
             <h2 className="font-semibold">Troubleshooting Advisor</h2>
             <span className="text-xs text-muted-foreground">AI-powered · vision-capable</span>
           </div>
-          <ChatToolbar
+          <div className="flex items-center gap-2 flex-wrap">
+            <AiCreditsBadge />
+            <ChatToolbar
             agent="troubleshooting"
             agentLabel="HPLC Troubleshooting"
             messages={messages}
@@ -134,15 +155,19 @@ function Troubleshooting() {
               }
             }}
           />
+          </div>
         </div>
 
         <div
           ref={scrollRef}
-          className="border rounded-md bg-muted/20 p-3 mb-3 max-h-[480px] min-h-[200px] overflow-y-auto space-y-4"
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`border rounded-md bg-muted/20 p-3 mb-3 max-h-[720px] min-h-[320px] overflow-y-auto space-y-4 transition-colors ${isDragging ? "ring-2 ring-primary border-primary bg-primary/5" : ""}`}
         >
           {messages.length === 0 && (
             <div className="text-sm text-muted-foreground space-y-2">
-              <p>Tell me what's happening and I'll help diagnose it. Useful context:</p>
+              <p>Tell me what's happening and I'll help diagnose it. Drag &amp; drop images anywhere in this box, or use the paperclip. Useful context:</p>
               <ul className="list-disc pl-5 text-xs space-y-1">
                 <li>Instrument (e.g. Agilent 1260, Waters Acquity) and column</li>
                 <li>Mobile phase + pH, flow rate, detector</li>
