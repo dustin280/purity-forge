@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Search, Sparkles, X, Send } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, Search, Sparkles, X, Send } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -8,11 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { loadVendorColumns, VENDORS, type ColumnRow, type VendorId, type VendorMeta } from "@/lib/maintenance/columns";
 import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
+import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
+import { CompoundMultiPicker } from "@/components/ai-chat/compound-multi-picker";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
@@ -20,6 +24,7 @@ const ALL = "__all__";
 
 function HplcColumns() {
   const [vendorId, setVendorId] = useState<VendorId>("agilent");
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const vendor = useMemo(() => VENDORS.find(v => v.id === vendorId)!, [vendorId]);
   const columns = useMemo(() => loadVendorColumns(vendorId), [vendorId]);
   const [q, setQ] = useState("");
@@ -81,8 +86,16 @@ function HplcColumns() {
 
       <AdvisorPanel />
 
-      {/* Vendor selector */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <Collapsible open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="mb-3 w-full sm:w-auto">
+            {catalogOpen ? <ChevronDown className="size-4 mr-1" /> : <ChevronRight className="size-4 mr-1" />}
+            {catalogOpen ? "Hide vendor catalog" : "Browse vendor catalog"}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          {/* Vendor selector */}
+          <div className="flex flex-wrap gap-2 mb-3">
         {VENDORS.map(v => {
           const active = v.id === vendorId;
           return (
@@ -177,6 +190,8 @@ function HplcColumns() {
           </Table>
         </div>
       </Card>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }
