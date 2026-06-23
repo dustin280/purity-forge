@@ -18,6 +18,9 @@ export const Route = createFileRoute("/_authenticated/vial-labels")({
 function VialLabelsPage() {
   const [raw, setRaw] = useState("");
   const [startOffset, setStartOffset] = useState(0);
+  const [endOffset, setEndOffset] = useState(LABELS_PER_SHEET - 1);
+  // Tracks which end of the range the next click should set.
+  const [clickMode, setClickMode] = useState<"start" | "end">("start");
   const [fontSize, setFontSize] = useState(8);
   const [showFooter, setShowFooter] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
@@ -32,7 +35,33 @@ function VialLabelsPage() {
     () => raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
     [raw],
   );
-  const sheets = useMemo(() => chunkSheets(items, startOffset), [items, startOffset]);
+  const sheets = useMemo(
+    () => chunkSheets(items, startOffset, endOffset),
+    [items, startOffset, endOffset],
+  );
+
+  function handleCellClick(idx: number, e: React.MouseEvent) {
+    // Shift-click always sets the end; otherwise alternate start / end so
+    // a second click defines the range.
+    if (e.shiftKey) {
+      setEndOffset(Math.max(startOffset, idx));
+      setClickMode("start");
+      return;
+    }
+    if (clickMode === "start") {
+      setStartOffset(idx);
+      if (idx > endOffset) setEndOffset(idx);
+      setClickMode("end");
+    } else {
+      if (idx < startOffset) {
+        setEndOffset(startOffset);
+        setStartOffset(idx);
+      } else {
+        setEndOffset(idx);
+      }
+      setClickMode("start");
+    }
+  }
 
   async function handleFile(file: File) {
     try {
@@ -130,9 +159,39 @@ function VialLabelsPage() {
                   min={0}
                   max={LABELS_PER_SHEET - 1}
                   value={startOffset}
-                  onChange={e => setStartOffset(Math.max(0, Math.min(LABELS_PER_SHEET - 1, Number(e.target.value) || 0)))}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(LABELS_PER_SHEET - 1, Number(e.target.value) || 0));
+                    setStartOffset(v);
+                    if (v > endOffset) setEndOffset(v);
+                  }}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Useful when reusing a partially used sheet.</p>
+                <p className="text-xs text-muted-foreground mt-1">First label cell to print into (0 = top-left).</p>
+              </div>
+              <div>
+                <Label htmlFor="vl-end">End position (last cell used on sheet 1)</Label>
+                <Input
+                  id="vl-end"
+                  type="number"
+                  min={0}
+                  max={LABELS_PER_SHEET - 1}
+                  value={endOffset}
+                  onChange={e => {
+                    const v = Math.max(0, Math.min(LABELS_PER_SHEET - 1, Number(e.target.value) || 0));
+                    setEndOffset(Math.max(startOffset, v));
+                  }}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Click a cell in the preview to set the start, then another to set the end (or shift-click for end). Overflow continues on the next full sheets.
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 -ml-2"
+                  onClick={() => { setStartOffset(0); setEndOffset(LABELS_PER_SHEET - 1); setClickMode("start"); }}
+                >
+                  Reset range to full sheet
+                </Button>
               </div>
               <div>
                 <Label htmlFor="vl-font">Font size (pt)</Label>
@@ -211,7 +270,7 @@ function VialLabelsPage() {
               <div>
                 <div className="font-semibold">Live preview</div>
                 <div className="text-xs text-muted-foreground">
-                  Sheet 1 of {sheets.length} — updates as you adjust options.
+                  Sheet 1 of {sheets.length} · cells {startOffset}–{endOffset} selected · click a cell to set {clickMode === "start" ? "start" : "end"} (shift-click for end).
                 </div>
               </div>
             </div>
@@ -226,6 +285,8 @@ function VialLabelsPage() {
                   vAlign={vAlign}
                   wrap={wrap}
                   bold={bold}
+                  highlightRange={{ start: startOffset, end: endOffset }}
+                  onCellClick={handleCellClick}
                 />
               </div>
             </div>
@@ -245,6 +306,8 @@ function VialLabelsPage() {
           vAlign={vAlign}
           wrap={wrap}
           bold={bold}
+          highlightRange={{ start: startOffset, end: endOffset }}
+          onCellClick={handleCellClick}
         />
       </div>
       {typeof document !== "undefined" &&
