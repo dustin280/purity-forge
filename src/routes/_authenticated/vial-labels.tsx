@@ -369,6 +369,9 @@ const PRINT_CSS = `
   overflow: hidden;
 }
 .vl-cell-guide { outline: 1px dashed rgba(0,0,0,0.18); outline-offset: -1px; }
+.vl-cell-clickable { cursor: pointer; }
+.vl-cell-clickable:hover { background: rgba(59,130,246,0.08); }
+.vl-cell-range { background: rgba(59,130,246,0.18); outline: 1px solid rgba(59,130,246,0.55); outline-offset: -1px; }
 .vl-live-frame {
   width: 100%;
   overflow: auto;
@@ -409,6 +412,7 @@ const PRINT_CSS = `
   }
   .vl-sheet:last-child { page-break-after: auto; break-after: auto; }
   .vl-cell-guide { outline: none !important; }
+  .vl-cell-range { background: transparent !important; outline: none !important; }
 }
 .vl-print-portal { display: none; }
 `;
