@@ -21,6 +21,7 @@ export interface InventoryComponent {
   installer_initials: string | null;
   status: InventoryStatus;
   position: number;
+  is_spare: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -36,6 +37,7 @@ export interface InventoryItem {
   installation_date: string | null;
   installer_initials: string | null;
   status: InventoryStatus;
+  is_spare: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -54,6 +56,7 @@ const baseFields = {
   installation_date: z.string().trim().min(1).max(20).optional().nullable(),
   installer_initials: z.string().trim().max(10).optional().nullable(),
   status: statusEnum.default("in_use"),
+  is_spare: z.boolean().optional().default(false),
 };
 
 const createSchema = z.object({
