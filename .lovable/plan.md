@@ -1,64 +1,41 @@
-## What I'm changing
+## Problem
 
-Both AI assistants — **Column Advisor** (`/maintenance/hplc-columns`) and **Troubleshooting** (`/maintenance/troubleshooting`) — get the same toolbar treatment:
+Printing vial labels emits a blank first page; the labels land on page 2 even though the on-screen "Sheet 1 of N" is correct.
 
-- **Copy** — copies the full assistant response (plain text) to the clipboard
-- **PDF** — generates and downloads a clean PDF of the conversation (fixes the about:blank issue)
-- **Print** — opens a printable view (fixes the about:blank issue)
-- **History** — per-signed-in-user conversation history stored in Lovable Cloud
+Two root causes:
 
-## Why PDF/Print currently fails
+1. **Global `@page` conflict** — `src/styles.css` has a project-wide print block that forces `@page { size: landscape; margin: 0.4in }`. That rule merges with the vial-labels `@page { size: 8.5in 11in; margin: 0 }`, leaving the page size ambiguous and inflating margins so the 8.5×11 sheet overflows and pushes a blank page in front of it.
+2. **`visibility: hidden` keeps layout space** — the vial-labels print CSS hides everything with `visibility: hidden` and re-shows `.vl-print-root`. Visibility-hidden elements still occupy their box, so the authenticated layout (sidebar, header, page padding) reserves a full page worth of vertical space before the sheet, producing a leading blank page. `.vl-preview-wrap` is `position: absolute` but its containing block is the authenticated layout, not the page, so it doesn't escape.
 
-Today neither page has a working PDF or print control. The about:blank behavior is consistent with the previous implementation trying to `window.open()` a blob/URL that gets garbage-collected before the new tab loads, or a popup blocker swallowing it on subsequent attempts. The new implementation does it inline:
-- **PDF**: build the PDF with `jsPDF` (already used elsewhere in this project — `coc-pdf.ts`, `material-receipt-pdf.ts`) and trigger `doc.save(filename)` directly — no `window.open`.
-- **Print**: render the conversation into a hidden, print-only block on the same page and call `window.print()`. No new tab, no popup blocker, works every session.
+## Fix
 
-## History — per-user, DB-backed
+Edit only `src/routes/_authenticated/vial-labels.tsx` and `src/styles.css`. No logic changes.
 
-IP/device fingerprinting is unreliable (shared IPs, mobile carriers, VPNs, browser privacy features) and creates a privacy footprint with no real benefit when the app already requires sign-in. Per-user storage in Lovable Cloud is the better answer and it follows the rest of the app's auth model.
+### `src/styles.css`
 
-Shape:
+Scope the global landscape print rules so they don't leak into the vial-labels page:
 
-```text
-ai_chat_threads
-  id uuid pk
-  user_id uuid -> auth.users (RLS: auth.uid() = user_id)
-  agent text ('column_advisor' | 'troubleshooting')
-  title text  -- first user message, truncated
-  created_at, updated_at
+- Change the `@media print` block to opt-in: gate `@page { size: landscape; margin: 0.4in }` and the `.print-area` table styles behind a wrapper class such as `.print-landscape` (or move them into the few route files that currently rely on them — access-logs, etc.).
+- Leave the generic `print-hide` / body color rules intact.
 
-ai_chat_messages
-  id uuid pk
-  thread_id uuid -> ai_chat_threads
-  role text ('user' | 'assistant')
-  parts jsonb     -- AI SDK UIMessage parts
-  created_at
-```
+If any existing pages depend on the implicit landscape behavior, add `print-landscape` to their top-level container in the same patch.
 
-RLS scopes every read/write to `auth.uid()`. GRANTs to `authenticated` and `service_role`. Both tables follow the project's standard four-step pattern (CREATE → GRANT → ENABLE RLS → CREATE POLICY).
+### `src/routes/_authenticated/vial-labels.tsx` (PRINT_CSS only)
 
-## History UI
+Replace the `visibility: hidden` strategy with a `display: none` strategy and pin the print tree to the page origin:
 
-A **History** popover button next to Clear opens a list of past threads for that agent (newest first, titled by first prompt). Clicking a thread loads its messages back into the chat. A **New chat** action starts a fresh thread. Active messages are persisted in the background as they stream (saved on `onFinish` via server function).
+- `@media print`:
+  - `html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }`
+  - `body > *:not(.vl-print-portal) { display: none !important; }` — and wrap the `.vl-preview-wrap` in a `<div className="vl-print-portal">` rendered via `createPortal(..., document.body)` so it is a direct child of `<body>`. This guarantees no ancestor padding/margins push it down.
+  - Alternative if avoiding a portal: keep `.vl-preview-wrap` in place but set it `position: fixed; inset: 0; padding: 0; margin: 0;` under print, and switch every non-print element to `display: none !important` instead of `visibility: hidden`.
+  - `.vl-print-root { display: block; gap: 0; }`
+  - Keep `.vl-sheet { page-break-after: always }` and `.vl-sheet:last-child { page-break-after: auto }` to prevent a trailing blank page when sheet count is exactly 1.
+  - Confirm the live-preview tree (`.vl-live`) is `display: none` — already true, keep it.
 
-Per project convention, history is kept inline in the existing page (no new route). The active thread id lives in component state for this iteration — switching is one click from the popover.
+Prefer the portal approach: it is the most reliable way to escape the authenticated layout's positioned ancestors and matches how the lab-journal/CoA printable views avoid the same class of bug.
 
-## Files
+### Verification
 
-New:
-- `supabase/migrations/<ts>_ai_chat_history.sql` — tables, grants, RLS, updated_at trigger
-- `src/lib/ai-chat-history.functions.ts` — `listThreads`, `getThread`, `createThread`, `appendMessage`, `deleteThread` (all `requireSupabaseAuth`)
-- `src/lib/ai-chat-export.ts` — `buildChatPdf(messages, title)` and `printChat(messages, title)` helpers using jsPDF
-- `src/components/ai-chat/chat-toolbar.tsx` — Copy / PDF / Print / History / New / Clear buttons (shared by both agents)
-- `src/components/ai-chat/history-popover.tsx` — thread list + select/delete
-
-Edited:
-- `src/routes/_authenticated/maintenance/hplc-columns.tsx` — wire toolbar + history into `AdvisorPanel`
-- `src/routes/_authenticated/maintenance/troubleshooting.tsx` — wire toolbar + history
-- `src/lib/query-keys.ts` — add `aiChatThreads(agent)` key
-
-## Out of scope
-
-- Threaded URLs (`/maintenance/troubleshooting/$threadId`) — current pages aren't thread-routed and this iteration keeps the active thread in component state per your request scope.
-- Sharing threads between users.
-- Exporting attachments inside the PDF (troubleshooting images will be listed by filename in the PDF, not embedded, to keep file size sane).
+- Print preview with 1 sheet → exactly 1 page, labels on page 1.
+- Print preview with 3 sheets → exactly 3 pages, no leading or trailing blanks.
+- Other routes that still need landscape printing (access-logs export view) keep working because they get the opt-in `print-landscape` class.
