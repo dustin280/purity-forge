@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Upload, Printer, Tags, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -246,6 +247,22 @@ function VialLabelsPage() {
           bold={bold}
         />
       </div>
+      {typeof document !== "undefined" &&
+        createPortal(
+          <div className="vl-print-portal">
+            <LabelSheets
+              sheets={sheets}
+              fontSizePt={fontSize}
+              showFooter={showFooter}
+              showGuides={showGuides}
+              hAlign={hAlign}
+              vAlign={vAlign}
+              wrap={wrap}
+              bold={bold}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -318,11 +335,9 @@ const PRINT_CSS = `
 }
 @media print {
   @page { size: 8.5in 11in; margin: 0; }
-  html, body { background: #fff !important; }
-  body * { visibility: hidden !important; }
-  .vl-print-root, .vl-print-root * { visibility: visible !important; }
-  .vl-live, .vl-live * { visibility: hidden !important; display: none !important; }
-  .vl-preview-wrap { position: absolute; left: 0; top: 0; padding: 0 !important; margin: 0 !important; }
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  body > *:not(.vl-print-portal) { display: none !important; }
+  .vl-print-portal { display: block !important; margin: 0 !important; padding: 0 !important; }
   .vl-print-root { gap: 0; }
   .vl-sheet {
     box-shadow: none !important;
@@ -332,4 +347,5 @@ const PRINT_CSS = `
   .vl-sheet:last-child { page-break-after: auto; break-after: auto; }
   .vl-cell-guide { outline: none !important; }
 }
+.vl-print-portal { display: none; }
 `;

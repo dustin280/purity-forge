@@ -185,6 +185,7 @@ function LibraryPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-[1600px] mx-auto">
+      <style>{`@media print { @page { size: landscape; margin: 0.4in; } }`}</style>
       <div className="print-hide flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Library</h1>
