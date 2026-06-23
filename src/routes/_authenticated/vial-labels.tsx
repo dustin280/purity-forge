@@ -404,9 +404,12 @@ const PRINT_CSS = `
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   body > *:not(.vl-print-portal) { display: none !important; }
   .vl-print-portal { display: block !important; margin: 0 !important; padding: 0 !important; }
-  .vl-print-root { gap: 0; }
+  .vl-print-root { display: block !important; gap: 0 !important; margin: 0 !important; padding: 0 !important; }
   .vl-sheet {
     box-shadow: none !important;
+    margin: 0 !important;
+    height: 10.99in !important;
+    overflow: hidden !important;
     page-break-after: always;
     break-after: page;
   }
