@@ -7,7 +7,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type InventoryCategory = "instrument" | "column" | "accessory" | "other";
-export type InventoryStatus = "in_use" | "working_not_in_use" | "discarded";
+export type InventoryStatus = "in_service" | "out_of_service" | "discarded";
 
 export interface InventoryComponent {
   id: string;
@@ -44,7 +44,7 @@ export interface InventoryItem {
   components: InventoryComponent[];
 }
 
-const statusEnum = z.enum(["in_use", "working_not_in_use", "discarded"]);
+const statusEnum = z.enum(["in_service", "out_of_service", "discarded"]);
 const categoryEnum = z.enum(["instrument", "column", "accessory", "other"]);
 
 const baseFields = {
@@ -55,7 +55,7 @@ const baseFields = {
   purchase_date: z.string().trim().min(1).max(20).optional().nullable(),
   installation_date: z.string().trim().min(1).max(20).optional().nullable(),
   installer_initials: z.string().trim().max(10).optional().nullable(),
-  status: statusEnum.default("in_use"),
+  status: statusEnum.default("in_service"),
   is_spare: z.boolean().optional().default(false),
 };
 
@@ -68,6 +68,18 @@ const createSchema = z.object({
     .optional()
     .default([]),
 });
+
+const updateSchema = z.object({
+  id: z.string().uuid(),
+  ...baseFields,
+  components: z
+    .array(z.object({ id: z.string().uuid().optional(), ...baseFields }))
+    .max(50)
+    .optional()
+    .default([]),
+});
+
+const idSchema = z.object({ id: z.string().uuid() });
 
 function normalize<T extends Record<string, unknown>>(o: T) {
   const out: Record<string, unknown> = {};
@@ -122,4 +134,79 @@ export const createInventoryItem = createServerFn({ method: "POST" })
       if (cErr) throw cErr;
     }
     return { id: item.id };
+  });
+
+export const getInventoryItem = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => idSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: item, error } = await context.supabase
+      .from("inventory_items")
+      .select("*")
+      .eq("id", data.id)
+      .single();
+    if (error) throw error;
+    const { data: comps, error: cErr } = await context.supabase
+      .from("inventory_components")
+      .select("*")
+      .eq("item_id", data.id)
+      .order("position", { ascending: true });
+    if (cErr) throw cErr;
+    return {
+      ...(item as unknown as InventoryItem),
+      components: (comps ?? []) as unknown as InventoryComponent[],
+    };
+  });
+
+export const updateInventoryItem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => updateSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    const { id, components, ...rest } = data;
+    const itemPayload = normalize({ ...rest, updated_at: new Date().toISOString() });
+    const { error } = await context.supabase
+      .from("inventory_items")
+      .update(itemPayload as never)
+      .eq("id", id);
+    if (error) throw error;
+
+    // Reconcile components: delete removed, upsert remaining (preserves ids).
+    const { data: existing, error: eErr } = await context.supabase
+      .from("inventory_components")
+      .select("id")
+      .eq("item_id", id);
+    if (eErr) throw eErr;
+    const keepIds = new Set(
+      (components ?? []).map(c => c.id).filter((x): x is string => !!x),
+    );
+    const toDelete = (existing ?? [])
+      .map(r => (r as { id: string }).id)
+      .filter(eid => !keepIds.has(eid));
+    if (toDelete.length) {
+      const { error: dErr } = await context.supabase
+        .from("inventory_components")
+        .delete()
+        .in("id", toDelete);
+      if (dErr) throw dErr;
+    }
+    for (let i = 0; i < (components ?? []).length; i++) {
+      const c = components![i];
+      const payload = normalize({
+        ...c, item_id: id, position: i, updated_at: new Date().toISOString(),
+      });
+      if (c.id) {
+        const { error: uErr } = await context.supabase
+          .from("inventory_components")
+          .update(payload as never)
+          .eq("id", c.id);
+        if (uErr) throw uErr;
+      } else {
+        const { id: _omit, ...insertPayload } = payload as { id?: string } & Record<string, unknown>;
+        const { error: iErr } = await context.supabase
+          .from("inventory_components")
+          .insert(insertPayload as never);
+        if (iErr) throw iErr;
+      }
+    }
+    return { id };
   });
