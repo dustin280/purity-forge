@@ -190,5 +190,6 @@ export const qk = {
   inventory: {
     all: ["inventory"] as const,
     list: () => ["inventory"] as const,
+    detail: (id: string) => ["inventory", "detail", id] as const,
   },
 } as const;
