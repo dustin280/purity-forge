@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -34,12 +35,13 @@ interface FieldSet {
   installation_date: string;
   installer_initials: string;
   status: InventoryStatus;
+  is_spare: boolean;
 }
 
 const EMPTY: FieldSet = {
   make: "", model: "", serial_number: "", description: "",
   purchase_date: "", installation_date: "", installer_initials: "",
-  status: "in_use",
+  status: "in_use", is_spare: false,
 };
 
 const STATUS_OPTIONS: { value: InventoryStatus; label: string }[] = [
@@ -129,6 +131,22 @@ function FieldGrid({
   return (
     <div className="space-y-4">
       <PartLookup value={value} onChange={onChange} idPrefix={idPrefix} />
+      <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
+        <div>
+          <Label htmlFor={`${idPrefix}-spare`} className="cursor-pointer">Spare inventory</Label>
+          <p className="text-xs text-muted-foreground">Stocked spare — installation date and installer initials not required.</p>
+        </div>
+        <Switch
+          id={`${idPrefix}-spare`}
+          checked={value.is_spare}
+          onCheckedChange={c => onChange({
+            ...value,
+            is_spare: c,
+            installation_date: c ? "" : value.installation_date,
+            installer_initials: c ? "" : value.installer_initials,
+          })}
+        />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <Label htmlFor={`${idPrefix}-make`}>Make</Label>
@@ -142,18 +160,22 @@ function FieldGrid({
           <Label htmlFor={`${idPrefix}-serial`}>Serial number</Label>
           <Input id={`${idPrefix}-serial`} value={value.serial_number} onChange={e => set("serial_number", e.target.value)} />
         </div>
-        <div>
-          <Label htmlFor={`${idPrefix}-initials`}>Installer initials</Label>
-          <Input id={`${idPrefix}-initials`} value={value.installer_initials} onChange={e => set("installer_initials", e.target.value.toUpperCase())} maxLength={10} />
-        </div>
+        {!value.is_spare && (
+          <div>
+            <Label htmlFor={`${idPrefix}-initials`}>Installer initials</Label>
+            <Input id={`${idPrefix}-initials`} value={value.installer_initials} onChange={e => set("installer_initials", e.target.value.toUpperCase())} maxLength={10} />
+          </div>
+        )}
         <div>
           <Label htmlFor={`${idPrefix}-purchase`}>Purchase date</Label>
           <Input id={`${idPrefix}-purchase`} type="date" value={value.purchase_date} onChange={e => set("purchase_date", e.target.value)} />
         </div>
-        <div>
-          <Label htmlFor={`${idPrefix}-install`}>Installation date</Label>
-          <Input id={`${idPrefix}-install`} type="date" value={value.installation_date} onChange={e => set("installation_date", e.target.value)} />
-        </div>
+        {!value.is_spare && (
+          <div>
+            <Label htmlFor={`${idPrefix}-install`}>Installation date</Label>
+            <Input id={`${idPrefix}-install`} type="date" value={value.installation_date} onChange={e => set("installation_date", e.target.value)} />
+          </div>
+        )}
       </div>
       <div>
         <Label htmlFor={`${idPrefix}-desc`}>Description</Label>
