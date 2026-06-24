@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import type { UIMessage } from "ai";
-import { Copy, FileDown, Printer, History, Eraser, Plus, Check, Trash2, Loader2 } from "lucide-react";
+import { Copy, FileDown, Printer, History, Eraser, RefreshCw, Check, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,16 @@ export function ChatToolbar({
 
   return (
     <div className="flex items-center gap-1 flex-wrap">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={onNewChat}
+        disabled={isLoading}
+        title="Start a new conversation with a clean slate — your previous chats are saved under History."
+        className="mr-1"
+      >
+        <RefreshCw className="size-3 mr-1" /> Fresh Session
+      </Button>
       <Button size="sm" variant="ghost" onClick={onCopy} disabled={!hasAssistant} title="Copy assistant response">
         <Copy className="size-3 mr-1" /> Copy
       </Button>
@@ -88,9 +98,6 @@ export function ChatToolbar({
         activeThreadId={activeThreadId}
         onSelectThread={onSelectThread}
       />
-      <Button size="sm" variant="ghost" onClick={onNewChat} disabled={isLoading} title="Start a new conversation">
-        <Plus className="size-3 mr-1" /> New
-      </Button>
       <Button size="sm" variant="ghost" onClick={onClear} disabled={!hasMessages || isLoading} title="Clear current view">
         <Eraser className="size-3 mr-1" /> Clear
       </Button>

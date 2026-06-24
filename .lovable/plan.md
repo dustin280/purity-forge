@@ -1,36 +1,16 @@
 ## Goal
 
-Make the Column Advisor and HPLC Troubleshooting agents fully unrestrained — they can recommend/diagnose anything, search the web for unknown part numbers and current info, clearly label catalog vs off-catalog results, and offer to save new findings back to your catalog. A toggle lets you prioritize the saved catalog when you want.
+Make the existing "fresh start" action obvious. Today the agents already have a small `+ New` button in the toolbar that starts a brand-new thread without deleting history, but it's easy to miss next to Copy/PDF/Print, so people keep chatting and the model carries old context (polar peptides) into the new question (pump seals).
 
-## Changes
+## Change
 
-### 1. Firecrawl connector
-- Link the Firecrawl connector so `FIRECRAWL_API_KEY` is available server-side. (You'll be prompted once.)
+One file: `src/components/ai-chat/chat-toolbar.tsx`.
 
-### 2. New tools available to both agents
-Add AI SDK tools (server-side, inside each chat route) using `tool()` with Zod input schemas and `stopWhen: stepCountIs(50)`:
-- `searchWeb(query, limit?)` — Firecrawl `search` with markdown scraping; returns title/url/snippet/markdown.
-- `scrapePage(url)` — Firecrawl `scrape` (markdown + summary) for a specific vendor/spec page.
-- `lookupCatalog(partNumber)` — calls the existing `lookupPartNumber()` so the model can check the local catalog itself.
-- `proposeCatalogAddition({ name, partNumber, vendor, description, sourceUrl })` — needsApproval=true. On approval, inserts into `hplc_columns` (Column Advisor) via the existing `createHplcColumn` server fn. For Troubleshooting, this tool is omitted (or scoped to a future "known issues" table — out of scope unless you want it).
+- Promote the `+ New` button to a prominent **Fresh Session** button:
+  - Outline variant (not ghost), with a `RefreshCw` icon.
+  - Label: **Fresh Session**, tooltip: "Start a new conversation with a clean slate — your previous chats are saved under History."
+  - Place it at the left edge of the toolbar so it's the first control you see.
+- Behavior is unchanged: it calls the existing `onNewChat` handler, which on both agents already does `setMessages([])` + `startNew()`. That clears the in-memory conversation, drops the active thread ID, and the next message starts a fresh server-side thread with no prior context. Going back via History re-loads the old thread's messages exactly as before.
+- Keep the small `Clear` button for when you just want to wipe the on-screen view without starting a new thread.
 
-### 3. Column Advisor changes (`src/routes/api/chat-column-advisor.ts` + page)
-- Switch from a static `catalogForPrompt()` system prompt to a tool-driven flow: system prompt instructs the model to (a) try `lookupCatalog` first when a part number is given, (b) use `searchWeb`/`scrapePage` when unknown or when the user asks for off-catalog options, (c) clearly mark each recommendation as **[In Catalog]** or **[Off-Catalog · web]** with the source URL, and (d) when an off-catalog item looks legitimate, call `proposeCatalogAddition` so you can approve adding it.
-- Add a "Prioritize saved catalog" toggle in the chat toolbar UI. When ON, the system prompt tells the model to rank catalog matches first and only fall back to web; when OFF, treat catalog and web equally. Persist as a local UI state passed in the request body.
-- Render tool calls inline in the message stream (search queries, scraped URLs, proposed catalog additions with an Approve button).
-
-### 4. Troubleshooting agent changes (`src/routes/api/chat-troubleshooting.ts` + page)
-- Add the same `searchWeb` and `scrapePage` tools so it can look up error codes, service notes, manufacturer bulletins, and recent forum posts.
-- Update system prompt: encourage searching the web when an instrument-specific error code, part number, or recent advisory comes up; cite sources inline.
-- Same toolbar surfacing of tool calls/citations.
-
-### 5. UI: catalog-add approval
-- When the model emits a `proposeCatalogAddition` tool call, render a card in the chat with the proposed fields editable + **Add to catalog** / **Dismiss** buttons. Approve triggers `createHplcColumn`; the column then shows up everywhere `listHplcColumns` is used.
-
-## Technical notes
-
-- Tools live in the chat route files (server-only), wired via `streamText({ tools, stopWhen: stepCountIs(50) })`.
-- Firecrawl called via the connector gateway (`https://connector-gateway.lovable.dev/firecrawl/...`) with `Authorization: Bearer $LOVABLE_API_KEY` and `X-Connection-Api-Key: $FIRECRAWL_API_KEY`. No direct provider SDK.
-- Web results are summarized to the model as markdown (capped length) to keep token usage in check.
-- 402/429 from Firecrawl or AI Gateway surfaces as a clear chat error, not a silent failure.
-- No DB schema changes for Column Advisor (reuses `hplc_columns`). Troubleshooting gets no new table.
+Because both Column Advisor and HPLC Troubleshooting render `<ChatToolbar />`, both get the button from the same change. No backend, no schema, no route changes.
