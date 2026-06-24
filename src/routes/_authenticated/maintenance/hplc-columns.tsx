@@ -17,6 +17,8 @@ import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
 import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
 import { CompoundMultiPicker } from "@/components/ai-chat/compound-multi-picker";
+import { renderMessageParts } from "@/components/ai-chat/tool-call-view";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
@@ -252,10 +254,11 @@ function AdvisorPanel() {
   const [modifier, setModifier] = useState<string>("");
   const [compounds, setCompounds] = useState<string[]>([]);
   const [contextOpen, setContextOpen] = useState(true);
+  const [prioritizeCatalog, setPrioritizeCatalog] = useState(true);
 
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat-column-advisor" }),
-    [],
+    () => new DefaultChatTransport({ api: "/api/chat-column-advisor", body: { prioritizeCatalog } }),
+    [prioritizeCatalog],
   );
   const { activeThreadId, persist, loadThread, startNew } = useChatPersistence("column_advisor");
   const { messages, sendMessage, status, setMessages, error } = useChat({
@@ -297,9 +300,13 @@ function AdvisorPanel() {
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
           <h2 className="font-semibold">Column Advisor</h2>
-          <span className="text-xs text-muted-foreground">AI-powered · Agilent + Waters</span>
+          <span className="text-xs text-muted-foreground">AI-powered · catalog + web search</span>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+            <Switch checked={prioritizeCatalog} onCheckedChange={setPrioritizeCatalog} />
+            Prioritize saved catalog
+          </label>
           <AiCreditsBadge />
           <ChatToolbar
           agent="column_advisor"
@@ -383,9 +390,14 @@ function AdvisorPanel() {
               {m.role === "user" ? (
                 <div className="whitespace-pre-wrap">{text}</div>
               ) : (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{text}</ReactMarkdown>
-                </div>
+                <>
+                  {renderMessageParts(m.parts as Array<{ type: string } & Record<string, unknown>>)}
+                  {text && (
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown>{text}</ReactMarkdown>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );

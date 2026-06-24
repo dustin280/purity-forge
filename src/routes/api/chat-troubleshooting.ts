@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
+import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createLovableAiGatewayProvider, getLovableAiGatewayRunId } from "@/lib/ai-gateway.server";
+import { troubleshootingTools } from "@/lib/ai-agent-tools.server";
 
 export const Route = createFileRoute("/api/chat-troubleshooting")({
   server: {
@@ -23,6 +24,11 @@ You diagnose two broad classes of problems:
 1. ANALYSIS / CHROMATOGRAPHY issues — peak shape (tailing, fronting, splitting, shoulders, ghost peaks), retention shifts, baseline (drift, noise, cycling, spikes), poor resolution, low/high response, carryover, reproducibility, integration, mobile-phase / column / sample-prep problems.
 2. INSTRUMENT MALFUNCTIONS — pump (pressure ripple, leaks, prime/check valve, seal wash), autosampler (needle, rotor seal, sample loss), column oven (temperature instability), detector (UV/DAD lamp, flow cell, MS source), degasser, communication / error codes, leaks, and routine maintenance.
 
+TOOLS:
+- \`searchWeb\`: search the public web for manufacturer service notes, error codes, technical bulletins, recent forum posts, or part availability. Use freely whenever an instrument-specific error code, part number, recent advisory, or unfamiliar symptom comes up.
+- \`scrapePage\`: read a specific URL in detail after a search.
+- When you use information from the web, cite the source URL inline.
+
 WHEN A CHROMATOGRAM IMAGE IS ATTACHED:
 - Describe what you see first: number of peaks, approximate retention times if axes are visible, peak shape qualities, baseline behavior, any visible annotations or error overlays.
 - Then map the observation to likely root causes, ranked most→least likely, with the diagnostic test or fix for each.
@@ -38,6 +44,8 @@ RULES:
         const result = streamText({
           model,
           system,
+          tools: troubleshootingTools,
+          stopWhen: stepCountIs(50),
           messages: await convertToModelMessages(messages as UIMessage[]),
         });
 

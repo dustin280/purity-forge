@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
 import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
+import { renderMessageParts } from "@/components/ai-chat/tool-call-view";
 
 export const Route = createFileRoute("/_authenticated/maintenance/troubleshooting")({
   component: Troubleshooting,
@@ -268,9 +269,14 @@ function MessageView({ message }: { message: ReturnType<typeof useChat>["message
       {message.role === "user" ? (
         text && <div className="whitespace-pre-wrap">{text}</div>
       ) : (
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <ReactMarkdown>{text}</ReactMarkdown>
-        </div>
+        <>
+          {renderMessageParts(message.parts as Array<{ type: string } & Record<string, unknown>>)}
+          {text && (
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown>{text}</ReactMarkdown>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
