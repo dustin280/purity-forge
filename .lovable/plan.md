@@ -1,41 +1,36 @@
-## Problem
+## Goal
 
-Printing vial labels emits a blank first page; the labels land on page 2 even though the on-screen "Sheet 1 of N" is correct.
+Make the Column Advisor and HPLC Troubleshooting agents fully unrestrained — they can recommend/diagnose anything, search the web for unknown part numbers and current info, clearly label catalog vs off-catalog results, and offer to save new findings back to your catalog. A toggle lets you prioritize the saved catalog when you want.
 
-Two root causes:
+## Changes
 
-1. **Global `@page` conflict** — `src/styles.css` has a project-wide print block that forces `@page { size: landscape; margin: 0.4in }`. That rule merges with the vial-labels `@page { size: 8.5in 11in; margin: 0 }`, leaving the page size ambiguous and inflating margins so the 8.5×11 sheet overflows and pushes a blank page in front of it.
-2. **`visibility: hidden` keeps layout space** — the vial-labels print CSS hides everything with `visibility: hidden` and re-shows `.vl-print-root`. Visibility-hidden elements still occupy their box, so the authenticated layout (sidebar, header, page padding) reserves a full page worth of vertical space before the sheet, producing a leading blank page. `.vl-preview-wrap` is `position: absolute` but its containing block is the authenticated layout, not the page, so it doesn't escape.
+### 1. Firecrawl connector
+- Link the Firecrawl connector so `FIRECRAWL_API_KEY` is available server-side. (You'll be prompted once.)
 
-## Fix
+### 2. New tools available to both agents
+Add AI SDK tools (server-side, inside each chat route) using `tool()` with Zod input schemas and `stopWhen: stepCountIs(50)`:
+- `searchWeb(query, limit?)` — Firecrawl `search` with markdown scraping; returns title/url/snippet/markdown.
+- `scrapePage(url)` — Firecrawl `scrape` (markdown + summary) for a specific vendor/spec page.
+- `lookupCatalog(partNumber)` — calls the existing `lookupPartNumber()` so the model can check the local catalog itself.
+- `proposeCatalogAddition({ name, partNumber, vendor, description, sourceUrl })` — needsApproval=true. On approval, inserts into `hplc_columns` (Column Advisor) via the existing `createHplcColumn` server fn. For Troubleshooting, this tool is omitted (or scoped to a future "known issues" table — out of scope unless you want it).
 
-Edit only `src/routes/_authenticated/vial-labels.tsx` and `src/styles.css`. No logic changes.
+### 3. Column Advisor changes (`src/routes/api/chat-column-advisor.ts` + page)
+- Switch from a static `catalogForPrompt()` system prompt to a tool-driven flow: system prompt instructs the model to (a) try `lookupCatalog` first when a part number is given, (b) use `searchWeb`/`scrapePage` when unknown or when the user asks for off-catalog options, (c) clearly mark each recommendation as **[In Catalog]** or **[Off-Catalog · web]** with the source URL, and (d) when an off-catalog item looks legitimate, call `proposeCatalogAddition` so you can approve adding it.
+- Add a "Prioritize saved catalog" toggle in the chat toolbar UI. When ON, the system prompt tells the model to rank catalog matches first and only fall back to web; when OFF, treat catalog and web equally. Persist as a local UI state passed in the request body.
+- Render tool calls inline in the message stream (search queries, scraped URLs, proposed catalog additions with an Approve button).
 
-### `src/styles.css`
+### 4. Troubleshooting agent changes (`src/routes/api/chat-troubleshooting.ts` + page)
+- Add the same `searchWeb` and `scrapePage` tools so it can look up error codes, service notes, manufacturer bulletins, and recent forum posts.
+- Update system prompt: encourage searching the web when an instrument-specific error code, part number, or recent advisory comes up; cite sources inline.
+- Same toolbar surfacing of tool calls/citations.
 
-Scope the global landscape print rules so they don't leak into the vial-labels page:
+### 5. UI: catalog-add approval
+- When the model emits a `proposeCatalogAddition` tool call, render a card in the chat with the proposed fields editable + **Add to catalog** / **Dismiss** buttons. Approve triggers `createHplcColumn`; the column then shows up everywhere `listHplcColumns` is used.
 
-- Change the `@media print` block to opt-in: gate `@page { size: landscape; margin: 0.4in }` and the `.print-area` table styles behind a wrapper class such as `.print-landscape` (or move them into the few route files that currently rely on them — access-logs, etc.).
-- Leave the generic `print-hide` / body color rules intact.
+## Technical notes
 
-If any existing pages depend on the implicit landscape behavior, add `print-landscape` to their top-level container in the same patch.
-
-### `src/routes/_authenticated/vial-labels.tsx` (PRINT_CSS only)
-
-Replace the `visibility: hidden` strategy with a `display: none` strategy and pin the print tree to the page origin:
-
-- `@media print`:
-  - `html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }`
-  - `body > *:not(.vl-print-portal) { display: none !important; }` — and wrap the `.vl-preview-wrap` in a `<div className="vl-print-portal">` rendered via `createPortal(..., document.body)` so it is a direct child of `<body>`. This guarantees no ancestor padding/margins push it down.
-  - Alternative if avoiding a portal: keep `.vl-preview-wrap` in place but set it `position: fixed; inset: 0; padding: 0; margin: 0;` under print, and switch every non-print element to `display: none !important` instead of `visibility: hidden`.
-  - `.vl-print-root { display: block; gap: 0; }`
-  - Keep `.vl-sheet { page-break-after: always }` and `.vl-sheet:last-child { page-break-after: auto }` to prevent a trailing blank page when sheet count is exactly 1.
-  - Confirm the live-preview tree (`.vl-live`) is `display: none` — already true, keep it.
-
-Prefer the portal approach: it is the most reliable way to escape the authenticated layout's positioned ancestors and matches how the lab-journal/CoA printable views avoid the same class of bug.
-
-### Verification
-
-- Print preview with 1 sheet → exactly 1 page, labels on page 1.
-- Print preview with 3 sheets → exactly 3 pages, no leading or trailing blanks.
-- Other routes that still need landscape printing (access-logs export view) keep working because they get the opt-in `print-landscape` class.
+- Tools live in the chat route files (server-only), wired via `streamText({ tools, stopWhen: stepCountIs(50) })`.
+- Firecrawl called via the connector gateway (`https://connector-gateway.lovable.dev/firecrawl/...`) with `Authorization: Bearer $LOVABLE_API_KEY` and `X-Connection-Api-Key: $FIRECRAWL_API_KEY`. No direct provider SDK.
+- Web results are summarized to the model as markdown (capped length) to keep token usage in check.
+- 402/429 from Firecrawl or AI Gateway surfaces as a clear chat error, not a silent failure.
+- No DB schema changes for Column Advisor (reuses `hplc_columns`). Troubleshooting gets no new table.
