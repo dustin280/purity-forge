@@ -19,7 +19,15 @@ export const searchWebTool = tool({
       const hits = await firecrawlSearch(query, limit ?? 5);
       return { ok: true as const, hits };
     } catch (e) {
-      return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+      const msg = e instanceof Error ? e.message : String(e);
+      const friendly = /abort|timeout/i.test(msg)
+        ? "Web search timed out — try a more specific query."
+        : /402/.test(msg)
+        ? "Web search credits exhausted."
+        : /429/.test(msg)
+        ? "Web search rate-limited — wait a moment and retry."
+        : `Web search failed: ${msg}`;
+      return { ok: false as const, error: friendly };
     }
   },
 });
@@ -35,7 +43,11 @@ export const scrapePageTool = tool({
       const page = await firecrawlScrape(url);
       return { ok: true as const, page };
     } catch (e) {
-      return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+      const msg = e instanceof Error ? e.message : String(e);
+      const friendly = /abort|timeout/i.test(msg)
+        ? `Couldn't reach ${url} (timed out). Try another source.`
+        : `Couldn't reach ${url}: ${msg}`;
+      return { ok: false as const, error: friendly };
     }
   },
 });
