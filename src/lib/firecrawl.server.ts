@@ -16,6 +16,16 @@ function gatewayHeaders(): Record<string, string> {
   };
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: ac.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export type WebSearchHit = {
   url: string;
   title?: string;
@@ -24,7 +34,7 @@ export type WebSearchHit = {
 };
 
 export async function firecrawlSearch(query: string, limit = 5): Promise<WebSearchHit[]> {
-  const res = await fetch(`${GATEWAY}/v2/search`, {
+  const res = await fetchWithTimeout(`${GATEWAY}/v2/search`, {
     method: "POST",
     headers: gatewayHeaders(),
     body: JSON.stringify({
@@ -32,7 +42,7 @@ export async function firecrawlSearch(query: string, limit = 5): Promise<WebSear
       limit: Math.max(1, Math.min(10, limit)),
       scrapeOptions: { formats: ["markdown"], onlyMainContent: true },
     }),
-  });
+  }, 25000);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Firecrawl search ${res.status}: ${body.slice(0, 300)}`);
@@ -45,16 +55,16 @@ export async function firecrawlSearch(query: string, limit = 5): Promise<WebSear
     url: h.url,
     title: h.title,
     description: h.description,
-    markdown: typeof h.markdown === "string" ? h.markdown.slice(0, 4000) : undefined,
+    markdown: typeof h.markdown === "string" ? h.markdown.slice(0, 3000) : undefined,
   }));
 }
 
 export async function firecrawlScrape(url: string): Promise<{ url: string; markdown?: string; summary?: string; title?: string }> {
-  const res = await fetch(`${GATEWAY}/v2/scrape`, {
+  const res = await fetchWithTimeout(`${GATEWAY}/v2/scrape`, {
     method: "POST",
     headers: gatewayHeaders(),
     body: JSON.stringify({ url, formats: ["markdown", "summary"], onlyMainContent: true }),
-  });
+  }, 30000);
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Firecrawl scrape ${res.status}: ${body.slice(0, 300)}`);
@@ -69,7 +79,7 @@ export async function firecrawlScrape(url: string): Promise<{ url: string; markd
   return {
     url: d.metadata?.sourceURL ?? url,
     title: d.metadata?.title,
-    markdown: typeof d.markdown === "string" ? d.markdown.slice(0, 6000) : undefined,
+    markdown: typeof d.markdown === "string" ? d.markdown.slice(0, 3000) : undefined,
     summary: d.summary,
   };
 }

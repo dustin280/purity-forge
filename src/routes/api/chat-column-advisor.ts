@@ -56,6 +56,12 @@ ${catalogForPrompt()}`;
 
         return result.toUIMessageStreamResponse({
           originalMessages: messages as UIMessage[],
+          onError: (error) => {
+            const msg = error instanceof Error ? error.message : String(error);
+            if (/402/.test(msg)) return "AI credits exhausted. Top up to continue.";
+            if (/429/.test(msg)) return "Rate limit hit — please retry in a moment.";
+            return msg || "Stream error";
+          },
         });
       },
     },
