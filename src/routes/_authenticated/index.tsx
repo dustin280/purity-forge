@@ -27,7 +27,7 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground mt-1">Real-time sample workflow and instrument throughput.</p>
       </header>
 
-      <BackpressureTrendChart rows={bpRows ?? []} isLoading={bpLoading} />
+      <BackpressureTrendChart rows={bpRows ?? []} isLoading={bpLoading} showOpenLogLink />
 
       <StatTiles counts={data?.counts} />
 

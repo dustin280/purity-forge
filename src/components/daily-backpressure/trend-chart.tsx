@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ExternalLink } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -45,9 +46,11 @@ function fmtDateTime(ts: number) {
 export function BackpressureTrendChart({
   rows,
   isLoading,
+  showOpenLogLink,
 }: {
   rows: BackpressureRow[];
   isLoading?: boolean;
+  showOpenLogLink?: boolean;
 }) {
   const [range, setRange] = useState<DateRange | undefined>(() => {
     const to = new Date();
@@ -108,6 +111,14 @@ export function BackpressureTrendChart({
               {count} reading{count === 1 ? "" : "s"}
             </div>
           </div>
+          <div className="flex items-center gap-2">
+          {showOpenLogLink && (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/lab-logs/daily-backpressure">
+                <ExternalLink className="size-4" /> Open Log
+              </Link>
+            </Button>
+          )}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -130,6 +141,7 @@ export function BackpressureTrendChart({
               />
             </PopoverContent>
           </Popover>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
