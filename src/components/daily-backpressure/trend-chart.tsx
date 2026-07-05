@@ -60,7 +60,7 @@ export function BackpressureTrendChart({
     return { from, to };
   });
 
-  const { data, instruments, unit, count } = useMemo(() => {
+  const { data, instruments, unit, count, hasInjections } = useMemo(() => {
     const fromMs = range?.from ? new Date(range.from).setHours(0, 0, 0, 0) : -Infinity;
     const toMs = range?.to
       ? new Date(range.to).setHours(23, 59, 59, 999)
@@ -80,6 +80,7 @@ export function BackpressureTrendChart({
     const data = sorted.map((r) => {
       const point: Record<string, number | null> = {
         t: new Date(r.reading_at).getTime(),
+        __injections: r.injections_count ?? null,
       };
       for (const inst of instruments) {
         point[inst] = inst === r.instrument ? r.backpressure : null;
@@ -87,11 +88,13 @@ export function BackpressureTrendChart({
       return point;
     });
     const unit = sorted[0]?.backpressure_unit ?? "";
+    const hasInjections = sorted.some((r) => r.injections_count != null);
     return {
       data,
       instruments,
       unit,
       count: sorted.length,
+      hasInjections,
     };
   }, [rows, range]);
 
@@ -179,6 +182,21 @@ export function BackpressureTrendChart({
                       : undefined
                   }
                 />
+                {hasInjections && (
+                  <YAxis
+                    yAxisId="injections"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    stroke="var(--muted-foreground)"
+                    allowDecimals={false}
+                    label={{
+                      value: "Injections",
+                      angle: 90,
+                      position: "insideRight",
+                      style: { fontSize: 11, fill: "var(--muted-foreground)" },
+                    }}
+                  />
+                )}
                 <Tooltip
                   contentStyle={{
                     background: "var(--popover)",
@@ -188,11 +206,13 @@ export function BackpressureTrendChart({
                   }}
                   labelFormatter={(v) => fmtDateTime(Number(v))}
                   formatter={(value: number, name: string) => [
-                    `${value}${unit ? ` ${unit}` : ""}`,
+                    name === "Injections"
+                      ? `${value}`
+                      : `${value}${unit ? ` ${unit}` : ""}`,
                     name,
                   ]}
                 />
-                {instruments.length > 1 && (
+                {(instruments.length > 1 || hasInjections) && (
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 )}
                 {instruments.map((inst, i) => (
@@ -208,6 +228,20 @@ export function BackpressureTrendChart({
                     connectNulls
                   />
                 ))}
+                {hasInjections && (
+                  <Line
+                    yAxisId="injections"
+                    type="monotone"
+                    dataKey="__injections"
+                    name="Injections"
+                    stroke="var(--muted-foreground)"
+                    strokeDasharray="4 3"
+                    strokeWidth={2}
+                    dot={{ r: 2 }}
+                    activeDot={{ r: 4 }}
+                    connectNulls
+                  />
+                )}
               </LineChart>
             </ResponsiveContainer>
           </div>
