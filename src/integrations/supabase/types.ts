@@ -627,6 +627,7 @@ export type Database = {
           installer_initials: string | null
           is_spare: boolean
           item_id: string
+          lot_number: string | null
           make: string | null
           model: string | null
           part_number: string | null
@@ -644,6 +645,7 @@ export type Database = {
           installer_initials?: string | null
           is_spare?: boolean
           item_id: string
+          lot_number?: string | null
           make?: string | null
           model?: string | null
           part_number?: string | null
@@ -661,6 +663,7 @@ export type Database = {
           installer_initials?: string | null
           is_spare?: boolean
           item_id?: string
+          lot_number?: string | null
           make?: string | null
           model?: string | null
           part_number?: string | null
@@ -690,6 +693,7 @@ export type Database = {
           installation_date: string | null
           installer_initials: string | null
           is_spare: boolean
+          lot_number: string | null
           make: string | null
           model: string | null
           part_number: string | null
@@ -707,6 +711,7 @@ export type Database = {
           installation_date?: string | null
           installer_initials?: string | null
           is_spare?: boolean
+          lot_number?: string | null
           make?: string | null
           model?: string | null
           part_number?: string | null
@@ -724,6 +729,7 @@ export type Database = {
           installation_date?: string | null
           installer_initials?: string | null
           is_spare?: boolean
+          lot_number?: string | null
           make?: string | null
           model?: string | null
           part_number?: string | null
