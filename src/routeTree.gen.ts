@@ -23,6 +23,7 @@ import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authe
 import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedRunListsIndexRouteImport } from './routes/_authenticated/run-lists/index'
+import { Route as AuthenticatedPendingOrdersIndexRouteImport } from './routes/_authenticated/pending-orders/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedMaintenanceIndexRouteImport } from './routes/_authenticated/maintenance/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
@@ -59,6 +60,7 @@ import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } fro
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
+import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
@@ -142,6 +144,12 @@ const AuthenticatedRunListsIndexRoute =
   AuthenticatedRunListsIndexRouteImport.update({
     id: '/run-lists/',
     path: '/run-lists/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPendingOrdersIndexRoute =
+  AuthenticatedPendingOrdersIndexRouteImport.update({
+    id: '/pending-orders/',
+    path: '/pending-orders/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedMaterialReceiptsIndexRoute =
@@ -357,6 +365,11 @@ const AuthenticatedLabLogsDailyBackpressureIndexRoute =
     path: '/lab-logs/daily-backpressure/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicOrdersIntakeRoute = ApiPublicOrdersIntakeRouteImport.update({
+  id: '/api/public/orders/intake',
+  path: '/api/public/orders/intake',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   id: '/api/public/exports/$batchId',
   path: '/api/public/exports/$batchId',
@@ -459,6 +472,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/run-lists/': typeof AuthenticatedRunListsIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
@@ -471,6 +485,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -520,6 +535,7 @@ export interface FileRoutesByTo {
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/maintenance': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/pending-orders': typeof AuthenticatedPendingOrdersIndexRoute
   '/run-lists': typeof AuthenticatedRunListsIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/scheduler': typeof AuthenticatedSchedulerIndexRoute
@@ -532,6 +548,7 @@ export interface FileRoutesByTo {
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -583,6 +600,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/_authenticated/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/_authenticated/run-lists/': typeof AuthenticatedRunListsIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
@@ -595,6 +613,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -646,6 +665,7 @@ export interface FileRouteTypes {
     | '/lab-logs/'
     | '/maintenance/'
     | '/material-receipts/'
+    | '/pending-orders/'
     | '/run-lists/'
     | '/samples/'
     | '/scheduler/'
@@ -658,6 +678,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/reports'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/orders/intake'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
@@ -707,6 +728,7 @@ export interface FileRouteTypes {
     | '/lab-logs'
     | '/maintenance'
     | '/material-receipts'
+    | '/pending-orders'
     | '/run-lists'
     | '/samples'
     | '/scheduler'
@@ -719,6 +741,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/reports'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/orders/intake'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
@@ -769,6 +792,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/'
     | '/_authenticated/maintenance/'
     | '/_authenticated/material-receipts/'
+    | '/_authenticated/pending-orders/'
     | '/_authenticated/run-lists/'
     | '/_authenticated/samples/'
     | '/_authenticated/scheduler/'
@@ -781,6 +805,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/timesheets/reports'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/orders/intake'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
@@ -796,6 +821,7 @@ export interface RootRouteChildren {
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
+  ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -896,6 +922,13 @@ declare module '@tanstack/react-router' {
       path: '/run-lists'
       fullPath: '/run-lists/'
       preLoaderRoute: typeof AuthenticatedRunListsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/pending-orders/': {
+      id: '/_authenticated/pending-orders/'
+      path: '/pending-orders'
+      fullPath: '/pending-orders/'
+      preLoaderRoute: typeof AuthenticatedPendingOrdersIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/material-receipts/': {
@@ -1150,6 +1183,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/orders/intake': {
+      id: '/api/public/orders/intake'
+      path: '/api/public/orders/intake'
+      fullPath: '/api/public/orders/intake'
+      preLoaderRoute: typeof ApiPublicOrdersIntakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/exports/$batchId': {
       id: '/api/public/exports/$batchId'
       path: '/api/public/exports/$batchId'
@@ -1262,6 +1302,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaintenanceIndexRoute: typeof AuthenticatedMaintenanceIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
+  AuthenticatedPendingOrdersIndexRoute: typeof AuthenticatedPendingOrdersIndexRoute
   AuthenticatedRunListsIndexRoute: typeof AuthenticatedRunListsIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
@@ -1327,6 +1368,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaintenanceIndexRoute: AuthenticatedMaintenanceIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
+  AuthenticatedPendingOrdersIndexRoute: AuthenticatedPendingOrdersIndexRoute,
   AuthenticatedRunListsIndexRoute: AuthenticatedRunListsIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
@@ -1369,6 +1411,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
+  ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

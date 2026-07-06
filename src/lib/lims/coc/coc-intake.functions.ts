@@ -27,6 +27,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       sample_id: z.string().min(1).max(128),
       data: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())])),
       line_items: z.array(lineItemSchema).min(1).max(200),
+      pending_order_id: z.string().uuid().optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -103,6 +104,16 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       .insert(rows)
       .select();
     if (sErr) throw sErr;
+    // If this CoC was staged from a pending partner order, mark it received
+    // and link it back. We keep the raw payload untouched for audit.
+    if (data.pending_order_id) {
+      await supabase.from("pending_orders").update({
+        status: "received",
+        received_at: new Date().toISOString(),
+        received_by: userId,
+        linked_coc_id: coc.id,
+      }).eq("id", data.pending_order_id);
+    }
     return { coc, samples: samples ?? [] };
   });
 

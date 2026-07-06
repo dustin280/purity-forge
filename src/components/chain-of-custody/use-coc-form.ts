@@ -77,6 +77,7 @@ export function useCocForm({
   const [draftId, setDraftId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [registerNewClient, setRegisterNewClient] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const createClient = useServerFn(createClientFn);
 
   const setValuesDirty: typeof setValues = (v) => { setIsDirty(true); setValues(v); };
@@ -104,6 +105,7 @@ export function useCocForm({
     const resumed = resumeDraftId ? getCocDraft(resumeDraftId) : null;
     const id = resumed?.draftId ?? newDraftId(recordId ? `edit-${recordId.slice(0, 8)}` : "new");
     setDraftId(id);
+    setPendingOrderId(resumed?.pendingOrderId ?? null);
 
     const init: Record<string, string | string[]> = {};
     activeFields.forEach(f => {
@@ -186,7 +188,10 @@ export function useCocForm({
           .map(li => ({ ...li, compound: li.compound.trim() }))
           .filter(li => li.compound.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
-        const res = await submit({ data: { sample_id: sampleIdVal, data, line_items: cleaned } }) as { coc: { id: string } };
+        const res = await submit({ data: {
+          sample_id: sampleIdVal, data, line_items: cleaned,
+          pending_order_id: pendingOrderId ?? undefined,
+        } }) as { coc: { id: string } };
         if (res?.coc?.id) await uploadAllPendingTo(res.coc.id);
       }
       // Optionally register a new client from the values entered in this form.
@@ -217,11 +222,13 @@ export function useCocForm({
       qc.invalidateQueries({ queryKey: qk.samples.list() });
       qc.invalidateQueries({ queryKey: qk.cocRecords.attachmentsAll });
       qc.invalidateQueries({ queryKey: qk.clients.all });
+      qc.invalidateQueries({ queryKey: ["pending_orders"] });
       if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);
       setPendingByLine({});
       setRegisterNewClient(false);
+      setPendingOrderId(null);
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to save"),
@@ -258,8 +265,9 @@ export function useCocForm({
       pendingFileNames: pendingFiles.map(f => f.name),
       updatedAt: new Date().toISOString(),
       summary: summaryParts.join(" · ") || (recordId ? "Editing existing record" : "New chain of custody"),
+      pendingOrderId: pendingOrderId ?? null,
     });
-  }, [open, hydrated, draftId, values, lineItems, pendingFiles, recordId]);
+  }, [open, hydrated, draftId, values, lineItems, pendingFiles, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };

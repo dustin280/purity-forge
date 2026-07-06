@@ -15,6 +15,9 @@ export type CocDraft = {
   updatedAt: string;
   /** Short human summary for the drafts list */
   summary: string;
+  /** If this draft was seeded from a partner-received pending order, the id
+   *  of that order. On submit it will be marked received and linked. */
+  pendingOrderId?: string | null;
 };
 
 type DraftMap = Record<string, CocDraft>;
