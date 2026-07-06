@@ -15,6 +15,7 @@ export interface InventoryComponent {
   make: string | null;
   model: string | null;
   part_number: string | null;
+  lot_number: string | null;
   serial_number: string | null;
   description: string | null;
   purchase_date: string | null;
@@ -33,6 +34,7 @@ export interface InventoryItem {
   make: string | null;
   model: string | null;
   part_number: string | null;
+  lot_number: string | null;
   serial_number: string | null;
   description: string | null;
   purchase_date: string | null;
@@ -53,6 +55,7 @@ const baseFields = {
   make: z.string().trim().max(120).optional().nullable(),
   model: z.string().trim().max(120).optional().nullable(),
   part_number: z.string().trim().max(120).optional().nullable(),
+  lot_number: z.string().trim().max(120).optional().nullable(),
   serial_number: z.string().trim().max(120).optional().nullable(),
   description: z.string().trim().max(1000).optional().nullable(),
   purchase_date: z.string().trim().min(1).max(20).optional().nullable(),

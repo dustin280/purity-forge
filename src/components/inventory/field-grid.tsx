@@ -164,6 +164,10 @@ export function FieldGrid({
           <Input id={`${idPrefix}-partnumber`} value={value.part_number} onChange={e => set("part_number", e.target.value)} className="font-mono" />
         </div>
         <div>
+          <Label htmlFor={`${idPrefix}-lotnumber`}>Lot #</Label>
+          <Input id={`${idPrefix}-lotnumber`} value={value.lot_number} onChange={e => set("lot_number", e.target.value)} className="font-mono" />
+        </div>
+        <div>
           <Label htmlFor={`${idPrefix}-serial`}>Serial number</Label>
           <Input id={`${idPrefix}-serial`} value={value.serial_number} onChange={e => set("serial_number", e.target.value)} />
         </div>
