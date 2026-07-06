@@ -17,6 +17,7 @@ export interface FieldSet {
   id?: string;
   make: string;
   model: string;
+  part_number: string;
   serial_number: string;
   description: string;
   purchase_date: string;
@@ -27,7 +28,7 @@ export interface FieldSet {
 }
 
 export const EMPTY: FieldSet = {
-  make: "", model: "", serial_number: "", description: "",
+  make: "", model: "", part_number: "", serial_number: "", description: "",
   purchase_date: "", installation_date: "", installer_initials: "",
   status: "in_service", is_spare: false,
 };
@@ -66,7 +67,7 @@ function PartLookup({
     if (!q) return;
     const result = lookupPartNumber(q);
     if (result.source === "none") {
-      onChange({ ...value, model: value.model || q });
+      onChange({ ...value, part_number: value.part_number || q, model: value.model || q });
       setState({ kind: "not_found" });
       return;
     }
@@ -74,6 +75,7 @@ function PartLookup({
       ...value,
       make: result.values.make,
       model: result.values.model,
+      part_number: q,
       description: result.values.description,
     });
     setState({ kind: "found", label: result.label });
@@ -154,6 +156,10 @@ export function FieldGrid({
         <div>
           <Label htmlFor={`${idPrefix}-model`}>Model</Label>
           <Input id={`${idPrefix}-model`} value={value.model} onChange={e => set("model", e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor={`${idPrefix}-partnumber`}>Part number</Label>
+          <Input id={`${idPrefix}-partnumber`} value={value.part_number} onChange={e => set("part_number", e.target.value)} className="font-mono" />
         </div>
         <div>
           <Label htmlFor={`${idPrefix}-serial`}>Serial number</Label>
