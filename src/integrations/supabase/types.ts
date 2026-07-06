@@ -1557,6 +1557,130 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_order_samples: {
+        Row: {
+          created_at: string
+          external_sample_id: string | null
+          id: string
+          line_index: number
+          lot_batch: string | null
+          notes: string | null
+          pending_order_id: string
+          product_name: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          external_sample_id?: string | null
+          id?: string
+          line_index: number
+          lot_batch?: string | null
+          notes?: string | null
+          pending_order_id: string
+          product_name: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          external_sample_id?: string | null
+          id?: string
+          line_index?: number
+          lot_batch?: string | null
+          notes?: string | null
+          pending_order_id?: string
+          product_name?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_order_samples_pending_order_id_fkey"
+            columns: ["pending_order_id"]
+            isOneToOne: false
+            referencedRelation: "pending_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_orders: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          carrier: string | null
+          created_at: string
+          customer_company: string | null
+          customer_email: string | null
+          customer_external_id: string | null
+          customer_name: string | null
+          expected_arrival: string | null
+          external_order_id: string
+          id: string
+          linked_coc_id: string | null
+          order_date: string | null
+          raw_payload: Json
+          received_at: string | null
+          received_by: string | null
+          special_instructions: string | null
+          status: string
+          total_samples: number | null
+          tracking_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          carrier?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_external_id?: string | null
+          customer_name?: string | null
+          expected_arrival?: string | null
+          external_order_id: string
+          id?: string
+          linked_coc_id?: string | null
+          order_date?: string | null
+          raw_payload: Json
+          received_at?: string | null
+          received_by?: string | null
+          special_instructions?: string | null
+          status?: string
+          total_samples?: number | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          carrier?: string | null
+          created_at?: string
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_external_id?: string | null
+          customer_name?: string | null
+          expected_arrival?: string | null
+          external_order_id?: string
+          id?: string
+          linked_coc_id?: string | null
+          order_date?: string | null
+          raw_payload?: Json
+          received_at?: string | null
+          received_by?: string | null
+          special_instructions?: string | null
+          status?: string
+          total_samples?: number | null
+          tracking_number?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_orders_linked_coc_id_fkey"
+            columns: ["linked_coc_id"]
+            isOneToOne: false
+            referencedRelation: "chain_of_custody_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
