@@ -629,6 +629,7 @@ export type Database = {
           item_id: string
           make: string | null
           model: string | null
+          part_number: string | null
           position: number
           purchase_date: string | null
           serial_number: string | null
@@ -645,6 +646,7 @@ export type Database = {
           item_id: string
           make?: string | null
           model?: string | null
+          part_number?: string | null
           position?: number
           purchase_date?: string | null
           serial_number?: string | null
@@ -661,6 +663,7 @@ export type Database = {
           item_id?: string
           make?: string | null
           model?: string | null
+          part_number?: string | null
           position?: number
           purchase_date?: string | null
           serial_number?: string | null
@@ -689,6 +692,7 @@ export type Database = {
           is_spare: boolean
           make: string | null
           model: string | null
+          part_number: string | null
           purchase_date: string | null
           serial_number: string | null
           status: string
@@ -705,6 +709,7 @@ export type Database = {
           is_spare?: boolean
           make?: string | null
           model?: string | null
+          part_number?: string | null
           purchase_date?: string | null
           serial_number?: string | null
           status?: string
@@ -721,6 +726,7 @@ export type Database = {
           is_spare?: boolean
           make?: string | null
           model?: string | null
+          part_number?: string | null
           purchase_date?: string | null
           serial_number?: string | null
           status?: string
