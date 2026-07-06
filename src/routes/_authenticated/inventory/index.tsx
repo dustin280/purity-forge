@@ -53,6 +53,7 @@ function InventoryIndex() {
             <TableRow>
               <TableHead>Category</TableHead>
               <TableHead>Make / Model</TableHead>
+              <TableHead>Part #</TableHead>
               <TableHead>Serial</TableHead>
               <TableHead>Installed</TableHead>
               <TableHead>Installer</TableHead>
@@ -63,10 +64,10 @@ function InventoryIndex() {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">Loading…</TableCell></TableRow>
             )}
             {!isLoading && (data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">No inventory yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">No inventory yet.</TableCell></TableRow>
             )}
             {(data ?? []).map(it => (
               <TableRow key={it.id}>
@@ -75,6 +76,7 @@ function InventoryIndex() {
                   {[it.make, it.model].filter(Boolean).join(" · ") || "—"}
                   {it.description && <div className="text-xs text-muted-foreground">{it.description}</div>}
                 </TableCell>
+                <TableCell className="font-mono text-xs">{it.part_number || "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{it.serial_number || "—"}</TableCell>
                 <TableCell className="text-xs">{it.installation_date || "—"}</TableCell>
                 <TableCell className="text-xs">{it.installer_initials || "—"}</TableCell>
