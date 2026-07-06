@@ -37,6 +37,7 @@ function rowToField(r: InventoryItem | InventoryComponent): FieldSet {
     make: r.make ?? "",
     model: r.model ?? "",
     part_number: r.part_number ?? "",
+    lot_number: r.lot_number ?? "",
     serial_number: r.serial_number ?? "",
     description: r.description ?? "",
     purchase_date: r.purchase_date ?? "",
