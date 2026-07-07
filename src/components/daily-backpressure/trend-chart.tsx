@@ -29,6 +29,42 @@ const SERIES_COLORS = [
   "oklch(0.62 0.22 12)",
 ];
 
+function makeDot(color: string) {
+  return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return <g />;
+    const hasNote = !!payload?.notes;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hasNote ? 4 : 2}
+        fill={hasNote ? "var(--status-warning)" : color}
+        stroke={hasNote ? "var(--foreground)" : "none"}
+        strokeWidth={hasNote ? 1.5 : 0}
+      />
+    );
+  };
+}
+
+function makeActiveDot(color: string) {
+  return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return <g />;
+    const hasNote = !!payload?.notes;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hasNote ? 5 : 4}
+        fill={hasNote ? "var(--status-warning)" : color}
+        stroke={hasNote ? "var(--foreground)" : "none"}
+        strokeWidth={hasNote ? 1.5 : 0}
+      />
+    );
+  };
+}
+
 function fmtDate(ts: number) {
   const d = new Date(ts);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -78,9 +114,10 @@ export function BackpressureTrendChart({
     sorted.forEach((r) => instrumentsSet.add(r.instrument));
     const instruments = Array.from(instrumentsSet);
     const data = sorted.map((r) => {
-      const point: Record<string, number | null> = {
+      const point: Record<string, number | null | string> = {
         t: new Date(r.reading_at).getTime(),
         __injections: r.injections_count ?? null,
+        notes: r.notes ?? "",
       };
       for (const inst of instruments) {
         point[inst] = inst === r.instrument ? r.backpressure : null;
@@ -215,19 +252,22 @@ export function BackpressureTrendChart({
                 {(instruments.length > 1 || hasInjections) && (
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 )}
-                {instruments.map((inst, i) => (
-                  <Line
-                    key={inst}
-                    type="monotone"
-                    dataKey={inst}
-                    name={inst}
-                    stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    activeDot={{ r: 4 }}
-                    connectNulls
-                  />
-                ))}
+                {instruments.map((inst, i) => {
+                  const color = SERIES_COLORS[i % SERIES_COLORS.length];
+                  return (
+                    <Line
+                      key={inst}
+                      type="monotone"
+                      dataKey={inst}
+                      name={inst}
+                      stroke={color}
+                      strokeWidth={2}
+                      dot={makeDot(color)}
+                      activeDot={makeActiveDot(color)}
+                      connectNulls
+                    />
+                  );
+                })}
                 {hasInjections && (
                   <Line
                     yAxisId="injections"
