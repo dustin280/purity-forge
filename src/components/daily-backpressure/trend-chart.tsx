@@ -252,19 +252,22 @@ export function BackpressureTrendChart({
                 {(instruments.length > 1 || hasInjections) && (
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                 )}
-                {instruments.map((inst, i) => (
-                  <Line
-                    key={inst}
-                    type="monotone"
-                    dataKey={inst}
-                    name={inst}
-                    stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 2 }}
-                    activeDot={{ r: 4 }}
-                    connectNulls
-                  />
-                ))}
+                {instruments.map((inst, i) => {
+                  const color = SERIES_COLORS[i % SERIES_COLORS.length];
+                  return (
+                    <Line
+                      key={inst}
+                      type="monotone"
+                      dataKey={inst}
+                      name={inst}
+                      stroke={color}
+                      strokeWidth={2}
+                      dot={makeDot(color)}
+                      activeDot={makeActiveDot(color)}
+                      connectNulls
+                    />
+                  );
+                })}
                 {hasInjections && (
                   <Line
                     yAxisId="injections"
