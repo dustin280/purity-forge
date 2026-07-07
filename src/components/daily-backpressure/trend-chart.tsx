@@ -29,6 +29,42 @@ const SERIES_COLORS = [
   "oklch(0.62 0.22 12)",
 ];
 
+function makeDot(color: string) {
+  return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return null;
+    const hasNote = !!payload?.notes;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hasNote ? 4 : 2}
+        fill={hasNote ? "var(--status-warning)" : color}
+        stroke={hasNote ? "var(--foreground)" : "none"}
+        strokeWidth={hasNote ? 1.5 : 0}
+      />
+    );
+  };
+}
+
+function makeActiveDot(color: string) {
+  return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
+    const { cx, cy, payload } = props;
+    if (cx == null || cy == null) return null;
+    const hasNote = !!payload?.notes;
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={hasNote ? 5 : 4}
+        fill={hasNote ? "var(--status-warning)" : color}
+        stroke={hasNote ? "var(--foreground)" : "none"}
+        strokeWidth={hasNote ? 1.5 : 0}
+      />
+    );
+  };
+}
+
 function fmtDate(ts: number) {
   const d = new Date(ts);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
