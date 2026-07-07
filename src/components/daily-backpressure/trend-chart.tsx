@@ -32,7 +32,7 @@ const SERIES_COLORS = [
 function makeDot(color: string) {
   return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
     const { cx, cy, payload } = props;
-    if (cx == null || cy == null) return null;
+    if (cx == null || cy == null) return <g />;
     const hasNote = !!payload?.notes;
     return (
       <circle
@@ -50,7 +50,7 @@ function makeDot(color: string) {
 function makeActiveDot(color: string) {
   return (props: { cx?: number; cy?: number; payload?: { notes?: string | null } }) => {
     const { cx, cy, payload } = props;
-    if (cx == null || cy == null) return null;
+    if (cx == null || cy == null) return <g />;
     const hasNote = !!payload?.notes;
     return (
       <circle
