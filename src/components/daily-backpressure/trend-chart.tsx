@@ -114,9 +114,10 @@ export function BackpressureTrendChart({
     sorted.forEach((r) => instrumentsSet.add(r.instrument));
     const instruments = Array.from(instrumentsSet);
     const data = sorted.map((r) => {
-      const point: Record<string, number | null> = {
+      const point: Record<string, number | null | string> = {
         t: new Date(r.reading_at).getTime(),
         __injections: r.injections_count ?? null,
+        notes: r.notes ?? "",
       };
       for (const inst of instruments) {
         point[inst] = inst === r.instrument ? r.backpressure : null;
