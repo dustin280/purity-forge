@@ -146,7 +146,7 @@ export const searchKnowledge = createServerFn({ method: "POST" })
     const { embedText } = await import("@/lib/knowledge-base.server");
     const vec = await embedText(data.query);
     // Pass agent scope through; NULL scope_filter returns all
-    const scopeFilter = data.scope && data.scope !== "both" ? data.scope : null;
+    const scopeFilter = data.scope && data.scope !== "both" ? data.scope : undefined;
     const { data: rows, error } = await context.supabase.rpc("match_ai_knowledge_chunks", {
       query_embedding: vec as unknown as string,
       match_count: data.topK ?? 6,
