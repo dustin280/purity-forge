@@ -6,6 +6,50 @@ import { tool } from "ai";
 import { z } from "zod";
 import { firecrawlScrape, firecrawlSearch } from "@/lib/firecrawl.server";
 import { lookupPartNumber } from "@/lib/inventory/part-lookup";
+import { embedText } from "@/lib/knowledge-base.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+type AgentScope = "column_advisor" | "troubleshooting";
+
+/**
+ * Returns a tool bound to a specific agent scope. Chunks tagged
+ * `both` or matching the scope are searched.
+ */
+export function makeSearchKnowledgeBaseTool(scope: AgentScope) {
+  return tool({
+    description:
+      "Search the lab's uploaded reference PDFs (vendor guides, application notes, troubleshooting handbooks) for information relevant to the user's question. ALWAYS call this FIRST before searchWeb — the saved documents are more authoritative than the open web. Returns up to 6 excerpts with document title and page number; cite them inline as (Doc Title, p. N).",
+    inputSchema: z.object({
+      query: z.string().min(2).describe("A focused search query — the specific symptom, chemistry, part, or concept you need info on."),
+      topK: z.number().int().min(1).max(10).optional(),
+    }),
+    execute: async ({ query, topK }) => {
+      try {
+        const vec = await embedText(query);
+        const { data, error } = await supabaseAdmin.rpc("match_ai_knowledge_chunks", {
+          query_embedding: vec as unknown as string,
+          match_count: topK ?? 6,
+          scope_filter: scope,
+        });
+        if (error) return { ok: false as const, error: error.message };
+        const hits = (data ?? []).map((r: {
+          doc_title: string;
+          page_number: number | null;
+          content: string;
+          similarity: number;
+        }) => ({
+          doc: r.doc_title,
+          page: r.page_number,
+          similarity: Number(r.similarity?.toFixed?.(3) ?? r.similarity),
+          excerpt: r.content.length > 1200 ? r.content.slice(0, 1200) + "…" : r.content,
+        }));
+        return { ok: true as const, hits };
+      } catch (e) {
+        return { ok: false as const, error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+  });
+}
 
 export const searchWebTool = tool({
   description:
@@ -87,9 +131,11 @@ export const advisorTools = {
   scrapePage: scrapePageTool,
   lookupCatalog: lookupCatalogTool,
   proposeCatalogAddition: proposeCatalogAdditionTool,
+  searchKnowledgeBase: makeSearchKnowledgeBaseTool("column_advisor"),
 };
 
 export const troubleshootingTools = {
   searchWeb: searchWebTool,
   scrapePage: scrapePageTool,
+  searchKnowledgeBase: makeSearchKnowledgeBaseTool("troubleshooting"),
 };
