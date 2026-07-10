@@ -1,17 +1,14 @@
 /**
- * Firecrawl gateway helpers (server-only). Routed through the Lovable
- * connector gateway so we never hit the provider API directly.
+ * Firecrawl helpers (server-only). The Firecrawl connector is a direct API
+ * connector, so requests go to Firecrawl with FIRECRAWL_API_KEY.
  */
-const GATEWAY = "https://connector-gateway.lovable.dev/firecrawl";
+const FIRECRAWL_API = "https://api.firecrawl.dev";
 
-function gatewayHeaders(): Record<string, string> {
-  const lovableKey = process.env.LOVABLE_API_KEY;
+function firecrawlHeaders(): Record<string, string> {
   const fcKey = process.env.FIRECRAWL_API_KEY;
-  if (!lovableKey) throw new Error("LOVABLE_API_KEY missing");
   if (!fcKey) throw new Error("FIRECRAWL_API_KEY missing (link the Firecrawl connector)");
   return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": fcKey,
+    Authorization: `Bearer ${fcKey}`,
     "Content-Type": "application/json",
   };
 }
@@ -34,9 +31,9 @@ export type WebSearchHit = {
 };
 
 export async function firecrawlSearch(query: string, limit = 5): Promise<WebSearchHit[]> {
-  const res = await fetchWithTimeout(`${GATEWAY}/v2/search`, {
+  const res = await fetchWithTimeout(`${FIRECRAWL_API}/v2/search`, {
     method: "POST",
-    headers: gatewayHeaders(),
+    headers: firecrawlHeaders(),
     body: JSON.stringify({
       query,
       limit: Math.max(1, Math.min(10, limit)),
@@ -60,9 +57,9 @@ export async function firecrawlSearch(query: string, limit = 5): Promise<WebSear
 }
 
 export async function firecrawlScrape(url: string): Promise<{ url: string; markdown?: string; summary?: string; title?: string }> {
-  const res = await fetchWithTimeout(`${GATEWAY}/v2/scrape`, {
+  const res = await fetchWithTimeout(`${FIRECRAWL_API}/v2/scrape`, {
     method: "POST",
-    headers: gatewayHeaders(),
+    headers: firecrawlHeaders(),
     body: JSON.stringify({ url, formats: ["markdown", "summary"], onlyMainContent: true }),
   }, 30000);
   if (!res.ok) {
