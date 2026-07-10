@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, Wrench, Columns3, Stethoscope } from "lucide-react";
+import { ChevronRight, Wrench, Columns3, Stethoscope, BookMarked } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/maintenance/")({ component: MaintenanceIndex });
 
@@ -22,6 +22,12 @@ const TILES = [
     title: "Troubleshooting",
     desc: "Diagnose HPLC analysis problems and instrument malfunctions with an AI expert. Upload chromatogram screenshots for diagnosis.",
     icon: Stethoscope,
+  },
+  {
+    to: "/maintenance/knowledge-base",
+    title: "AI Knowledge Base",
+    desc: "Reference PDFs (vendor guides, application notes, troubleshooting handbooks) that the Column Advisor and Troubleshooting agents search before answering.",
+    icon: BookMarked,
   },
 ] as const;
 
