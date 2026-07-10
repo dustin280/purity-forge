@@ -106,6 +106,80 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_knowledge_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          doc_id: string
+          embedding: string
+          id: string
+          page_number: number | null
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          doc_id: string
+          embedding: string
+          id?: string
+          page_number?: number | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          doc_id?: string
+          embedding?: string
+          id?: string
+          page_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_chunks_doc_id_fkey"
+            columns: ["doc_id"]
+            isOneToOne: false
+            referencedRelation: "ai_knowledge_docs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_knowledge_docs: {
+        Row: {
+          agent_scope: string
+          chunk_count: number
+          created_at: string
+          created_by: string | null
+          id: string
+          page_count: number | null
+          source_filename: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agent_scope?: string
+          chunk_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          page_count?: number | null
+          source_filename?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agent_scope?: string
+          chunk_count?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          page_count?: number | null
+          source_filename?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -2553,6 +2627,21 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_ai_knowledge_chunks: {
+        Args: {
+          match_count?: number
+          query_embedding: string
+          scope_filter?: string
+        }
+        Returns: {
+          chunk_id: string
+          content: string
+          doc_id: string
+          doc_title: string
+          page_number: number
+          similarity: number
+        }[]
       }
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }

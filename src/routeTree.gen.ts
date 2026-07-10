@@ -41,6 +41,7 @@ import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } fro
 import { Route as AuthenticatedMaterialReceiptsIdRouteImport } from './routes/_authenticated/material-receipts/$id'
 import { Route as AuthenticatedMaintenanceTroubleshootingRouteImport } from './routes/_authenticated/maintenance/troubleshooting'
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
+import { Route as AuthenticatedMaintenanceKnowledgeBaseRouteImport } from './routes/_authenticated/maintenance/knowledge-base'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory/$id'
@@ -251,6 +252,12 @@ const AuthenticatedMaintenancePartPickerRoute =
     path: '/maintenance/part-picker',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMaintenanceKnowledgeBaseRoute =
+  AuthenticatedMaintenanceKnowledgeBaseRouteImport.update({
+    id: '/maintenance/knowledge-base',
+    path: '/maintenance/knowledge-base',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedMaintenanceHplcColumnsRoute =
   AuthenticatedMaintenanceHplcColumnsRouteImport.update({
     id: '/maintenance/hplc-columns',
@@ -455,6 +462,7 @@ export interface FileRoutesByFullPath {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
+  '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -518,6 +526,7 @@ export interface FileRoutesByTo {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
+  '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -583,6 +592,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
+  '/_authenticated/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
   '/_authenticated/maintenance/troubleshooting': typeof AuthenticatedMaintenanceTroubleshootingRoute
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
@@ -648,6 +658,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
+    | '/maintenance/knowledge-base'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
     | '/material-receipts/$id'
@@ -711,6 +722,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
+    | '/maintenance/knowledge-base'
     | '/maintenance/part-picker'
     | '/maintenance/troubleshooting'
     | '/material-receipts/$id'
@@ -775,6 +787,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/$id'
     | '/_authenticated/inventory/new'
     | '/_authenticated/maintenance/hplc-columns'
+    | '/_authenticated/maintenance/knowledge-base'
     | '/_authenticated/maintenance/part-picker'
     | '/_authenticated/maintenance/troubleshooting'
     | '/_authenticated/material-receipts/$id'
@@ -1050,6 +1063,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMaintenancePartPickerRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/maintenance/knowledge-base': {
+      id: '/_authenticated/maintenance/knowledge-base'
+      path: '/maintenance/knowledge-base'
+      fullPath: '/maintenance/knowledge-base'
+      preLoaderRoute: typeof AuthenticatedMaintenanceKnowledgeBaseRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/maintenance/hplc-columns': {
       id: '/_authenticated/maintenance/hplc-columns'
       path: '/maintenance/hplc-columns'
@@ -1285,6 +1305,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
+  AuthenticatedMaintenanceKnowledgeBaseRoute: typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
   AuthenticatedMaintenanceTroubleshootingRoute: typeof AuthenticatedMaintenanceTroubleshootingRoute
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
@@ -1347,6 +1368,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
+  AuthenticatedMaintenanceKnowledgeBaseRoute:
+    AuthenticatedMaintenanceKnowledgeBaseRoute,
   AuthenticatedMaintenancePartPickerRoute:
     AuthenticatedMaintenancePartPickerRoute,
   AuthenticatedMaintenanceTroubleshootingRoute:
@@ -1416,13 +1439,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
