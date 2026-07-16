@@ -52,6 +52,32 @@ function verifySignature(body: string, signature: string | null, secret: string)
   }
 }
 
+type SecretCandidate = { id: string | null; secret: string; source: "db" | "env" };
+
+async function loadCandidateSecrets(): Promise<SecretCandidate[]> {
+  const out: SecretCandidate[] = [];
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("partner_webhook_secrets")
+      .select("id, secret, status, grace_until")
+      .in("status", ["active", "deprecated"]);
+    const now = Date.now();
+    for (const r of data ?? []) {
+      if (r.status === "active") {
+        out.push({ id: r.id as string, secret: r.secret as string, source: "db" });
+      } else if (r.status === "deprecated" && r.grace_until && new Date(r.grace_until as string).getTime() > now) {
+        out.push({ id: r.id as string, secret: r.secret as string, source: "db" });
+      }
+    }
+  } catch (e) {
+    console.error("[orders/intake] failed loading DB secrets", e);
+  }
+  const envSecret = process.env.PARTNER_WEBHOOK_SECRET;
+  if (envSecret) out.push({ id: null, secret: envSecret, source: "env" });
+  return out;
+}
+
 function toDateOnly(v: string | null | undefined): string | null {
   if (!v) return null;
   const s = v.slice(0, 10);
@@ -68,16 +94,29 @@ export const Route = createFileRoute("/api/public/orders/intake")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.PARTNER_WEBHOOK_SECRET;
-        if (!secret) {
-          console.error("[orders/intake] PARTNER_WEBHOOK_SECRET is not configured");
-          return new Response("Server not configured", { status: 500 });
-        }
-
         const body = await request.text();
         const signature = request.headers.get("x-signature");
-        if (!verifySignature(body, signature, secret)) {
+
+        const candidates = await loadCandidateSecrets();
+        if (candidates.length === 0) {
+          console.error("[orders/intake] no partner webhook secret configured (DB or env)");
+          return new Response("Server not configured", { status: 500 });
+        }
+        const matched = candidates.find((c) => verifySignature(body, signature, c.secret));
+        if (!matched) {
           return new Response("Invalid signature", { status: 401 });
+        }
+        // Best-effort last_verified_at update; ignore failures.
+        if (matched.id) {
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            await supabaseAdmin
+              .from("partner_webhook_secrets")
+              .update({ last_verified_at: new Date().toISOString() })
+              .eq("id", matched.id);
+          } catch (e) {
+            console.error("[orders/intake] last_verified_at update failed", e);
+          }
         }
 
         let json: unknown;
