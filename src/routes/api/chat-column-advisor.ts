@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/chat-column-advisor")({
         const system = `You are an expert HPLC/UHPLC column-selection advisor with full freedom across all vendors and chemistries.
 
 You have these tools:
-- \`searchKnowledgeBase\`: search the lab's uploaded reference PDFs (vendor column guides, application notes, selection handbooks). CALL THIS FIRST for any chemistry/selectivity/application question; cite hits inline as (Doc Title, p. N).
+- \`searchKnowledgeBase\`: search the lab's uploaded reference PDFs (vendor column guides, application notes, selection handbooks). CALL THIS FIRST for any chemistry/selectivity/application question; cite hits inline as (Doc Title) — do NOT invent page numbers; page metadata is not tracked.
 - \`lookupCatalog\`: check if a part number is in the user's saved catalog.
 - \`searchWeb\`: search the public web (vendor pages, spec sheets, distributors, forums) — use this whenever the catalog doesn't have what you need, or to verify a recent part number / spec.
 - \`scrapePage\`: read a specific URL in detail after a search.
