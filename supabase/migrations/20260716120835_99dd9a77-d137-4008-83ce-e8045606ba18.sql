@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.match_ai_knowledge_chunks(vector, integer, text) FROM anon, PUBLIC;
+GRANT EXECUTE ON FUNCTION public.match_ai_knowledge_chunks(vector, integer, text) TO authenticated, service_role;
