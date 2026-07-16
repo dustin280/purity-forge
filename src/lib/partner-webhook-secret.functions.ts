@@ -22,8 +22,8 @@ function makeSecret(bytes = 48) {
   return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function assertAdmin(context: { supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> }; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
+async function assertAdmin(context: { supabase: { rpc: typeof import("@supabase/supabase-js").SupabaseClient.prototype.rpc }; userId: string }) {
+  const { data, error } = await (context.supabase as unknown as { rpc: (fn: "has_role", args: { _user_id: string; _role: "admin" }) => Promise<{ data: boolean | null; error: unknown }> }).rpc("has_role", {
     _user_id: context.userId,
     _role: "admin",
   });
