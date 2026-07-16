@@ -1643,6 +1643,42 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_webhook_secrets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deprecated_at: string | null
+          grace_until: string | null
+          id: string
+          last_verified_at: string | null
+          secret: string
+          secret_preview: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deprecated_at?: string | null
+          grace_until?: string | null
+          id?: string
+          last_verified_at?: string | null
+          secret: string
+          secret_preview: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deprecated_at?: string | null
+          grace_until?: string | null
+          id?: string
+          last_verified_at?: string | null
+          secret?: string
+          secret_preview?: string
+          status?: string
+        }
+        Relationships: []
+      }
       pending_order_samples: {
         Row: {
           created_at: string
