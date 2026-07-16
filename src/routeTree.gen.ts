@@ -48,6 +48,7 @@ import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
+import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
@@ -294,6 +295,12 @@ const AuthenticatedAdminRunListColumnsRoute =
     path: '/admin/run-list-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminPartnerWebhookSecretRoute =
+  AuthenticatedAdminPartnerWebhookSecretRouteImport.update({
+    id: '/admin/partner-webhook-secret',
+    path: '/admin/partner-webhook-secret',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminParametersRoute =
   AuthenticatedAdminParametersRouteImport.update({
     id: '/admin/parameters',
@@ -456,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -520,6 +528,7 @@ export interface FileRoutesByTo {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -586,6 +595,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
+  '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -652,6 +662,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/partner-webhook-secret'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
+    | '/admin/partner-webhook-secret'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/instrument-comm/openlab'
@@ -781,6 +793,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
+    | '/_authenticated/admin/partner-webhook-secret'
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/instrument-comm/openlab'
@@ -1112,6 +1125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRunListColumnsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/partner-webhook-secret': {
+      id: '/_authenticated/admin/partner-webhook-secret'
+      path: '/admin/partner-webhook-secret'
+      fullPath: '/admin/partner-webhook-secret'
+      preLoaderRoute: typeof AuthenticatedAdminPartnerWebhookSecretRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/parameters': {
       id: '/_authenticated/admin/parameters'
       path: '/admin/parameters'
@@ -1299,6 +1319,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
+  AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -1359,6 +1380,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
+  AuthenticatedAdminPartnerWebhookSecretRoute:
+    AuthenticatedAdminPartnerWebhookSecretRoute,
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
