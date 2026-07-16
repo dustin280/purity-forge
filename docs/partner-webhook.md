@@ -11,8 +11,13 @@ payload is retained for audit.
 
 | Environment | URL |
 |-------------|-----|
-| Production  | `https://purity-forge.lovable.app/api/public/orders/intake` |
+| Production  | `https://syxlab.org/api/public/orders/intake` |
 | Staging     | `https://project--d45e2e9d-d5e3-4ac1-b61d-8c2b2a16f546-dev.lovable.app/api/public/orders/intake` |
+
+> **Note:** `syxlab.org` is the canonical production host.
+> `purity-forge.lovable.app` redirects there (HTTP 307), but partners should
+> POST directly to `syxlab.org` — signed requests should never rely on a
+> redirect hop.
 
 - Method: `POST`
 - Content-Type: `application/json`
@@ -127,7 +132,7 @@ Validation-error body example:
 import crypto from "node:crypto";
 
 const SECRET = process.env.SYXLAB_WEBHOOK_SECRET;
-const URL = "https://purity-forge.lovable.app/api/public/orders/intake";
+const URL = "https://syxlab.org/api/public/orders/intake";
 
 async function sendOrder(order) {
   const body = JSON.stringify(order);            // sign the EXACT bytes you send
@@ -151,7 +156,7 @@ async function sendOrder(order) {
 import hmac, hashlib, json, os, requests
 
 SECRET = os.environ["SYXLAB_WEBHOOK_SECRET"].encode()
-URL = "https://purity-forge.lovable.app/api/public/orders/intake"
+URL = "https://syxlab.org/api/public/orders/intake"
 
 def send_order(order: dict):
     body = json.dumps(order, separators=(",", ":")).encode()  # sign the bytes you send
@@ -167,7 +172,7 @@ def send_order(order: dict):
 ```bash
 BODY='{"externalOrderId":"TEST-001","samples":[{"productName":"BPC-157 5mg","quantity":1}]}'
 SIG=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SYXLAB_WEBHOOK_SECRET" -hex | awk '{print $2}')
-curl -X POST "https://purity-forge.lovable.app/api/public/orders/intake" \
+curl -X POST "https://syxlab.org/api/public/orders/intake" \
   -H "Content-Type: application/json" \
   -H "x-signature: $SIG" \
   -d "$BODY"
