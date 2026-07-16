@@ -18,7 +18,7 @@ type AgentScope = "column_advisor" | "troubleshooting";
 export function makeSearchKnowledgeBaseTool(scope: AgentScope) {
   return tool({
     description:
-      "Search the lab's uploaded reference PDFs (vendor guides, application notes, troubleshooting handbooks) for information relevant to the user's question. ALWAYS call this FIRST before searchWeb — the saved documents are more authoritative than the open web. Returns up to 6 excerpts with document title and page number; cite them inline as (Doc Title, p. N).",
+      "Search the lab's uploaded reference PDFs (vendor guides, application notes, troubleshooting handbooks) for information relevant to the user's question. ALWAYS call this FIRST before searchWeb — the saved documents are more authoritative than the open web. Returns up to 6 excerpts with document title; cite them inline as (Doc Title). Do NOT invent page numbers — page metadata is not tracked.",
     inputSchema: z.object({
       query: z.string().min(2).describe("A focused search query — the specific symptom, chemistry, part, or concept you need info on."),
       topK: z.number().int().min(1).max(10).optional(),
@@ -39,7 +39,6 @@ export function makeSearchKnowledgeBaseTool(scope: AgentScope) {
           similarity: number;
         }) => ({
           doc: r.doc_title,
-          page: r.page_number,
           similarity: Number(r.similarity?.toFixed?.(3) ?? r.similarity),
           excerpt: r.content.length > 1200 ? r.content.slice(0, 1200) + "…" : r.content,
         }));
