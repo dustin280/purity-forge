@@ -28,7 +28,7 @@ export function exportPrepPdf(r: StandardPrepRow, linked: LinkedReceipt, attachm
   };
   line("Standard Preparation Log", { bold: true, size: 16 });
   line(r.log_number, { size: 10 });
-  if (r.syn_id) line(`SYN ID: ${r.syn_id}`, { bold: true });
+  if (r.syn_id) line(`SYX ID: ${r.syn_id}`, { bold: true });
   y += 2;
   line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
   line(`Status: ${STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]?.toUpperCase() ?? r.status.toUpperCase()}`);
