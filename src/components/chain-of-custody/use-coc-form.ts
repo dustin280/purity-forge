@@ -146,7 +146,7 @@ export function useCocForm({
     setIsDirty(!!resumed);
     setPendingFiles([]);
     setPendingByLine({});
-    if (!recordId && !resumed && activeFields.some(f => f.field_key === "sample_id")) {
+    if (!recordId && !resumed) {
       nextInvoice().then((r) => {
         const inv = (r as { invoice: string }).invoice;
         setValues(prev => (prev.sample_id ? prev : { ...prev, sample_id: inv }));
@@ -162,7 +162,15 @@ export function useCocForm({
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      const sampleIdVal = (values.sample_id as string)?.trim();
+      let sampleIdVal = (values.sample_id as string)?.trim();
+      if (!sampleIdVal && !recordId) {
+        // Just-in-time fallback: generate one if it's still blank.
+        try {
+          const r = await nextInvoice() as { invoice: string };
+          sampleIdVal = r.invoice;
+          setValues(prev => ({ ...prev, sample_id: r.invoice }));
+        } catch { /* fall through to error below */ }
+      }
       if (!sampleIdVal) throw new Error("Sample ID is required");
       const data: Record<string, string | number | string[] | null> = {};
       activeFields.forEach(f => {
