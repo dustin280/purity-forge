@@ -21,7 +21,7 @@ export function BatchRowsTable({ rows }: { rows: BatchRow[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>SYN ID</TableHead>
+            <TableHead>SYX ID</TableHead>
             <TableHead>Log #</TableHead>
             <TableHead>Standard</TableHead>
             <TableHead>Conc</TableHead>
