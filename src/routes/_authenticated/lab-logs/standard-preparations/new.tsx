@@ -19,7 +19,7 @@ function NewPrep() {
   const { profile, user } = useAuth();
   const defaultAnalystName = profileDisplayName(profile, null);
   const userToken = analystInitials(profile, user?.email ?? null);
-  const synPreviewPrefix = `SYN_${synDatePart(new Date())}_${userToken}_`;
+  const synPreviewPrefix = `SYX_${synDatePart(new Date())}_${userToken}_`;
   const createBatch = useServerFn(createStandardPreparationBatch);
 
   const DRAFT_KEY = "sop-draft:new";
@@ -40,7 +40,7 @@ function NewPrep() {
       </Link>
       <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">New Standard Preparation</h1>
       <p className="text-sm text-muted-foreground mb-6">
-        Each row in the calculator becomes its own journal line. A unique SYN ID (<span className="font-mono">{synPreviewPrefix}n</span>) is assigned per standard on save; the per-day counter is shared across all analysts.
+        Each row in the calculator becomes its own journal line. A unique SYX ID (<span className="font-mono">{synPreviewPrefix}n</span>) is assigned per standard on save; the per-day counter is shared across all analysts.
       </p>
       <PrepForm
         defaultAnalystName={defaultAnalystName}
