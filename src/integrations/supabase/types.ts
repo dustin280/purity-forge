@@ -1375,6 +1375,27 @@ export type Database = {
         }
         Relationships: []
       }
+      modifier_options: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       openlab_drive_pushes: {
         Row: {
           drive_file_id: string
@@ -2184,6 +2205,27 @@ export type Database = {
         }
         Relationships: []
       }
+      solvent_options: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       standard_preparation_attachments: {
         Row: {
           content_type: string | null
@@ -2255,11 +2297,15 @@ export type Database = {
           container_label: string | null
           created_at: string
           created_by: string | null
+          diluent_solvents: Json | null
           expiration_date: string | null
           expiration_period_code: string | null
           expiration_period_days: number | null
+          final_concentration_unit: string | null
+          final_concentration_value: number | null
           final_diluent: string | null
           final_volume: string | null
+          final_volume_ml: number | null
           id: string
           initial_solvent: string | null
           log_number: string
@@ -2267,8 +2313,12 @@ export type Database = {
           material_overridden: boolean
           material_receipt_id: string | null
           mixing_details: string | null
+          modifier_material_receipt_id: string | null
           modifier_percent: number | null
+          modifier_type: string | null
           notes: string | null
+          prep_type: string | null
+          preparation_instructions: string | null
           preparation_steps: Json
           prepared_at: string
           ref_concentration_mg_per_ml: number | null
@@ -2301,11 +2351,15 @@ export type Database = {
           container_label?: string | null
           created_at?: string
           created_by?: string | null
+          diluent_solvents?: Json | null
           expiration_date?: string | null
           expiration_period_code?: string | null
           expiration_period_days?: number | null
+          final_concentration_unit?: string | null
+          final_concentration_value?: number | null
           final_diluent?: string | null
           final_volume?: string | null
+          final_volume_ml?: number | null
           id?: string
           initial_solvent?: string | null
           log_number?: string
@@ -2313,8 +2367,12 @@ export type Database = {
           material_overridden?: boolean
           material_receipt_id?: string | null
           mixing_details?: string | null
+          modifier_material_receipt_id?: string | null
           modifier_percent?: number | null
+          modifier_type?: string | null
           notes?: string | null
+          prep_type?: string | null
+          preparation_instructions?: string | null
           preparation_steps?: Json
           prepared_at?: string
           ref_concentration_mg_per_ml?: number | null
@@ -2347,11 +2405,15 @@ export type Database = {
           container_label?: string | null
           created_at?: string
           created_by?: string | null
+          diluent_solvents?: Json | null
           expiration_date?: string | null
           expiration_period_code?: string | null
           expiration_period_days?: number | null
+          final_concentration_unit?: string | null
+          final_concentration_value?: number | null
           final_diluent?: string | null
           final_volume?: string | null
+          final_volume_ml?: number | null
           id?: string
           initial_solvent?: string | null
           log_number?: string
@@ -2359,8 +2421,12 @@ export type Database = {
           material_overridden?: boolean
           material_receipt_id?: string | null
           mixing_details?: string | null
+          modifier_material_receipt_id?: string | null
           modifier_percent?: number | null
+          modifier_type?: string | null
           notes?: string | null
+          prep_type?: string | null
+          preparation_instructions?: string | null
           preparation_steps?: Json
           prepared_at?: string
           ref_concentration_mg_per_ml?: number | null
@@ -2386,6 +2452,13 @@ export type Database = {
           {
             foreignKeyName: "standard_preparation_logs_material_receipt_id_fkey"
             columns: ["material_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standard_preparation_logs_modifier_material_receipt_id_fkey"
+            columns: ["modifier_material_receipt_id"]
             isOneToOne: false
             referencedRelation: "material_receipts"
             referencedColumns: ["id"]
@@ -2466,6 +2539,21 @@ export type Database = {
           name?: string
           typical_concentration?: string | null
           typical_solvent?: string | null
+        }
+        Relationships: []
+      }
+      stdlog_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
         }
         Relationships: []
       }
@@ -2682,6 +2770,7 @@ export type Database = {
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }
       next_standard_preparation_number: { Args: never; Returns: string }
+      next_stdlog_lot: { Args: never; Returns: string }
       next_syn_id: {
         Args: { p_day: string; p_user_token: string }
         Returns: string

@@ -19,3 +19,4 @@ export * from "./standard-preparations/prep-transitions.functions";
 export * from "./standard-preparations/prep-attachments.functions";
 export * from "./standard-preparations/prep-lookups.functions";
 export * from "./standard-preparations/prep-batch.functions";
+export * from "./standard-preparations/prep-solid.functions";
