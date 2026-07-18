@@ -34,7 +34,7 @@ export function LinkedPreparations({ receiptId }: { receiptId: string }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Log #</TableHead>
-                <TableHead>SYN ID</TableHead>
+                <TableHead>SYX ID</TableHead>
                 <TableHead>Standard</TableHead>
                 <TableHead>Analyst</TableHead>
                 <TableHead>Prepared</TableHead>

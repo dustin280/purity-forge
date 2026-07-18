@@ -38,7 +38,7 @@ interface Props {
 }
 
 const COLS: { key: SortKey | null; label: string; className?: string }[] = [
-  { key: "syn_id", label: "SYN ID" },
+  { key: "syn_id", label: "SYX ID" },
   { key: "log_number", label: "Log #" },
   { key: "standard_name", label: "Standard" },
   { key: "analyst_name", label: "Analyst" },
