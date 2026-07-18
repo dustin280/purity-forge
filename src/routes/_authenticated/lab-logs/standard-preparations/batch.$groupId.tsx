@@ -51,7 +51,7 @@ function BatchView() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => copy(allIds, "SYN IDs")}><Copy className="size-4 mr-1" /> Copy IDs</Button>
+          <Button variant="outline" size="sm" onClick={() => copy(allIds, "SYX IDs")}><Copy className="size-4 mr-1" /> Copy IDs</Button>
           <Button variant="outline" size="sm" onClick={() => copy(summary, "Summary")}><Copy className="size-4 mr-1" /> Copy summary</Button>
         </div>
       </div>
