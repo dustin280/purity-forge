@@ -1854,6 +1854,33 @@ export type Database = {
         }
         Relationships: []
       }
+      queue_config: {
+        Row: {
+          approaching_threshold_pct: number
+          business_days_only: boolean
+          daily_capacity: number
+          id: boolean
+          tat_days: number
+          updated_at: string
+        }
+        Insert: {
+          approaching_threshold_pct?: number
+          business_days_only?: boolean
+          daily_capacity?: number
+          id?: boolean
+          tat_days?: number
+          updated_at?: string
+        }
+        Update: {
+          approaching_threshold_pct?: number
+          business_days_only?: boolean
+          daily_capacity?: number
+          id?: boolean
+          tat_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       results: {
         Row: {
           analysis_date: string
@@ -2070,6 +2097,8 @@ export type Database = {
       }
       samples: {
         Row: {
+          actual_completion_date: string | null
+          assigned_analysis_date: string | null
           batch_id: string
           catalog: string | null
           client: string
@@ -2081,6 +2110,7 @@ export type Database = {
           container_size: string | null
           created_at: string
           created_by: string | null
+          due_date: string | null
           id: string
           line_item_index: number | null
           lot: string | null
@@ -2091,6 +2121,7 @@ export type Database = {
           prep_flag: boolean
           prep_flagged_at: string | null
           prep_flagged_by: string | null
+          priority: number
           project: string | null
           raw_data_file_path: string | null
           receipt_date: string
@@ -2099,6 +2130,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actual_completion_date?: string | null
+          assigned_analysis_date?: string | null
           batch_id: string
           catalog?: string | null
           client: string
@@ -2110,6 +2143,7 @@ export type Database = {
           container_size?: string | null
           created_at?: string
           created_by?: string | null
+          due_date?: string | null
           id?: string
           line_item_index?: number | null
           lot?: string | null
@@ -2120,6 +2154,7 @@ export type Database = {
           prep_flag?: boolean
           prep_flagged_at?: string | null
           prep_flagged_by?: string | null
+          priority?: number
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -2128,6 +2163,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actual_completion_date?: string | null
+          assigned_analysis_date?: string | null
           batch_id?: string
           catalog?: string | null
           client?: string
@@ -2139,6 +2176,7 @@ export type Database = {
           container_size?: string | null
           created_at?: string
           created_by?: string | null
+          due_date?: string | null
           id?: string
           line_item_index?: number | null
           lot?: string | null
@@ -2149,6 +2187,7 @@ export type Database = {
           prep_flag?: boolean
           prep_flagged_at?: string | null
           prep_flagged_by?: string | null
+          priority?: number
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
@@ -2810,6 +2849,10 @@ export type Database = {
         | "intake_verified"
         | "prep"
         | "complete"
+        | "scheduled"
+        | "in_analysis"
+        | "on_hold"
+        | "cancelled"
       standard_prep_attachment_kind:
         | "weighing"
         | "label"
@@ -2982,6 +3025,10 @@ export const Constants = {
         "intake_verified",
         "prep",
         "complete",
+        "scheduled",
+        "in_analysis",
+        "on_hold",
+        "cancelled",
       ],
       standard_prep_attachment_kind: [
         "weighing",

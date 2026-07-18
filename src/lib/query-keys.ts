@@ -192,4 +192,10 @@ export const qk = {
     list: () => ["inventory"] as const,
     detail: (id: string) => ["inventory", "detail", id] as const,
   },
+
+  queue: {
+    all: ["queue"] as const,
+    overview: () => ["queue", "overview"] as const,
+    config: () => ["queue", "config"] as const,
+  },
 } as const;
