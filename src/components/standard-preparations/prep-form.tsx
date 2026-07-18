@@ -37,12 +37,12 @@ interface Props {
   draftKey?: string;
   /**
    * Batch mode: the calculator's target rows are the standards. Hides the
-   * single "Standard name" required field, shows a SYN ID preview column,
+   * single "Standard name" required field, shows a SYX ID preview column,
    * and the submit button reflects the row count.
    */
   batchMode?: boolean;
   /**
-   * Prefix for SYN ID preview, e.g. "SYN_052026_JDS_". A "?" is appended
+   * Prefix for SYX ID preview, e.g. "SYX_052026_JDS_". A "?" is appended
    * per row since the real counter is assigned server-side.
    */
   synPreviewPrefix?: string;
@@ -89,7 +89,7 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
 
       {batchMode && (
         <div className="text-xs text-muted-foreground -mt-2 px-1">
-          Final SYN IDs are assigned in order on save. Each standard becomes its own line in the journal.
+          Final SYX IDs are assigned in order on save. Each standard becomes its own line in the journal.
         </div>
       )}
       <div className="flex gap-2 justify-end">
