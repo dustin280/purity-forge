@@ -54,6 +54,7 @@ import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
+import { Route as AuthenticatedAdminMethodGroupsRouteImport } from './routes/_authenticated/admin/method-groups'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminHplcColumnsRouteImport } from './routes/_authenticated/admin/hplc-columns'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
@@ -332,6 +333,12 @@ const AuthenticatedAdminMobilePhaseReagentsRoute =
     path: '/admin/mobile-phase-reagents',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminMethodGroupsRoute =
+  AuthenticatedAdminMethodGroupsRouteImport.update({
+    id: '/admin/method-groups',
+    path: '/admin/method-groups',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminInstrumentsRoute =
   AuthenticatedAdminInstrumentsRouteImport.update({
     id: '/admin/instruments',
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
@@ -549,6 +557,7 @@ export interface FileRoutesByTo {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
@@ -619,6 +628,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/_authenticated/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/_authenticated/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
@@ -689,6 +699,7 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/hplc-columns'
     | '/admin/instruments'
+    | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
@@ -757,6 +768,7 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/hplc-columns'
     | '/admin/instruments'
+    | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
@@ -826,6 +838,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/compounds'
     | '/_authenticated/admin/hplc-columns'
     | '/_authenticated/admin/instruments'
+    | '/_authenticated/admin/method-groups'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/admin/partner-webhook-secret'
@@ -1205,6 +1218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMobilePhaseReagentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/method-groups': {
+      id: '/_authenticated/admin/method-groups'
+      path: '/admin/method-groups'
+      fullPath: '/admin/method-groups'
+      preLoaderRoute: typeof AuthenticatedAdminMethodGroupsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/instruments': {
       id: '/_authenticated/admin/instruments'
       path: '/admin/instruments'
@@ -1376,6 +1396,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
   AuthenticatedAdminHplcColumnsRoute: typeof AuthenticatedAdminHplcColumnsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
+  AuthenticatedAdminMethodGroupsRoute: typeof AuthenticatedAdminMethodGroupsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
@@ -1438,6 +1459,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
   AuthenticatedAdminHplcColumnsRoute: AuthenticatedAdminHplcColumnsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
+  AuthenticatedAdminMethodGroupsRoute: AuthenticatedAdminMethodGroupsRoute,
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,

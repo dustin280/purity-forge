@@ -32,7 +32,14 @@ function MethodGroupsAdmin() {
   const [proc, setProc] = useState("");
 
   const upsertMut = useMutation({
-    mutationFn: (v: Parameters<typeof upsert>[0]["data"]) => upsert({ data: v }),
+    mutationFn: (v: {
+      id?: string;
+      name: string; temperature_c: number; priority: number;
+      default_acquisition_method: string | null;
+      default_processing_method: string | null;
+      description: string | null;
+      is_active: boolean;
+    }) => upsert({ data: v }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: qk.methodGroups.all }); },
     onError: (e: Error) => toast.error(e.message),
   });
