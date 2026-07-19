@@ -64,23 +64,49 @@ function csvEscape(v: unknown): string {
 function mapSampleType(t: string): string {
   switch (t) {
     case "NIB": case "ICB": case "CCB": return "Blank";
-    case "ICV": case "CCV": return "Standard";
+    case "ICV": case "CCV": return "Cal. Std.";
     default: return "Sample";
   }
 }
 
-function sequenceToCsv(seq: OptimizedSequence, injectionVolumeUL: number): string {
+function looksLikePath(v: string | null): boolean {
+  return !!v && (/[\\/]/.test(v) || /\.(amx|pmx|m|M|pm)$/i.test(v));
+}
+
+function joinWinPath(folder: string, name: string, ext: string): string {
+  const base = folder.replace(/[\\/]+$/, "");
+  const filename = /\.[A-Za-z0-9]+$/.test(name) ? name : `${name}.${ext}`;
+  return `${base}\\${filename}`;
+}
+
+function fullMethodPath(v: string | null, folder: string | null, ext: "amx" | "pmx"): string {
+  if (!v) return "";
+  if (looksLikePath(v)) return v;
+  if (!folder) return v;
+  return joinWinPath(folder, v, ext);
+}
+
+function sequenceToCsv(
+  seq: OptimizedSequence,
+  injectionVolumeUL: number,
+  methodFolder: string | null,
+): string {
   const headers = [
-    "Sample Name", "Vial", "Sample Type",
-    "Acquisition Method", "Processing Method",
-    "Injection Volume (uL)", "Data File",
+    "Sample name", "Sample type", "Vial", "Volume",
+    "Acq Method", "Proc Method", "Data file", "Description", "Level",
   ];
-  const rows = seq.rows.map((r, i) => {
-    const dataFile = `${r.label.replace(/[^A-Za-z0-9_-]+/g, "_")}_${String(i + 1).padStart(3, "0")}`;
+  const rows = seq.rows.map((r) => {
+    const desc = r.method_group_name ?? "";
     return [
-      r.label, r.vial ?? "", mapSampleType(r.type),
-      r.acquisition_method ?? "", r.processing_method ?? "",
-      injectionVolumeUL, dataFile,
+      r.label,
+      mapSampleType(r.type),
+      r.vial ?? "",
+      injectionVolumeUL,
+      fullMethodPath(r.acquisition_method, methodFolder, "amx"),
+      fullMethodPath(r.processing_method, methodFolder, "pmx"),
+      "", // Data file — let OpenLab auto-generate
+      desc,
+      "", // Level — not tracked yet
     ].map(csvEscape).join(",");
   });
   return [headers.join(","), ...rows].join("\r\n");
