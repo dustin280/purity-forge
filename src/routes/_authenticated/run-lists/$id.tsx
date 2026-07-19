@@ -199,6 +199,7 @@ function RunListDetail() {
               <tr>
                 <th className="text-left px-3 py-2">#</th>
                 <th className="text-left px-3 py-2">Sample</th>
+                <th className="text-left px-3 py-2">Lot</th>
                 <th className="text-left px-3 py-2">Client</th>
                 <th className="text-left px-3 py-2">Vial</th>
                 <th className="text-left px-3 py-2">Sample Type</th>
@@ -207,13 +208,14 @@ function RunListDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {items.length === 0 && <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">No samples added.</td></tr>}
+              {items.length === 0 && <tr><td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">No samples added.</td></tr>}
               {items.map(it => {
                 const s = it.sample_id ? samplesMap.get(it.sample_id) : null;
                 return (
                   <tr key={it.id}>
                     <td className="px-3 py-2 font-mono text-xs">{it.row_no}</td>
                     <td className="px-3 py-2 font-mono">{s?.batch_id ?? "—"}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{s?.lot ?? "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{s?.client ?? "—"}</td>
                     <td className="px-3 py-2 font-mono">{it.vial ?? "—"}</td>
                     <td className="px-3 py-2">{it.sample_type}</td>
