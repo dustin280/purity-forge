@@ -37,7 +37,6 @@ function RunListDetail() {
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
   const navigate = useNavigate();
-  const location = useLocation();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
   const openlab = useOpenLabSettings();
