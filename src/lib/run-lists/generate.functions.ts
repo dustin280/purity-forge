@@ -12,7 +12,7 @@ const previewInput = z.object({ instrument_id: z.string().uuid() });
 async function loadContext(supabase: any, instrumentId: string) {
   const [{ data: instrument }, { data: methodGroups }, { data: samples }] = await Promise.all([
     supabase.from("inventory_items")
-      .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status")
+      .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status,drive_folder_id")
       .eq("id", instrumentId).maybeSingle(),
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
     supabase.from("samples")
@@ -32,6 +32,7 @@ async function loadContext(supabase: any, instrumentId: string) {
     instrument: instrument as {
       id: string; instrument_name: string | null; make: string | null; model: string | null;
       default_method_folder: string | null; tray_config_id: string | null;
+      drive_folder_id: string | null;
     },
     methodGroups: (methodGroups ?? []) as Array<{
       id: string; name: string; temperature_c: number; priority: number;
