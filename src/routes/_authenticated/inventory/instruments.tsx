@@ -39,6 +39,7 @@ function InstrumentsInventory() {
       instrument_status?: InstrumentOpStatus | null;
       default_method_folder?: string | null;
       tray_config_id?: string | null;
+      drive_folder_id?: string | null;
     }) => upd({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.instrumentInventory.all }),
     onError: (e: Error) => toast.error(e.message),
@@ -65,11 +66,12 @@ function InstrumentsInventory() {
               <TableHead>Status</TableHead>
               <TableHead>Method folder</TableHead>
               <TableHead>Tray</TableHead>
+              <TableHead>Drive folder</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">No instruments yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">No instruments yet.</TableCell></TableRow>
             )}
             {(data ?? []).map((it) => (
               <TableRow key={it.id}>
@@ -120,6 +122,16 @@ function InstrumentsInventory() {
                       {(trayCfgs ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </TableCell>
+                <TableCell>
+                  <Input
+                    defaultValue={it.drive_folder_id ?? ""}
+                    placeholder="Drive folder ID or URL"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (it.drive_folder_id ?? null)) updMut.mutate({ id: it.id, drive_folder_id: v });
+                    }}
+                  />
                 </TableCell>
               </TableRow>
             ))}
