@@ -213,10 +213,6 @@ function GenerateRunList() {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Label className="text-xs">Injection volume (µL)</Label>
-          <Input type="number" step="0.1" value={injVol} onChange={(e) => setInjVol(e.target.value)} className="w-28" />
-        </div>
         <Button
           disabled={!instrumentId || previewMut.isPending}
           onClick={() => previewMut.mutate()}
