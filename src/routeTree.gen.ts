@@ -48,6 +48,7 @@ import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './route
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
+import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authenticated/admin/trays'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
@@ -297,6 +298,11 @@ const AuthenticatedInstrumentCommOpenlabRoute =
     path: '/instrument-comm/openlab',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminTraysRoute = AuthenticatedAdminTraysRouteImport.update({
+  id: '/admin/trays',
+  path: '/admin/trays',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAdminTimesheetProjectsRoute =
   AuthenticatedAdminTimesheetProjectsRouteImport.update({
     id: '/admin/timesheet-projects',
@@ -495,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
@@ -564,6 +571,7 @@ export interface FileRoutesByTo {
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
@@ -635,6 +643,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/_authenticated/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
@@ -706,6 +715,7 @@ export interface FileRouteTypes {
     | '/admin/queue-config'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
+    | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
     | '/inventory/new'
@@ -775,6 +785,7 @@ export interface FileRouteTypes {
     | '/admin/queue-config'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
+    | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
     | '/inventory/new'
@@ -845,6 +856,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/queue-config'
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
+    | '/_authenticated/admin/trays'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/inventory/$id'
     | '/_authenticated/inventory/new'
@@ -1176,6 +1188,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInstrumentCommOpenlabRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/trays': {
+      id: '/_authenticated/admin/trays'
+      path: '/admin/trays'
+      fullPath: '/admin/trays'
+      preLoaderRoute: typeof AuthenticatedAdminTraysRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/timesheet-projects': {
       id: '/_authenticated/admin/timesheet-projects'
       path: '/admin/timesheet-projects'
@@ -1403,6 +1422,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
+  AuthenticatedAdminTraysRoute: typeof AuthenticatedAdminTraysRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
@@ -1469,6 +1489,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
+  AuthenticatedAdminTraysRoute: AuthenticatedAdminTraysRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
