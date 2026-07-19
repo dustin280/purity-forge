@@ -215,6 +215,7 @@ function RunListDetail() {
                   <tr key={it.id}>
                     <td className="px-3 py-2 font-mono text-xs">{it.row_no}</td>
                     <td className="px-3 py-2 font-mono">{s?.batch_id ?? "—"}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{s?.lot ?? "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{s?.client ?? "—"}</td>
                     <td className="px-3 py-2 font-mono">{it.vial ?? "—"}</td>
                     <td className="px-3 py-2">{it.sample_type}</td>
