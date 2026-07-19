@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Upload, Printer, Tags, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -17,6 +17,19 @@ export const Route = createFileRoute("/_authenticated/vial-labels")({
 
 function VialLabelsPage() {
   const [raw, setRaw] = useState("");
+
+  // Hydrate from sequence generator "Print Labels" handoff.
+  useEffect(() => {
+    try {
+      const pending = sessionStorage.getItem("vial-labels-pending");
+      if (pending) {
+        setRaw(pending);
+        sessionStorage.removeItem("vial-labels-pending");
+        toast.success(`Loaded ${pending.split(/\r?\n/).filter(Boolean).length} labels from sequence`);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const [startOffset, setStartOffset] = useState(0);
   const [endOffset, setEndOffset] = useState(LABELS_PER_SHEET - 1);
   // Tracks which end of the range the next click should set.
