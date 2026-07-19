@@ -26,7 +26,6 @@ function GenerateRunList() {
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
   const navigate = useNavigate();
-  const location = useLocation();
   const { data: instruments } = useQuery({
     queryKey: qk.instrumentInventory.list(true),
     queryFn: () => list({ data: { active_only: true } }),
