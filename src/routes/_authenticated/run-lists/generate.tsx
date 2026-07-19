@@ -138,18 +138,15 @@ function GenerateRunList() {
 
   const printLabels = (seqs: OptimizedSequence[]) => {
     const lines = seqs.flatMap((s) =>
-      s.rows
-        .filter((r) => r.type === "Sample")
-        .map((r) => {
-          // Sample id + lot (preferred from row.lot, else parsed from label) + vial
-          const idPart = r.label.split("—")[0].trim() || r.label;
-          const lotPart = r.lot ? ` / Lot ${r.lot}` : "";
-          const vialPart = r.vial ? ` / ${r.vial}` : "";
-          return `${idPart}${lotPart}${vialPart}`;
-        }),
+      s.rows.map((r) => {
+        const idPart = r.label.split("—")[0].trim() || r.label;
+        const lotPart = r.lot ? ` / Lot ${r.lot}` : "";
+        const vialPart = r.vial ? ` / ${r.vial}` : "";
+        return `${idPart}${lotPart}${vialPart}`;
+      }),
     );
     if (lines.length === 0) {
-      toast.info("No sample rows to label in the selected sequence(s).");
+      toast.info("No rows to label in the selected sequence(s).");
       return;
     }
     try {
