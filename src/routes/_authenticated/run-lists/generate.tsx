@@ -151,6 +151,7 @@ function GenerateRunList() {
     }
     try {
       sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
     } catch { /* ignore */ }
     void navigate({ to: "/vial-labels" });
   };

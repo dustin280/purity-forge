@@ -126,7 +126,10 @@ function RunListDetail() {
       return `${idPart}${lotPart}${vialPart}`;
     });
     if (lines.length === 0) { toast.info("No rows to label."); return; }
-    try { sessionStorage.setItem("vial-labels-pending", lines.join("\n")); } catch { /* ignore */ }
+    try {
+      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
+    } catch { /* ignore */ }
     void navigate({ to: "/vial-labels" });
   }
 
