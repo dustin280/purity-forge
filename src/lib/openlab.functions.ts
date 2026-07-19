@@ -318,6 +318,9 @@ export const syncOpenLabIndex = createServerFn({ method: "POST" })
     if (methods.length) {
       const methodRows = methods
         .filter((m: any) => !/^archive$/i.test((m.name ?? "").trim()))
+        // Only files at the root of /Methods — skip subfolders (storage
+        // list returns folders with a null id / no metadata).
+        .filter((m: any) => m.id != null && m.metadata != null)
         .map((m: any) => ({
         name: m.name.replace(/\.[Mm]$/, ""),
         description: null,
