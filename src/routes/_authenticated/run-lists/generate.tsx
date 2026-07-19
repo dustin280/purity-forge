@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -26,6 +26,7 @@ function GenerateRunList() {
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: instruments } = useQuery({
     queryKey: qk.instrumentInventory.list(true),
     queryFn: () => list({ data: { active_only: true } }),
@@ -151,6 +152,7 @@ function GenerateRunList() {
     }
     try {
       sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
     } catch { /* ignore */ }
     void navigate({ to: "/vial-labels" });
   };

@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Upload, Printer, Tags, X } from "lucide-react";
+import { Upload, Printer, Tags, X, ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { parseListFile } from "@/components/vial-labels/parse-list";
 import { LABELS_PER_SHEET, LabelSheets, chunkSheets } from "@/components/vial-labels/label-sheet";
@@ -17,8 +18,12 @@ export const Route = createFileRoute("/_authenticated/vial-labels")({
 
 function VialLabelsPage() {
   const [raw, setRaw] = useState("");
+  const navigate = useNavigate();
 
-  // Hydrate from sequence generator "Print Labels" handoff.
+  // Hydrate from sequence generator / run list "Print Labels" handoff.
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  const [showReturnPrompt, setShowReturnPrompt] = useState(false);
+
   useEffect(() => {
     try {
       const pending = sessionStorage.getItem("vial-labels-pending");
@@ -27,6 +32,8 @@ function VialLabelsPage() {
         sessionStorage.removeItem("vial-labels-pending");
         toast.success(`Loaded ${pending.split(/\r?\n/).filter(Boolean).length} labels from sequence`);
       }
+      const back = sessionStorage.getItem("vial-labels-return-to");
+      if (back) setReturnTo(back);
     } catch { /* ignore */ }
   }, []);
 
@@ -96,6 +103,22 @@ function VialLabelsPage() {
 
   function handlePrint() {
     window.print();
+    if (returnTo) {
+      setShowReturnPrompt(true);
+    }
+  }
+
+  function stayOnPage() {
+    setShowReturnPrompt(false);
+    try { sessionStorage.removeItem("vial-labels-return-to"); } catch { /* ignore */ }
+    setReturnTo(null);
+  }
+
+  function goBack() {
+    setShowReturnPrompt(false);
+    try { sessionStorage.removeItem("vial-labels-return-to"); } catch { /* ignore */ }
+    if (returnTo) void navigate({ to: returnTo as any });
+    setReturnTo(null);
   }
 
   return (
@@ -339,6 +362,21 @@ function VialLabelsPage() {
           </div>,
           document.body,
         )}
+
+      <Dialog open={showReturnPrompt} onOpenChange={setShowReturnPrompt}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return to run list?</DialogTitle>
+            <DialogDescription>
+              Labels sent to print. Would you like to go back to where you started?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={stayOnPage}>Stay here</Button>
+            <Button onClick={goBack}><ArrowLeft className="size-4 mr-1" />Back to run list</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useLocation } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -37,6 +37,7 @@ function RunListDetail() {
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
   const navigate = useNavigate();
+  const location = useLocation();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
   const openlab = useOpenLabSettings();
@@ -126,7 +127,10 @@ function RunListDetail() {
       return `${idPart}${lotPart}${vialPart}`;
     });
     if (lines.length === 0) { toast.info("No rows to label."); return; }
-    try { sessionStorage.setItem("vial-labels-pending", lines.join("\n")); } catch { /* ignore */ }
+    try {
+      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
+    } catch { /* ignore */ }
     void navigate({ to: "/vial-labels" });
   }
 
