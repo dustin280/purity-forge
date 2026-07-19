@@ -84,7 +84,15 @@ export const createTrayConfig = createServerFn({ method: "POST" })
       .from("tray_configs").insert({ name: data.name, notes: data.notes ?? null }).select().single();
     if (error) throw error;
     // Seed the same 4-drawer x 54 + Ref 1-5 layout
-    const rows: Array<Record<string, unknown>> = [];
+    type PosInsert = {
+      tray_config_id: string;
+      position_code: string;
+      drawer: string | null;
+      row_label: string | null;
+      col_num: number | null;
+      is_ref_vial: boolean;
+    };
+    const rows: PosInsert[] = [];
     for (const d of ["D1F", "D2F", "D3F", "D4B"]) {
       for (const r of ["A", "B", "C", "D", "E", "F"]) {
         for (let c = 1; c <= 9; c++) {
