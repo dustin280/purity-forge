@@ -31,7 +31,7 @@ function GenerateRunList() {
     queryFn: () => list({ data: { active_only: true } }),
   });
   const [instrumentId, setInstrumentId] = useState<string>("");
-  const [injVol, setInjVol] = useState("10");
+  const [injVol] = useState("2.5");
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
