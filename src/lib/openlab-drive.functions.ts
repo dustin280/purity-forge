@@ -316,8 +316,9 @@ async function syncKind(
     // Skip anything named "Archive" (or a subfolder called Archive at this
     // level) so archived methods/sequences/reports don't appear in pickers.
     if (/^archive$/i.test(f.name.trim())) continue;
-    // For Methods, only real .M folders (or .m files) belong in the picker.
-    if (kind === "Methods" && isFolder && !/\.[Mm]$/.test(f.name)) continue;
+    // Methods picker only shows files at the root of /Methods — never
+    // descend into subfolders (including .M containers).
+    if (kind === "Methods" && isFolder) continue;
 
     if (isFolder) {
       // OpenLab stores methods/sequences as .M / .S directories. Index the
