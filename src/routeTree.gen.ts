@@ -37,6 +37,7 @@ import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedRunListsGenerateRouteImport } from './routes/_authenticated/run-lists/generate'
 import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authenticated/run-lists/$id'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
@@ -232,6 +233,12 @@ const AuthenticatedSamplesBatchIdRoute =
   AuthenticatedSamplesBatchIdRouteImport.update({
     id: '/samples/$batchId',
     path: '/samples/$batchId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedRunListsGenerateRoute =
+  AuthenticatedRunListsGenerateRouteImport.update({
+    id: '/run-lists/generate',
+    path: '/run-lists/generate',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedRunListsIdRoute = AuthenticatedRunListsIdRouteImport.update({
@@ -521,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -592,6 +600,7 @@ export interface FileRoutesByTo {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -665,6 +674,7 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -738,6 +748,7 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/run-lists/$id'
+    | '/run-lists/generate'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
@@ -809,6 +820,7 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/run-lists/$id'
+    | '/run-lists/generate'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
@@ -881,6 +893,7 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/run-lists/$id'
+    | '/_authenticated/run-lists/generate'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
@@ -1122,6 +1135,13 @@ declare module '@tanstack/react-router' {
       path: '/samples/$batchId'
       fullPath: '/samples/$batchId'
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/run-lists/generate': {
+      id: '/_authenticated/run-lists/generate'
+      path: '/run-lists/generate'
+      fullPath: '/run-lists/generate'
+      preLoaderRoute: typeof AuthenticatedRunListsGenerateRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run-lists/$id': {
@@ -1455,6 +1475,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRoute
+  AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1530,6 +1551,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMaterialReceiptsAccountingReportRoute,
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRoute,
+  AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
