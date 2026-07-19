@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Download, ChevronLeft, CloudUpload } from "lucide-react";
+import { Wand2, Download, ChevronLeft, CloudUpload, Tags } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
@@ -25,6 +25,7 @@ function GenerateRunList() {
   const preview = useServerFn(previewGeneratedSequences);
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
+  const navigate = useNavigate();
   const { data: instruments } = useQuery({
     queryKey: qk.instrumentInventory.list(true),
     queryFn: () => list({ data: { active_only: true } }),
@@ -134,6 +135,28 @@ function GenerateRunList() {
   };
 
   const visibleSequences = sequences.filter((s) => selected.has(s.index));
+
+  const printLabels = (seqs: OptimizedSequence[]) => {
+    const lines = seqs.flatMap((s) =>
+      s.rows
+        .filter((r) => r.type === "Sample")
+        .map((r) => {
+          // Sample id + lot (preferred from row.lot, else parsed from label) + vial
+          const idPart = r.label.split("—")[0].trim() || r.label;
+          const lotPart = r.lot ? ` / Lot ${r.lot}` : "";
+          const vialPart = r.vial ? ` / ${r.vial}` : "";
+          return `${idPart}${lotPart}${vialPart}`;
+        }),
+    );
+    if (lines.length === 0) {
+      toast.info("No sample rows to label in the selected sequence(s).");
+      return;
+    }
+    try {
+      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+    } catch { /* ignore */ }
+    void navigate({ to: "/vial-labels" });
+  };
 
   const downloadSelected = async () => {
     setBulkBusy(true);
@@ -258,6 +281,11 @@ function GenerateRunList() {
                 <CloudUpload className="size-4 mr-1" /> Push {visibleSequences.length > 1 ? `${visibleSequences.length} ` : ""}to Drive
               </Button>
             )}
+            {visibleSequences.length >= 1 && (
+              <Button size="sm" variant="secondary" onClick={() => printLabels(visibleSequences)}>
+                <Tags className="size-4 mr-1" /> Print Labels
+              </Button>
+            )}
           </div>
         </Card>
       )}
@@ -270,6 +298,7 @@ function GenerateRunList() {
           saving={saveMut.isPending}
           onPush={() => pushOne(seq)}
           pushing={pushBusy === seq.index}
+          onPrintLabels={() => printLabels([seq])}
         />
       ))}
 
@@ -282,9 +311,9 @@ function GenerateRunList() {
   );
 }
 
-function SequenceCard({ seq, onSave, saving, onPush, pushing }: {
+function SequenceCard({ seq, onSave, saving, onPush, pushing, onPrintLabels }: {
   seq: OptimizedSequence; onSave: () => void; saving: boolean;
-  onPush: () => void; pushing: boolean;
+  onPush: () => void; pushing: boolean; onPrintLabels: () => void;
 }) {
   const sampleCount = useMemo(() => seq.rows.filter((r) => r.type === "Sample").length, [seq.rows]);
   return (
@@ -302,6 +331,9 @@ function SequenceCard({ seq, onSave, saving, onPush, pushing }: {
           </Button>
           <Button onClick={onPush} disabled={pushing}>
             <CloudUpload className="size-4 mr-1" /> {pushing ? "Pushing…" : "Push to Drive"}
+          </Button>
+          <Button variant="outline" onClick={onPrintLabels}>
+            <Tags className="size-4 mr-1" /> Print Labels
           </Button>
         </div>
       </div>
