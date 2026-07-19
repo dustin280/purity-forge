@@ -46,6 +46,7 @@ import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes
 import { Route as AuthenticatedMaintenanceKnowledgeBaseRouteImport } from './routes/_authenticated/maintenance/knowledge-base'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
+import { Route as AuthenticatedInventoryInstrumentsRouteImport } from './routes/_authenticated/inventory/instruments'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authenticated/admin/trays'
@@ -286,6 +287,12 @@ const AuthenticatedInventoryNewRoute =
     path: '/inventory/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInventoryInstrumentsRoute =
+  AuthenticatedInventoryInstrumentsRouteImport.update({
+    id: '/inventory/instruments',
+    path: '/inventory/instruments',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInventoryIdRoute =
   AuthenticatedInventoryIdRouteImport.update({
     id: '/inventory/$id',
@@ -504,6 +511,7 @@ export interface FileRoutesByFullPath {
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -574,6 +582,7 @@ export interface FileRoutesByTo {
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -646,6 +655,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/_authenticated/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -718,6 +728,7 @@ export interface FileRouteTypes {
     | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
+    | '/inventory/instruments'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
@@ -788,6 +799,7 @@ export interface FileRouteTypes {
     | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
+    | '/inventory/instruments'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
@@ -859,6 +871,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/trays'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/inventory/$id'
+    | '/_authenticated/inventory/instruments'
     | '/_authenticated/inventory/new'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/knowledge-base'
@@ -1174,6 +1187,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/inventory/instruments': {
+      id: '/_authenticated/inventory/instruments'
+      path: '/inventory/instruments'
+      fullPath: '/inventory/instruments'
+      preLoaderRoute: typeof AuthenticatedInventoryInstrumentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/inventory/$id': {
       id: '/_authenticated/inventory/$id'
       path: '/inventory/$id'
@@ -1425,6 +1445,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminTraysRoute: typeof AuthenticatedAdminTraysRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
+  AuthenticatedInventoryInstrumentsRoute: typeof AuthenticatedInventoryInstrumentsRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenanceKnowledgeBaseRoute: typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -1493,6 +1514,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
+  AuthenticatedInventoryInstrumentsRoute:
+    AuthenticatedInventoryInstrumentsRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
