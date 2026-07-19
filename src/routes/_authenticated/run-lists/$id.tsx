@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Plus, Trash2, ArrowLeft, FileText, Send } from "lucide-react";
+import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
@@ -36,6 +36,7 @@ function RunListDetail() {
   const listPrep = useServerFn(listPrepFlaggedSamples);
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
+  const navigate = useNavigate();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
   const openlab = useOpenLabSettings();
@@ -116,6 +117,19 @@ function RunListDetail() {
   const itemIds = new Set(items.map(i => i.sample_id).filter(Boolean) as string[]);
   const pickable = (prepSamples ?? []).filter(s => !itemIds.has(s.id));
 
+  function printLabels() {
+    const lines = items.map((it) => {
+      const s = it.sample_id ? samplesMap.get(it.sample_id) : null;
+      const idPart = s?.batch_id ?? it.sample_type ?? "—";
+      const lotPart = s?.lot ? ` / Lot ${s.lot}` : "";
+      const vialPart = it.vial ? ` / ${it.vial}` : "";
+      return `${idPart}${lotPart}${vialPart}`;
+    });
+    if (lines.length === 0) { toast.info("No rows to label."); return; }
+    try { sessionStorage.setItem("vial-labels-pending", lines.join("\n")); } catch { /* ignore */ }
+    void navigate({ to: "/vial-labels" });
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1200px]">
       <div className="flex items-center gap-2">
@@ -164,6 +178,9 @@ function RunListDetail() {
             <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}><Plus className="size-4 mr-1" />Add prep-flagged</Button>
             <Button size="sm" variant="outline" onClick={showPreview}><FileText className="size-4 mr-1" />Preview CSV</Button>
             <Button size="sm" onClick={() => downloadCsv(true)}><Download className="size-4 mr-1" />Download &amp; Export</Button>
+            <Button size="sm" variant="secondary" onClick={printLabels} disabled={items.length === 0}>
+              <Tags className="size-4 mr-1" />Print Labels
+            </Button>
             <Button
               size="sm"
               onClick={() => pushMut.mutate()}
