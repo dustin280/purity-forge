@@ -16,7 +16,7 @@ async function loadContext(supabase: any, instrumentId: string) {
       .eq("id", instrumentId).maybeSingle(),
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
     supabase.from("samples")
-      .select("id,batch_id,compound,method_group_id,status")
+      .select("id,batch_id,compound,method_group_id,status,lot")
       .eq("status", "received"),
   ]);
   if (!instrument) throw new Error("Instrument not found");
@@ -97,8 +97,14 @@ function sequenceToCsv(
   ];
   const rows = seq.rows.map((r) => {
     const desc = r.method_group_name ?? "";
+    // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
+    // QC rows keep their label as-is.
+    const isSample = r.type === "Sample";
+    const sampleName = isSample
+      ? (r.lot ? `${r.label.split(" — ")[0].split(" (Lot")[0]}_${r.lot}` : r.label.split(" — ")[0].split(" (Lot")[0])
+      : r.label;
     return [
-      r.label,
+      sampleName,
       mapSampleType(r.type),
       r.vial ?? "",
       injectionVolumeUL,
@@ -123,6 +129,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "Sample"]),
       label: z.string(),
       sample_id: z.string().uuid().nullable(),
+      lot: z.string().nullable().optional(),
       vial: z.string().nullable(),
       acquisition_method: z.string().nullable(),
       processing_method: z.string().nullable(),
@@ -159,7 +166,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       primary_group_id: null,
       temperature_c: null,
       rows: data.rows.map((r) => ({
-        type: r.type, label: r.label, sample_id: r.sample_id,
+        type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot ?? null,
         method_group_id: null, method_group_name: null,
         acquisition_method: r.acquisition_method, processing_method: r.processing_method,
         vial: r.vial, why: "",
