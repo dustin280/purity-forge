@@ -1,53 +1,77 @@
-# Port from Q-DAX (Remix) → Lab Manager
+## Overview
 
-Fork accessible: [Remix of Lab Manager Soup Kitchen](/projects/d0adbd04-e723-4bdd-8f26-87322a4a0b70). Below is everything that changed on the fork in the last 10 days (Jul 8–18, 2026), grouped so you can pick what to port. Per your rules, **logo/branding (SYN→DAX rename, color palette, logo assets)** and **API/integration settings (secrets, export_config x-api-key, webhook secret table)** are excluded from all groups.
+Build a Run List Generator that turns Received samples into optimized, QC-interleaved OpenLab CDS sequences, extend Inventory to fully manage Instruments (with tray + method-folder config), and add a Method Groups configuration area. The existing `run_lists` / `run_list_items` module and `inventory_items` (with `instrument` category) will be extended — not replaced. The existing admin `instruments` table (used only by the Scheduler) stays untouched.
 
-## Group A — Bug fixes (low risk, recommend porting all)
+## Phase 1 — Inventory: Instruments as a first-class type
 
-1. **Sample ID auto-generation on Sample Receipt** — `src/components/chain-of-custody/use-coc-form.ts`. Removes the "field must be configured" gate on `nextInvoice()` and adds a just-in-time fallback in the save mutation. Fixes the "Sample ID required" toast when the field isn't in active fields.
-2. **Purity % input persistence** — `step-source.tsx` in standard-prep. Fixes uncontrolled input dropping digits (typing `100` displayed as `1%`). Only relevant if you also port Group C.
+Extend, not duplicate. Instruments already exist as `inventory_items.category = 'instrument'`.
 
-## Group B — Auth UX
+- Add instrument-specific fields to `inventory_items` (nullable, only used when `category='instrument'`):
+  - `instrument_name` (unique when set) — display name like "Agilent 1290 #1"
+  - `instrument_status` — enum (`active`, `maintenance`, `inactive`) — distinct from the generic `in_service/out_of_service/discarded` lifecycle status
+  - `default_method_folder` (text, optional override of the global path)
+  - `tray_config_id` (fk to tray configs — Phase 3)
+- Add a filtered Instruments view under Inventory (`/inventory/instruments`) with Add / Edit / Deactivate / Reactivate / Delete, styled to match the existing inventory table (status badges, forms).
+- Run List Generator queries only `instrument_status='active'` instruments.
 
-3. **PasswordInput with show/hide eye toggle** — new `src/components/ui/password-input.tsx`, applied to all three password inputs (login, reset, admin create-user).
-4. **Forgot Password flow** — link on `/login`, new `src/routes/reset-password.tsx` handling `PASSWORD_RECOVERY`/`SIGNED_IN` events. Uses request origin as redirect (no new secret needed).
+## Phase 2 — Method Groups configuration
 
-## Group C — New Standard Prep flow (large feature)
+New admin area at `/admin/method-groups`.
 
-5. **Type picker** at `/lab-logs/standard-preparations/new`: "Primary Standard: Solid" / "Primary Standard: Aqueous" / "Working Standard", each with its own guided wizard.
-6. **Guided Solid flow**: Source step (pulls Lot# from Material Receipts or spawns a Material Receipt modal inline), diluent composition (percent-per-solvent, must sum to 100), modifier picker (TFA/FA/Add New) at trace percentages, prep parameters, generated instructions with **balance-reading grams** (0.0000 g) alongside mg.
-7. **Auto internal lot ID** — new `stdlog_counters` table + `next_stdlog_lot()` function emitting `STDLOG_YYYYMMDD_N` (resets per date). Used as the label on instruction step 6 and as the controlled Material Receipt's internal lot.
-8. **DB schema additions** on `standard_preparation_logs` (new columns for source/diluent/modifier) and a second FK to `material_receipts` (with disambiguated relationship name so PostgREST embeds work).
-   - Naming note: fork ships `DAX_MMDDYY_...` prefixes; when porting we'd keep the existing `SYN_...` / whatever this project uses today so branding isn't touched.
+- New table `method_groups`: name, temperature_c, priority (int, lower = higher), default_acquisition_method (text — `.amx` filename), default_processing_method, description, is_active.
+- Seed the four defaults: Polar/Early (40°C, p1), General (40°C, p2), Hydrophobes (40°C, p3), GLP (50°C, p4).
+- Acquisition Method picker lists `.amx` files from the sync folder. Use the existing `openlab-drive.functions.ts` / `openlab.functions.ts` pipeline. Handle empty/unreachable folder gracefully (show empty state + free-text fallback).
+- Link samples to a Method Group: add `method_group_id` to `samples`. Populated from the sample's Acquisition Method or the compound's default; users can override in the review screen.
 
-## Group D — Analysis Queue system (large feature)
+## Phase 3 — Multisampler / Tray configuration
 
-9. **`queue_config` table** (daily_capacity, tat_days, business_days_only, approaching_threshold_pct) + admin page at `/admin/queue-config` + admin tile.
-10. **`samples` extensions**: `due_date`, `assigned_analysis_date`, `priority`, `actual_completion_date`; expanded `sample_status` enum (`scheduled`, `in_analysis`, `on_hold`, `cancelled`); trigger `set_sample_due_date` auto-computes due date from receipt_date + tat_days.
-11. **Scheduler**: `src/lib/queue/scheduler.server.ts` (pure EDF simulation) + `src/lib/queue.functions.ts` (getQueueOverview, checkNewSampleCapacity, autoSchedulePending, reassignSample, setSampleQueueStatus, get/updateQueueConfig).
-12. **UI**: sidebar entry "Analysis Queue"; route `/queue` with StatusBanner, CapacityOverview (7-day rolling), ScheduleByDay, AtRiskPanel, QuickActions, AutoScheduleDialog, CapacityCheckDialog (realtime).
-13. **Optional intake capacity gate** — wire `checkNewSampleCapacity` into `useCocForm` submit as a blocking dialog. Off by default on the fork; you'd choose whether to enable.
+New tables + admin UI (`/admin/trays`).
 
-## Group E — Security hardening
+- `tray_configs` (name, notes, is_default) — global or per-instrument via `inventory_items.tray_config_id`.
+- `tray_positions` (tray_config_id, position_code like `D1F-A1`, drawer, row, col, is_ref_vial, status: `available`/`reserved`/`out_of_service`).
+- Seed generator: creates D1F, D2F, D3F, D4B × A1–F9 (54 each) + Ref 1–5.
+- UI: grid view per drawer, click to toggle status; separate strip for Ref Vials.
 
-14. Fork applied a batch of Supabase findings (unauth AI chat endpoints, `SUPA_anon_security_definer_function_executable`, `SUPA_authenticated_security_definer_function_executable`, clients/pending_orders exposure). This project has already gone through its own security passes (Wiz + Supabase) — most of these overlap and are likely already fixed here. **Recommend: skip auto-port**, and instead re-run the security scan after Groups A–D land to catch any regressions.
+## Phase 4 — Run List Generator: optimizer + review
 
-## Explicitly excluded (per your instructions)
+New route `/run-lists/generate` (entry point next to existing Run Lists index).
 
-- SYN → DAX rebrand across UI, PDFs, and `next_syn_id` function
-- DAX Research logo assets and color palette
-- Any changes to secrets, `export_config.x-api-key`, or the `partner_webhook_secrets` table
+**Input:** all samples in status `Received` (extends existing `listPrepFlaggedSamples` pattern to filter by status).
 
-## Recommendation
+**Optimizer (`src/lib/run-lists/optimizer.ts`, pure fn, unit-testable):**
+- Group samples by `method_group_id`.
+- Sort groups by `priority` ASC, ties broken by `temperature_c` ASC.
+- Merge Polar/Early + General into shared sequences only when it saves a run; enforce Polar/Early samples before General inside the merged sequence.
+- Never place Hydrophobes or GLP immediately before a Polar/Early sequence (reorder sequence output, not individual samples).
+- Cap 30 samples per sequence; split extras into follow-on sequences.
+- QC insertion at fixed offsets: `NIB, ICB, ICV, [1-10], CCB-1, CCV-1, [11-20], CCB-2, CCV-2, [21-30], CCB-3, CCV-3`. For short sequences, keep the leading trio and insert CCB/CCV after every 10-sample block that exists.
+- Vial assignment: pack drawer-by-drawer through `available` positions, skipping `reserved`/`out_of_service`; Ref Vials 1–5 reserved for NIB/ICB/CCB blanks per Method Group defaults.
+- Produce a "why" trace per sample (group, priority, position rationale) shown in the review UI for transparency.
 
-Port in this order to keep risk low and each step independently shippable:
+**Review screen:**
+- Select Active instrument → optimizer proposes 1+ sequences.
+- Show sequence table: order, sample name, method group badge, vial, injected QC rows highlighted, acquisition + processing method columns.
+- Row actions: reorder (drag), remove, reassign vial (position picker showing tray occupancy).
+- "Generate Sequence" button → persists as `run_lists` rows (status `draft` → `exported`).
 
-1. **Group A** (2 tiny fixes) → merge immediately.
-2. **Group B** (PasswordInput + Forgot Password) → self-contained.
-3. **Group C** (Standard Prep flow) → largest churn in `standard-preparations/`; needs a migration.
-4. **Group D** (Analysis Queue) → new module + `samples` migration; sidebar change.
-5. Re-run security scan; skip Group E unless the scan surfaces something.
+## Phase 5 — OpenLab CDS CSV export
 
-## Next step
+- Extend existing CSV export logic (in `run-lists.functions.ts` / `run-list-columns.functions.ts`) with a new export profile "OpenLab Sequence".
+- Columns: Sample Name, Vial (D1F-A1 style), Sample Type (Sample/Blank/Standard mapped from NIB/ICB/ICV/CCB/CCV), Acquisition Method, Processing Method, Injection Volume (configurable default per run list), Data File.
+- File naming: `YYYY-MM-DD_[Instrument Name]_Run##.csv`, auto-incrementing `##` per instrument per day (server-side counter query).
+- Save to the same Google Drive sync location used elsewhere (`openlab-drive.functions.ts` push path) plus offer a download button.
 
-Reply with the groups (or specific numbered items) you want ported and I'll switch to build mode and execute. If you want a rendered file-by-file diff for any group before deciding, say which group.
+## Phase 6 — Polish, guardrails, follow-ups
+
+- Empty-state handling everywhere (no active instruments, no received samples, no method folder, empty method group).
+- Permissions: instrument/method-group/tray admin restricted to `admin` role via existing `has_role`; generator open to `tech` and `reviewer`.
+- Leave a stub `PrepListStub` component + TODO note where prep-list integration will hook in later.
+- Docs: short in-app help panel on the generator explaining the priority + QC rules.
+
+## Technical notes
+
+- Migrations: one per phase (Phase 1 alter, Phase 2 create+seed, Phase 3 create+seed helper, Phase 4 samples alter + counters table for daily Run##).
+- All new public tables get `GRANT` + RLS following project conventions (`authenticated` r/w scoped by `has_role`, `service_role` all).
+- Optimizer is a pure module — no Supabase inside; server fn assembles inputs, calls optimizer, persists output. Keeps it testable and fast.
+- Method folder scan reuses existing OpenLab integration; do not add a second Drive client.
+- Sample→Method Group linkage: add nullable `method_group_id` on `samples`; auto-populate via a lightweight matcher on insert/update, user override supported in review.

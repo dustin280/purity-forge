@@ -762,10 +762,15 @@ export type Database = {
           category: string
           created_at: string
           created_by: string | null
+          default_method_folder: string | null
           description: string | null
           id: string
           installation_date: string | null
           installer_initials: string | null
+          instrument_name: string | null
+          instrument_status:
+            | Database["public"]["Enums"]["instrument_op_status"]
+            | null
           is_spare: boolean
           lot_number: string | null
           make: string | null
@@ -774,16 +779,22 @@ export type Database = {
           purchase_date: string | null
           serial_number: string | null
           status: string
+          tray_config_id: string | null
           updated_at: string
         }
         Insert: {
           category: string
           created_at?: string
           created_by?: string | null
+          default_method_folder?: string | null
           description?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
+          instrument_name?: string | null
+          instrument_status?:
+            | Database["public"]["Enums"]["instrument_op_status"]
+            | null
           is_spare?: boolean
           lot_number?: string | null
           make?: string | null
@@ -792,16 +803,22 @@ export type Database = {
           purchase_date?: string | null
           serial_number?: string | null
           status?: string
+          tray_config_id?: string | null
           updated_at?: string
         }
         Update: {
           category?: string
           created_at?: string
           created_by?: string | null
+          default_method_folder?: string | null
           description?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
+          instrument_name?: string | null
+          instrument_status?:
+            | Database["public"]["Enums"]["instrument_op_status"]
+            | null
           is_spare?: boolean
           lot_number?: string | null
           make?: string | null
@@ -810,9 +827,18 @@ export type Database = {
           purchase_date?: string | null
           serial_number?: string | null
           status?: string
+          tray_config_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_tray_config_fk"
+            columns: ["tray_config_id"]
+            isOneToOne: false
+            referencedRelation: "tray_configs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       issue_report_attachments: {
         Row: {
@@ -1273,6 +1299,45 @@ export type Database = {
           manufacturer?: string | null
           material_type?: Database["public"]["Enums"]["material_type"]
           name?: string
+        }
+        Relationships: []
+      }
+      method_groups: {
+        Row: {
+          created_at: string
+          default_acquisition_method: string | null
+          default_processing_method: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          priority: number
+          temperature_c: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_acquisition_method?: string | null
+          default_processing_method?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          priority: number
+          temperature_c: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_acquisition_method?: string | null
+          default_processing_method?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          priority?: number
+          temperature_c?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1973,6 +2038,24 @@ export type Database = {
         }
         Relationships: []
       }
+      run_list_daily_counters: {
+        Row: {
+          day: string
+          instrument_key: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          instrument_key: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          instrument_key?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
       run_list_items: {
         Row: {
           comment: string | null
@@ -2115,6 +2198,7 @@ export type Database = {
           line_item_index: number | null
           lot: string | null
           manufacture_date: string | null
+          method_group_id: string | null
           notes: string | null
           parameters: string[]
           physical_description: string | null
@@ -2148,6 +2232,7 @@ export type Database = {
           line_item_index?: number | null
           lot?: string | null
           manufacture_date?: string | null
+          method_group_id?: string | null
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
@@ -2181,6 +2266,7 @@ export type Database = {
           line_item_index?: number | null
           lot?: string | null
           manufacture_date?: string | null
+          method_group_id?: string | null
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
@@ -2201,6 +2287,13 @@ export type Database = {
             columns: ["coc_id"]
             isOneToOne: false
             referencedRelation: "chain_of_custody_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samples_method_group_id_fkey"
+            columns: ["method_group_id"]
+            isOneToOne: false
+            referencedRelation: "method_groups"
             referencedColumns: ["id"]
           },
         ]
@@ -2754,6 +2847,80 @@ export type Database = {
         }
         Relationships: []
       }
+      tray_configs: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tray_positions: {
+        Row: {
+          col_num: number | null
+          created_at: string
+          drawer: string | null
+          id: string
+          is_ref_vial: boolean
+          position_code: string
+          row_label: string | null
+          status: Database["public"]["Enums"]["tray_position_status"]
+          tray_config_id: string
+          updated_at: string
+        }
+        Insert: {
+          col_num?: number | null
+          created_at?: string
+          drawer?: string | null
+          id?: string
+          is_ref_vial?: boolean
+          position_code: string
+          row_label?: string | null
+          status?: Database["public"]["Enums"]["tray_position_status"]
+          tray_config_id: string
+          updated_at?: string
+        }
+        Update: {
+          col_num?: number | null
+          created_at?: string
+          drawer?: string | null
+          id?: string
+          is_ref_vial?: boolean
+          position_code?: string
+          row_label?: string | null
+          status?: Database["public"]["Enums"]["tray_position_status"]
+          tray_config_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tray_positions_tray_config_id_fkey"
+            columns: ["tray_config_id"]
+            isOneToOne: false
+            referencedRelation: "tray_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -2808,6 +2975,10 @@ export type Database = {
       }
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }
+      next_run_list_seq: {
+        Args: { p_day: string; p_instrument_key: string }
+        Returns: number
+      }
       next_standard_preparation_number: { Args: never; Returns: string }
       next_stdlog_lot: { Args: never; Returns: string }
       next_syn_id: {
@@ -2826,6 +2997,7 @@ export type Database = {
         | "email"
         | "tel"
         | "multiselect"
+      instrument_op_status: "active" | "maintenance" | "inactive"
       material_quarantine_status: "quarantine" | "released" | "rejected"
       material_receipt_attachment_kind:
         | "coa"
@@ -2862,6 +3034,7 @@ export type Database = {
         | "other"
       standard_prep_status: "draft" | "reviewed" | "approved"
       test_status: "pending" | "running" | "completed" | "failed"
+      tray_position_status: "available" | "reserved" | "out_of_service"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3000,6 +3173,7 @@ export const Constants = {
         "tel",
         "multiselect",
       ],
+      instrument_op_status: ["active", "maintenance", "inactive"],
       material_quarantine_status: ["quarantine", "released", "rejected"],
       material_receipt_attachment_kind: [
         "coa",
@@ -3040,6 +3214,7 @@ export const Constants = {
       ],
       standard_prep_status: ["draft", "reviewed", "approved"],
       test_status: ["pending", "running", "completed", "failed"],
+      tray_position_status: ["available", "reserved", "out_of_service"],
     },
   },
 } as const
