@@ -9,10 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Download, ChevronLeft } from "lucide-react";
+import { Wand2, Download, ChevronLeft, CloudUpload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
-import { previewGeneratedSequences, generateAndSaveRunList } from "@/lib/run-lists/generate.functions";
+import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
 import { qk } from "@/lib/query-keys";
 
@@ -24,6 +24,7 @@ function GenerateRunList() {
   const list = useServerFn(listInstrumentInventory);
   const preview = useServerFn(previewGeneratedSequences);
   const save = useServerFn(generateAndSaveRunList);
+  const push = useServerFn(pushGeneratedRunListToDrive);
   const { data: instruments } = useQuery({
     queryKey: qk.instrumentInventory.list(true),
     queryFn: () => list({ data: { active_only: true } }),
@@ -33,6 +34,7 @@ function GenerateRunList() {
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState<number | "bulk" | null>(null);
 
   const previewMut = useMutation({
     mutationFn: () => preview({ data: { instrument_id: instrumentId } }),
@@ -70,6 +72,58 @@ function GenerateRunList() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const buildSaveArgs = (seq: OptimizedSequence) => ({
+    instrument_id: instrumentId,
+    sequence_index: seq.index,
+    injection_volume_ul: Number(injVol) || 10,
+    rows: seq.rows.map((row) => ({
+      type: row.type, label: row.label, sample_id: row.sample_id, vial: row.vial,
+      acquisition_method: row.acquisition_method, processing_method: row.processing_method,
+    })),
+  });
+
+  const pushOne = async (seq: OptimizedSequence) => {
+    setPushBusy(seq.index);
+    try {
+      const r = await save({ data: buildSaveArgs(seq) });
+      const p = await push({
+        data: {
+          run_list_id: r.run_list_id,
+          filename: r.filename,
+          csv: r.csv,
+          instrument_id: instrumentId,
+        },
+      });
+      toast.success(`Pushed ${p.drive_file_name} to Google Drive`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPushBusy(null);
+    }
+  };
+
+  const pushSelected = async () => {
+    setPushBusy("bulk");
+    try {
+      for (const seq of visibleSequences) {
+        const r = await save({ data: buildSaveArgs(seq) });
+        await push({
+          data: {
+            run_list_id: r.run_list_id,
+            filename: r.filename,
+            csv: r.csv,
+            instrument_id: instrumentId,
+          },
+        });
+      }
+      toast.success(`Pushed ${visibleSequences.length} sequence${visibleSequences.length === 1 ? "" : "s"} to Google Drive`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPushBusy(null);
+    }
+  };
 
   const toggle = (idx: number) => {
     setSelected((prev) => {
@@ -199,12 +253,24 @@ function GenerateRunList() {
                 <Download className="size-4 mr-1" /> Download selected ({visibleSequences.length})
               </Button>
             )}
+            {visibleSequences.length >= 1 && (
+              <Button size="sm" variant="secondary" onClick={pushSelected} disabled={pushBusy !== null}>
+                <CloudUpload className="size-4 mr-1" /> Push {visibleSequences.length > 1 ? `${visibleSequences.length} ` : ""}to Drive
+              </Button>
+            )}
           </div>
         </Card>
       )}
 
       {visibleSequences.map((seq) => (
-        <SequenceCard key={seq.index} seq={seq} onSave={() => saveMut.mutate(seq)} saving={saveMut.isPending} />
+        <SequenceCard
+          key={seq.index}
+          seq={seq}
+          onSave={() => saveMut.mutate(seq)}
+          saving={saveMut.isPending}
+          onPush={() => pushOne(seq)}
+          pushing={pushBusy === seq.index}
+        />
       ))}
 
       {sequences.length > 0 && visibleSequences.length === 0 && (
@@ -216,7 +282,10 @@ function GenerateRunList() {
   );
 }
 
-function SequenceCard({ seq, onSave, saving }: { seq: OptimizedSequence; onSave: () => void; saving: boolean }) {
+function SequenceCard({ seq, onSave, saving, onPush, pushing }: {
+  seq: OptimizedSequence; onSave: () => void; saving: boolean;
+  onPush: () => void; pushing: boolean;
+}) {
   const sampleCount = useMemo(() => seq.rows.filter((r) => r.type === "Sample").length, [seq.rows]);
   return (
     <Card className="p-0 overflow-hidden">
@@ -227,9 +296,14 @@ function SequenceCard({ seq, onSave, saving }: { seq: OptimizedSequence; onSave:
             {sampleCount} samples · {seq.rows.length} total rows{seq.temperature_c != null ? ` · ${seq.temperature_c}°C` : ""}
           </div>
         </div>
-        <Button onClick={onSave} disabled={saving}>
-          <Download className="size-4 mr-1" /> Generate Sequence CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onSave} disabled={saving}>
+            <Download className="size-4 mr-1" /> Generate CSV
+          </Button>
+          <Button onClick={onPush} disabled={pushing}>
+            <CloudUpload className="size-4 mr-1" /> {pushing ? "Pushing…" : "Push to Drive"}
+          </Button>
+        </div>
       </div>
       <table className="w-full text-xs">
         <thead className="bg-muted/40 uppercase tracking-wider text-[10px] text-muted-foreground">
