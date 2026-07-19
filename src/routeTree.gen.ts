@@ -37,6 +37,7 @@ import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
+import { Route as AuthenticatedRunListsGenerateRouteImport } from './routes/_authenticated/run-lists/generate'
 import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authenticated/run-lists/$id'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
@@ -46,14 +47,17 @@ import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes
 import { Route as AuthenticatedMaintenanceKnowledgeBaseRouteImport } from './routes/_authenticated/maintenance/knowledge-base'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
+import { Route as AuthenticatedInventoryInstrumentsRouteImport } from './routes/_authenticated/inventory/instruments'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory/$id'
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
+import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authenticated/admin/trays'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
 import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
+import { Route as AuthenticatedAdminMethodGroupsRouteImport } from './routes/_authenticated/admin/method-groups'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminHplcColumnsRouteImport } from './routes/_authenticated/admin/hplc-columns'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
@@ -231,6 +235,12 @@ const AuthenticatedSamplesBatchIdRoute =
     path: '/samples/$batchId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedRunListsGenerateRoute =
+  AuthenticatedRunListsGenerateRouteImport.update({
+    id: '/run-lists/generate',
+    path: '/run-lists/generate',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedRunListsIdRoute = AuthenticatedRunListsIdRouteImport.update({
   id: '/run-lists/$id',
   path: '/run-lists/$id',
@@ -284,6 +294,12 @@ const AuthenticatedInventoryNewRoute =
     path: '/inventory/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInventoryInstrumentsRoute =
+  AuthenticatedInventoryInstrumentsRouteImport.update({
+    id: '/inventory/instruments',
+    path: '/inventory/instruments',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInventoryIdRoute =
   AuthenticatedInventoryIdRouteImport.update({
     id: '/inventory/$id',
@@ -296,6 +312,11 @@ const AuthenticatedInstrumentCommOpenlabRoute =
     path: '/instrument-comm/openlab',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminTraysRoute = AuthenticatedAdminTraysRouteImport.update({
+  id: '/admin/trays',
+  path: '/admin/trays',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAdminTimesheetProjectsRoute =
   AuthenticatedAdminTimesheetProjectsRouteImport.update({
     id: '/admin/timesheet-projects',
@@ -330,6 +351,12 @@ const AuthenticatedAdminMobilePhaseReagentsRoute =
   AuthenticatedAdminMobilePhaseReagentsRouteImport.update({
     id: '/admin/mobile-phase-reagents',
     path: '/admin/mobile-phase-reagents',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminMethodGroupsRoute =
+  AuthenticatedAdminMethodGroupsRouteImport.update({
+    id: '/admin/method-groups',
+    path: '/admin/method-groups',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminInstrumentsRoute =
@@ -481,14 +508,17 @@ export interface FileRoutesByFullPath {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -498,6 +528,7 @@ export interface FileRoutesByFullPath {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -549,14 +580,17 @@ export interface FileRoutesByTo {
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -566,6 +600,7 @@ export interface FileRoutesByTo {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -619,14 +654,17 @@ export interface FileRoutesById {
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
   '/_authenticated/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
+  '/_authenticated/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
+  '/_authenticated/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
   '/_authenticated/inventory/$id': typeof AuthenticatedInventoryIdRoute
+  '/_authenticated/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -636,6 +674,7 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -689,14 +728,17 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/hplc-columns'
     | '/admin/instruments'
+    | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
+    | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
+    | '/inventory/instruments'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
@@ -706,6 +748,7 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/run-lists/$id'
+    | '/run-lists/generate'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin/'
@@ -757,14 +800,17 @@ export interface FileRouteTypes {
     | '/admin/compounds'
     | '/admin/hplc-columns'
     | '/admin/instruments'
+    | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
+    | '/admin/trays'
     | '/instrument-comm/openlab'
     | '/inventory/$id'
+    | '/inventory/instruments'
     | '/inventory/new'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
@@ -774,6 +820,7 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/run-lists/$id'
+    | '/run-lists/generate'
     | '/samples/$batchId'
     | '/samples/new'
     | '/admin'
@@ -826,14 +873,17 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/compounds'
     | '/_authenticated/admin/hplc-columns'
     | '/_authenticated/admin/instruments'
+    | '/_authenticated/admin/method-groups'
     | '/_authenticated/admin/mobile-phase-reagents'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/admin/partner-webhook-secret'
     | '/_authenticated/admin/queue-config'
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
+    | '/_authenticated/admin/trays'
     | '/_authenticated/instrument-comm/openlab'
     | '/_authenticated/inventory/$id'
+    | '/_authenticated/inventory/instruments'
     | '/_authenticated/inventory/new'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/knowledge-base'
@@ -843,6 +893,7 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/run-lists/$id'
+    | '/_authenticated/run-lists/generate'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/_authenticated/admin/'
@@ -1086,6 +1137,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplesBatchIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/run-lists/generate': {
+      id: '/_authenticated/run-lists/generate'
+      path: '/run-lists/generate'
+      fullPath: '/run-lists/generate'
+      preLoaderRoute: typeof AuthenticatedRunListsGenerateRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/run-lists/$id': {
       id: '/_authenticated/run-lists/$id'
       path: '/run-lists/$id'
@@ -1149,6 +1207,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventoryNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/inventory/instruments': {
+      id: '/_authenticated/inventory/instruments'
+      path: '/inventory/instruments'
+      fullPath: '/inventory/instruments'
+      preLoaderRoute: typeof AuthenticatedInventoryInstrumentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/inventory/$id': {
       id: '/_authenticated/inventory/$id'
       path: '/inventory/$id'
@@ -1161,6 +1226,13 @@ declare module '@tanstack/react-router' {
       path: '/instrument-comm/openlab'
       fullPath: '/instrument-comm/openlab'
       preLoaderRoute: typeof AuthenticatedInstrumentCommOpenlabRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/trays': {
+      id: '/_authenticated/admin/trays'
+      path: '/admin/trays'
+      fullPath: '/admin/trays'
+      preLoaderRoute: typeof AuthenticatedAdminTraysRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/timesheet-projects': {
@@ -1203,6 +1275,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/mobile-phase-reagents'
       fullPath: '/admin/mobile-phase-reagents'
       preLoaderRoute: typeof AuthenticatedAdminMobilePhaseReagentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/method-groups': {
+      id: '/_authenticated/admin/method-groups'
+      path: '/admin/method-groups'
+      fullPath: '/admin/method-groups'
+      preLoaderRoute: typeof AuthenticatedAdminMethodGroupsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/instruments': {
@@ -1376,14 +1455,17 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
   AuthenticatedAdminHplcColumnsRoute: typeof AuthenticatedAdminHplcColumnsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
+  AuthenticatedAdminMethodGroupsRoute: typeof AuthenticatedAdminMethodGroupsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
+  AuthenticatedAdminTraysRoute: typeof AuthenticatedAdminTraysRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
+  AuthenticatedInventoryInstrumentsRoute: typeof AuthenticatedInventoryInstrumentsRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenanceKnowledgeBaseRoute: typeof AuthenticatedMaintenanceKnowledgeBaseRoute
@@ -1393,6 +1475,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRoute
+  AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1438,6 +1521,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
   AuthenticatedAdminHplcColumnsRoute: AuthenticatedAdminHplcColumnsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
+  AuthenticatedAdminMethodGroupsRoute: AuthenticatedAdminMethodGroupsRoute,
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
@@ -1447,9 +1531,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
+  AuthenticatedAdminTraysRoute: AuthenticatedAdminTraysRoute,
   AuthenticatedInstrumentCommOpenlabRoute:
     AuthenticatedInstrumentCommOpenlabRoute,
   AuthenticatedInventoryIdRoute: AuthenticatedInventoryIdRoute,
+  AuthenticatedInventoryInstrumentsRoute:
+    AuthenticatedInventoryInstrumentsRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
@@ -1464,6 +1551,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedMaterialReceiptsAccountingReportRoute,
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRoute,
+  AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
   AuthenticatedSamplesNewRoute: AuthenticatedSamplesNewRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -1526,13 +1614,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

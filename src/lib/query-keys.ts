@@ -198,4 +198,20 @@ export const qk = {
     overview: () => ["queue", "overview"] as const,
     config: () => ["queue", "config"] as const,
   },
+
+  methodGroups: {
+    all: ["method-groups"] as const,
+    list: () => ["method-groups"] as const,
+  },
+
+  trays: {
+    all: ["trays"] as const,
+    list: () => ["trays"] as const,
+    detail: (id: string) => ["tray", id] as const,
+  },
+
+  instrumentInventory: {
+    all: ["instrument-inventory"] as const,
+    list: (activeOnly: boolean) => ["instrument-inventory", activeOnly] as const,
+  },
 } as const;

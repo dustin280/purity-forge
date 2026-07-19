@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, Download } from "lucide-react";
+import { Plus, Trash2, Download, Wand2 } from "lucide-react";
 import { createRunList, deleteRunList, listRunLists } from "@/lib/run-lists.functions";
 import { qk } from "@/lib/query-keys";
 
@@ -51,7 +51,10 @@ function RunListsIndex() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Run Lists</h1>
           <p className="text-sm text-muted-foreground mt-1">Assemble prep-flagged samples into an OpenLab CDS sequence CSV.</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus className="size-4 mr-1" />New Run List</Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline"><Link to="/run-lists/generate"><Wand2 className="size-4 mr-1" />Generate from queue</Link></Button>
+          <Button onClick={() => setOpen(true)}><Plus className="size-4 mr-1" />New Run List</Button>
+        </div>
       </div>
 
       <Card className="border-border overflow-hidden">
