@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Wand2, Download, ChevronLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList } from "@/lib/run-lists/generate.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
@@ -30,15 +31,26 @@ function GenerateRunList() {
   const [instrumentId, setInstrumentId] = useState<string>("");
   const [injVol, setInjVol] = useState("10");
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
+  const [selected, setSelected] = useState<Set<number>>(new Set([1]));
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const previewMut = useMutation({
     mutationFn: () => preview({ data: { instrument_id: instrumentId } }),
     onSuccess: (r) => {
       setSequences(r.sequences);
+      setSelected(new Set(r.sequences.length ? [r.sequences[0].index] : []));
       if (r.sequences.length === 0) toast.info(`No sequences generated (${r.sample_count} received samples).`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const downloadCsv = (filename: string, csv: string) => {
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const saveMut = useMutation({
     mutationFn: (seq: OptimizedSequence) => save({
@@ -53,15 +65,46 @@ function GenerateRunList() {
       },
     }),
     onSuccess: (r) => {
-      const blob = new Blob([r.csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = r.filename; a.click();
-      URL.revokeObjectURL(url);
+      downloadCsv(r.filename, r.csv);
       toast.success(`Saved ${r.filename}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const toggle = (idx: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+  const visibleSequences = sequences.filter((s) => selected.has(s.index));
+
+  const downloadSelected = async () => {
+    setBulkBusy(true);
+    try {
+      for (const seq of visibleSequences) {
+        const r = await save({
+          data: {
+            instrument_id: instrumentId,
+            sequence_index: seq.index,
+            injection_volume_ul: Number(injVol) || 10,
+            rows: seq.rows.map((row) => ({
+              type: row.type, label: row.label, sample_id: row.sample_id, vial: row.vial,
+              acquisition_method: row.acquisition_method, processing_method: row.processing_method,
+            })),
+          },
+        });
+        downloadCsv(r.filename, r.csv);
+      }
+      toast.success(`Saved ${visibleSequences.length} sequence${visibleSequences.length === 1 ? "" : "s"}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-6xl">
@@ -113,9 +156,62 @@ function GenerateRunList() {
         </Card>
       )}
 
-      {sequences.map((seq) => (
+      {sequences.length > 0 && (
+        <Card className="p-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground mr-1">Show:</span>
+          {sequences.map((seq) => {
+            const active = selected.has(seq.index);
+            const sampleCount = seq.rows.filter((r) => r.type === "Sample").length;
+            return (
+              <button
+                key={seq.index}
+                type="button"
+                onClick={() => toggle(seq.index)}
+                className={cn(
+                  "px-3 py-1.5 rounded-md border text-xs transition-colors text-left",
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background hover:bg-muted border-border text-muted-foreground",
+                )}
+              >
+                <div className="font-medium">Seq {seq.index}</div>
+                <div className="text-[10px] opacity-80">{sampleCount} samples</div>
+              </button>
+            );
+          })}
+          <div className="ml-auto flex items-center gap-3 text-xs">
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              onClick={() => setSelected(new Set(sequences.map((s) => s.index)))}
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              onClick={() => setSelected(new Set())}
+            >
+              Select none
+            </button>
+            {visibleSequences.length > 1 && (
+              <Button size="sm" onClick={downloadSelected} disabled={bulkBusy}>
+                <Download className="size-4 mr-1" /> Download selected ({visibleSequences.length})
+              </Button>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {visibleSequences.map((seq) => (
         <SequenceCard key={seq.index} seq={seq} onSave={() => saveMut.mutate(seq)} saving={saveMut.isPending} />
       ))}
+
+      {sequences.length > 0 && visibleSequences.length === 0 && (
+        <Card className="p-6 text-center text-xs text-muted-foreground">
+          No sequences selected. Pick one above to preview and export.
+        </Card>
+      )}
     </div>
   );
 }
