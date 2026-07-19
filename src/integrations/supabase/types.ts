@@ -764,6 +764,7 @@ export type Database = {
           created_by: string | null
           default_method_folder: string | null
           description: string | null
+          drive_folder_id: string | null
           id: string
           installation_date: string | null
           installer_initials: string | null
@@ -788,6 +789,7 @@ export type Database = {
           created_by?: string | null
           default_method_folder?: string | null
           description?: string | null
+          drive_folder_id?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
@@ -812,6 +814,7 @@ export type Database = {
           created_by?: string | null
           default_method_folder?: string | null
           description?: string | null
+          drive_folder_id?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
