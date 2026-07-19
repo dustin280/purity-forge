@@ -9,6 +9,7 @@ export interface OptimizerSample {
   batch_id: string;
   compound: string | null;
   method_group_id: string | null;
+  lot: string | null;
 }
 
 export interface OptimizerMethodGroup {
@@ -32,6 +33,7 @@ export interface SequenceRow {
   type: SequenceRowType;
   label: string;                 // display name / sample name
   sample_id: string | null;      // real sample rows only
+  lot: string | null;            // sample lot (null for QC rows)
   method_group_id: string | null;
   method_group_name: string | null;
   acquisition_method: string | null;
@@ -66,6 +68,7 @@ function withQC(
   const push = (type: SequenceRowType, label: string, isRef: boolean, extra?: Partial<SequenceRow>) => {
     rows.push({
       type, label, sample_id: null,
+      lot: null,
       method_group_id: null, method_group_name: null,
       acquisition_method: null, processing_method: null,
       vial: vialFor(isRef ? "ref" : "sample"),
@@ -81,10 +84,12 @@ function withQC(
   blocks.forEach((block, bi) => {
     block.forEach((s) => {
       const g = s.method_group_id ? groupById.get(s.method_group_id) ?? null : null;
+      const lotSuffix = s.lot ? ` (Lot: ${s.lot})` : "";
       rows.push({
         type: "Sample",
-        label: s.batch_id + (s.compound ? ` — ${s.compound}` : ""),
+        label: s.batch_id + (s.compound ? ` — ${s.compound}` : "") + lotSuffix,
         sample_id: s.id,
+        lot: s.lot ?? null,
         method_group_id: g?.id ?? null,
         method_group_name: g?.name ?? null,
         acquisition_method: g?.default_acquisition_method ?? null,
