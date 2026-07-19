@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Boxes, Pencil } from "lucide-react";
+import { Plus, Boxes, Pencil, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,9 @@ function InventoryIndex() {
         </div>
         <Button asChild>
           <Link to="/inventory/new"><Plus className="size-4 mr-1" /> Add inventory</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/inventory/instruments"><Settings2 className="size-4 mr-1" /> Manage instruments</Link>
         </Button>
       </div>
 
