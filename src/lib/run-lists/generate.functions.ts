@@ -134,6 +134,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       })),
     };
     const csv = sequenceToCsv(seq, data.injection_volume_ul);
+    const csvWithBom = "\uFEFF" + csv;
 
     // Persist as a run_lists + run_list_items record for history/audit
     const { data: rl, error: rlErr } = await context.supabase.from("run_lists").insert({
@@ -163,5 +164,5 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
     }));
     await context.supabase.from("run_list_items").insert(items);
 
-    return { run_list_id: rl.id as string, filename, csv };
+    return { run_list_id: rl.id as string, filename, csv: csvWithBom };
   });
