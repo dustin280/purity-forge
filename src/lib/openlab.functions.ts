@@ -316,7 +316,9 @@ export const syncOpenLabIndex = createServerFn({ method: "POST" })
     await context.supabase.from("openlab_sequences").delete().neq("name", "");
 
     if (methods.length) {
-      const methodRows = methods.map((m: any) => ({
+      const methodRows = methods
+        .filter((m: any) => !/^archive$/i.test((m.name ?? "").trim()))
+        .map((m: any) => ({
         name: m.name.replace(/\.[Mm]$/, ""),
         description: null,
         relative_path: `${prefix}Methods/${m.name}`,

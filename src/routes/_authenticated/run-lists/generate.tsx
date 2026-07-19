@@ -61,7 +61,7 @@ function GenerateRunList() {
         sequence_index: seq.index,
         injection_volume_ul: Number(injVol) || 10,
         rows: seq.rows.map((r) => ({
-          type: r.type, label: r.label, sample_id: r.sample_id, vial: r.vial,
+          type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
           acquisition_method: r.acquisition_method, processing_method: r.processing_method,
         })),
       },
@@ -78,7 +78,7 @@ function GenerateRunList() {
     sequence_index: seq.index,
     injection_volume_ul: Number(injVol) || 10,
     rows: seq.rows.map((row) => ({
-      type: row.type, label: row.label, sample_id: row.sample_id, vial: row.vial,
+      type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
       acquisition_method: row.acquisition_method, processing_method: row.processing_method,
     })),
   });
@@ -145,7 +145,7 @@ function GenerateRunList() {
             sequence_index: seq.index,
             injection_volume_ul: Number(injVol) || 10,
             rows: seq.rows.map((row) => ({
-              type: row.type, label: row.label, sample_id: row.sample_id, vial: row.vial,
+              type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
               acquisition_method: row.acquisition_method, processing_method: row.processing_method,
             })),
           },

@@ -313,6 +313,12 @@ async function syncKind(
   for (const f of files) {
     const isFolder = f.mimeType === "application/vnd.google-apps.folder";
 
+    // Skip anything named "Archive" (or a subfolder called Archive at this
+    // level) so archived methods/sequences/reports don't appear in pickers.
+    if (/^archive$/i.test(f.name.trim())) continue;
+    // For Methods, only real .M folders (or .m files) belong in the picker.
+    if (kind === "Methods" && isFolder && !/\.[Mm]$/.test(f.name)) continue;
+
     if (isFolder) {
       // OpenLab stores methods/sequences as .M / .S directories. Index the
       // folder itself as a single entry; do not download contents.
