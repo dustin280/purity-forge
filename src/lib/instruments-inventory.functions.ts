@@ -19,6 +19,7 @@ export interface InstrumentInventoryItem {
   instrument_status: InstrumentOpStatus | null;
   default_method_folder: string | null;
   tray_config_id: string | null;
+  drive_folder_id: string | null;
 }
 
 export const listInstrumentInventory = createServerFn({ method: "GET" })
@@ -28,7 +29,7 @@ export const listInstrumentInventory = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     let q = context.supabase
       .from("inventory_items")
-      .select("id,instrument_name,make,model,serial_number,description,instrument_status,default_method_folder,tray_config_id")
+      .select("id,instrument_name,make,model,serial_number,description,instrument_status,default_method_folder,tray_config_id,drive_folder_id")
       .eq("category", "instrument");
     if (data.active_only) q = q.eq("instrument_status", "active");
     const { data: rows, error } = await q.order("instrument_name", { ascending: true });
@@ -44,6 +45,13 @@ export const updateInstrumentSettings = createServerFn({ method: "POST" })
     instrument_status: z.enum(["active", "maintenance", "inactive"]).nullable().optional(),
     default_method_folder: z.string().max(500).nullable().optional(),
     tray_config_id: z.string().uuid().nullable().optional(),
+    drive_folder_id: z.preprocess((v) => {
+      if (typeof v !== "string") return v;
+      const s = v.trim();
+      if (!s) return null;
+      const m = s.match(/\/folders\/([A-Za-z0-9_-]+)/) || s.match(/[?&]id=([A-Za-z0-9_-]+)/);
+      return m ? m[1] : s;
+    }, z.string().max(200).regex(/^[A-Za-z0-9_-]+$/, "Invalid Drive folder ID").nullable().optional()),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { id, ...rest } = data;
