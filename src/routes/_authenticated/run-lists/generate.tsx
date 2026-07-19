@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Wand2, Download, ChevronLeft, CloudUpload, Tags } from "lucide-react";
@@ -31,7 +31,7 @@ function GenerateRunList() {
     queryFn: () => list({ data: { active_only: true } }),
   });
   const [instrumentId, setInstrumentId] = useState<string>("");
-  const [injVol, setInjVol] = useState("10");
+  const [injVol] = useState("2.5");
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -212,10 +212,6 @@ function GenerateRunList() {
               )}
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label className="text-xs">Injection volume (µL)</Label>
-          <Input type="number" step="0.1" value={injVol} onChange={(e) => setInjVol(e.target.value)} className="w-28" />
         </div>
         <Button
           disabled={!instrumentId || previewMut.isPending}
