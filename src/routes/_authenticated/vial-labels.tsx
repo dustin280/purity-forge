@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Upload, Printer, Tags, X, ArrowLeft } from "lucide-react";
+import { Upload, Printer, Tags, X, ArrowLeft, FileDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { parseListFile } from "@/components/vial-labels/parse-list";
 import { LABELS_PER_SHEET, LabelSheets, chunkSheets } from "@/components/vial-labels/label-sheet";
+import { buildOneOffSequenceCsv, oneOffFilename } from "@/lib/vial-labels/one-off-csv";
 
 export const Route = createFileRoute("/_authenticated/vial-labels")({
   component: VialLabelsPage,
@@ -50,6 +51,7 @@ function VialLabelsPage() {
   const [bold, setBold] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [startVial, setStartVial] = useState("P1-A1");
 
   const items = useMemo(
     () => raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean),
@@ -106,6 +108,30 @@ function VialLabelsPage() {
     if (returnTo) {
       setShowReturnPrompt(true);
     }
+  }
+
+  function handleGenerateOneOff() {
+    if (items.length === 0) {
+      toast.error("Add at least one label before generating a sequence.");
+      return;
+    }
+    const trimmed = startVial.trim();
+    if (trimmed && !/^P[12]-[A-F]\d+$/i.test(trimmed)) {
+      toast.error("Starting vial must look like P1-A1 (or leave blank).");
+      return;
+    }
+    const csv = "\uFEFF" + buildOneOffSequenceCsv(items, trimmed || undefined);
+    const filename = oneOffFilename();
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`Generated ${filename} (${items.length} row${items.length === 1 ? "" : "s"})`);
   }
 
   function stayOnPage() {
@@ -293,6 +319,26 @@ function VialLabelsPage() {
               <Button onClick={handlePrint} className="w-full" size="lg">
                 <Printer className="size-4" /> Preview & Print
               </Button>
+              <div className="pt-2 border-t">
+                <Label htmlFor="vl-start-vial" className="text-xs uppercase tracking-widest text-muted-foreground">
+                  1 Off sequence
+                </Label>
+                <div className="mt-1 flex gap-2">
+                  <Input
+                    id="vl-start-vial"
+                    value={startVial}
+                    onChange={e => setStartVial(e.target.value)}
+                    placeholder="P1-A1 (blank = no vial)"
+                    className="max-w-[180px]"
+                  />
+                  <Button type="button" variant="outline" onClick={handleGenerateOneOff} className="flex-1">
+                    <FileDown className="size-4" /> Generate 1 Off Sequence
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Builds an Agilent CSV from the labels above. Starting vial auto-increments A1→F9 across P1 then P2.
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
                 The browser print dialog acts as the preview. Set margins to <strong>None</strong> and scaling to <strong>100%</strong> for accurate alignment.
               </p>
