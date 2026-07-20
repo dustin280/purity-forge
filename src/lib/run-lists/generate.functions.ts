@@ -88,13 +88,14 @@ function fullMethodPath(v: string | null, folder: string | null, ext: "amx" | "p
 
 function sequenceToCsv(
   seq: OptimizedSequence,
-  injectionVolumeUL: number,
+  injectionVolumeUL: number | "method",
   methodFolder: string | null,
 ): string {
   const headers = [
     "Sample name", "Sample type", "Vial", "Volume",
     "Acq Method", "Proc Method", "Data file", "Description", "Level",
   ];
+  const volumeCell = injectionVolumeUL === "method" ? "" : String(injectionVolumeUL);
   const rows = seq.rows.map((r) => {
     const desc = r.method_group_name ?? "";
     // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
@@ -107,7 +108,7 @@ function sequenceToCsv(
       sampleName,
       mapSampleType(r.type),
       r.vial ?? "",
-      injectionVolumeUL,
+      volumeCell,
       fullMethodPath(r.acquisition_method, methodFolder, "amx"),
       fullMethodPath(r.processing_method, methodFolder, "pmx"),
       "", // Data file — let OpenLab auto-generate
@@ -123,7 +124,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     instrument_id: z.string().uuid(),
     sequence_index: z.number().int().min(1),
-    injection_volume_ul: z.number().min(0.1).max(1000).default(10),
+    injection_volume_ul: z.union([z.literal("method"), z.number().min(0.1).max(1000)]).default("method"),
     // optional overrides posted from the review screen
     rows: z.array(z.object({
       type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "Sample"]),

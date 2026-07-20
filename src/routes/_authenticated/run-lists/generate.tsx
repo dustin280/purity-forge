@@ -31,7 +31,7 @@ function GenerateRunList() {
     queryFn: () => list({ data: { active_only: true } }),
   });
   const [instrumentId, setInstrumentId] = useState<string>("");
-  const [injVol] = useState("2.5");
+  const [injVol, setInjVol] = useState<string>("method");
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -55,12 +55,14 @@ function GenerateRunList() {
     URL.revokeObjectURL(url);
   };
 
+  const injectionVolumeForServer = injVol === "method" ? "method" as const : Number(injVol) || 2.5;
+
   const saveMut = useMutation({
     mutationFn: (seq: OptimizedSequence) => save({
       data: {
         instrument_id: instrumentId,
         sequence_index: seq.index,
-        injection_volume_ul: Number(injVol) || 10,
+        injection_volume_ul: injectionVolumeForServer,
         rows: seq.rows.map((r) => ({
           type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
           acquisition_method: r.acquisition_method, processing_method: r.processing_method,
@@ -77,7 +79,7 @@ function GenerateRunList() {
   const buildSaveArgs = (seq: OptimizedSequence) => ({
     instrument_id: instrumentId,
     sequence_index: seq.index,
-    injection_volume_ul: Number(injVol) || 10,
+    injection_volume_ul: injectionVolumeForServer,
     rows: seq.rows.map((row) => ({
       type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
       acquisition_method: row.acquisition_method, processing_method: row.processing_method,
@@ -164,7 +166,7 @@ function GenerateRunList() {
           data: {
             instrument_id: instrumentId,
             sequence_index: seq.index,
-            injection_volume_ul: Number(injVol) || 10,
+            injection_volume_ul: injectionVolumeForServer,
             rows: seq.rows.map((row) => ({
               type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
               acquisition_method: row.acquisition_method, processing_method: row.processing_method,
@@ -210,6 +212,23 @@ function GenerateRunList() {
                   No active instruments. Add one under Inventory → Instruments.
                 </div>
               )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-40">
+          <Label className="text-xs">Injection volume</Label>
+          <Select value={injVol} onValueChange={setInjVol}>
+            <SelectTrigger><SelectValue placeholder="Select volume…" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="method">Use Method</SelectItem>
+              <SelectItem value="1">1 µL</SelectItem>
+              <SelectItem value="2">2 µL</SelectItem>
+              <SelectItem value="2.5">2.5 µL</SelectItem>
+              <SelectItem value="5">5 µL</SelectItem>
+              <SelectItem value="10">10 µL</SelectItem>
+              <SelectItem value="20">20 µL</SelectItem>
+              <SelectItem value="50">50 µL</SelectItem>
+              <SelectItem value="100">100 µL</SelectItem>
             </SelectContent>
           </Select>
         </div>
