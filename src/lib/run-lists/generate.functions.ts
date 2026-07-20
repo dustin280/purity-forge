@@ -88,13 +88,14 @@ function fullMethodPath(v: string | null, folder: string | null, ext: "amx" | "p
 
 function sequenceToCsv(
   seq: OptimizedSequence,
-  injectionVolumeUL: number,
+  injectionVolumeUL: number | "method",
   methodFolder: string | null,
 ): string {
   const headers = [
     "Sample name", "Sample type", "Vial", "Volume",
     "Acq Method", "Proc Method", "Data file", "Description", "Level",
   ];
+  const volumeCell = injectionVolumeUL === "method" ? "" : String(injectionVolumeUL);
   const rows = seq.rows.map((r) => {
     const desc = r.method_group_name ?? "";
     // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
@@ -107,7 +108,7 @@ function sequenceToCsv(
       sampleName,
       mapSampleType(r.type),
       r.vial ?? "",
-      injectionVolumeUL,
+      volumeCell,
       fullMethodPath(r.acquisition_method, methodFolder, "amx"),
       fullMethodPath(r.processing_method, methodFolder, "pmx"),
       "", // Data file — let OpenLab auto-generate
