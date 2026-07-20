@@ -55,12 +55,14 @@ function GenerateRunList() {
     URL.revokeObjectURL(url);
   };
 
+  const injectionVolumeForServer = injVol === "method" ? "method" as const : Number(injVol) || 2.5;
+
   const saveMut = useMutation({
     mutationFn: (seq: OptimizedSequence) => save({
       data: {
         instrument_id: instrumentId,
         sequence_index: seq.index,
-        injection_volume_ul: Number(injVol) || 10,
+        injection_volume_ul: injectionVolumeForServer,
         rows: seq.rows.map((r) => ({
           type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
           acquisition_method: r.acquisition_method, processing_method: r.processing_method,
