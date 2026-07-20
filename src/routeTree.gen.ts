@@ -64,6 +64,7 @@ import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
+import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
 import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
@@ -396,6 +397,11 @@ const AuthenticatedAdminAccessLogsRoute =
     path: '/admin/access-logs',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicStatusIndexRoute = ApiPublicStatusIndexRouteImport.update({
+  id: '/api/public/status/',
+  path: '/api/public/status/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedLabLogsTimesheetsIndexRoute =
   AuthenticatedLabLogsTimesheetsIndexRouteImport.update({
     id: '/lab-logs/timesheets/',
@@ -567,6 +573,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesByTo {
@@ -640,6 +647,7 @@ export interface FileRoutesByTo {
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesById {
@@ -715,6 +723,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRouteTypes {
@@ -790,6 +799,7 @@ export interface FileRouteTypes {
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/timesheets/'
+    | '/api/public/status/'
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -863,6 +873,7 @@ export interface FileRouteTypes {
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/timesheets'
+    | '/api/public/status'
     | '/lab-logs/standard-preparations/batch/$groupId'
   id:
     | '__root__'
@@ -937,6 +948,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/timesheets/'
+    | '/api/public/status/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
 }
@@ -950,6 +962,7 @@ export interface RootRouteChildren {
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
   ApiPublicStatusBatchIdRoute: typeof ApiPublicStatusBatchIdRoute
+  ApiPublicStatusIndexRoute: typeof ApiPublicStatusIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1339,6 +1352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAccessLogsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/status/': {
+      id: '/api/public/status/'
+      path: '/api/public/status'
+      fullPath: '/api/public/status/'
+      preLoaderRoute: typeof ApiPublicStatusIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/lab-logs/timesheets/': {
       id: '/_authenticated/lab-logs/timesheets/'
       path: '/lab-logs/timesheets'
@@ -1631,6 +1651,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,
   ApiPublicStatusBatchIdRoute: ApiPublicStatusBatchIdRoute,
+  ApiPublicStatusIndexRoute: ApiPublicStatusIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
