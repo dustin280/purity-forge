@@ -1,63 +1,25 @@
-## Short answer
+## Goal
+On the Vial Labels page, add a **Generate 1 Off Sequence** button next to Preview & Print. It builds an Agilent OpenLab-format CSV from the current label list (one row per label) and downloads it — no instrument, no optimizer, no DB persistence.
 
-No — we never finished the external status feed. Today `/api/public/exports/:batchId` is the only partner-facing endpoint, and it only returns a payload once a sample is `approved`. For anything earlier (received, intake_verified, prep, in_progress, reviewed, complete) it just returns a `409` with the raw status name. There is no dedicated "where is my sample" endpoint your client portal can poll, and no per-stage timestamps exposed.
+## Behavior
+- Uses the label lines currently in the textarea (same set that would be printed, respecting start/end range so it matches what's on the sheet).
+- Each label becomes one CSV row:
+  - **Sample name**: the label text as entered (already includes `SYX-…_LOT` when coming from the run list handoff).
+  - **Sample type**: `Sample` for all rows (blanks/QC keep their name but stay type `Sample` since we can't infer type from a label string).
+  - **Vial**: sequential position starting from `P1-A1` across the standard 2×54 tray order, or left blank if user prefers — see Options below.
+  - **Volume**: blank (= Use Method).
+  - **Acq Method / Proc Method / Data file / Description / Level**: blank.
+- Filename: `YYYY-MM-DD_OneOff_HHMMSS.csv`, UTF-8 with BOM, CRLF line endings (matches existing `sequenceToCsv`).
+- Downloads via a Blob link; no server call, no `run_lists` row created.
 
-## Plan: Partner-facing Status API
+## Options on the button
+Small popover (or inline controls right by the button) with:
+- **Starting vial position** text input (default `P1-A1`) — auto-increments A1→A6, B1…F6, then P2-A1… If left blank, Vial column is blank.
+- Nothing else — everything else defaults to blank per above.
 
-Add a new authenticated public endpoint the client portal can hit to show live progress per sample, plus an optional bulk feed.
+## Files to touch
+- `src/routes/_authenticated/vial-labels.tsx` — add the button + click handler + small helper to build CSV and trigger download. Reuse the same `items` array already computed from `raw`.
+- `src/lib/vial-labels/one-off-csv.ts` (new) — pure helper: `buildOneOffSequenceCsv(labels: string[], startVial?: string): string` and `nextVial(code)` iterator. Keeps the route file lean and unit-testable.
 
-### Endpoints (all under `/api/public/`, HMAC/API-key protected the same way exports are)
-
-1. `GET /api/public/status/:batchId`
-   Returns one sample's current stage + history:
-   ```json
-   {
-     "batch_id": "SYX-000123-01",
-     "client": "...",
-     "project": "...",
-     "received_at": "...",
-     "due_date": "...",
-     "stage": "in_progress",
-     "stage_label": "In Progress",
-     "stage_percent": 55,
-     "history": [
-       { "stage": "received",         "at": "2026-07-10T14:02:00Z" },
-       { "stage": "intake_verified",  "at": "2026-07-10T15:20:00Z" },
-       { "stage": "prep",             "at": "2026-07-11T09:00:00Z" },
-       { "stage": "in_progress",      "at": "2026-07-11T13:44:00Z" }
-     ],
-     "approved": false,
-     "results_available": false
-   }
-   ```
-   History is derived from `audit_log` rows where `action` starts with `status_change:` for that sample.
-
-2. `GET /api/public/status?client=<name>&since=<iso>`
-   Bulk feed for the client portal — same shape, array of samples for one client, filterable by `updated_since`. Paginated with `limit` (max 200) + `cursor`.
-
-3. (Optional, phase 2) Outbound webhook on stage change so the portal doesn't have to poll — reuses the existing `partner_webhook_secrets` HMAC scheme, fired from a trigger on `samples.status` update.
-
-### Auth & security
-
-- Reuse the `export_config.api_key` header (`x-api-key`) that `/exports/:batchId` already uses, so partners only manage one key.
-- Enforce `is_active` on `export_config`.
-- Never return notes, analyst identities, peaks, or purity from the status endpoints — just stage, timestamps, and identifiers. Results stay behind the existing approved-only exports endpoint.
-
-### Stage → label/percent mapping
-
-Reuse `STATUS_LABEL` from `src/lib/lims-utils.ts` for labels and add a shared `STATUS_PERCENT` map (received 5, intake_verified 15, prep 30, in_progress 55, reviewed 75, complete 90, approved 100) so the portal can render a progress bar without knowing our internal enum.
-
-### Files to add / touch
-
-- `src/routes/api/public/status/$batchId.ts` — single-sample handler.
-- `src/routes/api/public/status/index.ts` — bulk handler with `client` + `since` + pagination.
-- `src/lib/lims-utils.ts` — add `STATUS_PERCENT` next to `STATUS_LABEL`.
-- `docs/partner-webhook.md` — extend with a "Status API" section (endpoints, auth header, example responses, stage list).
-- No schema changes required for v1 — history comes from existing `audit_log` rows written by `updateSampleStatus`.
-
-### Out of scope for this pass
-
-- Outbound stage-change webhook (listed as phase 2 above; say the word and I'll add it).
-- A partner-scoped API key per client (today it's one shared key from `export_config`); we can layer that on later if you want per-partner revocation.
-
-Want me to build all three endpoints, or start with just `GET /api/public/status/:batchId` and the docs update?
+## Out of scope
+- No DB write, no Drive push, no method/type inference from label text, no changes to the existing run list generator.
