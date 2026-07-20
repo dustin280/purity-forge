@@ -215,6 +215,23 @@ function GenerateRunList() {
             </SelectContent>
           </Select>
         </div>
+        <div className="min-w-40">
+          <Label className="text-xs">Injection volume</Label>
+          <Select value={injVol} onValueChange={setInjVol}>
+            <SelectTrigger><SelectValue placeholder="Select volume…" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="method">Use Method</SelectItem>
+              <SelectItem value="1">1 µL</SelectItem>
+              <SelectItem value="2">2 µL</SelectItem>
+              <SelectItem value="2.5">2.5 µL</SelectItem>
+              <SelectItem value="5">5 µL</SelectItem>
+              <SelectItem value="10">10 µL</SelectItem>
+              <SelectItem value="20">20 µL</SelectItem>
+              <SelectItem value="50">50 µL</SelectItem>
+              <SelectItem value="100">100 µL</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button
           disabled={!instrumentId || previewMut.isPending}
           onClick={() => previewMut.mutate()}
