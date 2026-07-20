@@ -124,7 +124,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     instrument_id: z.string().uuid(),
     sequence_index: z.number().int().min(1),
-    injection_volume_ul: z.number().min(0.1).max(1000).default(10),
+    injection_volume_ul: z.union([z.literal("method"), z.number().min(0.1).max(1000)]).default("method"),
     // optional overrides posted from the review screen
     rows: z.array(z.object({
       type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "Sample"]),
