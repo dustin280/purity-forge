@@ -64,11 +64,13 @@ import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
+import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
 import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
+import { Route as ApiPublicStatusBatchIdRouteImport } from './routes/api/public/status/$batchId'
 import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
@@ -395,6 +397,11 @@ const AuthenticatedAdminAccessLogsRoute =
     path: '/admin/access-logs',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicStatusIndexRoute = ApiPublicStatusIndexRouteImport.update({
+  id: '/api/public/status/',
+  path: '/api/public/status/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedLabLogsTimesheetsIndexRoute =
   AuthenticatedLabLogsTimesheetsIndexRouteImport.update({
     id: '/lab-logs/timesheets/',
@@ -425,6 +432,11 @@ const AuthenticatedLabLogsDailyBackpressureIndexRoute =
     path: '/lab-logs/daily-backpressure/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const ApiPublicStatusBatchIdRoute = ApiPublicStatusBatchIdRouteImport.update({
+  id: '/api/public/status/$batchId',
+  path: '/api/public/status/$batchId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicOrdersIntakeRoute = ApiPublicOrdersIntakeRouteImport.update({
   id: '/api/public/orders/intake',
   path: '/api/public/orders/intake',
@@ -555,11 +567,13 @@ export interface FileRoutesByFullPath {
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
+  '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesByTo {
@@ -627,11 +641,13 @@ export interface FileRoutesByTo {
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
+  '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesById {
@@ -701,11 +717,13 @@ export interface FileRoutesById {
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
+  '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRouteTypes {
@@ -775,11 +793,13 @@ export interface FileRouteTypes {
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
+    | '/api/public/status/$batchId'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/timesheets/'
+    | '/api/public/status/'
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -847,11 +867,13 @@ export interface FileRouteTypes {
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
+    | '/api/public/status/$batchId'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/timesheets'
+    | '/api/public/status'
     | '/lab-logs/standard-preparations/batch/$groupId'
   id:
     | '__root__'
@@ -920,11 +942,13 @@ export interface FileRouteTypes {
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
+    | '/api/public/status/$batchId'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/timesheets/'
+    | '/api/public/status/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
 }
@@ -937,6 +961,8 @@ export interface RootRouteChildren {
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
+  ApiPublicStatusBatchIdRoute: typeof ApiPublicStatusBatchIdRoute
+  ApiPublicStatusIndexRoute: typeof ApiPublicStatusIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1326,6 +1352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAccessLogsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/status/': {
+      id: '/api/public/status/'
+      path: '/api/public/status'
+      fullPath: '/api/public/status/'
+      preLoaderRoute: typeof ApiPublicStatusIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/lab-logs/timesheets/': {
       id: '/_authenticated/lab-logs/timesheets/'
       path: '/lab-logs/timesheets'
@@ -1360,6 +1393,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/lab-logs/daily-backpressure/'
       preLoaderRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/public/status/$batchId': {
+      id: '/api/public/status/$batchId'
+      path: '/api/public/status/$batchId'
+      fullPath: '/api/public/status/$batchId'
+      preLoaderRoute: typeof ApiPublicStatusBatchIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/public/orders/intake': {
       id: '/api/public/orders/intake'
@@ -1610,17 +1650,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,
+  ApiPublicStatusBatchIdRoute: ApiPublicStatusBatchIdRoute,
+  ApiPublicStatusIndexRoute: ApiPublicStatusIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

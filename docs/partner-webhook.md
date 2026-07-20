@@ -190,3 +190,108 @@ curl -X POST "https://syxlab.org/api/public/orders/intake" \
 
 Contact Syxlab lab operations if you need the shared secret, a staging
 endpoint provisioned, or the payload schema extended.
+
+---
+
+# Sample Status API (client portal)
+
+Read-only endpoints for a partner/client portal to show live progress of a
+sample as it moves through the lab. No result values are exposed here —
+full analytical payloads still come from `/api/public/exports/:batchId`
+once a sample is `approved`.
+
+## Authentication
+
+Same shared API key as the exports endpoint. Send it as:
+
+```
+x-api-key: <syxlab_api_key>
+```
+
+The key is managed in Syxlab under **Integrations**. Both endpoints require
+the key to be active (`is_active = true`).
+
+## Stages
+
+| stage             | label           | percent |
+|-------------------|-----------------|---------|
+| `received`        | Received        | 5       |
+| `intake_verified` | Intake Verified | 15      |
+| `prep`            | Prep            | 30      |
+| `in_progress`     | In Progress     | 55      |
+| `reviewed`        | In Review       | 75      |
+| `complete`        | Complete        | 90      |
+| `approved`        | Approved        | 100     |
+
+`results_available` is `true` only when `stage === "approved"`. At that
+point the portal can fetch the full result payload from
+`GET /api/public/exports/:batchId`.
+
+## GET `/api/public/status/:batchId`
+
+Returns the current stage and stage history for one sample.
+
+```json
+{
+  "batch_id": "SYX-000123-01",
+  "client": "Research Lab LLC",
+  "project": "BPC Purity Q3",
+  "received_at": "2026-07-10",
+  "due_date": "2026-07-15",
+  "stage": "in_progress",
+  "stage_label": "In Progress",
+  "stage_percent": 55,
+  "history": [
+    { "stage": "received",        "at": "2026-07-10T14:02:00Z" },
+    { "stage": "intake_verified", "at": "2026-07-10T15:20:00Z" },
+    { "stage": "prep",            "at": "2026-07-11T09:00:00Z" },
+    { "stage": "in_progress",     "at": "2026-07-11T13:44:00Z" }
+  ],
+  "approved": false,
+  "results_available": false,
+  "updated_at": "2026-07-11T13:44:00Z",
+  "generated_at": "2026-07-11T18:00:00Z"
+}
+```
+
+Responses: `200` ok · `401` bad/missing key · `403` exports disabled · `404` unknown batch id.
+
+## GET `/api/public/status`
+
+Bulk feed, ordered by `updated_at` desc. Same per-sample shape as above
+minus `history`.
+
+Query params:
+
+| param    | type    | notes                                                     |
+|----------|---------|-----------------------------------------------------------|
+| `client` | string  | Optional exact-match filter on client name.               |
+| `since`  | ISO ts  | Only samples with `updated_at >= since` (portal polling). |
+| `limit`  | int     | 1–200, default 50.                                        |
+| `cursor` | ISO ts  | Pass back `next_cursor` from the previous page.           |
+
+```json
+{
+  "samples": [
+    {
+      "batch_id": "SYX-000123-01",
+      "client": "Research Lab LLC",
+      "project": "BPC Purity Q3",
+      "received_at": "2026-07-10",
+      "due_date": "2026-07-15",
+      "stage": "in_progress",
+      "stage_label": "In Progress",
+      "stage_percent": 55,
+      "approved": false,
+      "results_available": false,
+      "updated_at": "2026-07-11T13:44:00Z"
+    }
+  ],
+  "next_cursor": "2026-07-11T13:44:00Z",
+  "generated_at": "2026-07-11T18:00:00Z"
+}
+```
+
+When `next_cursor` is `null`, you have reached the end. For portal
+polling, store the most recent `updated_at` you have and pass it as
+`since` on the next call.

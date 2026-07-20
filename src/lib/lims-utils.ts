@@ -20,6 +20,20 @@ export const STATUS_LABEL: Record<SampleStatus, string> = {
   approved: "Approved",
 };
 
+/**
+ * Coarse progress percent per stage. Exposed by the partner Status API so a
+ * client portal can render a progress bar without knowing our internal enum.
+ */
+export const STATUS_PERCENT: Record<SampleStatus, number> = {
+  received: 5,
+  intake_verified: 15,
+  prep: 30,
+  in_progress: 55,
+  reviewed: 75,
+  complete: 90,
+  approved: 100,
+};
+
 export function statusClasses(s: SampleStatus): string {
   switch (s) {
     case "received": return "bg-muted text-muted-foreground border-border";
