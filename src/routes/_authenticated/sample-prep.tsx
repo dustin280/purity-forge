@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DilutionCalculator } from "@/components/sample-prep/dilution-calculator";
+import { DilutionSession } from "@/components/sample-prep/dilution-session";
 
 export const Route = createFileRoute("/_authenticated/sample-prep")({
   head: () => ({
@@ -24,7 +24,7 @@ function SamplePrepPage() {
           Tools for preparing samples. Start with the dilution calculator — it auto-designs a serial dilution when a single-step aliquot would drop below 10 µL.
         </p>
       </header>
-      <DilutionCalculator />
+      <DilutionSession />
     </div>
   );
 }
