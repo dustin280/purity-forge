@@ -1,25 +1,27 @@
-## Goal
-On the Vial Labels page, add a **Generate 1 Off Sequence** button next to Preview & Print. It builds an Agilent OpenLab-format CSV from the current label list (one row per label) and downloads it — no instrument, no optimizer, no DB persistence.
+## Problem
 
-## Behavior
-- Uses the label lines currently in the textarea (same set that would be printed, respecting start/end range so it matches what's on the sheet).
-- Each label becomes one CSV row:
-  - **Sample name**: the label text as entered (already includes `SYX-…_LOT` when coming from the run list handoff).
-  - **Sample type**: `Sample` for all rows (blanks/QC keep their name but stay type `Sample` since we can't infer type from a label string).
-  - **Vial**: sequential position starting from `P1-A1` across the standard 2×54 tray order, or left blank if user prefers — see Options below.
-  - **Volume**: blank (= Use Method).
-  - **Acq Method / Proc Method / Data file / Description / Level**: blank.
-- Filename: `YYYY-MM-DD_OneOff_HHMMSS.csv`, UTF-8 with BOM, CRLF line endings (matches existing `sequenceToCsv`).
-- Downloads via a Blob link; no server call, no `run_lists` row created.
+Current serial dilution uses equal geometric steps (e.g. ~14.14× × 14.14× for a 200× total). You want every step to be a whole-number dilution factor — no fractional or "remainder" factors anywhere.
 
-## Options on the button
-Small popover (or inline controls right by the button) with:
-- **Starting vial position** text input (default `P1-A1`) — auto-increments A1→A6, B1…F6, then P2-A1… If left blank, Vial column is blank.
-- Nothing else — everything else defaults to blank per above.
+## Fix
 
-## Files to touch
-- `src/routes/_authenticated/vial-labels.tsx` — add the button + click handler + small helper to build CSV and trigger download. Reuse the same `items` array already computed from `raw`.
-- `src/lib/vial-labels/one-off-csv.ts` (new) — pure helper: `buildOneOffSequenceCsv(labels: string[], startVial?: string): string` and `nextVial(code)` iterator. Keeps the route file lean and unit-testable.
+Rework the serial-dilution branch in `computeDilution` (`src/lib/sample-prep/dilution.ts`) to produce an integer factorization of the total dilution factor.
 
-## Out of scope
-- No DB write, no Drive push, no method/type inference from label text, no changes to the existing run list generator.
+Rules:
+1. Compute total `df = c1/c2`. Require it to be an integer within a tight tolerance (e.g. `|df − round(df)| < 1e-6`). If not, return an error: *"Serial dilution requires a whole-number total dilution factor. Adjust target concentration or volume so C1/C2 is an integer (currently N.NN×)."* No fractional steps are ever emitted.
+2. Compute `maxStepDf = floor(v2Ul / minPipetteUl)` — the largest integer per-step factor that keeps the aliquot ≥ 10 µL at the chosen final volume.
+3. Greedy decomposition of `df` into integer factors, each ≥ 2 and ≤ `maxStepDf`:
+   - While `remaining > maxStepDf`: pick the largest integer `k` in `[2, maxStepDf]` that divides `remaining`, preferring `10` when `10` is a divisor and `10 ≤ maxStepDf`. Push `k`, set `remaining /= k`.
+   - Final step factor = `remaining` (guaranteed integer ≤ `maxStepDf`, ≥ 2).
+4. If no divisor ≥ 2 fits at some point (e.g. `df` is prime and larger than `maxStepDf` — like 199×), return an error: *"Cannot build a whole-number serial dilution for factor N× at final volume V. Increase the final volume or adjust the target."*
+5. Cap at a reasonable number of steps (e.g. 6); if exceeded, error out with the same "adjust target/volume" guidance.
+6. Emit steps normally: each uses target final volume `v2Ul`, aliquot = `finalVolUl / stepFactor` (whole µL when the factor divides cleanly), diluent = `finalVolUl − aliquot`. Label intermediates numerically; last step is "Final".
+
+Example (your case, `20 → 0.1 mg/mL, 1 mL`, df = 200, maxStepDf = 100):
+- Step 1 (Intermediate 1): 10× — 100 µL stock + 900 µL diluent → 1 mL at 2 mg/mL
+- Step 2 (Final): 20× — 50 µL of Intermediate 1 + 950 µL diluent → 1 mL at 0.1 mg/mL
+
+Single-step branch, unit conversions, warnings plumbing, procedure rendering, and the UI in `dilution-calculator.tsx` are unchanged.
+
+## Files
+
+- `src/lib/sample-prep/dilution.ts` — rewrite the serial-dilution section of `computeDilution` (roughly lines 107–152). No API/type changes.
