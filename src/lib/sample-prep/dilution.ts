@@ -104,32 +104,46 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     };
   }
 
-  // Serial dilution: pick step count so each aliquot >= minPipetteUl.
-  // Assume each intermediate is prepared at the same final volume as the target.
-  // maxStepDf per step = v2Ul / minPipetteUl. n = ceil(log(df)/log(maxStepDf)).
-  const maxStepDf = v2Ul / minPipetteUl;
-  if (maxStepDf <= 1) {
+  // Serial dilution: every per-step factor must be a whole integer >= 2.
+  // Cap per-step factor by maxStepDf so aliquot stays >= minPipetteUl at v2Ul.
+  const maxStepDf = Math.floor(v2Ul / minPipetteUl);
+  if (maxStepDf < 2) {
     return {
       steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
       error: `Final volume (${fmtVolUl(v2Ul)}) is too small to pipette ${minPipetteUl} µL. Increase the desired volume.`,
     };
   }
-  const n = Math.max(2, Math.ceil(Math.log(df) / Math.log(maxStepDf)));
-  const stepDf = Math.pow(df, 1 / n);
-  const aliquotUl = v2Ul / stepDf;
 
-  if (aliquotUl > availableUl) {
-    warnings.push(`First aliquot (${fmtVolUl(aliquotUl)}) exceeds available stock (${fmtVolUl(availableUl)}).`);
+  const dfRounded = Math.round(df);
+  if (Math.abs(df - dfRounded) > 1e-6 || dfRounded < 2) {
+    return {
+      steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
+      error: `Serial dilution requires a whole-number total dilution factor. Adjust target concentration or volume so C1/C2 is an integer (currently ${trim(df)}×).`,
+    };
+  }
+
+  const factors = factorize(dfRounded, maxStepDf, 6);
+  if (!factors) {
+    return {
+      steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
+      error: `Cannot build a whole-number serial dilution for factor ${dfRounded}× at final volume ${fmtVolUl(v2Ul)}. Increase the final volume or adjust the target.`,
+    };
+  }
+
+  const firstAliquotUl = v2Ul / factors[0];
+  if (firstAliquotUl > availableUl) {
+    warnings.push(`First aliquot (${fmtVolUl(firstAliquotUl)}) exceeds available stock (${fmtVolUl(availableUl)}).`);
   }
 
   const steps: DilutionStep[] = [];
   let prevConc = c1;
   let prevLabel = "Stock";
-  for (let i = 0; i < n; i++) {
-    const resulting = prevConc / stepDf;
+  for (let i = 0; i < factors.length; i++) {
+    const k = factors[i];
+    const resulting = prevConc / k;
     const s = buildStep({
       fromLabel: prevLabel,
-      aliquotUl,
+      aliquotUl: v2Ul / k,
       finalVolUl: v2Ul,
       resultingMgPerMl: resulting,
       diluentName,
@@ -138,18 +152,42 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     prevConc = resulting;
     prevLabel = `Intermediate ${i + 1}`;
   }
-  // Rename final label
-  if (steps.length > 0) {
-    // last step's result is the final target — leave step[i].fromLabel per chain
-  }
 
   return {
     steps,
-    procedure: renderProcedure(steps, diluentName, minPipetteUl, df, true, stepDf),
+    procedure: renderProcedure(steps, diluentName, minPipetteUl, df, true, factors),
     dilutionFactor: df,
     serial: true,
     warnings,
   };
+}
+
+/**
+ * Decompose `total` into an ordered list of integer factors, each in [2, maxStep],
+ * whose product equals `total`. Prefers 10× intermediates when 10 divides the
+ * remainder and fits in maxStep. Returns null if no decomposition of length <= maxSteps exists.
+ */
+function factorize(total: number, maxStep: number, maxSteps: number): number[] | null {
+  if (total <= maxStep) return [total];
+  const factors: number[] = [];
+  let remaining = total;
+  while (remaining > maxStep) {
+    if (factors.length >= maxSteps - 1) return null;
+    let k = 0;
+    if (maxStep >= 10 && remaining % 10 === 0) {
+      k = 10;
+    } else {
+      for (let cand = maxStep; cand >= 2; cand--) {
+        if (remaining % cand === 0) { k = cand; break; }
+      }
+    }
+    if (!k) return null;
+    factors.push(k);
+    remaining = remaining / k;
+  }
+  if (remaining < 2) return null;
+  factors.push(remaining);
+  return factors;
 }
 
 function buildStep(args: {
@@ -178,11 +216,11 @@ function renderProcedure(
   minPipetteUl: number,
   df: number,
   serial: boolean,
-  stepDf?: number,
+  factors?: number[],
 ): string {
   const lines: string[] = [];
   lines.push(serial
-    ? `Serial dilution — total factor ${trim(df)}× over ${steps.length} steps (~${trim(stepDf ?? 0)}× each).`
+    ? `Serial dilution — total factor ${trim(df)}× over ${steps.length} steps (${(factors ?? []).map(f => `${f}×`).join(" × ")}).`
     : `Single-step dilution — factor ${trim(df)}×.`);
   lines.push(`Minimum pipette volume: ${minPipetteUl} µL.`);
   lines.push("");
