@@ -16,7 +16,7 @@ async function loadContext(supabase: any, instrumentId: string) {
       .eq("id", instrumentId).maybeSingle(),
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
     supabase.from("samples")
-      .select("id,batch_id,compound,method_group_id,status,lot")
+      .select("id,batch_id,compound,method_group_id,status,lot,concentration")
       .eq("status", "received"),
   ]);
   if (!instrument) throw new Error("Instrument not found");

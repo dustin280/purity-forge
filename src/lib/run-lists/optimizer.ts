@@ -10,6 +10,8 @@ export interface OptimizerSample {
   compound: string | null;
   method_group_id: string | null;
   lot: string | null;
+  /** Free-text concentration from intake, e.g. "20 mg/mL", "100 ug/mL". */
+  concentration?: string | null;
 }
 
 export interface OptimizerMethodGroup {
@@ -58,6 +60,26 @@ function chunk<T>(arr: T[], size: number): T[][] {
   return out;
 }
 
+/**
+ * Parse a free-text concentration into mg/mL for ordering purposes only.
+ * Unparseable / missing values sort to the end (Infinity).
+ */
+function parseConcentrationMgPerMl(v: string | null | undefined): number {
+  if (!v) return Number.POSITIVE_INFINITY;
+  const s = String(v).trim();
+  const m = s.match(/([-+]?\d*\.?\d+)\s*([a-zµμ%/]*)/i);
+  if (!m) return Number.POSITIVE_INFINITY;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return Number.POSITIVE_INFINITY;
+  const unit = (m[2] || "").toLowerCase();
+  // Normalize a few common units to mg/mL. Everything else is left as-is —
+  // ordering only needs a consistent numeric key per compound.
+  if (/^(µg|ug|mcg)\/?(ml|ml\.)?$/.test(unit) || unit === "µg/ml" || unit === "ug/ml") return n / 1000;
+  if (/^ng\/?(ml)?$/.test(unit)) return n / 1_000_000;
+  if (/^g\/?(ml|l)?$/.test(unit)) return unit.includes("l") && !unit.includes("ml") ? n / 1000 : n * 1000;
+  return n;
+}
+
 /** Build the fixed QC pattern around up to 30 samples. */
 function withQC(
   samples: OptimizerSample[],
@@ -85,9 +107,10 @@ function withQC(
     block.forEach((s) => {
       const g = s.method_group_id ? groupById.get(s.method_group_id) ?? null : null;
       const lotSuffix = s.lot ? ` (Lot: ${s.lot})` : "";
+      const conc = s.concentration ? ` @ ${s.concentration}` : "";
       rows.push({
         type: "Sample",
-        label: s.batch_id + (s.compound ? ` — ${s.compound}` : "") + lotSuffix,
+        label: s.batch_id + (s.compound ? ` — ${s.compound}` : "") + conc + lotSuffix,
         sample_id: s.id,
         lot: s.lot ?? null,
         method_group_id: g?.id ?? null,
@@ -95,25 +118,17 @@ function withQC(
         acquisition_method: g?.default_acquisition_method ?? null,
         processing_method: g?.default_processing_method ?? null,
         vial: vialFor("sample"),
-        why: g ? `Method group: ${g.name} (priority ${g.priority}, ${g.temperature_c}°C)` : "No method group assigned",
+        why: [
+          s.compound ? `Compound ${s.compound}` : "No compound",
+          s.concentration ? `conc ${s.concentration}` : "no concentration",
+          g ? `${g.name} (${g.temperature_c}°C)` : "no method group",
+        ].join(" · "),
       });
     });
     push("CCB", `CCB-${bi + 1}`, true, { why: `Continuing calibration blank after block ${bi + 1}` });
     push("CCV", `CCV-${bi + 1}`, true, { why: `Continuing calibration verification after block ${bi + 1}` });
   });
   return rows;
-}
-
-/** Sort a Polar/Early + General mixed batch so all polar/early come first. */
-function orderPolarThenGeneral(
-  samples: OptimizerSample[],
-  groupById: Map<string, OptimizerMethodGroup>,
-): OptimizerSample[] {
-  return [...samples].sort((a, b) => {
-    const pa = a.method_group_id ? groupById.get(a.method_group_id)?.priority ?? 999 : 999;
-    const pb = b.method_group_id ? groupById.get(b.method_group_id)?.priority ?? 999 : 999;
-    return pa - pb;
-  });
 }
 
 export interface OptimizerInput {
@@ -126,64 +141,93 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
   const { samples, methodGroups, trayPositions } = input;
   const groupById = new Map(methodGroups.map((g) => [g.id, g]));
 
-  // Bucket samples by group id (or null bucket)
-  const bucket = new Map<string | null, OptimizerSample[]>();
+  // Homogeneity-first strategy: bucket samples by (method_group_id, compound)
+  // so every batch shares an acquisition method AND analyte. Within each
+  // bucket, order by ascending concentration (least → greatest) to minimize
+  // carryover. Method-group buckets are only split when a compound spans more
+  // than MAX_SAMPLES_PER_SEQ; different compounds may share a run only when
+  // a single compound isn't enough to fill one on its own.
+  type Bucket = { key: string; primaryGroupId: string | null; compound: string | null; samples: OptimizerSample[] };
+  const buckets = new Map<string, Bucket>();
   for (const s of samples) {
-    const k = s.method_group_id ?? null;
-    const arr = bucket.get(k) ?? [];
-    arr.push(s); bucket.set(k, arr);
-  }
-
-  // Group order: by priority ASC then temperature ASC
-  const orderedGroups = [...methodGroups]
-    .filter((g) => (bucket.get(g.id)?.length ?? 0) > 0)
-    .sort((a, b) => a.priority - b.priority || a.temperature_c - b.temperature_c);
-
-  const groupNames = new Set(orderedGroups.map((g) => g.name.toLowerCase()));
-  const hasPolar = groupNames.has("polar/early");
-  const hasGeneral = groupNames.has("general");
-
-  // Assemble sample groups into "runs" — a run is up to 30 samples that get one QC-wrapped sequence.
-  const runs: { samples: OptimizerSample[]; primaryGroupId: string | null; temp: number | null; note: string }[] = [];
-
-  // Optional Polar+General merge when both present and it saves a run
-  if (hasPolar && hasGeneral) {
-    const polar = bucket.get(orderedGroups.find((g) => g.name.toLowerCase() === "polar/early")!.id) ?? [];
-    const general = bucket.get(orderedGroups.find((g) => g.name.toLowerCase() === "general")!.id) ?? [];
-    const merged = orderPolarThenGeneral([...polar, ...general], groupById);
-    const solo = Math.ceil(polar.length / MAX_SAMPLES_PER_SEQ) + Math.ceil(general.length / MAX_SAMPLES_PER_SEQ);
-    const mergedCount = Math.ceil(merged.length / MAX_SAMPLES_PER_SEQ);
-    if (mergedCount < solo) {
-      chunk(merged, MAX_SAMPLES_PER_SEQ).forEach((c) =>
-        runs.push({ samples: c, primaryGroupId: null, temp: 40, note: "Polar/Early + General merged" }));
-      bucket.delete(orderedGroups.find((g) => g.name.toLowerCase() === "polar/early")!.id);
-      bucket.delete(orderedGroups.find((g) => g.name.toLowerCase() === "general")!.id);
+    const gid = s.method_group_id ?? "__nogroup__";
+    const cmp = s.compound ?? "__nocompound__";
+    const key = `${gid}::${cmp}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = { key, primaryGroupId: s.method_group_id ?? null, compound: s.compound ?? null, samples: [] };
+      buckets.set(key, b);
     }
+    b.samples.push(s);
+  }
+  // Ascending concentration inside each compound bucket.
+  for (const b of buckets.values()) {
+    b.samples.sort((a, z) => {
+      const ca = parseConcentrationMgPerMl(a.concentration);
+      const cz = parseConcentrationMgPerMl(z.concentration);
+      if (ca !== cz) return ca - cz;
+      return a.batch_id.localeCompare(z.batch_id);
+    });
   }
 
-  // Remaining groups (also handles null bucket)
-  for (const g of orderedGroups) {
-    const s = bucket.get(g.id);
-    if (!s?.length) continue;
-    chunk(s, MAX_SAMPLES_PER_SEQ).forEach((c) =>
-      runs.push({ samples: c, primaryGroupId: g.id, temp: g.temperature_c, note: g.name }));
-  }
-  const unassigned = bucket.get(null) ?? [];
-  if (unassigned.length) {
-    chunk(unassigned, MAX_SAMPLES_PER_SEQ).forEach((c) =>
-      runs.push({ samples: c, primaryGroupId: null, temp: null, note: "No method group" }));
-  }
-
-  // Reorder so Hydrophobes/GLP never sit immediately before a Polar/Early run.
-  // Rule of thumb: hard-sort by (priority, temperature) — since Polar/Early is
-  // priority 1 and Hydrophobes/GLP are 3/4, sorting the run list ascending
-  // guarantees the constraint.
-  runs.sort((a, b) => {
-    const ap = a.primaryGroupId ? groupById.get(a.primaryGroupId)?.priority ?? 999 : 0;
-    const bp = b.primaryGroupId ? groupById.get(b.primaryGroupId)?.priority ?? 999 : 0;
-    if (ap !== bp) return ap - bp;
-    return (a.temp ?? 0) - (b.temp ?? 0);
+  // Order buckets: by method-group priority/temperature, then compound name.
+  const orderedBuckets = [...buckets.values()].sort((a, b) => {
+    const ga = a.primaryGroupId ? groupById.get(a.primaryGroupId) : null;
+    const gb = b.primaryGroupId ? groupById.get(b.primaryGroupId) : null;
+    const pa = ga?.priority ?? 999;
+    const pb = gb?.priority ?? 999;
+    if (pa !== pb) return pa - pb;
+    const ta = ga?.temperature_c ?? 0;
+    const tb = gb?.temperature_c ?? 0;
+    if (ta !== tb) return ta - tb;
+    return (a.compound ?? "\uFFFF").localeCompare(b.compound ?? "\uFFFF");
   });
+
+  // Pack buckets into runs. A run holds up to MAX_SAMPLES_PER_SEQ samples and
+  // never mixes method groups. Compounds that overflow a run get their own
+  // dedicated chunked runs (still ascending concentration).
+  const runs: { samples: OptimizerSample[]; primaryGroupId: string | null; temp: number | null; note: string }[] = [];
+  let current: { samples: OptimizerSample[]; primaryGroupId: string | null; temp: number | null; compounds: string[] } | null = null;
+  const flush = () => {
+    if (!current || current.samples.length === 0) return;
+    const g = current.primaryGroupId ? groupById.get(current.primaryGroupId) : null;
+    const note = current.compounds.length === 1
+      ? `${current.compounds[0]}${g ? ` · ${g.name}` : ""}`
+      : `${g?.name ?? "Mixed"} (${current.compounds.join(", ")})`;
+    runs.push({
+      samples: current.samples,
+      primaryGroupId: current.primaryGroupId,
+      temp: g?.temperature_c ?? null,
+      note,
+    });
+    current = null;
+  };
+
+  for (const b of orderedBuckets) {
+    const label = b.compound ?? "Unassigned";
+    if (b.samples.length >= MAX_SAMPLES_PER_SEQ) {
+      flush();
+      const g = b.primaryGroupId ? groupById.get(b.primaryGroupId) : null;
+      chunk(b.samples, MAX_SAMPLES_PER_SEQ).forEach((c, i, arr) => {
+        runs.push({
+          samples: c,
+          primaryGroupId: b.primaryGroupId,
+          temp: g?.temperature_c ?? null,
+          note: arr.length > 1 ? `${label} (part ${i + 1}/${arr.length})${g ? ` · ${g.name}` : ""}` : `${label}${g ? ` · ${g.name}` : ""}`,
+        });
+      });
+      continue;
+    }
+    // Start a new run when method group changes or the current one would overflow.
+    if (!current || current.primaryGroupId !== b.primaryGroupId ||
+        current.samples.length + b.samples.length > MAX_SAMPLES_PER_SEQ) {
+      flush();
+      current = { samples: [], primaryGroupId: b.primaryGroupId, temp: null, compounds: [] };
+    }
+    current.samples.push(...b.samples);
+    current.compounds.push(label);
+  }
+  flush();
 
   // Vial allocator — walk tray positions in order
   const refVials = trayPositions.filter((p) => p.is_ref_vial).map((p) => p.position_code);
