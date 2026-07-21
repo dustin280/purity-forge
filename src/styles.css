@@ -104,3 +104,8 @@
 @media print {
   .print-landscape-page { /* marker */ }
 }
+
+@media print {
+  aside, nav, [data-sidebar], header.app-header { display: none !important; }
+  .prep-card { break-inside: avoid; page-break-inside: avoid; }
+}
