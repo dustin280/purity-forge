@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,18 +6,34 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Copy } from "lucide-react";
+import { Copy, X } from "lucide-react";
 import {
   computeDilution,
   MASS_UNITS,
   VOL_UNITS,
   type MassUnit,
   type VolUnit,
+  type DilutionResult,
 } from "@/lib/sample-prep/dilution";
 
 const MIN_PIPETTE_UL = 10;
 
-export function DilutionCalculator() {
+export interface DilutionSnapshot {
+  title: string;
+  stock: { conc: string; massUnit: MassUnit; volUnit: VolUnit; availableVol: string; availableVolUnit: VolUnit };
+  target: { conc: string; massUnit: MassUnit; volUnit: VolUnit; finalVol: string; finalVolUnit: VolUnit };
+  diluent: string;
+  result: DilutionResult | null;
+}
+
+interface Props {
+  title?: string;
+  onTitleChange?: (t: string) => void;
+  onRemove?: () => void;
+  onSnapshot?: (s: DilutionSnapshot) => void;
+}
+
+export function DilutionCalculator({ title, onTitleChange, onRemove, onSnapshot }: Props = {}) {
   // Stock
   const [c1, setC1] = useState("10");
   const [c1Mass, setC1Mass] = useState<MassUnit>("mg");
@@ -45,6 +61,17 @@ export function DilutionCalculator() {
     });
   }, [c1, c1Mass, c1Vol, v1, v1Unit, c2, c2Mass, c2Vol, v2, v2Unit, diluent]);
 
+  useEffect(() => {
+    onSnapshot?.({
+      title: title ?? "",
+      stock: { conc: c1, massUnit: c1Mass, volUnit: c1Vol, availableVol: v1, availableVolUnit: v1Unit },
+      target: { conc: c2, massUnit: c2Mass, volUnit: c2Vol, finalVol: v2, finalVolUnit: v2Unit },
+      diluent,
+      result,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c1, c1Mass, c1Vol, v1, v1Unit, c2, c2Mass, c2Vol, v2, v2Unit, diluent, result, title]);
+
   function copy() {
     if (!result) return;
     navigator.clipboard.writeText(result.procedure).then(
@@ -54,9 +81,25 @@ export function DilutionCalculator() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 prep-card">
       <Card className="p-5 space-y-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Dilution Calculator</h2>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          {onTitleChange ? (
+            <Input
+              value={title ?? ""}
+              onChange={e => onTitleChange(e.target.value)}
+              placeholder="Prep name (e.g. Sample A working std)"
+              className="max-w-sm font-semibold"
+            />
+          ) : (
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Dilution Calculator</h2>
+          )}
+          {onRemove && (
+            <Button type="button" size="sm" variant="ghost" onClick={onRemove} className="print:hidden">
+              <X className="size-4 mr-1" /> Remove
+            </Button>
+          )}
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           <section className="space-y-3">
