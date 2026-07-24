@@ -210,6 +210,16 @@ function RunListDetail() {
             </Button>
             <Button
               size="sm"
+              variant="outline"
+              onClick={() => genPrepMut.mutate()}
+              disabled={genPrepMut.isPending || items.length === 0}
+              title="Create draft preparation records for each unique compound on this run list"
+            >
+              <FlaskConical className={`size-4 mr-1 ${genPrepMut.isPending ? "animate-pulse" : ""}`} />
+              {genPrepMut.isPending ? "Generating\u2026" : "Generate prep drafts"}
+            </Button>
+            <Button
+              size="sm"
               onClick={() => pushMut.mutate()}
               disabled={!driveReady || pushMut.isPending || items.length === 0}
               title={driveReady ? "Upload to the Google Drive Sequences folder" : "Configure Drive in Instrument Communication \u2192 Settings"}
@@ -220,6 +230,47 @@ function RunListDetail() {
             {l.status === "draft" && <Button size="sm" variant="ghost" onClick={() => markSent({ data: { id } }).then(() => { qc.invalidateQueries({ queryKey: qk.runLists.detail(id) }); toast.success("Marked exported"); })}>Mark exported</Button>}
           </div>
         </div>
+        {coverage && coverage.rows.length > 0 && (() => {
+          const warnings = coverage.rows.filter(r => r.warning);
+          if (warnings.length === 0) {
+            return (
+              <div className="mb-3 text-xs rounded-md border border-border bg-muted/40 px-3 py-2 flex items-center gap-2">
+                <FlaskConical className="size-3.5" />
+                All {coverage.rows.length} rows have an approved, unexpired preparation record.
+              </div>
+            );
+          }
+          const byReason = warnings.reduce<Record<string, string[]>>((acc, r) => {
+            const key = r.warning ?? "unknown";
+            const label = r.compound || r.batch_id || "(row)";
+            (acc[key] ||= []).push(label);
+            return acc;
+          }, {});
+          const labelFor = (k: string) => ({
+            unlinked: "No prep record linked",
+            not_approved: "Prep not yet approved",
+            expired: "Prep expired",
+            rejected: "Prep rejected",
+            no_compound: "Row has no compound",
+          }[k] ?? k);
+          return (
+            <div className="mb-3 text-xs rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-100 px-3 py-2 space-y-1">
+              <div className="flex items-center gap-2 font-medium">
+                <AlertTriangle className="size-3.5" />
+                {warnings.length} of {coverage.rows.length} rows have preparation warnings (export allowed).
+              </div>
+              <ul className="pl-5 list-disc space-y-0.5">
+                {Object.entries(byReason).map(([k, xs]) => (
+                  <li key={k}>
+                    <span className="font-medium">{labelFor(k)}:</span>{" "}
+                    {Array.from(new Set(xs)).slice(0, 8).join(", ")}
+                    {xs.length > 8 ? ` +${xs.length - 8} more` : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })()}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
