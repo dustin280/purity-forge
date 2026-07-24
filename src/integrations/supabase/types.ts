@@ -2984,6 +2984,236 @@ export type Database = {
           },
         ]
       }
+      sp_preparation_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
+      sp_preparation_records: {
+        Row: {
+          analyte_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          lot_number: string | null
+          method_revision_id: string
+          notes: string | null
+          plan: Json
+          planned_calibration_level: number | null
+          planned_target_concentration_mg_per_ml: number | null
+          planned_target_volume_ul: number | null
+          prep_number: string
+          prepared_at: string | null
+          prepared_by: string
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sample_context: Json
+          sample_id: string | null
+          solvent_formulation_id: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          analyte_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lot_number?: string | null
+          method_revision_id: string
+          notes?: string | null
+          plan?: Json
+          planned_calibration_level?: number | null
+          planned_target_concentration_mg_per_ml?: number | null
+          planned_target_volume_ul?: number | null
+          prep_number: string
+          prepared_at?: string | null
+          prepared_by: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_context?: Json
+          sample_id?: string | null
+          solvent_formulation_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analyte_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          lot_number?: string | null
+          method_revision_id?: string
+          notes?: string | null
+          plan?: Json
+          planned_calibration_level?: number | null
+          planned_target_concentration_mg_per_ml?: number | null
+          planned_target_volume_ul?: number | null
+          prep_number?: string
+          prepared_at?: string | null
+          prepared_by?: string
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_context?: Json
+          sample_id?: string | null
+          solvent_formulation_id?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_preparation_records_analyte_id_fkey"
+            columns: ["analyte_id"]
+            isOneToOne: false
+            referencedRelation: "sp_analytes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_records_method_revision_id_fkey"
+            columns: ["method_revision_id"]
+            isOneToOne: false
+            referencedRelation: "sp_method_revisions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_records_solvent_formulation_id_fkey"
+            columns: ["solvent_formulation_id"]
+            isOneToOne: false
+            referencedRelation: "sp_solvent_formulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_preparation_steps: {
+        Row: {
+          actual_conc_mg_per_ml: number | null
+          actual_diluent_ul: number | null
+          actual_final_volume_ul: number | null
+          actual_mass_mg: number | null
+          actual_volume_ul: number | null
+          balance_id: string | null
+          created_at: string
+          deviation_flag: boolean
+          equipment_id: string | null
+          id: string
+          kind: string
+          notes: string | null
+          performed_at: string | null
+          performed_by_initials: string | null
+          planned: Json
+          reagent_lot_id: string | null
+          record_id: string
+          solvent_lot_id: string | null
+          step_no: number
+          updated_at: string
+          vessel_id: string | null
+        }
+        Insert: {
+          actual_conc_mg_per_ml?: number | null
+          actual_diluent_ul?: number | null
+          actual_final_volume_ul?: number | null
+          actual_mass_mg?: number | null
+          actual_volume_ul?: number | null
+          balance_id?: string | null
+          created_at?: string
+          deviation_flag?: boolean
+          equipment_id?: string | null
+          id?: string
+          kind: string
+          notes?: string | null
+          performed_at?: string | null
+          performed_by_initials?: string | null
+          planned?: Json
+          reagent_lot_id?: string | null
+          record_id: string
+          solvent_lot_id?: string | null
+          step_no: number
+          updated_at?: string
+          vessel_id?: string | null
+        }
+        Update: {
+          actual_conc_mg_per_ml?: number | null
+          actual_diluent_ul?: number | null
+          actual_final_volume_ul?: number | null
+          actual_mass_mg?: number | null
+          actual_volume_ul?: number | null
+          balance_id?: string | null
+          created_at?: string
+          deviation_flag?: boolean
+          equipment_id?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          performed_at?: string | null
+          performed_by_initials?: string | null
+          planned?: Json
+          reagent_lot_id?: string | null
+          record_id?: string
+          solvent_lot_id?: string | null
+          step_no?: number
+          updated_at?: string
+          vessel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_preparation_steps_balance_id_fkey"
+            columns: ["balance_id"]
+            isOneToOne: false
+            referencedRelation: "sp_equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_steps_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "sp_equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_steps_reagent_lot_id_fkey"
+            columns: ["reagent_lot_id"]
+            isOneToOne: false
+            referencedRelation: "sp_reagent_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_steps_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "sp_preparation_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_steps_solvent_lot_id_fkey"
+            columns: ["solvent_lot_id"]
+            isOneToOne: false
+            referencedRelation: "sp_reagent_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_preparation_steps_vessel_id_fkey"
+            columns: ["vessel_id"]
+            isOneToOne: false
+            referencedRelation: "sp_vessels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sp_reagent_lot_components: {
         Row: {
           actual_quantity: number | null
@@ -3863,6 +4093,7 @@ export type Database = {
         Args: { p_day: string; p_instrument_key: string }
         Returns: number
       }
+      next_sp_prep_number: { Args: never; Returns: string }
       next_standard_preparation_number: { Args: never; Returns: string }
       next_stdlog_lot: { Args: never; Returns: string }
       next_syn_id: {
