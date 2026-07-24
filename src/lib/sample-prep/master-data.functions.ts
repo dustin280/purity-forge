@@ -353,7 +353,7 @@ export const setRevisionStatus = createServerFn({ method: "POST" })
         .update({ status: "superseded", superseded_date: new Date().toISOString().slice(0,10) })
         .eq("method_id", existing.method_id).eq("status", "approved").neq("id", data.id);
     }
-    const { error } = await context.supabase.from("sp_method_revisions").update(patch).eq("id", data.id);
+    const { error } = await context.supabase.from("sp_method_revisions").update(patch as never).eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });
@@ -369,7 +369,7 @@ export const createRevisionFrom = createServerFn({ method: "POST" })
     const { id: _id, created_at: _c, updated_at: _u, status: _s, approval_date: _a, approved_by: _ab, ...copy } = src as Record<string, unknown> & { id: string; created_at: string; updated_at: string; status: string; approval_date: string | null; approved_by: string | null };
     void _id; void _c; void _u; void _s; void _a; void _ab;
     const { data: newRev, error: cErr } = await context.supabase.from("sp_method_revisions")
-      .insert({ ...copy, version, revision, status: "draft", approval_date: null, approved_by: null, created_by: context.userId })
+      .insert({ ...copy, version, revision, status: "draft", approval_date: null, approved_by: null, created_by: context.userId } as never)
       .select("*").single();
     if (cErr) throw cErr;
     // clone children
@@ -385,7 +385,7 @@ export const createRevisionFrom = createServerFn({ method: "POST" })
     if (pr.data) {
       const { revision_id: _rid, created_at: _pc, updated_at: _pu, ...prCopy } = pr.data as Record<string, unknown> & { revision_id: string; created_at: string; updated_at: string };
       void _rid; void _pc; void _pu;
-      await context.supabase.from("sp_method_prep_rules").insert({ ...prCopy, revision_id: newRev.id });
+      await context.supabase.from("sp_method_prep_rules").insert({ ...prCopy, revision_id: newRev.id } as never);
     } else {
       await context.supabase.from("sp_method_prep_rules").insert({ revision_id: newRev.id });
     }
