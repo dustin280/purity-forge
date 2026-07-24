@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useReducer } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Printer } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, Printer, Save } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +25,7 @@ import {
   type PrepRules,
 } from "@/lib/sample-prep/master-data.functions";
 import { planPreparation, formatConcentration, formatVolume, type PrepPlan } from "@/lib/sample-prep/prep-engine";
+import { createDraftRecord } from "@/lib/sample-prep/records.functions";
 
 export const Route = createFileRoute("/_authenticated/sample-prep/new")({
   head: () => ({ meta: [
@@ -106,6 +109,8 @@ const STEP_TITLES = ["Method", "Sample", "Target", "Solvent & Vessels", "Review"
 
 function NewPrepWizard() {
   const [state, dispatch] = useReducer(reducer, undefined, loadDraft);
+  const navigate = useNavigate();
+  const createDraft = useServerFn(createDraftRecord);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -221,6 +226,68 @@ function NewPrepWizard() {
 
   const canAdvance = validate(state.step, state, rev, rules);
 
+  const analyteId = useMemo(() => {
+    if (!rev || !methodsQ.data) return null;
+    return methodsQ.data.methods.find(m => m.id === rev.method_id)?.analyte_id ?? null;
+  }, [rev, methodsQ.data]);
+
+  const solventFormulationId = useMemo(() => {
+    if (!state.solventName) return null;
+    return solventsQ.data?.formulations.find(f => f.name === state.solventName)?.id ?? null;
+  }, [state.solventName, solventsQ.data]);
+
+  const saveDraftMut = useMutation({
+    mutationFn: async () => {
+      if (!rev || !analyteId || !plan?.ok) throw new Error("Complete the plan before saving.");
+      const steps = plan.steps.map(s => ({
+        step_no: s.ordinal,
+        kind: s.kind,
+        planned: {
+          instruction: s.instruction,
+          label: s.toLabel,
+          suggested_vessel_id: s.suggestedVesselId ?? null,
+          suggested_equipment_id: s.suggestedEquipmentId ?? null,
+        } as Record<string, unknown>,
+      }));
+      return createDraft({
+        data: {
+          method_revision_id: rev.id,
+          analyte_id: analyteId,
+          planned_target_concentration_mg_per_ml: Number(state.targetConcMgPerMl) || null,
+          planned_target_volume_ul: Number(state.finalVolumeUl) || null,
+          planned_calibration_level: state.targetLevel,
+          sample_id: state.sampleId || null,
+          lot_number: state.lotNumber || null,
+          sample_context: {
+            source_form: state.sourceForm,
+            available_mass_mg: state.availableMassMg ? Number(state.availableMassMg) : null,
+            purity_percent: state.purityPercent ? Number(state.purityPercent) : null,
+            stock_conc_mg_per_ml: state.stockConcMgPerMl ? Number(state.stockConcMgPerMl) : null,
+            available_volume_ul: state.availableVolumeUl ? Number(state.availableVolumeUl) : null,
+            reconstitution_volume_ul: state.reconstitutionVolumeUl ? Number(state.reconstitutionVolumeUl) : null,
+            solvent_name: state.solventName || null,
+          },
+          solvent_formulation_id: solventFormulationId,
+          plan: {
+            target_conc_mg_per_ml: plan.targetConcentrationMgPerMl,
+            final_volume_ul: plan.finalVolumeUl,
+            stock_conc_mg_per_ml: plan.stockConcentrationMgPerMl,
+            total_dilution_factor: plan.totalDilutionFactor,
+            warnings: plan.warnings,
+          } as Record<string, unknown>,
+          notes: state.notes || null,
+          steps,
+        },
+      });
+    },
+    onSuccess: (res) => {
+      toast.success(`Saved as ${res.prep_number}`);
+      try { window.sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+      navigate({ to: "/sample-prep/records/$id", params: { id: res.id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <SamplePrepShell title="New Preparation" description="Turn an approved method revision into a bench-ready preparation plan.">
       <Stepper current={state.step} onGoto={n => dispatch({ type: "goto", step: n })} />
@@ -286,12 +353,22 @@ function NewPrepWizard() {
               <Printer className="size-4 mr-1" /> Print prep sheet
             </Button>
           )}
+          {state.step === 4 && (
+            <Button
+              type="button"
+              onClick={() => saveDraftMut.mutate()}
+              disabled={!plan?.ok || saveDraftMut.isPending}
+            >
+              <Save className="size-4 mr-1" />
+              {saveDraftMut.isPending ? "Saving…" : "Save as draft"}
+            </Button>
+          )}
         </div>
       </div>
 
       <p className="text-xs text-muted-foreground print:hidden">
-        Persistence, review workflow, and lot capture arrive in Phase 1C. Meanwhile use{" "}
-        <Link to="/sample-prep/quick-dilution" className="underline">Quick Dilution</Link> for ad-hoc calcs.
+        Save a draft to capture bench execution (lots, actual volumes, deviations) and submit for reviewer sign-off.
+        For ad-hoc calcs use <Link to="/sample-prep/quick-dilution" className="underline">Quick Dilution</Link>.
       </p>
     </SamplePrepShell>
   );
