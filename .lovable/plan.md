@@ -1,48 +1,84 @@
-## Phase 1B — Method-Driven New Preparation Wizard
+## Phase 1C — Preparation Records: Persist, Execute, Review
 
-Phase 1A shipped the master-data foundation (analytes, methods + revisions, calibration, prep rules, vessels, equipment, solvents, settings). Phase 1B activates `/sample-prep/new` as a **guided calculation wizard** that turns an approved method revision + a sample into an executable prep plan. Bench execution, review/approve, and records land in Phase 1C.
+Phase 1B turned `/sample-prep/new` into a calculating wizard whose output lives only in `sessionStorage`. Phase 1C makes that output a first-class, traceable lab record: saved to the database, executed at the bench with actual weights/volumes and lot capture, reviewed and approved, and exportable as a signed PDF.
 
 ### Scope
 
-- Only approved `sp_method_revisions` are selectable.
-- Calculates: stock reconstitution, dilution chain (direct or serial), aliquot volumes, target level check against calibration.
-- Respects `sp_settings` thresholds (absolute/preferred min pipette µL, max dilution steps) and revision `sp_method_prep_rules` (volumes, allowed vessels/solvents).
-- Suggests vessels from `sp_vessels` and equipment (balance/pipette) from `sp_equipment` by capacity range.
-- Output: printable prep sheet (steps, target level, calibration context, chosen vessels/equipment). No DB write yet — session state only, with "Copy to clipboard" + "Print". Persistence + review workflow = Phase 1C.
+- New tables `sp_preparation_records` (header) and `sp_preparation_steps` (executed steps), plus daily counter table for a human-readable `SP-YYYYMMDD-###` number.
+- Wizard "Review" step gains **Save as Draft** (persists plan + inputs) alongside existing Print/Copy.
+- New route `/sample-prep/records/$id` (bench execution + review) with three modes driven by status:
+  - `draft` — editable inputs, recompute plan, save.
+  - `in_progress` — plan locked; per-step actual mass / volume / lot / vessel / equipment / balance reading / timestamp / initials capture; auto-computes actual concentration; deviation flags vs. planned.
+  - `awaiting_review` / `approved` / `rejected` — read-only with reviewer sign-off (name + timestamp + optional comment).
+- List route `/sample-prep/records` (currently a placeholder) becomes a real table: number, method rev, analyte, status, prepared_by, prepared_at, expires_at, actions.
+- PDF export (client-side) of an approved record: header, method context, planned vs. actual steps, lots, equipment, sign-offs. Reuses `jsPDF` + `jspdf-autotable` already in the project (as used by standard-preparation PDF).
+- Dashboard tile "Preparation records" links here and shows the real count.
 
-### Wizard steps (single route, stateful stepper)
+### Out of scope this phase
 
-1. **Method + Analyte** — pick approved method revision (filtered by analyte, method type, active).
-2. **Sample context** — analyte confirmation, source form (lyophilized / solution), source concentration + purity, available mass or volume.
-3. **Target** — pick calibration level (default = revision `default_target_level`), override target concentration + final volume within prep-rule bounds.
-4. **Solvent + vessels** — solvent formulation (constrained by allowed list), vessel per stage (constrained by allowed sizes + working-volume range).
-5. **Review** — computed plan: reconstitution, dilution chain, aliquots, equipment recommendations, warnings. Print / copy.
-
-### Calculation engine
-
-New pure module `src/lib/sample-prep/prep-engine.ts`:
-
-- `planPreparation(input): PrepPlan` — deterministic, no I/O.
-- Reuses serial-dilution logic already in `src/lib/sample-prep/dilution.ts` (whole-number per-step factors, ≥ min pipette µL) but respects revision-specific `min/preferred/max_pipette_ul` and `max_dilution_steps`.
-- Returns typed steps (`reconstitute`, `dilute`, `aliquot`), warnings (`below-min-pipette`, `exceeds-max-steps`, `outside-vessel-working-volume`, `target-outside-calibration-range`), and equipment suggestions.
+- Run-list linkage (Phase 1D).
+- Any change to Phase 1A/1B UIs beyond wizard Save button, dashboard count, and records list.
+- Attachments on preparation records (deferred).
 
 ### Files
 
-- New: `src/lib/sample-prep/prep-engine.ts` + unit-test-friendly pure functions.
-- New: `src/lib/sample-prep/wizard.functions.ts` — read-only server fns: `listApprovedRevisionsForAnalyte`, `getRevisionForPrep` (revision + mobile phases + gradient + calibration + prep rules + allowed vessels/solvents/equipment).
-- New: `src/components/sample-prep/wizard/` — `Stepper`, `StepMethod`, `StepSample`, `StepTarget`, `StepSolventVessels`, `StepReview`, `PrepPlanView`.
-- Replace: `src/routes/_authenticated/sample-prep/new.tsx` (currently placeholder) with the wizard host.
-- Modified: `src/routes/_authenticated/sample-prep/index.tsx` — dashboard "New Preparation" tile links to `/sample-prep/new`.
+- New migration: `sp_preparation_records`, `sp_preparation_steps`, `sp_preparation_counters`, `next_sp_prep_number()`, RLS + GRANTs.
+- New: `src/lib/sample-prep/records.functions.ts` — `createDraftRecord`, `getRecord`, `updateDraftRecord`, `startExecution`, `saveExecutedStep`, `submitForReview`, `approveRecord`, `rejectRecord`, `listRecords`, `deleteDraft`.
+- New: `src/components/sample-prep/records/` — `RecordsTable`, `RecordHeader`, `ExecutionPanel`, `ReviewPanel`, `RecordPdfButton`.
+- New: `src/lib/sample-prep/record-pdf.ts` — PDF generator.
+- Modified: `src/components/sample-prep/wizard/StepReview.tsx` — add Save as Draft (calls `createDraftRecord`, navigates to record).
+- Replace: `src/routes/_authenticated/sample-prep/records.tsx` (placeholder → list).
+- New: `src/routes/_authenticated/sample-prep/records.$id.tsx` — execute/review host.
+- Modified: `src/routes/_authenticated/sample-prep/index.tsx` — records tile shows live count from `getPrepCounts`.
+- Modified: `src/lib/sample-prep/master-data.functions.ts` — extend `getPrepCounts` with `records` count.
 
-### Explicitly out of scope this phase
+### Data model
 
-- Persisting preparation records (Phase 1C — `sp_preparation_records` table + review/approve + PDF).
-- Bench execution mode with lot capture and actual-vs-target reconciliation (Phase 1C).
-- Run-list linkage (Phase 1D).
-- Any change to existing tables or Phase 1A UI beyond the dashboard tile.
+```text
+sp_preparation_records
+  id uuid pk
+  prep_number text unique (SP-YYYYMMDD-###)
+  method_revision_id uuid fk sp_method_revisions
+  analyte_id uuid fk sp_analytes
+  status text ('draft'|'in_progress'|'awaiting_review'|'approved'|'rejected')
+  planned_target_concentration numeric, planned_target_volume_ml numeric
+  planned_calibration_level_id uuid null
+  sample_context jsonb  -- source form, source conc, purity, mass/vol available
+  solvent_formulation_id uuid null
+  plan jsonb            -- serialized PrepPlan from engine (source of truth for planned steps)
+  prepared_by uuid fk auth.users
+  prepared_at timestamptz
+  reviewed_by uuid null, reviewed_at timestamptz null, review_comment text null
+  expires_at timestamptz null
+  created_at, updated_at
+
+sp_preparation_steps
+  id uuid pk
+  record_id uuid fk sp_preparation_records on delete cascade
+  step_no int
+  kind text ('reconstitute'|'dilute'|'aliquot')
+  planned jsonb  -- from PrepPlan
+  actual_mass_mg numeric null, actual_volume_ul numeric null
+  actual_conc_mg_per_ml numeric null
+  vessel_id uuid null, equipment_id uuid null, balance_id uuid null
+  reagent_lot_id uuid null, solvent_lot_id uuid null
+  performed_at timestamptz null, performed_by_initials text null
+  deviation_flag boolean default false, notes text null
+```
+
+### Status transitions
+
+```text
+draft ──startExecution──▶ in_progress ──submitForReview──▶ awaiting_review
+                                                             │
+                                                             ├─approveRecord──▶ approved (terminal)
+                                                             └─rejectRecord──▶ rejected (→ back to in_progress on edit)
+```
 
 ### Technical notes
 
-- No migration this phase; all Phase 1A tables suffice.
-- All server fns use `requireSupabaseAuth`, read-only, RLS as the user.
-- Wizard state kept in a `useReducer` with `sessionStorage` autosave keyed by `sample-prep-wizard-draft` so refresh doesn't wipe work; cleared on "Start over".
+- All server fns use `requireSupabaseAuth`; admin-only for `approveRecord`/`rejectRecord` (checked via `has_role`).
+- RLS: authenticated users read any record; only creator can edit their own drafts; only admin/reviewer can approve.
+- `prep_number` generated by counter function in the same style as `next_standard_preparation_number()`.
+- Wizard state → record: the `plan` JSON is stored verbatim so re-opening a draft rehydrates the same computed steps without re-running the engine.
+- No changes to Phase 1B engine; records are a persistence layer on top of it.
