@@ -5,7 +5,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, FlaskConical, ClipboardList, Beaker, Atom, BookOpen, TestTube2, Wrench, Droplets, Settings } from "lucide-react";
 
-const TABS = [
+type Tab = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const TABS: Tab[] = [
   { to: "/sample-prep", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/sample-prep/new", label: "New Preparation", icon: FlaskConical },
   { to: "/sample-prep/records", label: "Records", icon: ClipboardList },
@@ -16,7 +17,7 @@ const TABS = [
   { to: "/sample-prep/vessels", label: "Vessels", icon: TestTube2 },
   { to: "/sample-prep/equipment", label: "Equipment", icon: Wrench },
   { to: "/sample-prep/settings", label: "Settings", icon: Settings },
-] as const;
+];
 
 export function SamplePrepSectionNav() {
   const pathname = useRouterState({ select: r => r.location.pathname });
@@ -25,7 +26,7 @@ export function SamplePrepSectionNav() {
       {TABS.map(t => {
         const active = t.exact ? pathname === t.to : pathname === t.to || pathname.startsWith(t.to + "/");
         return (
-          <Link key={t.to} to={t.to}
+          <Link key={t.to} to={t.to as never}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
               active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
             }`}>
