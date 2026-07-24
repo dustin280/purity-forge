@@ -2071,6 +2071,7 @@ export type Database = {
           run_list_id: string
           sample_id: string | null
           sample_type: string
+          sp_preparation_record_id: string | null
           updated_at: string
           vial: number | null
         }
@@ -2085,6 +2086,7 @@ export type Database = {
           run_list_id: string
           sample_id?: string | null
           sample_type?: string
+          sp_preparation_record_id?: string | null
           updated_at?: string
           vial?: number | null
         }
@@ -2099,6 +2101,7 @@ export type Database = {
           run_list_id?: string
           sample_id?: string | null
           sample_type?: string
+          sp_preparation_record_id?: string | null
           updated_at?: string
           vial?: number | null
         }
@@ -2115,6 +2118,13 @@ export type Database = {
             columns: ["sample_id"]
             isOneToOne: false
             referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "run_list_items_sp_preparation_record_id_fkey"
+            columns: ["sp_preparation_record_id"]
+            isOneToOne: false
+            referencedRelation: "sp_preparation_records"
             referencedColumns: ["id"]
           },
         ]
