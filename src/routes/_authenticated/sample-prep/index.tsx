@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
 import { getPrepCounts } from "@/lib/sample-prep/master-data.functions";
+import { countRecords } from "@/lib/sample-prep/records.functions";
 import { Atom, BookOpen, Droplets, TestTube2, Wrench, FlaskConical, ClipboardList, Beaker } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/sample-prep/")({
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/sample-prep/")({
 
 function PrepDashboard() {
   const { data } = useQuery({ queryKey: ["sp-counts"], queryFn: () => getPrepCounts() });
+  const { data: recordCount } = useQuery({ queryKey: ["sp-record-count"], queryFn: () => countRecords() });
   const tiles = [
     { to: "/sample-prep/analytes", label: "Analytes", icon: Atom, count: data?.analytes },
     { to: "/sample-prep/methods", label: "Methods", icon: BookOpen, count: data?.methods },
@@ -29,7 +31,7 @@ function PrepDashboard() {
     { to: "/sample-prep/equipment", label: "Equipment", icon: Wrench, count: data?.equipment },
     { to: "/sample-prep/quick-dilution", label: "Quick dilution calculator", icon: Beaker },
     { to: "/sample-prep/new", label: "New preparation", icon: FlaskConical },
-    { to: "/sample-prep/records", label: "Preparation records (Phase 1C)", icon: ClipboardList },
+    { to: "/sample-prep/records", label: "Preparation records", icon: ClipboardList, count: recordCount?.count },
   ] as const;
   return (
     <SamplePrepShell title="Sample Prep" description="Manage the analytes, methods, calibrations, equipment, vessels, and solvents that drive method-based sample preparation.">
