@@ -40,6 +40,7 @@ import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedSamplePrepVesselsRouteImport } from './routes/_authenticated/sample-prep/vessels'
 import { Route as AuthenticatedSamplePrepSolventsRouteImport } from './routes/_authenticated/sample-prep/solvents'
+import { Route as AuthenticatedSamplePrepSettingsRouteImport } from './routes/_authenticated/sample-prep/settings'
 import { Route as AuthenticatedSamplePrepQuickDilutionRouteImport } from './routes/_authenticated/sample-prep/quick-dilution'
 import { Route as AuthenticatedSamplePrepMethodsRouteImport } from './routes/_authenticated/sample-prep/methods'
 import { Route as AuthenticatedSamplePrepEquipmentRouteImport } from './routes/_authenticated/sample-prep/equipment'
@@ -260,6 +261,12 @@ const AuthenticatedSamplePrepSolventsRoute =
   AuthenticatedSamplePrepSolventsRouteImport.update({
     id: '/sample-prep/solvents',
     path: '/sample-prep/solvents',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplePrepSettingsRoute =
+  AuthenticatedSamplePrepSettingsRouteImport.update({
+    id: '/sample-prep/settings',
+    path: '/sample-prep/settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSamplePrepQuickDilutionRoute =
@@ -594,6 +601,7 @@ export interface FileRoutesByFullPath {
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
   '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
@@ -675,6 +683,7 @@ export interface FileRoutesByTo {
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
   '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
@@ -758,6 +767,7 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
   '/_authenticated/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
   '/_authenticated/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/_authenticated/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/_authenticated/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/_authenticated/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
@@ -841,6 +851,7 @@ export interface FileRouteTypes {
     | '/sample-prep/equipment'
     | '/sample-prep/methods'
     | '/sample-prep/quick-dilution'
+    | '/sample-prep/settings'
     | '/sample-prep/solvents'
     | '/sample-prep/vessels'
     | '/samples/$batchId'
@@ -922,6 +933,7 @@ export interface FileRouteTypes {
     | '/sample-prep/equipment'
     | '/sample-prep/methods'
     | '/sample-prep/quick-dilution'
+    | '/sample-prep/settings'
     | '/sample-prep/solvents'
     | '/sample-prep/vessels'
     | '/samples/$batchId'
@@ -1004,6 +1016,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/equipment'
     | '/_authenticated/sample-prep/methods'
     | '/_authenticated/sample-prep/quick-dilution'
+    | '/_authenticated/sample-prep/settings'
     | '/_authenticated/sample-prep/solvents'
     | '/_authenticated/sample-prep/vessels'
     | '/_authenticated/samples/$batchId'
@@ -1273,6 +1286,13 @@ declare module '@tanstack/react-router' {
       path: '/sample-prep/solvents'
       fullPath: '/sample-prep/solvents'
       preLoaderRoute: typeof AuthenticatedSamplePrepSolventsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sample-prep/settings': {
+      id: '/_authenticated/sample-prep/settings'
+      path: '/sample-prep/settings'
+      fullPath: '/sample-prep/settings'
+      preLoaderRoute: typeof AuthenticatedSamplePrepSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/sample-prep/quick-dilution': {
@@ -1660,6 +1680,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplePrepEquipmentRoute: typeof AuthenticatedSamplePrepEquipmentRoute
   AuthenticatedSamplePrepMethodsRoute: typeof AuthenticatedSamplePrepMethodsRoute
   AuthenticatedSamplePrepQuickDilutionRoute: typeof AuthenticatedSamplePrepQuickDilutionRoute
+  AuthenticatedSamplePrepSettingsRoute: typeof AuthenticatedSamplePrepSettingsRoute
   AuthenticatedSamplePrepSolventsRoute: typeof AuthenticatedSamplePrepSolventsRoute
   AuthenticatedSamplePrepVesselsRoute: typeof AuthenticatedSamplePrepVesselsRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
@@ -1744,6 +1765,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSamplePrepMethodsRoute: AuthenticatedSamplePrepMethodsRoute,
   AuthenticatedSamplePrepQuickDilutionRoute:
     AuthenticatedSamplePrepQuickDilutionRoute,
+  AuthenticatedSamplePrepSettingsRoute: AuthenticatedSamplePrepSettingsRoute,
   AuthenticatedSamplePrepSolventsRoute: AuthenticatedSamplePrepSolventsRoute,
   AuthenticatedSamplePrepVesselsRoute: AuthenticatedSamplePrepVesselsRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
