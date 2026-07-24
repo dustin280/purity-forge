@@ -2361,6 +2361,887 @@ export type Database = {
         }
         Relationships: []
       }
+      sp_analyte_aliases: {
+        Row: {
+          alias: string
+          analyte_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          alias: string
+          analyte_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          alias?: string
+          analyte_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_analyte_aliases_analyte_id_fkey"
+            columns: ["analyte_id"]
+            isOneToOne: false
+            referencedRelation: "sp_analytes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_analytes: {
+        Row: {
+          abbreviation: string | null
+          canonical_name: string
+          cas_number: string | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          default_concentration_unit: string | null
+          default_mass_unit: string | null
+          default_solvent_recommendations: string | null
+          description: string | null
+          handling_notes: string | null
+          id: string
+          is_active: boolean
+          molecular_formula: string | null
+          molecular_weight: number | null
+          salt_form: string | null
+          sequence: string | null
+          solubility_notes: string | null
+          stability_notes: string | null
+          storage_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          abbreviation?: string | null
+          canonical_name: string
+          cas_number?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_concentration_unit?: string | null
+          default_mass_unit?: string | null
+          default_solvent_recommendations?: string | null
+          description?: string | null
+          handling_notes?: string | null
+          id?: string
+          is_active?: boolean
+          molecular_formula?: string | null
+          molecular_weight?: number | null
+          salt_form?: string | null
+          sequence?: string | null
+          solubility_notes?: string | null
+          stability_notes?: string | null
+          storage_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abbreviation?: string | null
+          canonical_name?: string
+          cas_number?: string | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_concentration_unit?: string | null
+          default_mass_unit?: string | null
+          default_solvent_recommendations?: string | null
+          description?: string | null
+          handling_notes?: string | null
+          id?: string
+          is_active?: boolean
+          molecular_formula?: string | null
+          molecular_weight?: number | null
+          salt_form?: string | null
+          sequence?: string | null
+          solubility_notes?: string | null
+          stability_notes?: string | null
+          storage_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sp_equipment: {
+        Row: {
+          accuracy: string | null
+          calibration_date: string | null
+          calibration_due_date: string | null
+          calibration_status: string | null
+          capacity_unit: string | null
+          created_at: string
+          equipment_id: string | null
+          equipment_type: string
+          id: string
+          is_active: boolean
+          location: string | null
+          manufacturer: string | null
+          max_capacity: number | null
+          min_capacity: number | null
+          model: string | null
+          notes: string | null
+          preferred_max: number | null
+          preferred_min: number | null
+          resolution: number | null
+          serial_number: string | null
+          uncertainty: string | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: string | null
+          calibration_date?: string | null
+          calibration_due_date?: string | null
+          calibration_status?: string | null
+          capacity_unit?: string | null
+          created_at?: string
+          equipment_id?: string | null
+          equipment_type: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          manufacturer?: string | null
+          max_capacity?: number | null
+          min_capacity?: number | null
+          model?: string | null
+          notes?: string | null
+          preferred_max?: number | null
+          preferred_min?: number | null
+          resolution?: number | null
+          serial_number?: string | null
+          uncertainty?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: string | null
+          calibration_date?: string | null
+          calibration_due_date?: string | null
+          calibration_status?: string | null
+          capacity_unit?: string | null
+          created_at?: string
+          equipment_id?: string | null
+          equipment_type?: string
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          manufacturer?: string | null
+          max_capacity?: number | null
+          min_capacity?: number | null
+          model?: string | null
+          notes?: string | null
+          preferred_max?: number | null
+          preferred_min?: number | null
+          resolution?: number | null
+          serial_number?: string | null
+          uncertainty?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sp_method_calibration_levels: {
+        Row: {
+          acceptance_notes: string | null
+          concentration_unit: string | null
+          created_at: string
+          dilution_factor: number | null
+          id: string
+          include_in_calibration: boolean
+          is_active: boolean
+          level_number: number
+          preparation_source: string | null
+          regression_model: string | null
+          replicate_count: number | null
+          revision_id: string
+          standard_name: string | null
+          target_concentration: number | null
+          updated_at: string
+          weighting_model: string | null
+        }
+        Insert: {
+          acceptance_notes?: string | null
+          concentration_unit?: string | null
+          created_at?: string
+          dilution_factor?: number | null
+          id?: string
+          include_in_calibration?: boolean
+          is_active?: boolean
+          level_number: number
+          preparation_source?: string | null
+          regression_model?: string | null
+          replicate_count?: number | null
+          revision_id: string
+          standard_name?: string | null
+          target_concentration?: number | null
+          updated_at?: string
+          weighting_model?: string | null
+        }
+        Update: {
+          acceptance_notes?: string | null
+          concentration_unit?: string | null
+          created_at?: string
+          dilution_factor?: number | null
+          id?: string
+          include_in_calibration?: boolean
+          is_active?: boolean
+          level_number?: number
+          preparation_source?: string | null
+          regression_model?: string | null
+          replicate_count?: number | null
+          revision_id?: string
+          standard_name?: string | null
+          target_concentration?: number | null
+          updated_at?: string
+          weighting_model?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_method_calibration_levels_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "sp_method_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_method_gradient_steps: {
+        Row: {
+          created_at: string
+          curve_type: string | null
+          flow_rate: number | null
+          id: string
+          ordinal: number
+          pct_a: number | null
+          pct_b: number | null
+          pct_c: number | null
+          pct_d: number | null
+          revision_id: string
+          time_min: number | null
+        }
+        Insert: {
+          created_at?: string
+          curve_type?: string | null
+          flow_rate?: number | null
+          id?: string
+          ordinal: number
+          pct_a?: number | null
+          pct_b?: number | null
+          pct_c?: number | null
+          pct_d?: number | null
+          revision_id: string
+          time_min?: number | null
+        }
+        Update: {
+          created_at?: string
+          curve_type?: string | null
+          flow_rate?: number | null
+          id?: string
+          ordinal?: number
+          pct_a?: number | null
+          pct_b?: number | null
+          pct_c?: number | null
+          pct_d?: number | null
+          revision_id?: string
+          time_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_method_gradient_steps_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "sp_method_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_method_mobile_phases: {
+        Row: {
+          channel: string
+          composition_text: string | null
+          created_at: string
+          id: string
+          initial_percent: number | null
+          revision_id: string
+        }
+        Insert: {
+          channel: string
+          composition_text?: string | null
+          created_at?: string
+          id?: string
+          initial_percent?: number | null
+          revision_id: string
+        }
+        Update: {
+          channel?: string
+          composition_text?: string | null
+          created_at?: string
+          id?: string
+          initial_percent?: number | null
+          revision_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_method_mobile_phases_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: false
+            referencedRelation: "sp_method_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_method_prep_rules: {
+        Row: {
+          allow_direct: boolean
+          allow_gravimetric: boolean
+          allow_serial: boolean
+          allow_volumetric: boolean
+          allowed_sample_solvent_ids: string[] | null
+          allowed_vial_size_ids: string[] | null
+          centrifugation_instructions: string | null
+          created_at: string
+          default_sample_solvent_id: string | null
+          default_stock_concentration: number | null
+          default_stock_concentration_unit: string | null
+          default_target_level: number
+          filter_pore_um: number | null
+          filter_type: string | null
+          filtration_instructions: string | null
+          light_protection: boolean | null
+          max_concentration_deviation_pct: number | null
+          max_dilution_steps: number | null
+          max_hold_time: string | null
+          max_initial_reconstitution_volume_ul: number | null
+          max_pipette_volume_ul: number | null
+          min_initial_reconstitution_volume_ul: number | null
+          min_pipette_volume_ul: number | null
+          mixing_instructions: string | null
+          preferred_final_volume_ul: number | null
+          preferred_initial_reconstitution_volume_ul: number | null
+          preferred_min_pipette_volume_ul: number | null
+          revision_id: string
+          safety_notes: string | null
+          sonication_instructions: string | null
+          special_handling: string | null
+          stability_notes: string | null
+          storage_temp_c: number | null
+          updated_at: string
+        }
+        Insert: {
+          allow_direct?: boolean
+          allow_gravimetric?: boolean
+          allow_serial?: boolean
+          allow_volumetric?: boolean
+          allowed_sample_solvent_ids?: string[] | null
+          allowed_vial_size_ids?: string[] | null
+          centrifugation_instructions?: string | null
+          created_at?: string
+          default_sample_solvent_id?: string | null
+          default_stock_concentration?: number | null
+          default_stock_concentration_unit?: string | null
+          default_target_level?: number
+          filter_pore_um?: number | null
+          filter_type?: string | null
+          filtration_instructions?: string | null
+          light_protection?: boolean | null
+          max_concentration_deviation_pct?: number | null
+          max_dilution_steps?: number | null
+          max_hold_time?: string | null
+          max_initial_reconstitution_volume_ul?: number | null
+          max_pipette_volume_ul?: number | null
+          min_initial_reconstitution_volume_ul?: number | null
+          min_pipette_volume_ul?: number | null
+          mixing_instructions?: string | null
+          preferred_final_volume_ul?: number | null
+          preferred_initial_reconstitution_volume_ul?: number | null
+          preferred_min_pipette_volume_ul?: number | null
+          revision_id: string
+          safety_notes?: string | null
+          sonication_instructions?: string | null
+          special_handling?: string | null
+          stability_notes?: string | null
+          storage_temp_c?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allow_direct?: boolean
+          allow_gravimetric?: boolean
+          allow_serial?: boolean
+          allow_volumetric?: boolean
+          allowed_sample_solvent_ids?: string[] | null
+          allowed_vial_size_ids?: string[] | null
+          centrifugation_instructions?: string | null
+          created_at?: string
+          default_sample_solvent_id?: string | null
+          default_stock_concentration?: number | null
+          default_stock_concentration_unit?: string | null
+          default_target_level?: number
+          filter_pore_um?: number | null
+          filter_type?: string | null
+          filtration_instructions?: string | null
+          light_protection?: boolean | null
+          max_concentration_deviation_pct?: number | null
+          max_dilution_steps?: number | null
+          max_hold_time?: string | null
+          max_initial_reconstitution_volume_ul?: number | null
+          max_pipette_volume_ul?: number | null
+          min_initial_reconstitution_volume_ul?: number | null
+          min_pipette_volume_ul?: number | null
+          mixing_instructions?: string | null
+          preferred_final_volume_ul?: number | null
+          preferred_initial_reconstitution_volume_ul?: number | null
+          preferred_min_pipette_volume_ul?: number | null
+          revision_id?: string
+          safety_notes?: string | null
+          sonication_instructions?: string | null
+          special_handling?: string | null
+          stability_notes?: string | null
+          storage_temp_c?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_method_prep_rules_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: true
+            referencedRelation: "sp_method_revisions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_method_revisions: {
+        Row: {
+          approval_date: string | null
+          approved_by: string | null
+          autosampler_temp_c: number | null
+          bandwidth: number | null
+          change_reason: string | null
+          column_dimensions: string | null
+          column_manufacturer: string | null
+          column_name: string | null
+          column_part_number: string | null
+          column_temp_c: number | null
+          created_at: string
+          created_by: string | null
+          detector_type: string | null
+          effective_date: string | null
+          estimated_rt_min: number | null
+          expected_peak_order: string | null
+          flow_rate: number | null
+          id: string
+          injection_volume_ul: number | null
+          instrument_type: string | null
+          method_id: string
+          needle_wash: string | null
+          notes: string | null
+          particle_size_um: number | null
+          post_run_time_min: number | null
+          reference_wavelength: number | null
+          reviewed_by: string | null
+          revision: number
+          rt_window_min: number | null
+          seal_wash: string | null
+          stationary_phase: string | null
+          status: Database["public"]["Enums"]["sp_revision_status"]
+          suitability_requirements: string | null
+          superseded_date: string | null
+          total_run_time_min: number | null
+          updated_at: string
+          version: number
+          wavelengths: Json | null
+        }
+        Insert: {
+          approval_date?: string | null
+          approved_by?: string | null
+          autosampler_temp_c?: number | null
+          bandwidth?: number | null
+          change_reason?: string | null
+          column_dimensions?: string | null
+          column_manufacturer?: string | null
+          column_name?: string | null
+          column_part_number?: string | null
+          column_temp_c?: number | null
+          created_at?: string
+          created_by?: string | null
+          detector_type?: string | null
+          effective_date?: string | null
+          estimated_rt_min?: number | null
+          expected_peak_order?: string | null
+          flow_rate?: number | null
+          id?: string
+          injection_volume_ul?: number | null
+          instrument_type?: string | null
+          method_id: string
+          needle_wash?: string | null
+          notes?: string | null
+          particle_size_um?: number | null
+          post_run_time_min?: number | null
+          reference_wavelength?: number | null
+          reviewed_by?: string | null
+          revision?: number
+          rt_window_min?: number | null
+          seal_wash?: string | null
+          stationary_phase?: string | null
+          status?: Database["public"]["Enums"]["sp_revision_status"]
+          suitability_requirements?: string | null
+          superseded_date?: string | null
+          total_run_time_min?: number | null
+          updated_at?: string
+          version?: number
+          wavelengths?: Json | null
+        }
+        Update: {
+          approval_date?: string | null
+          approved_by?: string | null
+          autosampler_temp_c?: number | null
+          bandwidth?: number | null
+          change_reason?: string | null
+          column_dimensions?: string | null
+          column_manufacturer?: string | null
+          column_name?: string | null
+          column_part_number?: string | null
+          column_temp_c?: number | null
+          created_at?: string
+          created_by?: string | null
+          detector_type?: string | null
+          effective_date?: string | null
+          estimated_rt_min?: number | null
+          expected_peak_order?: string | null
+          flow_rate?: number | null
+          id?: string
+          injection_volume_ul?: number | null
+          instrument_type?: string | null
+          method_id?: string
+          needle_wash?: string | null
+          notes?: string | null
+          particle_size_um?: number | null
+          post_run_time_min?: number | null
+          reference_wavelength?: number | null
+          reviewed_by?: string | null
+          revision?: number
+          rt_window_min?: number | null
+          seal_wash?: string | null
+          stationary_phase?: string | null
+          status?: Database["public"]["Enums"]["sp_revision_status"]
+          suitability_requirements?: string | null
+          superseded_date?: string | null
+          total_run_time_min?: number | null
+          updated_at?: string
+          version?: number
+          wavelengths?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_method_revisions_method_id_fkey"
+            columns: ["method_id"]
+            isOneToOne: false
+            referencedRelation: "sp_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_methods: {
+        Row: {
+          analyte_id: string
+          code: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          intended_use: string | null
+          is_active: boolean
+          method_type: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          analyte_id: string
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intended_use?: string | null
+          is_active?: boolean
+          method_type?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          analyte_id?: string
+          code?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intended_use?: string | null
+          is_active?: boolean
+          method_type?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_methods_analyte_id_fkey"
+            columns: ["analyte_id"]
+            isOneToOne: false
+            referencedRelation: "sp_analytes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_reagent_lot_components: {
+        Row: {
+          actual_quantity: number | null
+          component_name: string
+          created_at: string
+          id: string
+          reagent_lot_id: string
+          source_lot_number: string | null
+          unit: string | null
+        }
+        Insert: {
+          actual_quantity?: number | null
+          component_name: string
+          created_at?: string
+          id?: string
+          reagent_lot_id: string
+          source_lot_number?: string | null
+          unit?: string | null
+        }
+        Update: {
+          actual_quantity?: number | null
+          component_name?: string
+          created_at?: string
+          id?: string
+          reagent_lot_id?: string
+          source_lot_number?: string | null
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_reagent_lot_components_reagent_lot_id_fkey"
+            columns: ["reagent_lot_id"]
+            isOneToOne: false
+            referencedRelation: "sp_reagent_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_reagent_lots: {
+        Row: {
+          created_at: string
+          expiration_date: string | null
+          final_volume: number | null
+          final_volume_unit: string | null
+          formulation_id: string
+          id: string
+          lot_number: string
+          notes: string | null
+          ph: number | null
+          preparation_date: string | null
+          prepared_by: string | null
+          review_status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expiration_date?: string | null
+          final_volume?: number | null
+          final_volume_unit?: string | null
+          formulation_id: string
+          id?: string
+          lot_number: string
+          notes?: string | null
+          ph?: number | null
+          preparation_date?: string | null
+          prepared_by?: string | null
+          review_status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expiration_date?: string | null
+          final_volume?: number | null
+          final_volume_unit?: string | null
+          formulation_id?: string
+          id?: string
+          lot_number?: string
+          notes?: string | null
+          ph?: number | null
+          preparation_date?: string | null
+          prepared_by?: string | null
+          review_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_reagent_lots_formulation_id_fkey"
+            columns: ["formulation_id"]
+            isOneToOne: false
+            referencedRelation: "sp_solvent_formulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_settings: {
+        Row: {
+          absolute_min_pipette_ul: number
+          default_calibration_levels: number
+          default_target_level: number
+          id: boolean
+          max_dilution_steps: number
+          preferred_min_pipette_ul: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          absolute_min_pipette_ul?: number
+          default_calibration_levels?: number
+          default_target_level?: number
+          id?: boolean
+          max_dilution_steps?: number
+          preferred_min_pipette_ul?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          absolute_min_pipette_ul?: number
+          default_calibration_levels?: number
+          default_target_level?: number
+          id?: boolean
+          max_dilution_steps?: number
+          preferred_min_pipette_ul?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      sp_solvent_formulation_components: {
+        Row: {
+          component_name: string
+          created_at: string
+          formulation_id: string
+          id: string
+          notes: string | null
+          percentage: number | null
+          percentage_basis: string | null
+        }
+        Insert: {
+          component_name: string
+          created_at?: string
+          formulation_id: string
+          id?: string
+          notes?: string | null
+          percentage?: number | null
+          percentage_basis?: string | null
+        }
+        Update: {
+          component_name?: string
+          created_at?: string
+          formulation_id?: string
+          id?: string
+          notes?: string | null
+          percentage?: number | null
+          percentage_basis?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_solvent_formulation_components_formulation_id_fkey"
+            columns: ["formulation_id"]
+            isOneToOne: false
+            referencedRelation: "sp_solvent_formulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sp_solvent_formulations: {
+        Row: {
+          approved_uses: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          internal_code: string | null
+          name: string
+          notes: string | null
+          stability_period_days: number | null
+          status: string
+          storage_conditions: string | null
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          approved_uses?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          internal_code?: string | null
+          name: string
+          notes?: string | null
+          stability_period_days?: number | null
+          status?: string
+          storage_conditions?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          approved_uses?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          internal_code?: string | null
+          name?: string
+          notes?: string | null
+          stability_period_days?: number | null
+          status?: string
+          storage_conditions?: string | null
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      sp_vessels: {
+        Row: {
+          created_at: string
+          graduated: boolean
+          id: string
+          is_active: boolean
+          material: string | null
+          max_working_volume_ul: number | null
+          min_working_volume_ul: number | null
+          name: string
+          nominal_capacity_ul: number
+          notes: string | null
+          reusable: boolean
+          updated_at: string
+          volumetric: boolean
+        }
+        Insert: {
+          created_at?: string
+          graduated?: boolean
+          id?: string
+          is_active?: boolean
+          material?: string | null
+          max_working_volume_ul?: number | null
+          min_working_volume_ul?: number | null
+          name: string
+          nominal_capacity_ul: number
+          notes?: string | null
+          reusable?: boolean
+          updated_at?: string
+          volumetric?: boolean
+        }
+        Update: {
+          created_at?: string
+          graduated?: boolean
+          id?: string
+          is_active?: boolean
+          material?: string | null
+          max_working_volume_ul?: number | null
+          min_working_volume_ul?: number | null
+          name?: string
+          nominal_capacity_ul?: number
+          notes?: string | null
+          reusable?: boolean
+          updated_at?: string
+          volumetric?: boolean
+        }
+        Relationships: []
+      }
       standard_preparation_attachments: {
         Row: {
           content_type: string | null
@@ -2988,6 +3869,7 @@ export type Database = {
         Args: { p_day: string; p_user_token: string }
         Returns: string
       }
+      sp_child_writable: { Args: { _rev: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
@@ -3028,6 +3910,12 @@ export type Database = {
         | "in_analysis"
         | "on_hold"
         | "cancelled"
+      sp_revision_status:
+        | "draft"
+        | "under_review"
+        | "approved"
+        | "superseded"
+        | "retired"
       standard_prep_attachment_kind:
         | "weighing"
         | "label"
@@ -3206,6 +4094,13 @@ export const Constants = {
         "in_analysis",
         "on_hold",
         "cancelled",
+      ],
+      sp_revision_status: [
+        "draft",
+        "under_review",
+        "approved",
+        "superseded",
+        "retired",
       ],
       standard_prep_attachment_kind: [
         "weighing",
