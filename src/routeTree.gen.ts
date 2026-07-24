@@ -23,6 +23,7 @@ import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
+import { Route as AuthenticatedSamplePrepIndexRouteImport } from './routes/_authenticated/sample-prep/index'
 import { Route as AuthenticatedRunListsIndexRouteImport } from './routes/_authenticated/run-lists/index'
 import { Route as AuthenticatedQueueIndexRouteImport } from './routes/_authenticated/queue/index'
 import { Route as AuthenticatedPendingOrdersIndexRouteImport } from './routes/_authenticated/pending-orders/index'
@@ -154,6 +155,12 @@ const AuthenticatedSamplesIndexRoute =
   AuthenticatedSamplesIndexRouteImport.update({
     id: '/samples/',
     path: '/samples/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplePrepIndexRoute =
+  AuthenticatedSamplePrepIndexRouteImport.update({
+    id: '/sample-prep/',
+    path: '/sample-prep/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedRunListsIndexRoute =
@@ -555,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/queue/': typeof AuthenticatedQueueIndexRoute
   '/run-lists/': typeof AuthenticatedRunListsIndexRoute
+  '/sample-prep/': typeof AuthenticatedSamplePrepIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -629,6 +637,7 @@ export interface FileRoutesByTo {
   '/pending-orders': typeof AuthenticatedPendingOrdersIndexRoute
   '/queue': typeof AuthenticatedQueueIndexRoute
   '/run-lists': typeof AuthenticatedRunListsIndexRoute
+  '/sample-prep': typeof AuthenticatedSamplePrepIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/scheduler': typeof AuthenticatedSchedulerIndexRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -705,6 +714,7 @@ export interface FileRoutesById {
   '/_authenticated/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/_authenticated/queue/': typeof AuthenticatedQueueIndexRoute
   '/_authenticated/run-lists/': typeof AuthenticatedRunListsIndexRoute
+  '/_authenticated/sample-prep/': typeof AuthenticatedSamplePrepIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
   '/_authenticated/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -781,6 +791,7 @@ export interface FileRouteTypes {
     | '/pending-orders/'
     | '/queue/'
     | '/run-lists/'
+    | '/sample-prep/'
     | '/samples/'
     | '/scheduler/'
     | '/lab-logs/mobile-phase/$id'
@@ -855,6 +866,7 @@ export interface FileRouteTypes {
     | '/pending-orders'
     | '/queue'
     | '/run-lists'
+    | '/sample-prep'
     | '/samples'
     | '/scheduler'
     | '/lab-logs/mobile-phase/$id'
@@ -930,6 +942,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pending-orders/'
     | '/_authenticated/queue/'
     | '/_authenticated/run-lists/'
+    | '/_authenticated/sample-prep/'
     | '/_authenticated/samples/'
     | '/_authenticated/scheduler/'
     | '/_authenticated/lab-logs/mobile-phase/$id'
@@ -1063,6 +1076,13 @@ declare module '@tanstack/react-router' {
       path: '/samples'
       fullPath: '/samples/'
       preLoaderRoute: typeof AuthenticatedSamplesIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sample-prep/': {
+      id: '/_authenticated/sample-prep/'
+      path: '/sample-prep'
+      fullPath: '/sample-prep/'
+      preLoaderRoute: typeof AuthenticatedSamplePrepIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run-lists/': {
@@ -1530,6 +1550,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPendingOrdersIndexRoute: typeof AuthenticatedPendingOrdersIndexRoute
   AuthenticatedQueueIndexRoute: typeof AuthenticatedQueueIndexRoute
   AuthenticatedRunListsIndexRoute: typeof AuthenticatedRunListsIndexRoute
+  AuthenticatedSamplePrepIndexRoute: typeof AuthenticatedSamplePrepIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
   AuthenticatedLabLogsMobilePhaseIdRoute: typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -1607,6 +1628,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPendingOrdersIndexRoute: AuthenticatedPendingOrdersIndexRoute,
   AuthenticatedQueueIndexRoute: AuthenticatedQueueIndexRoute,
   AuthenticatedRunListsIndexRoute: AuthenticatedRunListsIndexRoute,
+  AuthenticatedSamplePrepIndexRoute: AuthenticatedSamplePrepIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
   AuthenticatedLabLogsMobilePhaseIdRoute:
