@@ -41,7 +41,9 @@ import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authe
 import { Route as AuthenticatedSamplePrepVesselsRouteImport } from './routes/_authenticated/sample-prep/vessels'
 import { Route as AuthenticatedSamplePrepSolventsRouteImport } from './routes/_authenticated/sample-prep/solvents'
 import { Route as AuthenticatedSamplePrepSettingsRouteImport } from './routes/_authenticated/sample-prep/settings'
+import { Route as AuthenticatedSamplePrepRecordsRouteImport } from './routes/_authenticated/sample-prep/records'
 import { Route as AuthenticatedSamplePrepQuickDilutionRouteImport } from './routes/_authenticated/sample-prep/quick-dilution'
+import { Route as AuthenticatedSamplePrepNewRouteImport } from './routes/_authenticated/sample-prep/new'
 import { Route as AuthenticatedSamplePrepMethodsRouteImport } from './routes/_authenticated/sample-prep/methods'
 import { Route as AuthenticatedSamplePrepEquipmentRouteImport } from './routes/_authenticated/sample-prep/equipment'
 import { Route as AuthenticatedSamplePrepAnalytesRouteImport } from './routes/_authenticated/sample-prep/analytes'
@@ -82,6 +84,7 @@ import { Route as ApiPublicStatusBatchIdRouteImport } from './routes/api/public/
 import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
+import { Route as AuthenticatedSamplePrepMethodsIdRouteImport } from './routes/_authenticated/sample-prep/methods.$id'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
 import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
 import { Route as AuthenticatedLabLogsTimesheetsDailyRouteImport } from './routes/_authenticated/lab-logs/timesheets/daily'
@@ -269,10 +272,22 @@ const AuthenticatedSamplePrepSettingsRoute =
     path: '/sample-prep/settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSamplePrepRecordsRoute =
+  AuthenticatedSamplePrepRecordsRouteImport.update({
+    id: '/sample-prep/records',
+    path: '/sample-prep/records',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedSamplePrepQuickDilutionRoute =
   AuthenticatedSamplePrepQuickDilutionRouteImport.update({
     id: '/sample-prep/quick-dilution',
     path: '/sample-prep/quick-dilution',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplePrepNewRoute =
+  AuthenticatedSamplePrepNewRouteImport.update({
+    id: '/sample-prep/new',
+    path: '/sample-prep/new',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSamplePrepMethodsRoute =
@@ -509,6 +524,12 @@ const ApiPublicColumnsDataVendorRoute =
     path: '/api/public/columns-data/$vendor',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedSamplePrepMethodsIdRoute =
+  AuthenticatedSamplePrepMethodsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedSamplePrepMethodsRoute,
+  } as any)
 const AuthenticatedLabLogsTimesheetsReportsRoute =
   AuthenticatedLabLogsTimesheetsReportsRouteImport.update({
     id: '/lab-logs/timesheets/reports',
@@ -599,8 +620,10 @@ export interface FileRoutesByFullPath {
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
-  '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
+  '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRouteWithChildren
+  '/sample-prep/new': typeof AuthenticatedSamplePrepNewRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/sample-prep/records': typeof AuthenticatedSamplePrepRecordsRoute
   '/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
@@ -628,6 +651,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
@@ -681,8 +705,10 @@ export interface FileRoutesByTo {
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
-  '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
+  '/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRouteWithChildren
+  '/sample-prep/new': typeof AuthenticatedSamplePrepNewRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/sample-prep/records': typeof AuthenticatedSamplePrepRecordsRoute
   '/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
@@ -710,6 +736,7 @@ export interface FileRoutesByTo {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
@@ -765,8 +792,10 @@ export interface FileRoutesById {
   '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/_authenticated/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
-  '/_authenticated/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRoute
+  '/_authenticated/sample-prep/methods': typeof AuthenticatedSamplePrepMethodsRouteWithChildren
+  '/_authenticated/sample-prep/new': typeof AuthenticatedSamplePrepNewRoute
   '/_authenticated/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
+  '/_authenticated/sample-prep/records': typeof AuthenticatedSamplePrepRecordsRoute
   '/_authenticated/sample-prep/settings': typeof AuthenticatedSamplePrepSettingsRoute
   '/_authenticated/sample-prep/solvents': typeof AuthenticatedSamplePrepSolventsRoute
   '/_authenticated/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
@@ -794,6 +823,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/_authenticated/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/_authenticated/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
@@ -850,7 +880,9 @@ export interface FileRouteTypes {
     | '/sample-prep/analytes'
     | '/sample-prep/equipment'
     | '/sample-prep/methods'
+    | '/sample-prep/new'
     | '/sample-prep/quick-dilution'
+    | '/sample-prep/records'
     | '/sample-prep/settings'
     | '/sample-prep/solvents'
     | '/sample-prep/vessels'
@@ -878,6 +910,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/sample-prep/methods/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
@@ -932,7 +965,9 @@ export interface FileRouteTypes {
     | '/sample-prep/analytes'
     | '/sample-prep/equipment'
     | '/sample-prep/methods'
+    | '/sample-prep/new'
     | '/sample-prep/quick-dilution'
+    | '/sample-prep/records'
     | '/sample-prep/settings'
     | '/sample-prep/solvents'
     | '/sample-prep/vessels'
@@ -960,6 +995,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/sample-prep/methods/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
@@ -1015,7 +1051,9 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/analytes'
     | '/_authenticated/sample-prep/equipment'
     | '/_authenticated/sample-prep/methods'
+    | '/_authenticated/sample-prep/new'
     | '/_authenticated/sample-prep/quick-dilution'
+    | '/_authenticated/sample-prep/records'
     | '/_authenticated/sample-prep/settings'
     | '/_authenticated/sample-prep/solvents'
     | '/_authenticated/sample-prep/vessels'
@@ -1043,6 +1081,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/timesheets/daily'
     | '/_authenticated/lab-logs/timesheets/history'
     | '/_authenticated/lab-logs/timesheets/reports'
+    | '/_authenticated/sample-prep/methods/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
@@ -1295,11 +1334,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplePrepSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/sample-prep/records': {
+      id: '/_authenticated/sample-prep/records'
+      path: '/sample-prep/records'
+      fullPath: '/sample-prep/records'
+      preLoaderRoute: typeof AuthenticatedSamplePrepRecordsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/sample-prep/quick-dilution': {
       id: '/_authenticated/sample-prep/quick-dilution'
       path: '/sample-prep/quick-dilution'
       fullPath: '/sample-prep/quick-dilution'
       preLoaderRoute: typeof AuthenticatedSamplePrepQuickDilutionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sample-prep/new': {
+      id: '/_authenticated/sample-prep/new'
+      path: '/sample-prep/new'
+      fullPath: '/sample-prep/new'
+      preLoaderRoute: typeof AuthenticatedSamplePrepNewRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/sample-prep/methods': {
@@ -1582,6 +1635,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicColumnsDataVendorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/sample-prep/methods/$id': {
+      id: '/_authenticated/sample-prep/methods/$id'
+      path: '/$id'
+      fullPath: '/sample-prep/methods/$id'
+      preLoaderRoute: typeof AuthenticatedSamplePrepMethodsIdRouteImport
+      parentRoute: typeof AuthenticatedSamplePrepMethodsRoute
+    }
     '/_authenticated/lab-logs/timesheets/reports': {
       id: '/_authenticated/lab-logs/timesheets/reports'
       path: '/lab-logs/timesheets/reports'
@@ -1641,6 +1701,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedSamplePrepMethodsRouteChildren {
+  AuthenticatedSamplePrepMethodsIdRoute: typeof AuthenticatedSamplePrepMethodsIdRoute
+}
+
+const AuthenticatedSamplePrepMethodsRouteChildren: AuthenticatedSamplePrepMethodsRouteChildren =
+  {
+    AuthenticatedSamplePrepMethodsIdRoute:
+      AuthenticatedSamplePrepMethodsIdRoute,
+  }
+
+const AuthenticatedSamplePrepMethodsRouteWithChildren =
+  AuthenticatedSamplePrepMethodsRoute._addFileChildren(
+    AuthenticatedSamplePrepMethodsRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedChainOfCustodyRoute: typeof AuthenticatedChainOfCustodyRoute
   AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
@@ -1678,8 +1753,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplePrepAnalytesRoute: typeof AuthenticatedSamplePrepAnalytesRoute
   AuthenticatedSamplePrepEquipmentRoute: typeof AuthenticatedSamplePrepEquipmentRoute
-  AuthenticatedSamplePrepMethodsRoute: typeof AuthenticatedSamplePrepMethodsRoute
+  AuthenticatedSamplePrepMethodsRoute: typeof AuthenticatedSamplePrepMethodsRouteWithChildren
+  AuthenticatedSamplePrepNewRoute: typeof AuthenticatedSamplePrepNewRoute
   AuthenticatedSamplePrepQuickDilutionRoute: typeof AuthenticatedSamplePrepQuickDilutionRoute
+  AuthenticatedSamplePrepRecordsRoute: typeof AuthenticatedSamplePrepRecordsRoute
   AuthenticatedSamplePrepSettingsRoute: typeof AuthenticatedSamplePrepSettingsRoute
   AuthenticatedSamplePrepSolventsRoute: typeof AuthenticatedSamplePrepSolventsRoute
   AuthenticatedSamplePrepVesselsRoute: typeof AuthenticatedSamplePrepVesselsRoute
@@ -1762,9 +1839,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplePrepAnalytesRoute: AuthenticatedSamplePrepAnalytesRoute,
   AuthenticatedSamplePrepEquipmentRoute: AuthenticatedSamplePrepEquipmentRoute,
-  AuthenticatedSamplePrepMethodsRoute: AuthenticatedSamplePrepMethodsRoute,
+  AuthenticatedSamplePrepMethodsRoute:
+    AuthenticatedSamplePrepMethodsRouteWithChildren,
+  AuthenticatedSamplePrepNewRoute: AuthenticatedSamplePrepNewRoute,
   AuthenticatedSamplePrepQuickDilutionRoute:
     AuthenticatedSamplePrepQuickDilutionRoute,
+  AuthenticatedSamplePrepRecordsRoute: AuthenticatedSamplePrepRecordsRoute,
   AuthenticatedSamplePrepSettingsRoute: AuthenticatedSamplePrepSettingsRoute,
   AuthenticatedSamplePrepSolventsRoute: AuthenticatedSamplePrepSolventsRoute,
   AuthenticatedSamplePrepVesselsRoute: AuthenticatedSamplePrepVesselsRoute,
