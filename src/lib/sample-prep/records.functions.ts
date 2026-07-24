@@ -8,6 +8,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+type Json = string | number | boolean | null | { [k: string]: Json } | Json[];
+
 export type RecordStatus = "draft" | "in_progress" | "awaiting_review" | "approved" | "rejected";
 
 export interface PrepRecord {
@@ -21,9 +23,9 @@ export interface PrepRecord {
   planned_calibration_level: number | null;
   sample_id: string | null;
   lot_number: string | null;
-  sample_context: Record<string, unknown>;
+  sample_context: Json;
   solvent_formulation_id: string | null;
-  plan: Record<string, unknown>;
+  plan: Json;
   notes: string | null;
   prepared_by: string;
   prepared_at: string | null;
@@ -41,7 +43,7 @@ export interface PrepStep {
   record_id: string;
   step_no: number;
   kind: "reconstitute" | "dilute" | "aliquot";
-  planned: Record<string, unknown>;
+  planned: Json;
   actual_mass_mg: number | null;
   actual_volume_ul: number | null;
   actual_diluent_ul: number | null;
@@ -68,9 +70,9 @@ const CreateSchema = z.object({
   planned_calibration_level: z.number().nullable().optional(),
   sample_id: z.string().nullable().optional(),
   lot_number: z.string().nullable().optional(),
-  sample_context: z.record(z.string(), z.unknown()).default({}),
+  sample_context: z.record(z.string(), z.any()).default({}),
   solvent_formulation_id: z.string().uuid().nullable().optional(),
-  plan: z.record(z.string(), z.unknown()).default({}),
+  plan: z.record(z.string(), z.any()).default({}),
   notes: z.string().nullable().optional(),
   /** Steps derived from the plan; will seed sp_preparation_steps. */
   steps: z
@@ -78,7 +80,7 @@ const CreateSchema = z.object({
       z.object({
         step_no: z.number().int().positive(),
         kind: z.enum(["reconstitute", "dilute", "aliquot"]),
-        planned: z.record(z.string(), z.unknown()).default({}),
+        planned: z.record(z.string(), z.any()).default({}),
       }),
     )
     .default([]),
@@ -97,6 +99,8 @@ export const createDraftRecord = createServerFn({ method: "POST" })
       .from("sp_preparation_records")
       .insert({
         ...header,
+        sample_context: header.sample_context as Json,
+        plan: header.plan as Json,
         prep_number,
         status: "draft",
         prepared_by: context.userId,
@@ -108,7 +112,7 @@ export const createDraftRecord = createServerFn({ method: "POST" })
     if (steps.length) {
       const { error: sErr } = await context.supabase
         .from("sp_preparation_steps")
-        .insert(steps.map((s) => ({ ...s, record_id: record.id })));
+        .insert(steps.map((s) => ({ ...s, planned: s.planned as Json, record_id: record.id })));
       if (sErr) throw sErr;
     }
 
@@ -139,7 +143,7 @@ export const getRecord = createServerFn({ method: "GET" })
     ]);
     if (rErr) throw rErr;
     if (sErr) throw sErr;
-    return { record: record as PrepRecord, steps: (steps ?? []) as PrepStep[] };
+    return { record: record as unknown as PrepRecord, steps: (steps ?? []) as unknown as PrepStep[] };
   });
 
 // ---------------- Draft update ----------------
@@ -157,9 +161,9 @@ export const updateDraftRecord = createServerFn({ method: "POST" })
             planned_calibration_level: z.number().nullable().optional(),
             sample_id: z.string().nullable().optional(),
             lot_number: z.string().nullable().optional(),
-            sample_context: z.record(z.string(), z.unknown()).optional(),
+            sample_context: z.record(z.string(), z.any()).optional(),
             solvent_formulation_id: z.string().uuid().nullable().optional(),
-            plan: z.record(z.string(), z.unknown()).optional(),
+            plan: z.record(z.string(), z.any()).optional(),
             notes: z.string().nullable().optional(),
           })
           .default({}),
@@ -168,7 +172,7 @@ export const updateDraftRecord = createServerFn({ method: "POST" })
             z.object({
               step_no: z.number().int().positive(),
               kind: z.enum(["reconstitute", "dilute", "aliquot"]),
-              planned: z.record(z.string(), z.unknown()).default({}),
+              planned: z.record(z.string(), z.any()).default({}),
             }),
           )
           .optional(),
@@ -178,7 +182,7 @@ export const updateDraftRecord = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("sp_preparation_records")
-      .update(data.patch)
+      .update(data.patch as Record<string, unknown>)
       .eq("id", data.id);
     if (error) throw error;
     if (data.steps) {
@@ -186,7 +190,7 @@ export const updateDraftRecord = createServerFn({ method: "POST" })
       if (data.steps.length) {
         const { error: sErr } = await context.supabase
           .from("sp_preparation_steps")
-          .insert(data.steps.map((s) => ({ ...s, record_id: data.id })));
+          .insert(data.steps.map((s) => ({ ...s, planned: s.planned as Json, record_id: data.id })));
         if (sErr) throw sErr;
       }
     }
@@ -233,11 +237,8 @@ export const saveExecutedStep = createServerFn({ method: "POST" })
 
 // ---------------- Transitions ----------------
 
-async function assertRole(
-  supabase: Awaited<ReturnType<typeof import("@/integrations/supabase/auth-middleware")["requireSupabaseAuth"]>>["context"]["supabase"],
-  userId: string,
-  role: "admin" | "reviewer",
-) {
+type CtxSupabase = { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> };
+async function assertRole(supabase: CtxSupabase, userId: string, role: "admin" | "reviewer") {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: role });
   if (error) throw error;
   return data === true;
