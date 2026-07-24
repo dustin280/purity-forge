@@ -28,7 +28,7 @@ function PrepDashboard() {
     { to: "/sample-prep/vessels", label: "Vessels", icon: TestTube2, count: data?.vessels },
     { to: "/sample-prep/equipment", label: "Equipment", icon: Wrench, count: data?.equipment },
     { to: "/sample-prep/quick-dilution", label: "Quick dilution calculator", icon: Beaker },
-    { to: "/sample-prep/new", label: "New preparation (Phase 1B)", icon: FlaskConical },
+    { to: "/sample-prep/new", label: "New preparation", icon: FlaskConical },
     { to: "/sample-prep/records", label: "Preparation records (Phase 1C)", icon: ClipboardList },
   ] as const;
   return (
