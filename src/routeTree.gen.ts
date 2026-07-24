@@ -39,6 +39,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedSamplePrepQuickDilutionRouteImport } from './routes/_authenticated/sample-prep/quick-dilution'
+import { Route as AuthenticatedSamplePrepAnalytesRouteImport } from './routes/_authenticated/sample-prep/analytes'
 import { Route as AuthenticatedRunListsGenerateRouteImport } from './routes/_authenticated/run-lists/generate'
 import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authenticated/run-lists/$id'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
@@ -249,6 +250,12 @@ const AuthenticatedSamplePrepQuickDilutionRoute =
   AuthenticatedSamplePrepQuickDilutionRouteImport.update({
     id: '/sample-prep/quick-dilution',
     path: '/sample-prep/quick-dilution',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSamplePrepAnalytesRoute =
+  AuthenticatedSamplePrepAnalytesRouteImport.update({
+    id: '/sample-prep/analytes',
+    path: '/sample-prep/analytes',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedRunListsGenerateRoute =
@@ -555,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
+  '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -631,6 +639,7 @@ export interface FileRoutesByTo {
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
+  '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -709,6 +718,7 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
+  '/_authenticated/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/_authenticated/sample-prep/quick-dilution': typeof AuthenticatedSamplePrepQuickDilutionRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
@@ -787,6 +797,7 @@ export interface FileRouteTypes {
     | '/material-receipts/new'
     | '/run-lists/$id'
     | '/run-lists/generate'
+    | '/sample-prep/analytes'
     | '/sample-prep/quick-dilution'
     | '/samples/$batchId'
     | '/samples/new'
@@ -863,6 +874,7 @@ export interface FileRouteTypes {
     | '/material-receipts/new'
     | '/run-lists/$id'
     | '/run-lists/generate'
+    | '/sample-prep/analytes'
     | '/sample-prep/quick-dilution'
     | '/samples/$batchId'
     | '/samples/new'
@@ -940,6 +952,7 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/run-lists/$id'
     | '/_authenticated/run-lists/generate'
+    | '/_authenticated/sample-prep/analytes'
     | '/_authenticated/sample-prep/quick-dilution'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
@@ -1201,6 +1214,13 @@ declare module '@tanstack/react-router' {
       path: '/sample-prep/quick-dilution'
       fullPath: '/sample-prep/quick-dilution'
       preLoaderRoute: typeof AuthenticatedSamplePrepQuickDilutionRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/sample-prep/analytes': {
+      id: '/_authenticated/sample-prep/analytes'
+      path: '/sample-prep/analytes'
+      fullPath: '/sample-prep/analytes'
+      preLoaderRoute: typeof AuthenticatedSamplePrepAnalytesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/run-lists/generate': {
@@ -1556,6 +1576,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRoute
   AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
+  AuthenticatedSamplePrepAnalytesRoute: typeof AuthenticatedSamplePrepAnalytesRoute
   AuthenticatedSamplePrepQuickDilutionRoute: typeof AuthenticatedSamplePrepQuickDilutionRoute
   AuthenticatedSamplesBatchIdRoute: typeof AuthenticatedSamplesBatchIdRoute
   AuthenticatedSamplesNewRoute: typeof AuthenticatedSamplesNewRoute
@@ -1634,6 +1655,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRoute,
   AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
+  AuthenticatedSamplePrepAnalytesRoute: AuthenticatedSamplePrepAnalytesRoute,
   AuthenticatedSamplePrepQuickDilutionRoute:
     AuthenticatedSamplePrepQuickDilutionRoute,
   AuthenticatedSamplesBatchIdRoute: AuthenticatedSamplesBatchIdRoute,
