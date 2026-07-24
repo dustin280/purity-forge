@@ -10,11 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags } from "lucide-react";
+import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags, FlaskConical, AlertTriangle } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
 } from "@/lib/run-lists.functions";
+import {
+  generatePrepDraftsForRunList, getRunListPrepCoverage,
+} from "@/lib/sample-prep/run-list-integration.functions";
 import { useOpenLabMethods, useOpenLabSettings } from "@/components/instrument-comm/use-openlab";
 import { pushRunListToDrive } from "@/lib/openlab-drive.functions";
 import { listInstruments } from "@/lib/instruments.functions";
@@ -36,6 +39,8 @@ function RunListDetail() {
   const listPrep = useServerFn(listPrepFlaggedSamples);
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
+  const genPreps = useServerFn(generatePrepDraftsForRunList);
+  const prepCoverageFn = useServerFn(getRunListPrepCoverage);
   const navigate = useNavigate();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
@@ -44,6 +49,25 @@ function RunListDetail() {
 
   const { data, isLoading } = useQuery({ queryKey: qk.runLists.detail(id), queryFn: () => get({ data: { id } }) });
   const { data: prepSamples } = useQuery({ queryKey: qk.runLists.prepFlagged(), queryFn: () => listPrep() });
+  const { data: coverage, refetch: refetchCoverage } = useQuery({
+    queryKey: ["run-list-prep-coverage", id],
+    queryFn: () => prepCoverageFn({ data: { run_list_id: id } }),
+    enabled: !!id,
+  });
+
+  const genPrepMut = useMutation({
+    mutationFn: () => genPreps({ data: { run_list_id: id } }),
+    onSuccess: (r) => {
+      const parts = [
+        r.created.length ? `${r.created.length} draft${r.created.length === 1 ? "" : "s"} created` : null,
+        r.linked_items ? `${r.linked_items} row${r.linked_items === 1 ? "" : "s"} linked` : null,
+        r.unresolved.length ? `${r.unresolved.length} unresolved` : null,
+      ].filter(Boolean).join(" · ");
+      toast.success(parts || "Nothing to generate");
+      refetchCoverage();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
