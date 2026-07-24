@@ -182,7 +182,8 @@ export const updateDraftRecord = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("sp_preparation_records")
-      .update(data.patch as Record<string, unknown>)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .update(data.patch as any)
       .eq("id", data.id);
     if (error) throw error;
     if (data.steps) {
@@ -237,8 +238,12 @@ export const saveExecutedStep = createServerFn({ method: "POST" })
 
 // ---------------- Transitions ----------------
 
-type CtxSupabase = { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> };
-async function assertRole(supabase: CtxSupabase, userId: string, role: "admin" | "reviewer") {
+async function assertRole(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  userId: string,
+  role: "admin" | "reviewer",
+) {
   const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: role });
   if (error) throw error;
   return data === true;
