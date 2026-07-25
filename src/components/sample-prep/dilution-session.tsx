@@ -98,7 +98,7 @@ export function DilutionSession() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4 space-y-3 print:shadow-none print:border-0">
+      <Card className="p-4 space-y-3 print:hidden">
         <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
           <div className="space-y-1">
             <Label>Session name</Label>
@@ -126,18 +126,11 @@ export function DilutionSession() {
       </Card>
 
       <div ref={printRef} className="space-y-4 print-area">
-        <div className="hidden print:block space-y-1">
-          <h1 className="text-xl font-semibold">{sessionName || "Dilution Session"}</h1>
-          <p className="text-xs text-muted-foreground">{new Date().toLocaleString()}</p>
-        </div>
         {preps.map((p, i) => (
           <div
             key={p.id}
             className={`space-y-1 print:break-inside-avoid ${i < preps.length - 1 ? "print:break-after-page" : ""}`}
           >
-            <div className="hidden print:block text-xs font-semibold uppercase tracking-wider">
-              {i + 1}. {p.title}
-            </div>
             <DilutionCalculator
               title={p.title}
               onTitleChange={t => setTitle(p.id, t)}
