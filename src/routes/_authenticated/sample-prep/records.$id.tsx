@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
+import { PrepRecordAttachments } from "@/components/sample-prep/records/prep-record-attachments";
 import {
   approveRecord,
   deleteDraft,
@@ -169,6 +170,8 @@ function PrepRecordDetail() {
           <div className="text-sm whitespace-pre-wrap">{record.review_comment}</div>
         </Card>
       )}
+
+      <PrepRecordAttachments recordId={id} canEdit={status !== "approved"} />
     </SamplePrepShell>
   );
 }
