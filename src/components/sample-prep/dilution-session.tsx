@@ -131,7 +131,10 @@ export function DilutionSession() {
           <p className="text-xs text-muted-foreground">{new Date().toLocaleString()}</p>
         </div>
         {preps.map((p, i) => (
-          <div key={p.id} className="space-y-1">
+          <div
+            key={p.id}
+            className={`space-y-1 print:break-inside-avoid ${i < preps.length - 1 ? "print:break-after-page" : ""}`}
+          >
             <div className="hidden print:block text-xs font-semibold uppercase tracking-wider">
               {i + 1}. {p.title}
             </div>
