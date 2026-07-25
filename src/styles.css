@@ -109,3 +109,10 @@
   aside, nav, [data-sidebar], header.app-header { display: none !important; }
   .prep-card { break-inside: avoid; page-break-inside: avoid; }
 }
+
+@page { size: auto; margin: 0.4in; }
+@media print {
+  html, body { height: auto !important; overflow: visible !important; }
+  .prep-card { font-size: 10pt; }
+  .prep-card pre { font-size: 8pt; white-space: pre-wrap; }
+}
