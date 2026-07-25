@@ -2994,6 +2994,50 @@ export type Database = {
           },
         ]
       }
+      sp_preparation_attachments: {
+        Row: {
+          content_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          kind: Database["public"]["Enums"]["sp_attachment_kind"]
+          record_id: string
+          size_bytes: number | null
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          kind?: Database["public"]["Enums"]["sp_attachment_kind"]
+          record_id: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["sp_attachment_kind"]
+          record_id?: string
+          size_bytes?: number | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sp_preparation_attachments_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "sp_preparation_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sp_preparation_counters: {
         Row: {
           day: string
@@ -4151,6 +4195,13 @@ export type Database = {
         | "in_analysis"
         | "on_hold"
         | "cancelled"
+      sp_attachment_kind:
+        | "weighing"
+        | "label"
+        | "photo"
+        | "sequence"
+        | "coa"
+        | "other"
       sp_revision_status:
         | "draft"
         | "under_review"
@@ -4335,6 +4386,14 @@ export const Constants = {
         "in_analysis",
         "on_hold",
         "cancelled",
+      ],
+      sp_attachment_kind: [
+        "weighing",
+        "label",
+        "photo",
+        "sequence",
+        "coa",
+        "other",
       ],
       sp_revision_status: [
         "draft",
