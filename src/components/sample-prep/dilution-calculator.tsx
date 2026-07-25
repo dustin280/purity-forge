@@ -82,7 +82,7 @@ export function DilutionCalculator({ title, onTitleChange, onRemove, onSnapshot 
 
   return (
     <div className="space-y-4 prep-card">
-      <Card className="p-5 space-y-4">
+      <Card className="p-5 space-y-4 print:break-inside-avoid">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           {onTitleChange ? (
             <Input
