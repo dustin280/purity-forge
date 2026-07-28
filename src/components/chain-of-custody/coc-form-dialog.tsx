@@ -17,11 +17,12 @@ import { useCocForm } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
 import type { CocField } from "./types";
 
-export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId }: {
+export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, initialFile }: {
   open: boolean; onOpenChange: (v: boolean) => void; recordId: string | null;
   resumeDraftId: string | null;
+  initialFile?: File | null;
 }) {
-  const f = useCocForm({ open, recordId, resumeDraftId, onOpenChange });
+  const f = useCocForm({ open, recordId, resumeDraftId, onOpenChange, initialFile: initialFile ?? null });
   const {
     activeFields, activeParams, attachments,
     values, setValuesDirty,
