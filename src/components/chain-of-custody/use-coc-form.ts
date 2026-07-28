@@ -26,12 +26,13 @@ export type CocAttachment = {
 };
 
 export function useCocForm({
-  open, recordId, resumeDraftId, onOpenChange,
+  open, recordId, resumeDraftId, onOpenChange, initialFile,
 }: {
   open: boolean;
   recordId: string | null;
   resumeDraftId: string | null;
   onOpenChange: (v: boolean) => void;
+  initialFile?: File | null;
 }) {
   const qc = useQueryClient();
   const listFields = useServerFn(listCocFields);
@@ -144,7 +145,8 @@ export function useCocForm({
       setLineItems([emptyLine()]);
     }
     setIsDirty(!!resumed);
-    setPendingFiles([]);
+    setPendingFiles(initialFile ? [initialFile] : []);
+    if (initialFile) setIsDirty(true);
     setPendingByLine({});
     if (!recordId && !resumed) {
       nextInvoice().then((r) => {

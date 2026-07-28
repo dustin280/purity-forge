@@ -3,7 +3,9 @@
  * and delegates all presentation to components under `@/components/chain-of-custody/*`.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
 import { CocViewDialog } from "@/components/chain-of-custody/coc-view-dialog";
@@ -15,6 +17,9 @@ import { useCocSelection } from "@/components/chain-of-custody/use-coc-selection
 import { useCocDownloads } from "@/components/chain-of-custody/use-coc-downloads";
 import { useCocRecords } from "@/components/chain-of-custody/use-coc-records";
 import { useCocDialogs } from "@/components/chain-of-custody/use-coc-dialogs";
+import { nextCocInvoiceNumber } from "@/lib/lims.functions";
+import { buildBlankCocPdf } from "@/lib/coc-blank-pdf";
+import { safeFileName } from "@/lib/coc-pdf";
 
 export const Route = createFileRoute("/_authenticated/chain-of-custody")({ component: CocPage });
 
@@ -29,10 +34,54 @@ function CocPage() {
   const recordIds = useMemo(() => records.map(r => r.id), [records]);
   const { selected, toggleOne, toggleAll } = useCocSelection(recordIds);
   const { downloading, downloadOne, downloadSelected } = useCocDownloads(fields);
+  const nextInvoice = useServerFn(nextCocInvoiceNumber);
+  const [printing, setPrinting] = useState(false);
+  const [initialFile, setInitialFile] = useState<File | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePrintBlank() {
+    setPrinting(true);
+    try {
+      const r = await nextInvoice() as { invoice: string };
+      const doc = buildBlankCocPdf(r.invoice, fields.map(f => ({ field_key: f.field_key, label: f.label })));
+      doc.save(`COC_Blank_${safeFileName(r.invoice)}.pdf`);
+      toast.success(`Issued Lab Sample ID ${r.invoice}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate blank CoC");
+    } finally {
+      setPrinting(false);
+    }
+  }
+
+  function handleUploadFilled() {
+    uploadInputRef.current?.click();
+  }
+
+  function onUploadChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    e.target.value = "";
+    if (!file) return;
+    setInitialFile(file);
+    openNew();
+    toast.info(`Attached ${file.name} — fill in the sample receipt to complete intake`);
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
-      <PageHeader onNew={openNew} />
+      <PageHeader
+        onNew={() => { setInitialFile(null); openNew(); }}
+        onPrintBlank={handlePrintBlank}
+        onUploadFilled={handleUploadFilled}
+        printing={printing}
+      />
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        className="hidden"
+        onChange={onUploadChange}
+      />
 
       <DraftsPanel drafts={drafts} onResume={openDraft} />
 
@@ -53,9 +102,10 @@ function CocPage() {
 
       <CocFormDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(v) => { if (!v) setInitialFile(null); setOpen(v); }}
         recordId={editingId}
         resumeDraftId={resumeDraftId}
+        initialFile={initialFile}
       />
       <CocViewDialog
         recordId={viewingId}
