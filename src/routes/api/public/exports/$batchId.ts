@@ -13,8 +13,19 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
         if (!apiKey || apiKey !== cfg.api_key) {
           return new Response("Unauthorized", { status: 401 });
         }
-        const { data: sample } = await supabaseAdmin.from("samples")
+        // Look up by internal batch_id first, then by the partner/customer
+        // lot number. Partner sites (synthesyx.com) poll this endpoint by the
+        // lot they submitted via /api/public/orders/intake (samples[].lotBatch),
+        // which the Sample Receipt flow stores in samples.lot — batch_id is
+        // lab-internal and unknown to them.
+        let { data: sample } = await supabaseAdmin.from("samples")
           .select("*").eq("batch_id", params.batchId).maybeSingle();
+        if (!sample) {
+          const { data: byLot } = await supabaseAdmin.from("samples")
+            .select("*").eq("lot", params.batchId)
+            .order("created_at", { ascending: false }).limit(1);
+          sample = byLot?.[0] ?? null;
+        }
         if (!sample) return new Response("Not found", { status: 404 });
         if (sample.status !== "approved") {
           return new Response(JSON.stringify({ error: "Sample not approved", status: sample.status }), {
