@@ -17,6 +17,7 @@ import {
   type SpAttachmentKind,
   type SpAttachmentRow,
 } from "@/lib/sample-prep/record-attachments.functions";
+import { assertUploadable } from "@/lib/upload-validation";
 
 /**
  * Attachment panel for a sample-prep record. Uploads to the
@@ -52,6 +53,9 @@ export function PrepRecordAttachments({
     setUploading(true);
     try {
       for (const f of arr) {
+        // No MIME allowlist here — this bucket may receive raw instrument-export
+        // formats; only the size cap (mirrors the storage.buckets migration) applies.
+        assertUploadable(f);
         const safeName = f.name.replace(/[^\w.\-]+/g, "_");
         const path = `${recordId}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage

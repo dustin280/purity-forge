@@ -15,6 +15,8 @@ export type SftpForm = {
   private_key: string;
   remote_path: string;
   is_active: boolean;
+  hasPassword: boolean;
+  hasPrivateKey: boolean;
 };
 
 /**
@@ -79,21 +81,31 @@ export function SftpCard({
           id="sftp-pass"
           type="password"
           autoComplete="new-password"
-          placeholder="Leave blank if using a key"
+          placeholder={sftp.hasPassword ? "•••••••• (unchanged — type to replace)" : "Leave blank if using a key"}
           value={sftp.password}
           onChange={e => onChange({ ...sftp, password: e.target.value })}
         />
+        {sftp.hasPassword && (
+          <p className="text-[11px] text-muted-foreground">
+            A password is currently stored. It will not be shown here — leave this blank to keep it, or type a new one to replace it.
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="sftp-key">Private Key (optional)</Label>
         <Textarea
           id="sftp-key"
           rows={4}
-          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"
+          placeholder={sftp.hasPrivateKey ? "(unchanged — paste a new key to replace it)" : "-----BEGIN OPENSSH PRIVATE KEY-----"}
           className="font-mono text-xs"
           value={sftp.private_key}
           onChange={e => onChange({ ...sftp, private_key: e.target.value })}
         />
+        {sftp.hasPrivateKey && (
+          <p className="text-[11px] text-muted-foreground">
+            A private key is currently stored. It will not be shown here — leave this blank to keep it, or paste a new one to replace it.
+          </p>
+        )}
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="sftp-path">Remote Path</Label>

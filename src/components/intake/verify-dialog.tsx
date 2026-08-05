@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { ClientSelect } from "@/components/samples/client-select";
 import type { IntakeSample } from "./types";
 
 /**
@@ -35,7 +36,8 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
   });
   const activeParams = (allParams as { id: string; name: string; is_active: boolean }[]).filter(p => p.is_active);
 
-  const [client, setClient] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
   const [project, setProject] = useState("");
   const [compound, setCompound] = useState("");
   const [lot, setLot] = useState("");
@@ -45,7 +47,8 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
 
   useEffect(() => {
     if (!sample) return;
-    setClient(sample.client ?? "");
+    setClientId(sample.client_id ?? "");
+    setClientName(sample.client ?? "");
     setProject(sample.project ?? "");
     setCompound(sample.compound ?? "");
     setLot(sample.lot ?? "");
@@ -57,9 +60,10 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
   const mut = useMutation({
     mutationFn: async () => {
       if (!sample) return;
+      if (!clientId) throw new Error("Select or add a client");
       await verify({ data: {
         sampleId: sample.id,
-        client: client.trim(),
+        client_id: clientId,
         project: project.trim() || null,
         compound: compound.trim(),
         lot: lot.trim() || null,
@@ -91,10 +95,11 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
           className="space-y-4 py-2"
         >
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Client</Label>
-              <Input className="mt-1" value={client} onChange={e => setClient(e.target.value)} required />
-            </div>
+            <ClientSelect
+              clientId={clientId}
+              clientName={clientName}
+              onSelect={(id, name) => { setClientId(id); setClientName(name); }}
+            />
             <div>
               <Label className="text-xs">Project</Label>
               <Input className="mt-1" value={project} onChange={e => setProject(e.target.value)} />

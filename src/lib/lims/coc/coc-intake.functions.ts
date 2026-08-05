@@ -39,6 +39,16 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       || new Date().toISOString().slice(0, 10);
     const receiptDate = receiptRaw.slice(0, 10);
 
+    // Best-effort link to an existing client row by exact (case-insensitive)
+    // company name — the CoC form's client picker normally guarantees a
+    // match; a brand-new client registered in the same submission (created
+    // only after this insert, see use-coc-form.ts) legitimately won't match
+    // yet and is left NULL rather than guessed at.
+    const { data: candidateClients } = await supabase.from("clients").select("id,company_name");
+    const matchedClient = (candidateClients ?? []).find(
+      c => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase()
+    ) ?? null;
+
     const { data: coc, error: cocErr } = await supabase
       .from("chain_of_custody_records")
       .insert({
@@ -52,7 +62,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
     if (cocErr) throw cocErr;
 
     type SampleInsert = {
-      batch_id: string; client: string; project: string | null;
+      batch_id: string; client: string; client_id: string | null; project: string | null;
       receipt_date: string; parameters: string[]; notes: string | null;
       coc_id: string; coc_line_no: number; compound: string;
       lot: string | null; catalog: string | null;
@@ -78,6 +88,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
         rows.push({
           batch_id: sampleId,
           client: headerClient,
+          client_id: matchedClient?.id ?? null,
           project: headerProject,
           receipt_date: receiptDate,
           parameters: params,
@@ -134,7 +145,7 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z.object({
       sampleId: z.string().uuid(),
-      client: z.string().min(1).max(255),
+      client_id: z.string().uuid(),
       project: z.string().max(255).optional().nullable(),
       compound: z.string().min(1).max(255),
       lot: z.string().max(255).optional().nullable(),
@@ -144,10 +155,16 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { data: client, error: clientErr } = await supabase
+      .from("clients").select("company_name").eq("id", data.client_id).maybeSingle();
+    if (clientErr) throw clientErr;
+    if (!client) throw new Error("Selected client not found");
+
     const { error } = await supabase
       .from("samples")
       .update({
-        client: data.client,
+        client_id: data.client_id,
+        client: client.company_name,
         project: data.project,
         compound: data.compound,
         lot: data.lot,

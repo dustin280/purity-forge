@@ -17,6 +17,7 @@ import {
 } from "@/lib/openlab-drive.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useOpenLabSettings } from "./use-openlab";
+import { assertUploadable } from "@/lib/upload-validation";
 
 const BUCKET = "openlab-cds";
 
@@ -137,6 +138,8 @@ export function SettingsCard() {
     try {
       const norm = prefix.endsWith("/") ? prefix : `${prefix}/`;
       for (const file of Array.from(files)) {
+        // No MIME allowlist — raw OpenLab CDS export formats vary; size cap only.
+        assertUploadable(file);
         const path = `${norm}${uploadKind}/${file.name}`;
         const { error } = await supabase.storage
           .from(BUCKET)

@@ -13,6 +13,7 @@ import {
   type ParameterScoutingAttachment,
 } from "@/lib/parameter-scouting-attachments.functions";
 import { qk } from "@/lib/query-keys";
+import { DOCUMENT_MIME_ALLOWLIST } from "@/lib/upload-validation";
 
 const BUCKET = "parameter-scouting-attachments";
 const MAX_FILES = 10;
@@ -85,8 +86,12 @@ export function ScoutingAttachmentPanel({
     setUploading(true);
     try {
       for (const f of Array.from(files)) {
-        if (f.size > MAX_SIZE) {
+        if (f.size <= 0 || f.size > MAX_SIZE) {
           toast.error(`${f.name} exceeds 20 MB`);
+          continue;
+        }
+        if (!DOCUMENT_MIME_ALLOWLIST.includes(f.type)) {
+          toast.error(`${f.name}: file type "${f.type || "unknown"}" is not allowed here`);
           continue;
         }
         const safe = f.name.replace(/[^\w.\-]+/g, "_").slice(0, 120);

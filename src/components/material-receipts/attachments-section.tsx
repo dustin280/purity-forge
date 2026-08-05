@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { qk } from "@/lib/query-keys";
+import { assertUploadable, DOCUMENT_MIME_ALLOWLIST } from "@/lib/upload-validation";
 
 type AttachmentRow = {
   id: string;
@@ -53,6 +54,7 @@ export function AttachmentsSection({
     setUploading(true);
     try {
       for (const f of Array.from(files)) {
+        assertUploadable(f, DOCUMENT_MIME_ALLOWLIST);
         const safeName = f.name.replace(/[^\w.\-]+/g, "_");
         const path = `${receiptId}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage.from("material-receipts").upload(path, f);

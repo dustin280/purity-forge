@@ -3,10 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Chromatogram } from "@/components/lims/chromatogram";
 import { fmtPct, type Peak } from "@/lib/lims-utils";
+import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
 
 type LatestResult = {
+  id: string;
   purity_percentage: number | null;
   analysis_date: string;
+  analyst_id: string | null;
+  reviewer_id: string | null;
+  reviewed_at: string | null;
+  approved_at: string | null;
 } | null;
 
 export function ResultsTab({
@@ -16,6 +22,10 @@ export function ResultsTab({
   setPasted,
   onSubmit,
   busy,
+  spec,
+  currentUserId,
+  onReview,
+  onApprove,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
@@ -23,7 +33,16 @@ export function ResultsTab({
   setPasted: (v: string) => void;
   onSubmit: () => void;
   busy: boolean;
+  spec: SpecRange;
+  currentUserId: string | null;
+  onReview: (resultId: string) => void;
+  onApprove: (resultId: string) => void;
 }) {
+  const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
+  const verdictColor = verdict === "pass" ? "var(--status-success)" : verdict === "fail" ? "var(--destructive)" : "var(--muted-foreground)";
+  const canReview = !!latestResult && !latestResult.reviewed_at && latestResult.analyst_id !== currentUserId;
+  const canApprove = !!latestResult && !!latestResult.reviewed_at && !latestResult.approved_at;
+
   return (
     <div className="space-y-4">
       {latestResult && (
@@ -31,12 +50,31 @@ export function ResultsTab({
           <div className="p-4 flex items-center justify-between border-b border-border">
             <div>
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Latest Purity</div>
-              <div className="text-3xl font-mono font-bold" style={{ color: "var(--status-success)" }}>
+              <div className="text-3xl font-mono font-bold" style={{ color: verdictColor }}>
                 {fmtPct(latestResult.purity_percentage)}
               </div>
+              <div className="text-xs mt-1" style={{ color: verdictColor }}>
+                {verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "No spec on file"}
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground font-mono">
-              {new Date(latestResult.analysis_date).toLocaleString()}
+            <div className="text-right space-y-2">
+              <div className="text-xs text-muted-foreground font-mono">
+                {new Date(latestResult.analysis_date).toLocaleString()}
+              </div>
+              <div className="flex gap-1.5 justify-end">
+                {canReview && (
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview(latestResult.id)}>Review</Button>
+                )}
+                {canApprove && (
+                  <Button size="sm" disabled={busy} onClick={() => onApprove(latestResult.id)}>Approve</Button>
+                )}
+                {latestResult.approved_at && (
+                  <span className="text-xs text-muted-foreground self-center">Approved</span>
+                )}
+                {latestResult.reviewed_at && !latestResult.approved_at && (
+                  <span className="text-xs text-muted-foreground self-center">Reviewed — pending approval</span>
+                )}
+              </div>
             </div>
           </div>
           <div className="h-56 bg-card">

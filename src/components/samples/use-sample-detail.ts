@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { getSampleDetail, updateSampleStatus, saveResult } from "@/lib/lims.functions";
+import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult } from "@/lib/lims.functions";
 import { type SampleStatus } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
@@ -12,6 +12,8 @@ export function useSampleDetail(batchId: string) {
   const fn = useServerFn(getSampleDetail);
   const setStatusFn = useServerFn(updateSampleStatus);
   const saveResultFn = useServerFn(saveResult);
+  const reviewResultFn = useServerFn(reviewResult);
+  const approveResultFn = useServerFn(approveResult);
 
   const query = useQuery({
     queryKey: qk.samples.detail(batchId),
@@ -46,5 +48,25 @@ export function useSampleDetail(batchId: string) {
     finally { setBusy(false); }
   }
 
-  return { query, busy, changeStatus, submitResult };
+  async function reviewLatestResult(resultId: string) {
+    setBusy(true);
+    try {
+      await reviewResultFn({ data: { resultId } });
+      toast.success("Result reviewed");
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Review failed"); }
+    finally { setBusy(false); }
+  }
+
+  async function approveLatestResult(resultId: string) {
+    setBusy(true);
+    try {
+      await approveResultFn({ data: { resultId } });
+      toast.success("Result approved");
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Approval failed"); }
+    finally { setBusy(false); }
+  }
+
+  return { query, busy, changeStatus, submitResult, reviewLatestResult, approveLatestResult };
 }

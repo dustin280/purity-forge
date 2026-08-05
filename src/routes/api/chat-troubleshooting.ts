@@ -2,11 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from "ai";
 import { createLovableAiGatewayProvider, getLovableAiGatewayRunId } from "@/lib/ai-gateway.server";
 import { troubleshootingTools } from "@/lib/ai-agent-tools.server";
+import { verifyBearerToken } from "@/lib/auth/verify-request.server";
 
 export const Route = createFileRoute("/api/chat-troubleshooting")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        try {
+          await verifyBearerToken(request);
+        } catch (e) {
+          return new Response(e instanceof Error ? e.message : "Unauthorized", { status: 401 });
+        }
+
         const { messages } = (await request.json()) as { messages?: unknown };
         if (!Array.isArray(messages)) {
           return new Response("Messages are required", { status: 400 });

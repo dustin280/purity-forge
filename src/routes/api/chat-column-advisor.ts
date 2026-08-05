@@ -3,11 +3,18 @@ import { convertToModelMessages, stepCountIs, streamText, type UIMessage } from 
 import { createLovableAiGatewayProvider, getLovableAiGatewayRunId } from "@/lib/ai-gateway.server";
 import { catalogForPrompt } from "@/lib/maintenance/columns";
 import { advisorTools } from "@/lib/ai-agent-tools.server";
+import { verifyBearerToken } from "@/lib/auth/verify-request.server";
 
 export const Route = createFileRoute("/api/chat-column-advisor")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        try {
+          await verifyBearerToken(request);
+        } catch (e) {
+          return new Response(e instanceof Error ? e.message : "Unauthorized", { status: 401 });
+        }
+
         const body = (await request.json()) as { messages?: unknown; prioritizeCatalog?: boolean };
         const { messages } = body;
         const prioritizeCatalog = body.prioritizeCatalog !== false; // default ON

@@ -5,10 +5,11 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { Peak } from "./lims-utils";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
+import { purityVerdict } from "@/lib/lims/spec-verdict";
 
 export interface CoaInput {
   sample: { batch_id: string; client: string; project?: string | null; receipt_date: string; notes?: string | null };
-  test: { method_name: string; instrument: string; parameters?: Record<string, unknown> | null };
+  test: { method_name: string; instrument: string; parameters?: Record<string, unknown> | null; spec_min?: number | null; spec_max?: number | null };
   result: { purity_percentage?: number | null; analysis_date: string; peak_details: Peak[] };
   analyst?: string | null;
   reviewer?: string | null;
@@ -71,15 +72,27 @@ export function generateCoaPdf(data: CoaInput): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.text("PURITY SUMMARY", margin, y);
   y += 14;
+  const verdict = purityVerdict(data.result.purity_percentage ?? null, {
+    spec_min: data.test.spec_min ?? null, spec_max: data.test.spec_max ?? null,
+  });
   doc.setFontSize(20);
-  doc.setTextColor(5, 150, 105);
+  doc.setTextColor(...(verdict === "fail" ? [220, 38, 38] as const : [5, 150, 105] as const));
   doc.text(
     data.result.purity_percentage != null ? `${Number(data.result.purity_percentage).toFixed(3)} %` : "N/A",
     margin, y
   );
   doc.setTextColor(31, 41, 55);
   doc.setFontSize(9);
-  y += 20;
+  y += 16;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...(verdict === "fail" ? [220, 38, 38] as const : verdict === "pass" ? [5, 150, 105] as const : [120, 120, 120] as const));
+  doc.text(
+    verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "No acceptance criteria on file",
+    margin, y
+  );
+  doc.setTextColor(31, 41, 55);
+  doc.setFont("helvetica", "normal");
+  y += 18;
 
   // Peak table
   doc.setFont("helvetica", "bold");

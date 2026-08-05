@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { generateBatchId } from "@/lib/lims-utils";
+import { ClientSelect } from "@/components/samples/client-select";
 
 /**
  * Identifying fields for the New Sample form: batch ID with a regenerate
@@ -10,10 +11,10 @@ import { generateBatchId } from "@/lib/lims-utils";
  * state is owned by the parent route.
  */
 export function SampleBasicFields({
-  batch, setBatch, client, setClient, project, setProject, receipt, setReceipt,
+  batch, setBatch, clientId, clientName, setClient, project, setProject, receipt, setReceipt,
 }: {
   batch: string; setBatch: (v: string) => void;
-  client: string; setClient: (v: string) => void;
+  clientId: string; clientName: string; setClient: (id: string, name: string) => void;
   project: string; setProject: (v: string) => void;
   receipt: string; setReceipt: (v: string) => void;
 }) {
@@ -29,10 +30,7 @@ export function SampleBasicFields({
         </div>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="client">Client</Label>
-          <Input id="client" required value={client} onChange={e => setClient(e.target.value)} />
-        </div>
+        <ClientSelect clientId={clientId} clientName={clientName} onSelect={setClient} />
         <div className="space-y-1.5">
           <Label htmlFor="project">Project (optional)</Label>
           <Input id="project" value={project} onChange={e => setProject(e.target.value)} />

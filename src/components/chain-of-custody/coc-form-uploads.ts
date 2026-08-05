@@ -4,6 +4,7 @@
  * keep the hook focused on state/mutation orchestration.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { assertUploadable, DOCUMENT_MIME_ALLOWLIST } from "@/lib/upload-validation";
 
 type RecordAttachmentFn = (args: {
   data: {
@@ -22,6 +23,7 @@ export async function uploadCocFile(
   lineIdx: number | null,
   recordAttachment: RecordAttachmentFn,
 ) {
+  assertUploadable(file, DOCUMENT_MIME_ALLOWLIST);
   const safe = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${cocId}/${Date.now()}-${safe}`;
   const { error: upErr } = await supabase.storage.from("coc-attachments").upload(path, file);

@@ -16,6 +16,7 @@ import {
   type PrepAttachmentKind,
 } from "@/lib/standard-preparations.functions";
 import { qk } from "@/lib/query-keys";
+import { assertUploadable } from "@/lib/upload-validation";
 
 export type PrepAttachmentRow = {
   id: string;
@@ -52,6 +53,9 @@ export function PrepAttachments({
     setUploading(true);
     try {
       for (const f of Array.from(files)) {
+        // No MIME allowlist — this bucket may receive raw instrument-export
+        // formats; only the size cap (mirrors the storage.buckets migration) applies.
+        assertUploadable(f);
         const safeName = f.name.replace(/[^\w.\-]+/g, "_");
         const path = `${logId}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage.from("standard-preparations").upload(path, f);

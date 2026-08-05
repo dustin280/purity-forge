@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { createIssueReport, recordIssueAttachment } from "@/lib/issue-reports.functions";
 import { qk } from "@/lib/query-keys";
+import { assertUploadable, DOCUMENT_MIME_ALLOWLIST } from "@/lib/upload-validation";
 
 function nowLocal() {
   const d = new Date();
@@ -41,6 +42,7 @@ export function IssueForm({ defaultName }: { defaultName: string }) {
         data: { occurred_at: occurredAt, user_name: userName.trim(), description: description.trim() },
       });
       for (const file of files) {
+        assertUploadable(file, DOCUMENT_MIME_ALLOWLIST);
         const safeName = file.name.replace(/[^\w.\-]+/g, "_") || "upload";
         const path = `${issue.id}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage

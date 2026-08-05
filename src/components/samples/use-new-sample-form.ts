@@ -18,7 +18,8 @@ export function useNewSampleForm() {
   const activeParams = allParams.filter(p => p.is_active);
 
   const [batch, setBatch] = useState(generateBatchId());
-  const [client, setClient] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
   const [project, setProject] = useState("");
   const [receipt, setReceipt] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
@@ -31,10 +32,11 @@ export function useNewSampleForm() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!clientId) return toast.error("Select or add a client");
     setBusy(true);
     try {
       const s = await fn({ data: {
-        batch_id: batch, client, project: project || null,
+        batch_id: batch, client_id: clientId, project: project || null,
         receipt_date: receipt, notes: notes || null,
         parameters: selected,
       } });
@@ -47,9 +49,14 @@ export function useNewSampleForm() {
 
   function cancel() { nav({ to: "/samples" }); }
 
+  function setClient(id: string, name: string) {
+    setClientId(id);
+    setClientName(name);
+  }
+
   return {
     activeParams,
-    batch, setBatch, client, setClient, project, setProject,
+    batch, setBatch, clientId, clientName, setClient, project, setProject,
     receipt, setReceipt, notes, setNotes, selected, busy,
     toggleParam, onSubmit, cancel,
   };

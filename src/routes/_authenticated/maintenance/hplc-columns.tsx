@@ -19,6 +19,7 @@ import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
 import { CompoundMultiPicker } from "@/components/ai-chat/compound-multi-picker";
 import { renderMessageParts } from "@/components/ai-chat/tool-call-view";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/maintenance/hplc-columns")({ component: HplcColumns });
 
@@ -255,10 +256,16 @@ function AdvisorPanel() {
   const [compounds, setCompounds] = useState<string[]>([]);
   const [contextOpen, setContextOpen] = useState(true);
   const [prioritizeCatalog, setPrioritizeCatalog] = useState(true);
+  const { session } = useAuth();
+  const accessToken = session?.access_token;
 
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat-column-advisor", body: { prioritizeCatalog } }),
-    [prioritizeCatalog],
+    () => new DefaultChatTransport({
+      api: "/api/chat-column-advisor",
+      body: { prioritizeCatalog },
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    }),
+    [prioritizeCatalog, accessToken],
   );
   const { activeThreadId, persist, loadThread, startNew } = useChatPersistence("column_advisor");
   const { messages, sendMessage, status, setMessages, error } = useChat({

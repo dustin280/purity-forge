@@ -6,6 +6,7 @@ export type IntakeSample = {
   id: string;
   batch_id: string;
   client: string;
+  client_id: string | null;
   project: string | null;
   compound: string | null;
   lot: string | null;

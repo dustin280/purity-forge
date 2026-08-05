@@ -1,9 +1,23 @@
 /**
  * Pathless layout that gates every `/_authenticated/*` route behind a valid
- * Supabase session. `beforeLoad` redirects unauthenticated visitors to the
- * login page before any child loader runs; the component additionally syncs
- * with the `useAuth` context so client-side sign-outs trigger a redirect.
- * An `errorComponent` catches uncaught render/loader errors and offers retry.
+ * Supabase session.
+ *
+ * IMPORTANT: the Supabase session lives only in browser `localStorage`
+ * (`src/integrations/supabase/client.ts`) — there is no session cookie, so a
+ * plain SSR page request has no way to identify the caller and `beforeLoad`
+ * cannot redirect unauthenticated visitors server-side. Real protection is:
+ *   1. `AuthedLayout` below never renders the sidebar/`Outlet` until
+ *      `useAuth()` has resolved a confirmed session (shows a neutral
+ *      "Loading…"/"Redirecting…" placeholder otherwise, both during SSR —
+ *      where `loading` starts `true` and stays `true` — and after hydration).
+ *   2. Every real data read/write goes through a `createServerFn` guarded by
+ *      `requireSupabaseAuth`, which independently rejects requests without a
+ *      valid bearer token.
+ * Do NOT add a TanStack Router `loader` to a child route under this layout —
+ * loaders can run during SSR before the client-side gate above ever mounts,
+ * which would bypass both protections and let anonymous SSR requests fetch
+ * data directly. Fetch data via `useQuery`/`useServerFn` inside components
+ * instead, as every existing route under `_authenticated/` already does.
  */
 import { createFileRoute, Outlet, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -14,6 +28,9 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
+    // No-op during SSR: the session lives in localStorage only, so the server
+    // has no way to read it here — see the module comment above for why, and
+    // for the two mechanisms that actually enforce this gate.
     if (typeof window === "undefined") return;
     const { data } = await supabase.auth.getSession();
     if (!data.session) throw redirect({ to: "/login" });

@@ -12,6 +12,7 @@ import { ChatToolbar } from "@/components/ai-chat/chat-toolbar";
 import { useChatPersistence } from "@/components/ai-chat/use-chat-persistence";
 import { AiCreditsBadge } from "@/components/ai-chat/ai-credits-badge";
 import { renderMessageParts } from "@/components/ai-chat/tool-call-view";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/maintenance/troubleshooting")({
   component: Troubleshooting,
@@ -29,10 +30,15 @@ function Troubleshooting() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { session } = useAuth();
+  const accessToken = session?.access_token;
 
   const transport = useMemo(
-    () => new DefaultChatTransport({ api: "/api/chat-troubleshooting" }),
-    [],
+    () => new DefaultChatTransport({
+      api: "/api/chat-troubleshooting",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    }),
+    [accessToken],
   );
   const { activeThreadId, persist, loadThread, startNew } = useChatPersistence("troubleshooting");
   const { messages, sendMessage, status, setMessages, error } = useChat({

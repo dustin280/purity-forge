@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { assertUploadable, DOCUMENT_MIME_ALLOWLIST } from "@/lib/upload-validation";
 
 export const Route = createFileRoute("/_authenticated/material-receipts/new")({
   component: NewReceipt,
@@ -97,6 +98,7 @@ export async function uploadPending(
     ...pending.sds.map(file => ({ kind: "sds" as const, file })),
   ];
   for (const { kind, file } of jobs) {
+    assertUploadable(file, DOCUMENT_MIME_ALLOWLIST);
     const safeName = file.name.replace(/[^\w.\-]+/g, "_");
     const path = `${receiptId}/${Date.now()}-${safeName}`;
     const { error: upErr } = await supabase.storage.from("material-receipts").upload(path, file);

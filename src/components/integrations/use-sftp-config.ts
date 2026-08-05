@@ -15,12 +15,18 @@ const initial: SftpForm = {
   private_key: "",
   remote_path: "/",
   is_active: true,
+  hasPassword: false,
+  hasPrivateKey: false,
 };
 
 /**
  * Encapsulates the SFTP-config server fetch, hydration into local form
- * state, and save mutation. The password and private_key are sent as
- * `null` when empty so the server can clear them.
+ * state, and save mutation. The server never sends the real password/private
+ * key back to the browser (see getSftpConfig) — the form only shows whether
+ * one is on file. `passwordTouched`/`privateKeyTouched` track whether the
+ * user actually edited a field this session: untouched fields are omitted
+ * from the save payload (existing secret left alone); a touched-and-emptied
+ * field explicitly clears it.
  */
 export function useSftpConfig() {
   const qc = useQueryClient();
@@ -29,6 +35,8 @@ export function useSftpConfig() {
   const { data } = useQuery({ queryKey: qk.integrations.sftpConfig(), queryFn: () => getFn() });
 
   const [sftp, setSftp] = useState<SftpForm>(initial);
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const [privateKeyTouched, setPrivateKeyTouched] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -38,21 +46,36 @@ export function useSftpConfig() {
         host: data.host ?? "",
         port: data.port ?? 22,
         username: data.username ?? "",
-        password: data.password ?? "",
-        private_key: data.private_key ?? "",
+        password: "",
+        private_key: "",
         remote_path: data.remote_path ?? "/",
         is_active: data.is_active,
+        hasPassword: data.has_password,
+        hasPrivateKey: data.has_private_key,
       });
+      setPasswordTouched(false);
+      setPrivateKeyTouched(false);
     }
   }, [data]);
+
+  function onChange(next: SftpForm) {
+    if (next.password !== sftp.password) setPasswordTouched(true);
+    if (next.private_key !== sftp.private_key) setPrivateKeyTouched(true);
+    setSftp(next);
+  }
 
   async function save() {
     setBusy(true);
     try {
       await saveFn({ data: {
-        ...sftp,
-        password: sftp.password || null,
-        private_key: sftp.private_key || null,
+        id: sftp.id,
+        host: sftp.host,
+        port: sftp.port,
+        username: sftp.username,
+        remote_path: sftp.remote_path,
+        is_active: sftp.is_active,
+        ...(passwordTouched ? { password: sftp.password || null } : {}),
+        ...(privateKeyTouched ? { private_key: sftp.private_key || null } : {}),
       }});
       toast.success("SFTP configuration saved");
       qc.invalidateQueries({ queryKey: qk.integrations.sftpConfig() });
@@ -60,5 +83,5 @@ export function useSftpConfig() {
     finally { setBusy(false); }
   }
 
-  return { sftp, setSftp, busy, save };
+  return { sftp, setSftp: onChange, busy, save };
 }

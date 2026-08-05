@@ -24,7 +24,7 @@ function NewSample() {
         <form onSubmit={f.onSubmit} className="space-y-5">
           <SampleBasicFields
             batch={f.batch} setBatch={f.setBatch}
-            client={f.client} setClient={f.setClient}
+            clientId={f.clientId} clientName={f.clientName} setClient={f.setClient}
             project={f.project} setProject={f.setProject}
             receipt={f.receipt} setReceipt={f.setReceipt}
           />
