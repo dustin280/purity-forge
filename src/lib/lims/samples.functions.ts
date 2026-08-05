@@ -84,21 +84,30 @@ export const getSampleDetail = createServerFn({ method: "GET" })
     return { sample, tests: tests ?? [], results, profiles };
   });
 
-const SAMPLE_STATUSES = ["received", "intake_verified", "prep", "in_progress", "reviewed", "complete", "approved"] as const;
+const SAMPLE_STATUSES = [
+  "received", "intake_verified", "scheduled", "prep", "in_progress",
+  "in_analysis", "on_hold", "reviewed", "complete", "approved", "cancelled",
+] as const;
 type SampleStatusValue = (typeof SAMPLE_STATUSES)[number];
 
-// Forward-only lifecycle — no skipping steps. "in_progress → reviewed" and
+// Forward-only lifecycle — no skipping steps. Queue-side states
+// (scheduled / in_analysis / on_hold) are included so a sample flagged from the
+// Analysis Queue can still be moved on. "in_progress → reviewed" and
 // "complete → approved" additionally require the sample's latest result to
 // have passed the corresponding review/approval gate (see reviewResult /
 // approveResult below) before the transition is allowed.
 const SAMPLE_STATUS_TRANSITIONS: Record<SampleStatusValue, SampleStatusValue[]> = {
-  received: ["intake_verified"],
-  intake_verified: ["prep"],
-  prep: ["in_progress"],
-  in_progress: ["reviewed"],
+  received: ["intake_verified", "cancelled"],
+  intake_verified: ["scheduled", "prep", "cancelled"],
+  scheduled: ["prep", "on_hold", "cancelled"],
+  prep: ["in_progress", "on_hold", "cancelled"],
+  in_progress: ["in_analysis", "reviewed", "on_hold"],
+  in_analysis: ["reviewed", "on_hold"],
+  on_hold: ["prep", "in_progress", "cancelled"],
   reviewed: ["complete"],
   complete: ["approved"],
   approved: [],
+  cancelled: ["received"],
 };
 
 export const updateSampleStatus = createServerFn({ method: "POST" })
