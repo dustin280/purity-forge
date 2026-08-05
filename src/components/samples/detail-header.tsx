@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/lims/status-pill";
-import { type SampleStatus } from "@/lib/lims-utils";
+import { SAMPLE_STATUS_TRANSITIONS, STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
 
 type Props = {
   batchId: string;
@@ -16,6 +16,28 @@ type Props = {
 };
 
 export function SampleDetailHeader({ batchId, client, project, status, busy, onChangeStatus, resultReviewed, resultApproved }: Props) {
+  const next = SAMPLE_STATUS_TRANSITIONS[status] ?? [];
+
+  const actionLabel: Partial<Record<SampleStatus, string>> = {
+    intake_verified: "Verify Intake",
+    scheduled: "Schedule",
+    prep: "Start Prep",
+    in_progress: "Start Analysis",
+    in_analysis: "Mark In Analysis",
+    on_hold: "Put On Hold",
+    reviewed: "Mark Reviewed",
+    complete: "Mark Complete",
+    approved: "Approve Sample",
+    cancelled: "Cancel",
+    received: "Reopen",
+  };
+
+  function blockedReason(target: SampleStatus): string | undefined {
+    if (target === "reviewed" && !resultReviewed) return "Review the result on the Results tab first";
+    if (target === "approved" && !resultApproved) return "Approve the result on the Results tab first";
+    return undefined;
+  }
+
   return (
     <>
       <div className="flex items-center text-xs text-muted-foreground gap-1">
@@ -29,32 +51,37 @@ export function SampleDetailHeader({ batchId, client, project, status, busy, onC
           <h1 className="text-3xl font-bold font-mono tracking-tight">{batchId}</h1>
           <p className="text-sm text-muted-foreground mt-1">{client}{project ? ` · ${project}` : ""}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <StatusPill status={status} />
-          <div className="flex gap-1.5">
-            {status === "received" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => onChangeStatus("intake_verified")}>Verify Intake</Button>
-            )}
-            {status === "intake_verified" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => onChangeStatus("prep")}>Start Prep</Button>
-            )}
-            {status === "prep" && (
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => onChangeStatus("in_progress")}>Start Analysis</Button>
-            )}
-            {status === "in_progress" && (
-              <Button size="sm" variant="outline" disabled={busy || !resultReviewed}
-                title={resultReviewed ? undefined : "Review the result on the Results tab first"}
-                onClick={() => onChangeStatus("reviewed")}>Mark Reviewed</Button>
-            )}
-            {status === "reviewed" && (
-              <Button size="sm" disabled={busy} onClick={() => onChangeStatus("complete")}>Mark Complete</Button>
-            )}
-            {status === "complete" && (
-              <Button size="sm" disabled={busy || !resultApproved}
-                title={resultApproved ? undefined : "Approve the result on the Results tab first"}
-                onClick={() => onChangeStatus("approved")}>Approve Sample</Button>
-            )}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            <StatusPill status={status} />
+            <div className="flex gap-1.5 flex-wrap justify-end">
+              {next.map((target, i) => {
+                const reason = blockedReason(target);
+                const destructive = target === "cancelled";
+                return (
+                  <Button
+                    key={target}
+                    size="sm"
+                    variant={destructive ? "ghost" : i === 0 ? "default" : "outline"}
+                    className={destructive ? "text-destructive hover:text-destructive" : undefined}
+                    disabled={busy || !!reason}
+                    title={reason}
+                    onClick={() => onChangeStatus(target)}
+                  >
+                    {actionLabel[target] ?? STATUS_LABEL[target]}
+                  </Button>
+                );
+              })}
+              {next.length === 0 && (
+                <span className="text-xs text-muted-foreground">No further steps — sample is final.</span>
+              )}
+            </div>
           </div>
+          {next.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Next step{next.length > 1 ? "s" : ""}: {next.map(s => STATUS_LABEL[s]).join(" · ")}
+            </p>
+          )}
         </div>
       </div>
     </>
