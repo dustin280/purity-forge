@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Sample = {
   id: string;
@@ -33,12 +34,21 @@ export function ScheduleByDay({
   activeDate,
   onSelectDate,
   onOpenSample,
+  selected,
+  onToggleOne,
+  onToggleAll,
 }: {
   days: Day[];
   activeDate: string | null;
   onSelectDate: (d: string) => void;
   onOpenSample: (batchId: string) => void;
+  selected: Set<string>;
+  onToggleOne: (id: string, checked: boolean) => void;
+  onToggleAll: (ids: string[], checked: boolean) => void;
 }) {
+  const day = days.find((d) => d.date === activeDate) ?? days[0];
+  const dayIds = day?.samples.map((s) => s.id) ?? [];
+  const allSelected = dayIds.length > 0 && dayIds.every((id) => selected.has(id));
   return (
     <div className="rounded-xl border bg-card">
       <div className="flex items-center justify-between p-4 border-b">
@@ -66,7 +76,6 @@ export function ScheduleByDay({
 
       <div className="divide-y">
         {(() => {
-          const day = days.find((d) => d.date === activeDate) ?? days[0];
           if (!day) return null;
           if (day.samples.length === 0) {
             return (
@@ -75,13 +84,33 @@ export function ScheduleByDay({
               </div>
             );
           }
-          return day.samples.map((s) => (
-            <button
+          return (
+            <>
+              <div className="flex items-center gap-3 px-4 py-2 text-xs bg-muted/30">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(v) => onToggleAll(dayIds, !!v)}
+                  aria-label="Select all samples for this day"
+                />
+                <span className="text-muted-foreground">
+                  Select all ({dayIds.length})
+                </span>
+              </div>
+              {day.samples.map((s) => (
+            <div
               key={s.id}
-              type="button"
-              onClick={() => onOpenSample(s.batch_id)}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent/40 text-left"
             >
+              <Checkbox
+                checked={selected.has(s.id)}
+                onCheckedChange={(v) => onToggleOne(s.id, !!v)}
+                aria-label={`Select ${s.batch_id}`}
+              />
+              <button
+                type="button"
+                onClick={() => onOpenSample(s.batch_id)}
+                className="flex-1 flex items-center gap-3 text-left"
+              >
               <span className="text-muted-foreground">Sample ID:</span>
               <span className="font-mono text-foreground">{s.batch_id}</span>
               <span className="text-muted-foreground">Type:</span>
@@ -93,8 +122,11 @@ export function ScheduleByDay({
               <span className={cn("px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-medium", STATUS_TONE[s.status] ?? "bg-muted")}>
                 {s.status.replace("_", " ")}
               </span>
-            </button>
-          ));
+              </button>
+            </div>
+              ))}
+            </>
+          );
         })()}
       </div>
     </div>
