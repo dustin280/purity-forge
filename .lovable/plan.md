@@ -1,84 +1,82 @@
-## Phase 1C — Preparation Records: Persist, Execute, Review
+# End-to-End Test Walkthrough: Sample In The Door to Report Out
 
-Phase 1B turned `/sample-prep/new` into a calculating wizard whose output lives only in `sessionStorage`. Phase 1C makes that output a first-class, traceable lab record: saved to the database, executed at the bench with actual weights/volumes and lot capture, reviewed and approved, and exportable as a signed PDF.
+A manual QA script for the sample management system. Run it in one sitting using a throwaway client name (e.g. "QA TEST CO") so test data is easy to find and delete afterwards. Expected result is listed under each step.
 
-### Scope
+## 0. Setup
 
-- New tables `sp_preparation_records` (header) and `sp_preparation_steps` (executed steps), plus daily counter table for a human-readable `SP-YYYYMMDD-###` number.
-- Wizard "Review" step gains **Save as Draft** (persists plan + inputs) alongside existing Print/Copy.
-- New route `/sample-prep/records/$id` (bench execution + review) with three modes driven by status:
-  - `draft` — editable inputs, recompute plan, save.
-  - `in_progress` — plan locked; per-step actual mass / volume / lot / vessel / equipment / balance reading / timestamp / initials capture; auto-computes actual concentration; deviation flags vs. planned.
-  - `awaiting_review` / `approved` / `rejected` — read-only with reviewer sign-off (name + timestamp + optional comment).
-- List route `/sample-prep/records` (currently a placeholder) becomes a real table: number, method rev, analyte, status, prepared_by, prepared_at, expires_at, actions.
-- PDF export (client-side) of an approved record: header, method context, planned vs. actual steps, lots, equipment, sign-offs. Reuses `jsPDF` + `jspdf-autotable` already in the project (as used by standard-preparation PDF).
-- Dashboard tile "Preparation records" links here and shows the real count.
+1. Sign in as an admin user.
+2. Clients: add "QA TEST CO" with contact and email. Expect the client to appear in the list.
+3. Admin > Parameters: confirm at least one test parameter exists (e.g. Purity HPLC).
+4. Admin > Compounds: confirm your test compound exists (e.g. SS31).
 
-### Out of scope this phase
+## 1. Sample arrives at the door
 
-- Run-list linkage (Phase 1D).
-- Any change to Phase 1A/1B UIs beyond wizard Save button, dashboard count, and records list.
-- Attachments on preparation records (deferred).
+Pick one of the two entry paths, or do both for full coverage.
 
-### Files
+### Path A - walk-in sample with paper CoC
 
-- New migration: `sp_preparation_records`, `sp_preparation_steps`, `sp_preparation_counters`, `next_sp_prep_number()`, RLS + GRANTs.
-- New: `src/lib/sample-prep/records.functions.ts` — `createDraftRecord`, `getRecord`, `updateDraftRecord`, `startExecution`, `saveExecutedStep`, `submitForReview`, `approveRecord`, `rejectRecord`, `listRecords`, `deleteDraft`.
-- New: `src/components/sample-prep/records/` — `RecordsTable`, `RecordHeader`, `ExecutionPanel`, `ReviewPanel`, `RecordPdfButton`.
-- New: `src/lib/sample-prep/record-pdf.ts` — PDF generator.
-- Modified: `src/components/sample-prep/wizard/StepReview.tsx` — add Save as Draft (calls `createDraftRecord`, navigates to record).
-- Replace: `src/routes/_authenticated/sample-prep/records.tsx` (placeholder → list).
-- New: `src/routes/_authenticated/sample-prep/records.$id.tsx` — execute/review host.
-- Modified: `src/routes/_authenticated/sample-prep/index.tsx` — records tile shows live count from `getPrepCounts`.
-- Modified: `src/lib/sample-prep/master-data.functions.ts` — extend `getPrepCounts` with `records` count.
+1. Sample Receipt > Print Blank CoC. Expect a PDF download plus a toast showing an issued Lab Sample ID such as COC080526-100.
+2. Fill the form by hand, then Upload / Photo CoC and pick the photo or PDF. Expect the new Sample Receipt dialog to open with the file attached and a toast naming the file.
+3. Complete the header (client QA TEST CO, project, date received) and add two line items:
+   - Line 1: compound SS31, lot QA-L1, 2 vials, concentration 1 mg/mL, requested tests selected.
+   - Line 2: a second compound, 1 vial.
+4. Save. Expect the record in the Sample Receipt list; opening it shows both line items and the attachment.
 
-### Data model
+### Path B - partner web order via webhook
 
-```text
-sp_preparation_records
-  id uuid pk
-  prep_number text unique (SP-YYYYMMDD-###)
-  method_revision_id uuid fk sp_method_revisions
-  analyte_id uuid fk sp_analytes
-  status text ('draft'|'in_progress'|'awaiting_review'|'approved'|'rejected')
-  planned_target_concentration numeric, planned_target_volume_ml numeric
-  planned_calibration_level_id uuid null
-  sample_context jsonb  -- source form, source conc, purity, mass/vol available
-  solvent_formulation_id uuid null
-  plan jsonb            -- serialized PrepPlan from engine (source of truth for planned steps)
-  prepared_by uuid fk auth.users
-  prepared_at timestamptz
-  reviewed_by uuid null, reviewed_at timestamptz null, review_comment text null
-  expires_at timestamptz null
-  created_at, updated_at
+1. Have the partner site (or a signed test POST to /api/public/orders/intake) send an order.
+2. Pending Orders > Pending tab. Expect the order listed as Pending with the raw payload viewable.
+3. Click through to receive it. Expect the Sample Receipt dialog to open pre-filled from the order.
+4. Save the receipt. Expect the pending order to flip to Received and link to the new CoC.
 
-sp_preparation_steps
-  id uuid pk
-  record_id uuid fk sp_preparation_records on delete cascade
-  step_no int
-  kind text ('reconstitute'|'dilute'|'aliquot')
-  planned jsonb  -- from PrepPlan
-  actual_mass_mg numeric null, actual_volume_ul numeric null
-  actual_conc_mg_per_ml numeric null
-  vessel_id uuid null, equipment_id uuid null, balance_id uuid null
-  reagent_lot_id uuid null, solvent_lot_id uuid null
-  performed_at timestamptz null, performed_by_initials text null
-  deviation_flag boolean default false, notes text null
-```
+## 2. Samples are created
 
-### Status transitions
+1. Samples list. Expect one row per vial, IDs suffixed -01, -02, ... under the parent lab sample ID, status "received".
+2. Open one sample. Expect client, project, compound, lot, concentration, container and requested parameters carried over from the receipt line item.
 
-```text
-draft ──startExecution──▶ in_progress ──submitForReview──▶ awaiting_review
-                                                             │
-                                                             ├─approveRecord──▶ approved (terminal)
-                                                             └─rejectRecord──▶ rejected (→ back to in_progress on edit)
-```
+## 3. Intake verification
 
-### Technical notes
+1. Intake. Expect every newly created vial in the Intake Queue.
+2. Click Verify on one, correct any field, confirm.
+3. Expect it to leave the queue, status to move to "prep" on the Samples list, a default test to be auto-assigned, and Admin > Audit Log to show an intake_verified entry.
+4. Repeat for the remaining vials.
 
-- All server fns use `requireSupabaseAuth`; admin-only for `approveRecord`/`rejectRecord` (checked via `has_role`).
-- RLS: authenticated users read any record; only creator can edit their own drafts; only admin/reviewer can approve.
-- `prep_number` generated by counter function in the same style as `next_standard_preparation_number()`.
-- Wizard state → record: the `plan` JSON is stored verbatim so re-opening a draft rehydrates the same computed steps without re-running the engine.
-- No changes to Phase 1B engine; records are a persistence layer on top of it.
+## 4. Sample preparation
+
+Quick path:
+
+1. Sample Prep > Quick Dilution: enter 10 mg/mL in 1 mL going to 0.1 mg/mL in 1 mL. Expect a serial dilution proposal rather than any pipette step below 10 uL.
+2. Print or save to PDF. Expect each prep sheet on its own page, no clipped last page, and no app header in the printout.
+
+Method-driven path:
+
+1. Sample Prep > New Preparation: pick analyte and method, walk the wizard, save as draft.
+2. Open the record under Records, enter bench actuals, drag and drop a photo attachment. Expect the attachment to list and open via signed link, and deviations to be captured against planned values.
+
+## 5. Analysis queue and run list
+
+1. Analysis Queue: confirm the prepped samples appear with due-date and at-risk info.
+2. Run Lists > Generate: select instrument, method group, and the prepped samples.
+3. Generate. Expect samples grouped by compound and ordered low to high concentration, QC and blanks interleaved, injection volume defaulting to "Use Method".
+4. Use the sequence selector to pick Sequence 1 only, then Download. Expect an Agilent-format CSV where Sample name is SYX-ID_Lot, with no garbled characters.
+5. Export to Drive. Expect a success toast and the file in Peptides2026/Sequences.
+6. Print Labels. Expect Vial Labels to open pre-filled with sample IDs, lots and tray positions for samples, blanks and QC, and after printing to offer a return to the run list you came from.
+
+## 6. Results and reporting
+
+1. Open a sample > Results tab and enter or import peak results.
+2. Move the status through review to complete. Expect audit entries at each transition.
+3. Generate the CoA from the sample's CoA tab. Expect a branded PDF with the correct client, lab sample ID, lot and results.
+
+## 7. Partner status feed
+
+1. GET /api/public/status/{batchId}. Expect JSON with the current stage and percent complete matching the in-app status.
+2. GET /api/public/status. Expect the bulk feed to list your QA samples with the same values.
+
+## 8. Cleanup
+
+Delete the QA CoC record (admin only), the generated run list, the prep records, and the QA TEST CO client.
+
+## What to record while testing
+
+For each step note pass or fail, the exact toast or error text, and the URL. Report any failure with the sample ID so it can be traced through the Audit Log.
