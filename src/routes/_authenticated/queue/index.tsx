@@ -4,6 +4,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getQueueOverview } from "@/lib/queue.functions";
+import { bulkSetSampleQueueStatus } from "@/lib/queue.functions";
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { qk } from "@/lib/query-keys";
 import { StatusBanner } from "@/components/queue/status-banner";
 import { CapacityOverview } from "@/components/queue/capacity-overview";
@@ -19,6 +26,13 @@ export const Route = createFileRoute("/_authenticated/queue/")({
 
 type Overview = Awaited<ReturnType<typeof getQueueOverview>>;
 
+const FLAG_STATUSES = [
+  "received", "intake_verified", "scheduled", "prep",
+  "in_progress", "in_analysis", "on_hold", "reviewed",
+  "complete", "approved", "cancelled",
+] as const;
+type FlagStatus = (typeof FLAG_STATUSES)[number];
+
 function QueuePage() {
   const overviewFn = useServerFn(getQueueOverview);
   const qc = useQueryClient();
@@ -26,6 +40,34 @@ function QueuePage() {
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [autoOpen, setAutoOpen] = useState(false);
   const [checkOpen, setCheckOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [flagStatus, setFlagStatus] = useState<FlagStatus>("on_hold");
+
+  const bulkFn = useServerFn(bulkSetSampleQueueStatus);
+  const bulkFlag = useMutation({
+    mutationFn: (v: { sample_ids: string[]; status: FlagStatus }) => bulkFn({ data: v }),
+    onSuccess: (_r, v) => {
+      toast.success(`Flagged ${v.sample_ids.length} sample${v.sample_ids.length === 1 ? "" : "s"} as ${v.status.replace("_", " ")}`);
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: qk.queue.all });
+      qc.invalidateQueries({ queryKey: qk.samples.all });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const toggleOne = (id: string, checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+
+  const toggleAll = (ids: string[], checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      return next;
+    });
 
   const { data, isLoading } = useQuery({
     queryKey: qk.queue.overview(),
@@ -81,11 +123,39 @@ function QueuePage() {
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
+            <div className="lg:col-span-2">
+              {selected.size > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
+                  <span className="text-sm font-medium">{selected.size} selected</span>
+                  <Select value={flagStatus} onValueChange={(v) => setFlagStatus(v as FlagStatus)}>
+                    <SelectTrigger className="w-[200px] h-9">
+                      <SelectValue placeholder="New state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FLAG_STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    disabled={bulkFlag.isPending}
+                    onClick={() => bulkFlag.mutate({ sample_ids: [...selected], status: flagStatus })}
+                  >
+                    {bulkFlag.isPending ? "Flagging…" : "Flag selected"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+                </div>
+              )}
+            </div>
             <ScheduleByDay
               days={data.per_day}
               activeDate={activeDate}
               onSelectDate={setActiveDate}
               onOpenSample={openSample}
+              selected={selected}
+              onToggleOne={toggleOne}
+              onToggleAll={toggleAll}
             />
             <div className="space-y-4">
               <QuickActions
