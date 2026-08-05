@@ -308,3 +308,30 @@ export const updateQueueConfig = createServerFn({ method: "POST" })
   });
 
 export type QueueOverviewPerDay = PerDaySlot & { samples: unknown[] };
+const QUEUE_STATUSES = [
+  "received", "intake_verified", "scheduled", "prep",
+  "in_progress", "in_analysis", "on_hold", "reviewed",
+  "complete", "approved", "cancelled",
+] as const;
+
+/** Flag many samples at once with a new queue state (used by the queue multi-select). */
+export const bulkSetSampleQueueStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      sample_ids: z.array(z.string().uuid()).min(1).max(500),
+      status: z.enum(QUEUE_STATUSES),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const patch: { status: typeof data.status; actual_completion_date?: string } = { status: data.status };
+    if (data.status === "complete" || data.status === "approved") {
+      patch.actual_completion_date = todayISO();
+    }
+    const { error } = await context.supabase
+      .from("samples")
+      .update(patch)
+      .in("id", data.sample_ids);
+    if (error) throw error;
+    return { ok: true, updated: data.sample_ids.length };
+  });
