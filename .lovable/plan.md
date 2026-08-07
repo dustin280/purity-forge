@@ -1,46 +1,38 @@
-# Connect Syxlab to your employer ChatGPT (Outlook email → lab records)
+# Fix date/time entry on Sample Receipt
 
-## The short answer
+## What's wrong
 
-Your employer's ChatGPT account can't be "borrowed" by this app — its Outlook connector lives inside that ChatGPT workspace and there's no way for Syxlab to call it. But we can flip the direction, which gets you exactly what you want:
+The "Date and Time of Receipt" field on the New Sample Receipt dialog is a plain browser
+date/time box that starts completely empty and is marked required. Two problems follow:
 
-**Make Syxlab itself a connector that your ChatGPT can call.**
+1. Nothing is pre-filled, so every user has to type the full date, hour, minute AND the
+   AM/PM segment by hand. Missing any segment (as in the screenshot, where AM/PM is still
+   `--`) makes the browser refuse the form with the generic
+   "Please enter a valid value. The field is incomplete or has an invalid date."
+2. When a record is re-opened or a saved draft is resumed, the stored value is handed to
+   the field as-is. Any value that isn't exactly in the browser's expected
+   `YYYY-MM-DDTHH:MM` shape (for example a full timestamp with seconds/timezone, or a
+   `MM/DD/YYYY` string) is silently dropped, so the field appears blank or half-filled.
 
-Then in ChatGPT you say: *"Read the new order emails from Acme in my inbox and create pending orders in Syxlab."* ChatGPT uses its own Outlook connector to read the mail, and uses Syxlab's connector to write the records. No mailbox credentials ever touch this app.
+## What will change
 
-## What gets built
-
-An MCP server published with the app (this is the standard way ChatGPT/Claude/Copilot connect to an external system). It exposes a small, deliberate set of tools:
-
-**Read tools**
-- `list_clients` — find/confirm a client by name
-- `list_pending_orders` — see what's already staged
-- `get_sample_status` — batch/sample stage + percent complete (same data the partner status API returns)
-- `list_parameters` / `list_compounds` — so ChatGPT maps email text to real test parameters and analytes
-
-**Write tools**
-- `create_pending_order` — stage an order parsed from an email into the existing Pending Orders queue (client, project, contact, line items, requested tests, notes, source reference)
-- `add_pending_order_note` — append context from a follow-up email
-
-Deliberately **not** exposed: anything that finalizes sample receipt, edits results, approves CoAs, or touches admin/integration settings. Everything an email produces lands in Pending Orders as a draft that a human finalizes in Sample Receipt — same as the partner webhook path today. Nothing bypasses your review step.
-
-## Security
-
-The connector is protected with OAuth, not left open. When you add Syxlab in ChatGPT, you sign in with your normal Syxlab account and approve it once. Every tool call then runs **as you**, under the same row-level permissions the web app uses. Another person's ChatGPT can't see your lab's data without a Syxlab login.
+- New sample receipts pre-fill the receipt date/time with the current local date and time,
+  so the common case is one click, not eight keystrokes.
+- Any existing value (edit mode, resumed draft, or data pre-populated from an uploaded
+  Chain of Custody) is normalized into the shape the picker understands, so previously
+  saved dates load correctly instead of showing blank/partial.
+- Add a small "Now" button beside the field to reset it to the current time.
+- Plain-date fields get the same normalization so they never load half-filled.
 
 ## Technical notes
 
-- `@lovable.dev/mcp-js` with the TanStack Vite plugin; tools in `src/lib/mcp/tools/*`, registry in `src/lib/mcp/index.ts`, mounted at `/mcp`. The plugin generates the HTTP + OAuth metadata routes.
-- `bunfig.toml` gets `@lovable.dev/mcp-js` added to `minimumReleaseAgeExcludes` (Lovable-owned scope).
-- Supabase OAuth 2.1 authorization server enabled + a consent route at `src/routes/[.]lovable.oauth.consent.tsx`, wired to the existing `/login` page with redirect-back preserved.
-- Tools query Supabase with the caller's verified token, so existing RLS applies unchanged. No service-role key in MCP code.
-- Reuses existing logic: `pending_orders` insert path from `src/lib/pending-orders.functions.ts`, status mapping from the `/api/public/status` route, clients/parameters/compounds from their existing function modules.
-- No changes to the logo, theme, connectors, webhook secret, or any current route.
-
-## After it ships
-
-You add it in ChatGPT under connectors using the published `/mcp` URL, sign in once, and can immediately ask it to triage order emails into Syxlab.
-
-## Possible follow-up (not in this plan)
-
-If you later want Syxlab to poll a shared `orders@` mailbox on its own — no ChatGPT in the loop — that's a separate Outlook connector build. Worth doing only if the email volume justifies automation; the ChatGPT path covers ad-hoc parsing today.
+- Add a small date helper (e.g. `toLocalDatetimeInput` / `toDateInput`) that converts an
+  arbitrary stored string into `YYYY-MM-DDTHH:MM` and `YYYY-MM-DD` respectively, returning
+  `""` when unparseable.
+- In `src/components/chain-of-custody/use-coc-form.ts` hydration: run stored values for
+  `datetime`/`date` fields through the helper, and when creating a new record seed
+  `datetime` fields with the current local time.
+- In `src/components/chain-of-custody/coc-form-dialog.tsx`: render the datetime input with
+  the normalized value plus a "Now" action; no change to the save payload shape.
+- Saving continues to send the same string to the backend — no schema or server-function
+  changes.
