@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Search } from "lucide-react";
+import { Copy, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
-import { listMethods, createMethod } from "@/lib/sample-prep/master-data.functions";
+import { listMethods, createMethod, copyMethodToAnalyte } from "@/lib/sample-prep/master-data.functions";
 
 export const Route = createFileRoute("/_authenticated/sample-prep/methods")({
   head: () => ({ meta: [
@@ -33,6 +33,8 @@ function MethodsListPage() {
   const [filterStatus, setFilterStatus] = useState<string>("");
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState<{ analyte_id: string; name: string; code: string; method_type: string; intended_use: string }>({ analyte_id: "", name: "", code: "", method_type: "", intended_use: "" });
+  const [copySource, setCopySource] = useState<{ id: string; name: string } | null>(null);
+  const [copyForm, setCopyForm] = useState<{ analyte_id: string; name: string; code: string }>({ analyte_id: "", name: "", code: "" });
 
   const methods = data?.methods ?? [];
   const revs = data?.revisions ?? [];
@@ -78,6 +80,32 @@ function MethodsListPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const copy = useMutation({
+    mutationFn: async () => {
+      if (!copySource) throw new Error("No method selected");
+      if (!copyForm.analyte_id || !copyForm.name.trim()) throw new Error("Analyte and name required");
+      return copyMethodToAnalyte({ data: {
+        source_method_id: copySource.id,
+        analyte_id: copyForm.analyte_id,
+        name: copyForm.name.trim(),
+        code: copyForm.code.trim() || null,
+      }});
+    },
+    onSuccess: (res) => {
+      toast.success("Method copied");
+      qc.invalidateQueries({ queryKey: ["sp-methods"] });
+      qc.invalidateQueries({ queryKey: ["sp-counts"] });
+      setCopySource(null);
+      navigate({ to: "/sample-prep/methods/$id", params: { id: res.method.id } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function openCopy(m: { id: string; name: string }) {
+    setCopySource({ id: m.id, name: m.name });
+    setCopyForm({ analyte_id: "", name: `${m.name} (copy)`, code: "" });
+  }
 
   return (
     <SamplePrepShell title="Methods" description="Each method captures chromatographic conditions, gradient, calibration levels (Level 3 is the default prep target), and sample-preparation rules. Approved revisions supersede earlier ones automatically.">
@@ -141,6 +169,9 @@ function MethodsListPage() {
                     <TableCell>{rev?.column_name ?? "—"}</TableCell>
                     <TableCell>{rev?.estimated_rt_min ?? "—"}</TableCell>
                     <TableCell>
+                      <Button size="sm" variant="ghost" onClick={() => openCopy(m)}>
+                        <Copy className="size-4 mr-1" /> Copy
+                      </Button>
                       <Button asChild size="sm" variant="ghost">
                         <Link to="/sample-prep/methods/$id" params={{ id: m.id }}>Open</Link>
                       </Button>
@@ -175,6 +206,30 @@ function MethodsListPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
             <Button onClick={() => create.mutate()} disabled={create.isPending}>{create.isPending ? "Creating…" : "Create"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!copySource} onOpenChange={o => !o && setCopySource(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Copy method to another analyte</DialogTitle></DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Copies “{copySource?.name}” — its latest revision, mobile phases, gradient, calibration levels and prep rules — into a new draft method (v1.0) for the analyte you pick.
+          </p>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1">
+              <Label className="text-xs">New analyte *</Label>
+              <Select value={copyForm.analyte_id} onValueChange={v => setCopyForm({ ...copyForm, analyte_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select analyte" /></SelectTrigger>
+                <SelectContent>{analytes.map(a => <SelectItem key={a.id} value={a.id}>{a.canonical_name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1"><Label className="text-xs">New method name *</Label><Input value={copyForm.name} onChange={e => setCopyForm({ ...copyForm, name: e.target.value })} /></div>
+            <div className="space-y-1"><Label className="text-xs">New method code</Label><Input value={copyForm.code} onChange={e => setCopyForm({ ...copyForm, code: e.target.value })} placeholder="e.g. GEN-AQ-02" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopySource(null)}>Cancel</Button>
+            <Button onClick={() => copy.mutate()} disabled={copy.isPending}>{copy.isPending ? "Copying…" : "Copy method"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -275,6 +275,93 @@ export const getMethod = createServerFn({ method: "GET" })
     return { method: method.data as Method | null, revisions: (revs.data ?? []) as MethodRevision[] };
   });
 
+/** Copy an existing method (its latest / chosen revision) onto a different analyte. */
+export const copyMethodToAnalyte = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    source_method_id: z.string().uuid(),
+    source_revision_id: z.string().uuid().nullish(),
+    analyte_id: z.string().uuid(),
+    name: z.string().trim().min(1).max(200),
+    code: z.string().trim().max(60).nullish(),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: src, error: srcErr } = await supabase
+      .from("sp_methods").select("*").eq("id", data.source_method_id).single();
+    if (srcErr) throw srcErr;
+
+    let srcRevId = data.source_revision_id ?? null;
+    if (!srcRevId) {
+      const { data: latest, error: lErr } = await supabase
+        .from("sp_method_revisions").select("id").eq("method_id", data.source_method_id)
+        .order("version", { ascending: false }).order("revision", { ascending: false })
+        .limit(1).maybeSingle();
+      if (lErr) throw lErr;
+      srcRevId = latest?.id ?? null;
+    }
+
+    const { data: method, error } = await supabase.from("sp_methods").insert({
+      analyte_id: data.analyte_id,
+      name: data.name,
+      code: data.code ?? null,
+      method_type: src.method_type,
+      intended_use: src.intended_use,
+      created_by: userId,
+    }).select("*").single();
+    if (error) throw error;
+
+    let revInsert: Record<string, unknown> = { method_id: method.id, created_by: userId };
+    if (srcRevId) {
+      const { data: srcRev, error: rErr } = await supabase
+        .from("sp_method_revisions").select("*").eq("id", srcRevId).single();
+      if (rErr) throw rErr;
+      const {
+        id: _i, method_id: _m, created_at: _c, updated_at: _u, status: _s,
+        approval_date: _a, approved_by: _ab, effective_date: _e, superseded_date: _sd,
+        version: _v, revision: _r, created_by: _cb, change_reason: _cr, ...copy
+      } = srcRev as Record<string, unknown>;
+      void _i; void _m; void _c; void _u; void _s; void _a; void _ab; void _e; void _sd; void _v; void _r; void _cb; void _cr;
+      revInsert = {
+        ...copy,
+        method_id: method.id,
+        version: 1,
+        revision: 0,
+        status: "draft",
+        created_by: userId,
+        change_reason: `Copied from ${src.name}`,
+      };
+    }
+    const { data: rev, error: rInsErr } = await supabase
+      .from("sp_method_revisions").insert(revInsert as never).select("*").single();
+    if (rInsErr) throw rInsErr;
+
+    if (srcRevId) {
+      const [mp, grad, cal, pr] = await Promise.all([
+        supabase.from("sp_method_mobile_phases").select("channel,composition_text,initial_percent").eq("revision_id", srcRevId),
+        supabase.from("sp_method_gradient_steps").select("ordinal,time_min,pct_a,pct_b,pct_c,pct_d,flow_rate,curve_type").eq("revision_id", srcRevId),
+        supabase.from("sp_method_calibration_levels").select("level_number,standard_name,target_concentration,concentration_unit,preparation_source,dilution_factor,replicate_count,include_in_calibration,weighting_model,regression_model,acceptance_notes,is_active").eq("revision_id", srcRevId),
+        supabase.from("sp_method_prep_rules").select("*").eq("revision_id", srcRevId).maybeSingle(),
+      ]);
+      if (mp.data?.length) await supabase.from("sp_method_mobile_phases").insert(mp.data.map(r => ({ ...r, revision_id: rev.id })));
+      if (grad.data?.length) await supabase.from("sp_method_gradient_steps").insert(grad.data.map(r => ({ ...r, revision_id: rev.id })));
+      if (cal.data?.length) await supabase.from("sp_method_calibration_levels").insert(cal.data.map(r => ({ ...r, revision_id: rev.id })));
+      if (pr.data) {
+        const { revision_id: _rid, created_at: _pc, updated_at: _pu, ...prCopy } = pr.data as Record<string, unknown> & { revision_id: string };
+        void _rid; void _pc; void _pu;
+        await supabase.from("sp_method_prep_rules").insert({ ...prCopy, revision_id: rev.id } as never);
+      } else {
+        await supabase.from("sp_method_prep_rules").insert({ revision_id: rev.id });
+      }
+    } else {
+      const levels = Array.from({ length: 6 }, (_, i) => ({ revision_id: rev.id, level_number: i + 1, standard_name: `Level ${i + 1}` }));
+      await supabase.from("sp_method_calibration_levels").insert(levels);
+      await supabase.from("sp_method_prep_rules").insert({ revision_id: rev.id });
+    }
+
+    return { method: method as Method, revision: rev as MethodRevision };
+  });
+
 export const getRevisionFull = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
