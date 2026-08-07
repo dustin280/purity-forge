@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Download, Wand2 } from "lucide-react";
-import { createRunList, deleteRunList, listRunLists } from "@/lib/run-lists.functions";
+import { createRunList, deleteRunList, deleteRunLists, listRunLists } from "@/lib/run-lists.functions";
 import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/run-lists/")({
@@ -22,10 +23,21 @@ function RunListsIndex() {
   const list = useServerFn(listRunLists);
   const create = useServerFn(createRunList);
   const del = useServerFn(deleteRunList);
+  const delMany = useServerFn(deleteRunLists);
   const { data, isLoading } = useQuery({ queryKey: qk.runLists.list(), queryFn: () => list() });
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const rows = data ?? [];
+  const allSelected = rows.length > 0 && rows.every(r => selected.has(r.id));
+  const toggleOne = (id: string, on: boolean) =>
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
 
   const createMut = useMutation({
     mutationFn: () => create({ data: { name: name.trim(), starting_vial: 1, inj_per_vial: 1, data_file_pattern: "{sample}_{yyyyMMdd}_{seq}" } }),
@@ -39,7 +51,21 @@ function RunListsIndex() {
 
   const delMut = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: qk.runLists.all }); toast.success("Deleted"); },
+    onSuccess: (_r, id) => {
+      qc.invalidateQueries({ queryKey: qk.runLists.all });
+      setSelected(prev => { const n = new Set(prev); n.delete(id); return n; });
+      toast.success("Deleted");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const bulkDelMut = useMutation({
+    mutationFn: (ids: string[]) => delMany({ data: { ids } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: qk.runLists.all });
+      setSelected(new Set());
+      toast.success(`Deleted ${r.deleted} run list${r.deleted === 1 ? "" : "s"}`);
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -57,10 +83,38 @@ function RunListsIndex() {
         </div>
       </div>
 
+      {selected.size > 0 && (
+        <Card className="border-border p-3 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-sm font-medium">{selected.size} selected</span>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={bulkDelMut.isPending}
+              onClick={() => {
+                if (confirm(`Delete ${selected.size} run list${selected.size === 1 ? "" : "s"}?`)) {
+                  bulkDelMut.mutate(Array.from(selected));
+                }
+              }}
+            >
+              <Trash2 className="size-4 mr-1" />Delete selected
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card className="border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
+              <th className="text-left px-3 py-3 font-semibold w-10">
+                <Checkbox
+                  checked={allSelected}
+                  onCheckedChange={(v) => setSelected(v ? new Set(rows.map(r => r.id)) : new Set())}
+                  aria-label="Select all run lists"
+                />
+              </th>
               <th className="text-left px-4 py-3 font-semibold">Name</th>
               <th className="text-left px-4 py-3 font-semibold">Method</th>
               <th className="text-left px-4 py-3 font-semibold">Status</th>
@@ -70,12 +124,19 @@ function RunListsIndex() {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
-            {!isLoading && (data ?? []).length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No run lists yet.</td></tr>
+            {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
+            {!isLoading && rows.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No run lists yet.</td></tr>
             )}
-            {(data ?? []).map(r => (
+            {rows.map(r => (
               <tr key={r.id} className="hover:bg-muted/30">
+                <td className="px-3 py-3">
+                  <Checkbox
+                    checked={selected.has(r.id)}
+                    onCheckedChange={(v) => toggleOne(r.id, !!v)}
+                    aria-label={`Select ${r.name}`}
+                  />
+                </td>
                 <td className="px-4 py-3">
                   <Link to="/run-lists/$id" params={{ id: r.id }} className="font-semibold text-primary hover:underline">{r.name}</Link>
                 </td>

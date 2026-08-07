@@ -127,6 +127,17 @@ export const deleteRunList = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const deleteRunLists = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("run_lists").delete().in("id", data.ids);
+    if (error) throw error;
+    return { ok: true, deleted: data.ids.length };
+  });
+
 export const getRunList = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))

@@ -42,7 +42,7 @@ function GenerateRunList() {
     onSuccess: (r) => {
       setSequences(r.sequences);
       setSelected(new Set(r.sequences.length ? [r.sequences[0].index] : []));
-      if (r.sequences.length === 0) toast.info(`No sequences generated (${r.sample_count} received samples).`);
+      if (r.sequences.length === 0) toast.info(`No sequences generated (${r.sample_count} pre-analysis samples).`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -192,7 +192,7 @@ function GenerateRunList() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Instrument Worklists</div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Run List Generator</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Turn Received samples into optimized, QC-interleaved sequences. Priority order: Polar/Early → General → Hydrophobes → GLP. Max 30 samples per sequence.
+          Turn pre-analysis samples (received, intake verified, scheduled, prep, in progress) into optimized, QC-interleaved sequences. Priority order: Polar/Early → General → Hydrophobes → GLP. Max 30 samples per sequence.
         </p>
       </div>
 
