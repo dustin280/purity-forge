@@ -76,7 +76,8 @@ export function generateCoaPdf(data: CoaInput): jsPDF {
     spec_min: data.test.spec_min ?? null, spec_max: data.test.spec_max ?? null,
   });
   doc.setFontSize(20);
-  doc.setTextColor(...(verdict === "fail" ? [220, 38, 38] as const : [5, 150, 105] as const));
+  const verdictRgb: [number, number, number] = verdict === "fail" ? [220, 38, 38] : [5, 150, 105];
+  doc.setTextColor(verdictRgb[0], verdictRgb[1], verdictRgb[2]);
   doc.text(
     data.result.purity_percentage != null ? `${Number(data.result.purity_percentage).toFixed(3)} %` : "N/A",
     margin, y
@@ -85,7 +86,9 @@ export function generateCoaPdf(data: CoaInput): jsPDF {
   doc.setFontSize(9);
   y += 16;
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...(verdict === "fail" ? [220, 38, 38] as const : verdict === "pass" ? [5, 150, 105] as const : [120, 120, 120] as const));
+  const labelRgb: [number, number, number] =
+    verdict === "fail" ? [220, 38, 38] : verdict === "pass" ? [5, 150, 105] : [120, 120, 120];
+  doc.setTextColor(labelRgb[0], labelRgb[1], labelRgb[2]);
   doc.text(
     verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "No acceptance criteria on file",
     margin, y
