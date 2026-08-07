@@ -2198,6 +2198,7 @@ export type Database = {
           batch_id: string
           catalog: string | null
           client: string
+          client_id: string | null
           client_received_date: string | null
           coc_id: string | null
           coc_line_no: number | null
@@ -2232,6 +2233,7 @@ export type Database = {
           batch_id: string
           catalog?: string | null
           client: string
+          client_id?: string | null
           client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
@@ -2266,6 +2268,7 @@ export type Database = {
           batch_id?: string
           catalog?: string | null
           client?: string
+          client_id?: string | null
           client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
@@ -2295,6 +2298,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "samples_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "samples_coc_id_fkey"
             columns: ["coc_id"]
@@ -3908,6 +3918,8 @@ export type Database = {
           method_name: string
           parameters: Json | null
           sample_id: string
+          spec_max: number | null
+          spec_min: number | null
           status: Database["public"]["Enums"]["test_status"]
           updated_at: string
         }
@@ -3919,6 +3931,8 @@ export type Database = {
           method_name?: string
           parameters?: Json | null
           sample_id: string
+          spec_max?: number | null
+          spec_min?: number | null
           status?: Database["public"]["Enums"]["test_status"]
           updated_at?: string
         }
@@ -3930,6 +3944,8 @@ export type Database = {
           method_name?: string
           parameters?: Json | null
           sample_id?: string
+          spec_max?: number | null
+          spec_min?: number | null
           status?: Database["public"]["Enums"]["test_status"]
           updated_at?: string
         }
