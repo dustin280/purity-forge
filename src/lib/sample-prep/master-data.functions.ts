@@ -362,19 +362,6 @@ export const copyMethodToAnalyte = createServerFn({ method: "POST" })
     return { method: method as Method, revision: rev as MethodRevision };
   });
 
-const _unusedGetMethod = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ context, data }) => {
-    const [method, revs] = await Promise.all([
-      context.supabase.from("sp_methods").select("*").eq("id", data.id).maybeSingle(),
-      context.supabase.from("sp_method_revisions").select("*").eq("method_id", data.id).order("version", { ascending: false }).order("revision", { ascending: false }),
-    ]);
-    if (method.error) throw method.error;
-    if (revs.error) throw revs.error;
-    return { method: method.data as Method | null, revisions: (revs.data ?? []) as MethodRevision[] };
-  });
-
 export const getRevisionFull = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
