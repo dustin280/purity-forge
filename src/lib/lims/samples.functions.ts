@@ -79,7 +79,7 @@ export const getSampleDetail = createServerFn({ method: "GET" })
       results.flatMap(r => [r.analyst_id, r.reviewer_id]).filter((id): id is string => !!id)
     ));
     const profiles = userIds.length
-      ? (await supabase.from("profiles").select("id,full_name,first_name,last_name,email").in("id", userIds)).data ?? []
+      ? (await supabase.from("profiles").select("id,full_name,first_name,last_name,email,title").in("id", userIds)).data ?? []
       : [];
     return { sample, tests: tests ?? [], results, profiles };
   });
