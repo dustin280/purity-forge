@@ -20,6 +20,7 @@ import { qk } from "@/lib/query-keys";
 import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types";
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
 import { createClient as createClientFn, type ClientRow } from "@/lib/clients.functions";
+import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
 
 export type CocAttachment = {
   id: string; file_path: string; file_name: string; content_type: string | null;
@@ -113,6 +114,12 @@ export function useCocForm({
       const v = existing?.data?.[f.field_key];
       if (f.field_type === "multiselect") {
         init[f.field_key] = Array.isArray(v) ? v : [];
+      } else if (f.field_type === "datetime") {
+        const norm = toLocalDatetimeInput(v == null ? "" : String(v));
+        // New receipts default to "now" so the picker is never half-filled.
+        init[f.field_key] = norm || (recordId ? "" : nowDatetimeInput());
+      } else if (f.field_type === "date") {
+        init[f.field_key] = toDateInput(v == null ? "" : String(v));
       } else {
         init[f.field_key] = v == null ? "" : String(v);
       }
@@ -121,6 +128,14 @@ export function useCocForm({
       init.sample_id = existing.sample_id;
     }
     const merged: Record<string, string | string[]> = { ...init, ...(resumed?.values ?? {}) };
+    // Resumed drafts can carry values saved before normalization existed.
+    activeFields.forEach(f => {
+      if (f.field_type === "datetime") {
+        merged[f.field_key] = toLocalDatetimeInput(merged[f.field_key] as string) || (init[f.field_key] as string);
+      } else if (f.field_type === "date") {
+        merged[f.field_key] = toDateInput(merged[f.field_key] as string);
+      }
+    });
     setValues(merged);
 
     const resumedLines = (resumed?.lineItems as LineItem[] | undefined);

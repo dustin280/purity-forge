@@ -64,7 +64,11 @@ export const saveSftpConfig = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const payload: Record<string, unknown> = {
+    const payload: {
+      host: string; port: number; username: string; remote_path: string;
+      is_active: boolean; updated_by: string; updated_at: string;
+      password?: string | null; private_key?: string | null;
+    } = {
       host: data.host,
       port: data.port,
       username: data.username,

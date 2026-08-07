@@ -15,6 +15,7 @@ import { MultiselectField } from "./coc-multiselect-field";
 import { CocLineItemsSection } from "./coc-line-items-section";
 import { useCocForm } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
+import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
 import type { CocField } from "./types";
 
 export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, initialFile }: {
@@ -78,6 +79,24 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
       text: "text", number: "number", date: "date",
       datetime: "datetime-local", email: "email", tel: "tel",
     };
+    if (field.field_type === "datetime") {
+      return (
+        <div className="flex gap-2">
+          <Input
+            {...common}
+            type="datetime-local"
+            value={toLocalDatetimeInput(v)}
+            onChange={(e) => set(e.target.value)}
+          />
+          <Button type="button" variant="outline" size="sm" onClick={() => set(nowDatetimeInput())}>
+            Now
+          </Button>
+        </div>
+      );
+    }
+    if (field.field_type === "date") {
+      return <Input {...common} type="date" value={toDateInput(v)} onChange={(e) => set(e.target.value)} />;
+    }
     return <Input type={typeMap[field.field_type] ?? "text"} {...common} />;
   }
 
