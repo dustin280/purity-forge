@@ -67,23 +67,9 @@ export const deleteCocRecord = createServerFn({ method: "POST" })
 export const nextCocInvoiceNumber = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const yy = String(now.getFullYear()).slice(-2);
-    const prefix = `COC${mm}${dd}${yy}-`;
-    const { data, error } = await context.supabase
-      .from("chain_of_custody_records")
-      .select("sample_id")
-      .like("sample_id", "COC%");
+    // Reserves the number atomically so repeat "Print blank" clicks never
+    // stamp the same Lab Sample ID.
+    const { data, error } = await context.supabase.rpc("next_coc_invoice_number");
     if (error) throw error;
-    let max = 99;
-    for (const r of data ?? []) {
-      const sid = String((r as { sample_id: string }).sample_id);
-      const dash = sid.lastIndexOf("-");
-      if (dash < 0) continue;
-      const n = parseInt(sid.slice(dash + 1), 10);
-      if (!isNaN(n) && n > max) max = n;
-    }
-    return { invoice: `${prefix}${max + 1}` };
+    return { invoice: data as unknown as string };
   });
