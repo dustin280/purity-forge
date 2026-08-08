@@ -12,7 +12,8 @@ function pad(n: number) {
 
 /** Current local time formatted for a datetime-local input. */
 export function nowDatetimeInput(): string {
-  return toLocalDatetimeInput(new Date().toISOString());
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Normalize an arbitrary stored value to `YYYY-MM-DDTHH:MM` ("" if unparseable). */

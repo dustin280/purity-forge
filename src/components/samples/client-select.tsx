@@ -106,6 +106,18 @@ export function ClientSelect({
               )}
             </div>
           )}
+          {clientName && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              From chain-of-custody: <span className="font-medium text-foreground">{clientName}</span>{" "}
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => { setSearch(clientName); setFocused(true); }}
+              >
+                use this
+              </button>
+            </p>
+          )}
         </div>
       )}
     </div>

@@ -59,14 +59,14 @@ async function resolveAnalyteIds(supabase: SB, labels: string[]): Promise<Map<st
   if (!labels.length) return out;
   const lc = labels.map(l => l.toLowerCase());
   const [{ data: byName }, { data: byAlias }] = await Promise.all([
-    supabase.from("sp_analytes").select("id,name,abbreviation"),
+    supabase.from("sp_analytes").select("id,canonical_name,abbreviation"),
     supabase.from("sp_analyte_aliases").select("analyte_id,alias"),
   ]);
-  const analytes = (byName ?? []) as Array<{ id: string; name: string; abbreviation: string | null }>;
+  const analytes = (byName ?? []) as Array<{ id: string; canonical_name: string; abbreviation: string | null }>;
   const aliases = (byAlias ?? []) as Array<{ analyte_id: string; alias: string }>;
   for (const label of lc) {
     const hit = analytes.find(a =>
-      a.name.toLowerCase() === label ||
+      a.canonical_name.toLowerCase() === label ||
       (a.abbreviation && a.abbreviation.toLowerCase() === label),
     );
     if (hit) { out.set(label, hit.id); continue; }
