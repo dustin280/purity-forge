@@ -412,6 +412,21 @@ export type Database = {
           },
         ]
       }
+      coc_invoice_counters: {
+        Row: {
+          day: string
+          last_seq: number
+        }
+        Insert: {
+          day: string
+          last_seq?: number
+        }
+        Update: {
+          day?: string
+          last_seq?: number
+        }
+        Relationships: []
+      }
       compounds: {
         Row: {
           created_at: string
@@ -4157,6 +4172,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      next_coc_invoice_number: { Args: never; Returns: string }
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }
       next_run_list_seq: {
