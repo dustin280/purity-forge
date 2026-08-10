@@ -56,6 +56,7 @@ export function EntryForm({
   const [preview, setPreview] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
   const initialized = useRef(false);
+  const submittingRef = useRef(false);
 
   // On open: prefill date/time with NOW for new entries, load editing entry,
   // or restore localStorage draft for new entries.
@@ -275,8 +276,14 @@ export function EntryForm({
         <Button
           disabled={!canSave}
           onClick={async () => {
-            await onSubmit(payload);
-            if (!editing) reset();
+            if (submittingRef.current) return;
+            submittingRef.current = true;
+            try {
+              await onSubmit(payload);
+              if (!editing) reset();
+            } finally {
+              submittingRef.current = false;
+            }
           }}
         >
           <Save className="size-4 mr-1" />
@@ -287,9 +294,15 @@ export function EntryForm({
           variant="outline"
           disabled={!canSave}
           onClick={async () => {
-            await onSubmit(payload);
-            downloadJournalPdf(payload);
-            if (!editing) reset();
+            if (submittingRef.current) return;
+            submittingRef.current = true;
+            try {
+              await onSubmit(payload);
+              downloadJournalPdf(payload);
+              if (!editing) reset();
+            } finally {
+              submittingRef.current = false;
+            }
           }}
         >
           <FileDown className="size-4 mr-1" /> Save &amp; export PDF
