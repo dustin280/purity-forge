@@ -2989,17 +2989,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "sp_method_prep_rules_revision_id_fkey"
-            columns: ["revision_id"]
-            isOneToOne: true
-            referencedRelation: "sp_method_revisions"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sp_method_prep_rules_default_sample_solvent_id_fkey"
             columns: ["default_sample_solvent_id"]
             isOneToOne: false
             referencedRelation: "sp_solvent_formulations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sp_method_prep_rules_revision_id_fkey"
+            columns: ["revision_id"]
+            isOneToOne: true
+            referencedRelation: "sp_method_revisions"
             referencedColumns: ["id"]
           },
         ]
