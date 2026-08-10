@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { releaseSampleFromInstrument } from "@/lib/run-lists/vial-release.functions";
 
 export const updateTestSpec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -159,6 +160,11 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
       record_id: data.sampleId, changed_by: userId,
       diff: { status: data.status },
     });
+    // Completing a sample frees its instrument vial position automatically
+    // -- no separate "remove from instrument" click needed.
+    if (data.status === "approved") {
+      await releaseSampleFromInstrument(supabase, data.sampleId);
+    }
     return { ok: true };
   });
 

@@ -185,6 +185,7 @@ export const qk = {
     detail: (id: string) => ["run-list", id] as const,
     prepFlagged: () => ["prep-flagged-samples"] as const,
     columns: () => ["run-list-columns"] as const,
+    instrumentOccupants: () => ["run-lists", "instrument-occupants"] as const,
   },
 
   inventory: {
@@ -202,6 +203,12 @@ export const qk = {
   methodGroups: {
     all: ["method-groups"] as const,
     list: () => ["method-groups"] as const,
+  },
+
+  sampleDisposal: {
+    all: ["sample-disposal"] as const,
+    list: () => ["sample-disposal", "locations"] as const,
+    config: () => ["sample-disposal", "config"] as const,
   },
 
   trays: {

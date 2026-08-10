@@ -6,6 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ACTIVE_SAMPLE_STATUSES } from "@/lib/lims-utils";
+import { releaseSampleFromInstrument } from "@/lib/run-lists/vial-release.functions";
 import {
   simulate,
   computeHealth,
@@ -270,6 +271,9 @@ export const setSampleQueueStatus = createServerFn({ method: "POST" })
       .update(patch)
       .eq("id", data.sample_id);
     if (error) throw error;
+    if (data.status === "complete" || data.status === "approved") {
+      await releaseSampleFromInstrument(context.supabase, data.sample_id);
+    }
     return { ok: true };
   });
 
@@ -324,5 +328,8 @@ export const bulkSetSampleQueueStatus = createServerFn({ method: "POST" })
       .update(patch)
       .in("id", data.sample_ids);
     if (error) throw error;
+    if (data.status === "complete" || data.status === "approved") {
+      await Promise.all(data.sample_ids.map((id) => releaseSampleFromInstrument(context.supabase, id)));
+    }
     return { ok: true, updated: data.sample_ids.length };
   });

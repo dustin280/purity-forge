@@ -7,18 +7,33 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ACTIVE_SAMPLE_STATUSES } from "@/lib/lims-utils";
 import { optimize, type OptimizedSequence, type OptimizerSample } from "./optimizer";
+import { releaseSampleFromInstrument } from "./vial-release.functions";
 
 const previewInput = z.object({ instrument_id: z.string().uuid() });
 
 async function loadContext(supabase: any, instrumentId: string) {
+  // Samples already actively occupying an instrument position shouldn't be
+  // offered a second vial by a future "Analyze & propose" -- they're
+  // already on the instrument until completed or manually released.
+  const { data: occupiedRows } = await supabase
+    .from("sample_locations")
+    .select("sample_id")
+    .eq("location_type", "instrument")
+    .eq("status", "active");
+  const occupiedSampleIds = [...new Set((occupiedRows ?? []).map((r: { sample_id: string }) => r.sample_id))];
+
   const [{ data: instrument }, { data: methodGroups }, { data: samples }] = await Promise.all([
     supabase.from("inventory_items")
       .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status,drive_sequences_folder_id")
       .eq("id", instrumentId).maybeSingle(),
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
-    supabase.from("samples")
-      .select("id,batch_id,compound,method_group_id,status,lot,concentration")
-      .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[]),
+    (() => {
+      let q = supabase.from("samples")
+        .select("id,batch_id,compound,method_group_id,status,lot,concentration")
+        .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[]);
+      if (occupiedSampleIds.length) q = q.not("id", "in", `(${occupiedSampleIds.join(",")})`);
+      return q;
+    })(),
   ]);
   if (!instrument) throw new Error("Instrument not found");
   // Ordering doesn't matter here — optimize() sorts parseable vial
@@ -55,6 +70,39 @@ export const previewGeneratedSequences = createServerFn({ method: "POST" })
       trayPositions: ctx.trayPositions,
     });
     return { instrument: ctx.instrument, sequences, sample_count: ctx.samples.length };
+  });
+
+/**
+ * Samples currently occupying an instrument vial position, oldest first —
+ * feeds the "no positions left" warning dialog so an analyst can free up
+ * space (e.g. a run that's physically finished but hasn't been reviewed
+ * yet) instead of generation silently producing null vials.
+ */
+export const listInstrumentOccupants = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: locs, error } = await context.supabase
+      .from("sample_locations")
+      .select("id, sample_id, location, assigned_at, sample:samples(id, batch_id, client, compound, status)")
+      .eq("location_type", "instrument")
+      .eq("status", "active")
+      .order("assigned_at", { ascending: true });
+    if (error) throw error;
+    return (locs ?? []) as Array<{
+      id: string; sample_id: string; location: string; assigned_at: string;
+      sample: { id: string; batch_id: string; client: string; compound: string | null; status: string } | null;
+    }>;
+  });
+
+/** Bulk "remove from instrument" for the warning dialog's checked samples. */
+export const releaseInstrumentPositions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({
+    sample_ids: z.array(z.string().uuid()).min(1).max(500),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
+    await Promise.all(data.sample_ids.map((id) => releaseSampleFromInstrument(context.supabase, id)));
+    return { ok: true, released: data.sample_ids.length };
   });
 
 function csvEscape(v: unknown): string {
@@ -140,12 +188,13 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: inst } = await context.supabase
       .from("inventory_items")
-      .select("id,instrument_name,make,model,default_method_folder,drive_sequences_folder_id")
+      .select("id,instrument_name,make,model,default_method_folder,drive_sequences_folder_id,tray_config_id")
       .eq("id", data.instrument_id).maybeSingle();
     if (!inst) throw new Error("Instrument not found");
     const instRow = inst as {
       instrument_name: string | null; make: string | null; model: string | null;
       default_method_folder: string | null; drive_sequences_folder_id: string | null;
+      tray_config_id: string | null;
     };
     const instName = instRow.instrument_name
       ?? [instRow.make, instRow.model].filter(Boolean).join(" ")
@@ -204,6 +253,36 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       extras: { position_code: r.vial, processing_method: r.processing_method },
     }));
     await context.supabase.from("run_list_items").insert(items);
+
+    // Persist the vial assignment: tag each occupied position 'reserved'
+    // so regenerating won't offer it again, and log an active instrument
+    // location per sample so completion (releaseSampleFromInstrument) and
+    // the Sample Disposal Log both have something to act on.
+    const occupied = seq.rows.filter((r) => r.sample_id && r.vial);
+    if (occupied.length && instRow.tray_config_id) {
+      const codes = [...new Set(occupied.map((r) => r.vial as string))];
+      const { data: positions } = await context.supabase
+        .from("tray_positions")
+        .select("id, position_code")
+        .eq("tray_config_id", instRow.tray_config_id)
+        .in("position_code", codes);
+      const posIdByCode = new Map((positions ?? []).map((p: { id: string; position_code: string }) => [p.position_code, p.id]));
+
+      const locationRows = occupied
+        .map((r) => ({
+          sample_id: r.sample_id as string,
+          location_type: "instrument",
+          location: r.vial as string,
+          tray_position_id: posIdByCode.get(r.vial as string) ?? null,
+          status: "active",
+        }))
+        .filter((r): r is typeof r & { tray_position_id: string } => r.tray_position_id !== null);
+      if (locationRows.length) {
+        await context.supabase.from("sample_locations").insert(locationRows);
+        const usedPositionIds = locationRows.map((r) => r.tray_position_id);
+        await context.supabase.from("tray_positions").update({ status: "reserved" }).in("id", usedPositionIds);
+      }
+    }
 
     return {
       run_list_id: rl.id as string,

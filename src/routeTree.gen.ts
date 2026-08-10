@@ -77,6 +77,7 @@ import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_auth
 import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
 import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
+import { Route as AuthenticatedLabLogsSampleDisposalIndexRouteImport } from './routes/_authenticated/lab-logs/sample-disposal/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
@@ -486,6 +487,12 @@ const AuthenticatedLabLogsStandardPreparationsIndexRoute =
     path: '/lab-logs/standard-preparations/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsSampleDisposalIndexRoute =
+  AuthenticatedLabLogsSampleDisposalIndexRouteImport.update({
+    id: '/lab-logs/sample-disposal/',
+    path: '/lab-logs/sample-disposal/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsParameterScoutingIndexRoute =
   AuthenticatedLabLogsParameterScoutingIndexRouteImport.update({
     id: '/lab-logs/parameter-scouting/',
@@ -667,6 +674,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
+  '/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
@@ -753,6 +761,7 @@ export interface FileRoutesByTo {
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
+  '/lab-logs/sample-disposal': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/api/public/status': typeof ApiPublicStatusIndexRoute
@@ -841,6 +850,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
+  '/_authenticated/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
@@ -929,6 +939,7 @@ export interface FileRouteTypes {
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
+    | '/lab-logs/sample-disposal/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/timesheets/'
     | '/api/public/status/'
@@ -1015,6 +1026,7 @@ export interface FileRouteTypes {
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
+    | '/lab-logs/sample-disposal'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/timesheets'
     | '/api/public/status'
@@ -1102,6 +1114,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
+    | '/_authenticated/lab-logs/sample-disposal/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/timesheets/'
     | '/api/public/status/'
@@ -1599,6 +1612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/sample-disposal/': {
+      id: '/_authenticated/lab-logs/sample-disposal/'
+      path: '/lab-logs/sample-disposal'
+      fullPath: '/lab-logs/sample-disposal/'
+      preLoaderRoute: typeof AuthenticatedLabLogsSampleDisposalIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/parameter-scouting/': {
       id: '/_authenticated/lab-logs/parameter-scouting/'
       path: '/lab-logs/parameter-scouting'
@@ -1822,6 +1842,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
+  AuthenticatedLabLogsSampleDisposalIndexRoute: typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   AuthenticatedLabLogsTimesheetsIndexRoute: typeof AuthenticatedLabLogsTimesheetsIndexRoute
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
@@ -1922,6 +1943,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsMobilePhaseIndexRoute,
   AuthenticatedLabLogsParameterScoutingIndexRoute:
     AuthenticatedLabLogsParameterScoutingIndexRoute,
+  AuthenticatedLabLogsSampleDisposalIndexRoute:
+    AuthenticatedLabLogsSampleDisposalIndexRoute,
   AuthenticatedLabLogsStandardPreparationsIndexRoute:
     AuthenticatedLabLogsStandardPreparationsIndexRoute,
   AuthenticatedLabLogsTimesheetsIndexRoute:
@@ -1949,3 +1972,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

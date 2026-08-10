@@ -15,6 +15,7 @@ import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
 import { qk } from "@/lib/query-keys";
+import { NoVialsDialog } from "@/components/run-lists/no-vials-dialog";
 
 export const Route = createFileRoute("/_authenticated/run-lists/generate")({
   component: GenerateRunList,
@@ -36,6 +37,7 @@ function GenerateRunList() {
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
   const [pushBusy, setPushBusy] = useState<number | "bulk" | null>(null);
+  const [noVialsOpen, setNoVialsOpen] = useState(false);
 
   const previewMut = useMutation({
     mutationFn: () => preview({ data: { instrument_id: instrumentId } }),
@@ -43,6 +45,10 @@ function GenerateRunList() {
       setSequences(r.sequences);
       setSelected(new Set(r.sequences.length ? [r.sequences[0].index] : []));
       if (r.sequences.length === 0) toast.info(`No sequences generated (${r.sample_count} pre-analysis samples).`);
+      const outOfVials = r.sequences.some((seq) =>
+        seq.rows.some((row) => row.type === "Sample" && row.vial === null),
+      );
+      if (outOfVials) setNoVialsOpen(true);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -320,6 +326,12 @@ function GenerateRunList() {
           No sequences selected. Pick one above to preview and export.
         </Card>
       )}
+
+      <NoVialsDialog
+        open={noVialsOpen}
+        onOpenChange={setNoVialsOpen}
+        onReleased={() => previewMut.mutate()}
+      />
     </div>
   );
 }

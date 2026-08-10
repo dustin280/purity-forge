@@ -468,6 +468,24 @@ export type Database = {
           },
         ]
       }
+      disposal_config: {
+        Row: {
+          id: string
+          retention_days: number
+          singleton: boolean
+        }
+        Insert: {
+          id?: string
+          retention_days?: number
+          singleton?: boolean
+        }
+        Update: {
+          id?: string
+          retention_days?: number
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       daily_backpressure_logs: {
         Row: {
           backpressure: number
@@ -2255,6 +2273,69 @@ export type Database = {
             columns: ["instrument_id"]
             isOneToOne: false
             referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sample_locations: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          disposed_at: string | null
+          disposed_by: string | null
+          id: string
+          location: string
+          location_type: string
+          notes: string | null
+          removed_at: string | null
+          sample_id: string
+          status: string
+          tray_position_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          disposed_at?: string | null
+          disposed_by?: string | null
+          id?: string
+          location: string
+          location_type: string
+          notes?: string | null
+          removed_at?: string | null
+          sample_id: string
+          status?: string
+          tray_position_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          disposed_at?: string | null
+          disposed_by?: string | null
+          id?: string
+          location?: string
+          location_type?: string
+          notes?: string | null
+          removed_at?: string | null
+          sample_id?: string
+          status?: string
+          tray_position_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sample_locations_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sample_locations_tray_position_id_fkey"
+            columns: ["tray_position_id"]
+            isOneToOne: false
+            referencedRelation: "tray_positions"
             referencedColumns: ["id"]
           },
         ]
