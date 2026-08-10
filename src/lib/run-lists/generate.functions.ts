@@ -17,7 +17,7 @@ const ELIGIBLE_SAMPLE_STATUSES = [
 async function loadContext(supabase: any, instrumentId: string) {
   const [{ data: instrument }, { data: methodGroups }, { data: samples }] = await Promise.all([
     supabase.from("inventory_items")
-      .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status,drive_folder_id")
+      .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status,drive_sequences_folder_id")
       .eq("id", instrumentId).maybeSingle(),
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
     supabase.from("samples")
@@ -37,7 +37,7 @@ async function loadContext(supabase: any, instrumentId: string) {
     instrument: instrument as {
       id: string; instrument_name: string | null; make: string | null; model: string | null;
       default_method_folder: string | null; tray_config_id: string | null;
-      drive_folder_id: string | null;
+      drive_sequences_folder_id: string | null;
     },
     methodGroups: (methodGroups ?? []) as Array<{
       id: string; name: string; temperature_c: number; priority: number;
@@ -144,12 +144,12 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: inst } = await context.supabase
       .from("inventory_items")
-      .select("id,instrument_name,make,model,default_method_folder,drive_folder_id")
+      .select("id,instrument_name,make,model,default_method_folder,drive_sequences_folder_id")
       .eq("id", data.instrument_id).maybeSingle();
     if (!inst) throw new Error("Instrument not found");
     const instRow = inst as {
       instrument_name: string | null; make: string | null; model: string | null;
-      default_method_folder: string | null; drive_folder_id: string | null;
+      default_method_folder: string | null; drive_sequences_folder_id: string | null;
     };
     const instName = instRow.instrument_name
       ?? [instRow.make, instRow.model].filter(Boolean).join(" ")
@@ -213,7 +213,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       run_list_id: rl.id as string,
       filename,
       csv: csvWithBom,
-      drive_folder_id: instRow.drive_folder_id,
+      drive_sequences_folder_id: instRow.drive_sequences_folder_id,
     };
   });
 
@@ -282,9 +282,9 @@ export const pushGeneratedRunListToDrive = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { data: inst } = await context.supabase
       .from("inventory_items")
-      .select("drive_folder_id")
+      .select("drive_sequences_folder_id")
       .eq("id", data.instrument_id).maybeSingle();
-    let folderId = (inst as { drive_folder_id: string | null } | null)?.drive_folder_id ?? null;
+    let folderId = (inst as { drive_sequences_folder_id: string | null } | null)?.drive_sequences_folder_id ?? null;
     if (!folderId) {
       const { data: settings } = await context.supabase
         .from("openlab_settings")
