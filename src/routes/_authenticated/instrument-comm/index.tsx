@@ -18,6 +18,11 @@ function InstrumentCommHome() {
           Bridges between the LIMS and lab instrumentation. Browse methods, sequences,
           and connection status for each connected system.
         </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          This is the real, synced instrument method/sequence library. For the SOP-level method
+          spec (chromatography, gradient, calibration, prep rules), see{" "}
+          <Link to="/sample-prep/methods" className="underline">Sample Prep → Methods</Link>.
+        </p>
       </div>
 
       <ConnectionStatusCard />

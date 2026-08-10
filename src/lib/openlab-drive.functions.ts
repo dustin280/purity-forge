@@ -296,18 +296,26 @@ async function syncKind(
   kind: Kind,
   folderId: string,
   prefix: string,
+  instrumentId: string | null,
 ): Promise<number> {
   const files = await driveList(folderId);
   const stamp = new Date().toISOString();
 
-  // Wipe + reinsert index rows for this kind. (Same approach used by the
-  // existing manual sync in openlab.functions.ts.)
+  // Wipe + reinsert index rows for this kind, scoped to this instrument (or
+  // to the untagged/legacy rows when instrumentId is null) so syncing one
+  // instrument's folder never wipes another instrument's already-synced
+  // rows. (Same wipe-and-reinsert approach used by the existing manual sync
+  // in openlab.functions.ts.)
+  const scoped = (table: string) => {
+    const q = supabase.from(table).delete();
+    return instrumentId ? q.eq("instrument_id", instrumentId) : q.is("instrument_id", null);
+  };
   if (kind === "Methods") {
-    await supabase.from("openlab_methods").delete().neq("name", "");
+    await scoped("openlab_methods");
   } else if (kind === "Sequences") {
-    await supabase.from("openlab_sequences").delete().neq("name", "");
+    await scoped("openlab_sequences");
   } else {
-    await supabase.from("openlab_reports").delete().neq("name", "");
+    await scoped("openlab_reports");
   }
 
   for (const f of files) {
@@ -333,6 +341,7 @@ async function syncKind(
           last_modified: f.modifiedTime ?? null,
           size_bytes: null,
           synced_at: stamp,
+          instrument_id: instrumentId,
         });
         if (error) throw error;
       } else if (kind === "Sequences") {
@@ -360,6 +369,7 @@ async function syncKind(
           last_modified: f.modifiedTime ?? null,
           line_count: lineCount,
           synced_at: stamp,
+          instrument_id: instrumentId,
         });
         if (error) throw error;
       } else {
@@ -369,6 +379,7 @@ async function syncKind(
           last_modified: f.modifiedTime ?? null,
           size_bytes: null,
           synced_at: stamp,
+          instrument_id: instrumentId,
         });
         if (error) throw error;
       }
@@ -394,6 +405,7 @@ async function syncKind(
         last_modified: f.modifiedTime ?? null,
         size_bytes: f.size ? Number(f.size) : null,
         synced_at: stamp,
+        instrument_id: instrumentId,
       });
       if (error) throw error;
     } else if (kind === "Sequences") {
@@ -408,6 +420,7 @@ async function syncKind(
         last_modified: f.modifiedTime ?? null,
         line_count: lineCount,
         synced_at: stamp,
+        instrument_id: instrumentId,
       });
       if (error) throw error;
     } else {
@@ -417,6 +430,7 @@ async function syncKind(
         last_modified: f.modifiedTime ?? null,
         size_bytes: f.size ? Number(f.size) : null,
         synced_at: stamp,
+        instrument_id: instrumentId,
       });
       if (error) throw error;
     }
@@ -468,51 +482,76 @@ export const pullDriveSnapshot = createServerFn({ method: "POST" })
     if (!settings) throw new Error("OpenLab settings not configured");
     const prefix = normalizePrefix(settings.storage_prefix ?? "default/");
 
-    const methodsId =
-      (data?.methods_folder_id && data.methods_folder_id.length > 0
-        ? data.methods_folder_id
-        : settings.drive_methods_folder_id) || null;
-    const sequencesId =
-      (data?.sequences_folder_id && data.sequences_folder_id.length > 0
-        ? data.sequences_folder_id
-        : settings.drive_sequences_folder_id) || null;
-    const reportsId =
-      (data?.reports_folder_id && data.reports_folder_id.length > 0
-        ? data.reports_folder_id
-        : settings.drive_reports_folder_id) || null;
-
-    if (!methodsId && !sequencesId && !reportsId) {
-      throw new Error(
-        "No Drive folders configured. Enter a Methods, Sequences, or Reports folder ID first.",
-      );
-    }
+    const hasExplicitOverride =
+      !!data?.methods_folder_id || !!data?.sequences_folder_id || !!data?.reports_folder_id;
 
     let methods = 0;
     let sequences = 0;
     let reports = 0;
-    if (methodsId) {
-      methods = await syncKind(
-        context.supabase,
-        "Methods",
-        methodsId,
-        prefix,
-      );
+
+    // Each instrument can have its own Methods/Sequences/Reports folders now
+    // (see inventory_items.drive_methods_folder_id etc). Sync each one that
+    // has at least one configured, tagging its rows with instrument_id.
+    let instrumentsSynced = 0;
+    if (!hasExplicitOverride) {
+      const { data: instruments } = await context.supabase
+        .from("inventory_items")
+        .select("id,drive_methods_folder_id,drive_sequences_folder_id,drive_reports_folder_id")
+        .eq("category", "instrument");
+      for (const inst of instruments ?? []) {
+        const row = inst as {
+          id: string;
+          drive_methods_folder_id: string | null;
+          drive_sequences_folder_id: string | null;
+          drive_reports_folder_id: string | null;
+        };
+        if (!row.drive_methods_folder_id && !row.drive_sequences_folder_id && !row.drive_reports_folder_id) continue;
+        instrumentsSynced++;
+        if (row.drive_methods_folder_id) {
+          methods += await syncKind(context.supabase, "Methods", row.drive_methods_folder_id, prefix, row.id);
+        }
+        if (row.drive_sequences_folder_id) {
+          sequences += await syncKind(context.supabase, "Sequences", row.drive_sequences_folder_id, prefix, row.id);
+        }
+        if (row.drive_reports_folder_id) {
+          reports += await syncKind(context.supabase, "Reports", row.drive_reports_folder_id, prefix, row.id);
+        }
+      }
     }
-    if (sequencesId) {
-      sequences = await syncKind(
-        context.supabase,
-        "Sequences",
-        sequencesId,
-        prefix,
-      );
-    }
-    if (reportsId) {
-      reports = await syncKind(
-        context.supabase,
-        "Reports",
-        reportsId,
-        prefix,
-      );
+
+    // Fall back to the shared/singleton project — either because no
+    // instrument has its own folders configured yet, or because the caller
+    // passed an explicit override (a manual one-off sync against a specific
+    // folder, independent of any instrument).
+    if (instrumentsSynced === 0) {
+      const methodsId =
+        (data?.methods_folder_id && data.methods_folder_id.length > 0
+          ? data.methods_folder_id
+          : settings.drive_methods_folder_id) || null;
+      const sequencesId =
+        (data?.sequences_folder_id && data.sequences_folder_id.length > 0
+          ? data.sequences_folder_id
+          : settings.drive_sequences_folder_id) || null;
+      const reportsId =
+        (data?.reports_folder_id && data.reports_folder_id.length > 0
+          ? data.reports_folder_id
+          : settings.drive_reports_folder_id) || null;
+
+      if (!methodsId && !sequencesId && !reportsId) {
+        throw new Error(
+          "No Drive folders configured. Set folders on an instrument (Inventory → Instruments) or enter a shared Methods, Sequences, or Reports folder ID here.",
+        );
+      }
+
+      if (methodsId) {
+        methods += await syncKind(context.supabase, "Methods", methodsId, prefix, null);
+      }
+      if (sequencesId) {
+        sequences += await syncKind(context.supabase, "Sequences", sequencesId, prefix, null);
+      }
+      if (reportsId) {
+        reports += await syncKind(context.supabase, "Reports", reportsId, prefix, null);
+      }
     }
 
     const stamp = new Date().toISOString();

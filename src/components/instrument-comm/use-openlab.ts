@@ -14,13 +14,19 @@ export function useOpenLabSettings() {
   const fn = useServerFn(getOpenLabSettings);
   return useQuery({ queryKey: qk.openlab.settings, queryFn: () => fn() });
 }
-export function useOpenLabMethods() {
+export function useOpenLabMethods(instrumentId?: string | null) {
   const fn = useServerFn(listOpenLabMethods);
-  return useQuery({ queryKey: qk.openlab.methods, queryFn: () => fn() });
+  return useQuery({
+    queryKey: [...qk.openlab.methods, instrumentId ?? null],
+    queryFn: () => fn({ data: instrumentId ? { instrument_id: instrumentId } : {} }),
+  });
 }
-export function useOpenLabSequences() {
+export function useOpenLabSequences(instrumentId?: string | null) {
   const fn = useServerFn(listOpenLabSequences);
-  return useQuery({ queryKey: qk.openlab.sequences, queryFn: () => fn() });
+  return useQuery({
+    queryKey: [...qk.openlab.sequences, instrumentId ?? null],
+    queryFn: () => fn({ data: instrumentId ? { instrument_id: instrumentId } : {} }),
+  });
 }
 export function useOpenLabMethod(name: string | null) {
   const fn = useServerFn(getOpenLabMethod);

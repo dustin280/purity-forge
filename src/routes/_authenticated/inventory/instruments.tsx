@@ -39,7 +39,9 @@ function InstrumentsInventory() {
       instrument_status?: InstrumentOpStatus | null;
       default_method_folder?: string | null;
       tray_config_id?: string | null;
+      drive_methods_folder_id?: string | null;
       drive_sequences_folder_id?: string | null;
+      drive_reports_folder_id?: string | null;
     }) => upd({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.instrumentInventory.all }),
     onError: (e: Error) => toast.error(e.message),
@@ -54,6 +56,12 @@ function InstrumentsInventory() {
           Configure display name, operational status, method folder, and tray layout for the Run List Generator.
           Add new instruments from <a className="underline" href="/inventory/new">Inventory → Add</a> with category "Instrument".
         </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Each instrument can have its own OpenLab CDS Methods/Sequences/Reports Drive folders — set them below to
+          sync that instrument's real method files independently, instead of sharing one project across the whole
+          lab. Leave blank to keep using the shared folders configured in{" "}
+          <a className="underline" href="/instrument-comm">Instrument Comm → Settings</a>.
+        </p>
       </div>
 
       <Card className="p-0 overflow-hidden">
@@ -66,12 +74,14 @@ function InstrumentsInventory() {
               <TableHead>Status</TableHead>
               <TableHead>Method folder</TableHead>
               <TableHead>Tray</TableHead>
-              <TableHead>Drive folder</TableHead>
+              <TableHead>Drive: Methods</TableHead>
+              <TableHead>Drive: Sequences</TableHead>
+              <TableHead>Drive: Reports</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {(data ?? []).length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-8">No instruments yet.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-8">No instruments yet.</TableCell></TableRow>
             )}
             {(data ?? []).map((it) => (
               <TableRow key={it.id}>
@@ -125,11 +135,31 @@ function InstrumentsInventory() {
                 </TableCell>
                 <TableCell>
                   <Input
+                    defaultValue={it.drive_methods_folder_id ?? ""}
+                    placeholder="Drive folder ID or URL"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (it.drive_methods_folder_id ?? null)) updMut.mutate({ id: it.id, drive_methods_folder_id: v });
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
                     defaultValue={it.drive_sequences_folder_id ?? ""}
                     placeholder="Drive folder ID or URL"
                     onBlur={(e) => {
                       const v = e.target.value.trim() || null;
                       if (v !== (it.drive_sequences_folder_id ?? null)) updMut.mutate({ id: it.id, drive_sequences_folder_id: v });
+                    }}
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    defaultValue={it.drive_reports_folder_id ?? ""}
+                    placeholder="Drive folder ID or URL"
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (it.drive_reports_folder_id ?? null)) updMut.mutate({ id: it.id, drive_reports_folder_id: v });
                     }}
                   />
                 </TableCell>

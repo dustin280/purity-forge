@@ -5,14 +5,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ACTIVE_SAMPLE_STATUSES } from "@/lib/lims-utils";
 import { optimize, type OptimizedSequence, type OptimizerSample } from "./optimizer";
 
 const previewInput = z.object({ instrument_id: z.string().uuid() });
-
-/** Samples that have not yet finished analysis are eligible for a run list. */
-const ELIGIBLE_SAMPLE_STATUSES = [
-  "received", "intake_verified", "scheduled", "prep", "in_progress",
-] as const;
 
 async function loadContext(supabase: any, instrumentId: string) {
   const [{ data: instrument }, { data: methodGroups }, { data: samples }] = await Promise.all([
@@ -22,7 +18,7 @@ async function loadContext(supabase: any, instrumentId: string) {
     supabase.from("method_groups").select("*").eq("is_active", true).order("priority"),
     supabase.from("samples")
       .select("id,batch_id,compound,method_group_id,status,lot,concentration")
-      .in("status", ELIGIBLE_SAMPLE_STATUSES as unknown as string[]),
+      .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[]),
   ]);
   if (!instrument) throw new Error("Instrument not found");
   const trayId = (instrument as { tray_config_id: string | null }).tray_config_id;

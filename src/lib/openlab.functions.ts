@@ -31,6 +31,7 @@ export interface OpenLabMethod {
   last_modified: string | null;
   size_bytes: number | null;
   synced_at: string;
+  instrument_id: string | null;
 }
 
 export interface OpenLabSequence {
@@ -41,6 +42,7 @@ export interface OpenLabSequence {
   last_modified: string | null;
   line_count: number;
   synced_at: string;
+  instrument_id: string | null;
 }
 
 export interface OpenLabReport {
@@ -50,6 +52,7 @@ export interface OpenLabReport {
   last_modified: string | null;
   size_bytes: number | null;
   synced_at: string;
+  instrument_id: string | null;
 }
 
 export type ConnectionStatus = "connected" | "disconnected" | "not_configured";
@@ -145,37 +148,39 @@ export const updateOpenLabSettings = createServerFn({ method: "POST" })
     return row as unknown as OpenLabSettings;
   });
 
+const instrumentFilterInput = z.object({ instrument_id: z.string().uuid().optional() });
+
 export const listOpenLabMethods = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("openlab_methods")
-      .select("*")
-      .order("name", { ascending: true });
+  .inputValidator((d: unknown) => instrumentFilterInput.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase.from("openlab_methods").select("*");
+    if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
+    const { data: rows, error } = await q.order("name", { ascending: true });
     if (error) throw error;
-    return (data ?? []) as unknown as OpenLabMethod[];
+    return (rows ?? []) as unknown as OpenLabMethod[];
   });
 
 export const listOpenLabSequences = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("openlab_sequences")
-      .select("*")
-      .order("name", { ascending: true });
+  .inputValidator((d: unknown) => instrumentFilterInput.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase.from("openlab_sequences").select("*");
+    if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
+    const { data: rows, error } = await q.order("name", { ascending: true });
     if (error) throw error;
-    return (data ?? []) as unknown as OpenLabSequence[];
+    return (rows ?? []) as unknown as OpenLabSequence[];
   });
 
 export const listOpenLabReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data, error } = await context.supabase
-      .from("openlab_reports")
-      .select("*")
-      .order("name", { ascending: true });
+  .inputValidator((d: unknown) => instrumentFilterInput.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    let q = context.supabase.from("openlab_reports").select("*");
+    if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
+    const { data: rows, error } = await q.order("name", { ascending: true });
     if (error) throw error;
-    return (data ?? []) as unknown as OpenLabReport[];
+    return (rows ?? []) as unknown as OpenLabReport[];
   });
 
 export const getOpenLabMethod = createServerFn({ method: "GET" })
@@ -311,9 +316,11 @@ export const syncOpenLabIndex = createServerFn({ method: "POST" })
     const methods = await listFolder("Methods");
     const sequences = await listFolder("Sequences");
 
-    // Wipe old cache and reinsert
-    await context.supabase.from("openlab_methods").delete().neq("name", "");
-    await context.supabase.from("openlab_sequences").delete().neq("name", "");
+    // Wipe old cache and reinsert. Scoped to the untagged/shared-project rows
+    // only, so this manual bucket-based sync never wipes rows another
+    // instrument synced via its own Drive folder (see openlab-drive.functions.ts).
+    await context.supabase.from("openlab_methods").delete().is("instrument_id", null);
+    await context.supabase.from("openlab_sequences").delete().is("instrument_id", null);
 
     if (methods.length) {
       const methodRows = methods

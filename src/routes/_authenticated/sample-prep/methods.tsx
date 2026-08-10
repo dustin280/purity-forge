@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
 import { listMethods, createMethod, copyMethodToAnalyte } from "@/lib/sample-prep/master-data.functions";
@@ -109,6 +109,11 @@ function MethodsListPage() {
 
   return (
     <SamplePrepShell title="Methods" description="Each method captures chromatographic conditions, gradient, calibration levels (Level 3 is the default prep target), and sample-preparation rules. Approved revisions supersede earlier ones automatically.">
+      <p className="text-xs text-muted-foreground -mt-2">
+        This is the SOP/documentation record for a method. Looking for the actual instrument method files
+        (the <span className="font-mono">.M</span> files synced from OpenLab CDS)? See{" "}
+        <Link to="/instrument-comm" className="underline">Instrument Comm → Methods</Link>.
+      </p>
       <Card className="p-4 space-y-3">
         <div className="flex flex-wrap items-end gap-2">
           <div className="relative flex-1 min-w-64">
@@ -187,7 +192,12 @@ function MethodsListPage() {
 
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New method</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New method</DialogTitle>
+            <DialogDescription className="sr-only">
+              Create a new preparation method
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
               <Label className="text-xs">Analyte *</Label>
@@ -212,7 +222,12 @@ function MethodsListPage() {
 
       <Dialog open={!!copySource} onOpenChange={o => !o && setCopySource(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Copy method to another analyte</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Copy method to another analyte</DialogTitle>
+            <DialogDescription className="sr-only">
+              Duplicate this method for a different analyte
+            </DialogDescription>
+          </DialogHeader>
           <p className="text-xs text-muted-foreground">
             Copies “{copySource?.name}” — its latest revision, mobile phases, gradient, calibration levels and prep rules — into a new draft method (v1.0) for the analyte you pick.
           </p>
