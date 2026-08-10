@@ -39,7 +39,7 @@ function InstrumentsInventory() {
       instrument_status?: InstrumentOpStatus | null;
       default_method_folder?: string | null;
       tray_config_id?: string | null;
-      drive_folder_id?: string | null;
+      drive_sequences_folder_id?: string | null;
     }) => upd({ data: v }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.instrumentInventory.all }),
     onError: (e: Error) => toast.error(e.message),
@@ -125,11 +125,11 @@ function InstrumentsInventory() {
                 </TableCell>
                 <TableCell>
                   <Input
-                    defaultValue={it.drive_folder_id ?? ""}
+                    defaultValue={it.drive_sequences_folder_id ?? ""}
                     placeholder="Drive folder ID or URL"
                     onBlur={(e) => {
                       const v = e.target.value.trim() || null;
-                      if (v !== (it.drive_folder_id ?? null)) updMut.mutate({ id: it.id, drive_folder_id: v });
+                      if (v !== (it.drive_sequences_folder_id ?? null)) updMut.mutate({ id: it.id, drive_sequences_folder_id: v });
                     }}
                   />
                 </TableCell>
