@@ -468,24 +468,6 @@ export type Database = {
           },
         ]
       }
-      disposal_config: {
-        Row: {
-          id: string
-          retention_days: number
-          singleton: boolean
-        }
-        Insert: {
-          id?: string
-          retention_days?: number
-          singleton?: boolean
-        }
-        Update: {
-          id?: string
-          retention_days?: number
-          singleton?: boolean
-        }
-        Relationships: []
-      }
       daily_backpressure_logs: {
         Row: {
           backpressure: number
@@ -546,6 +528,24 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           user_name?: string
+        }
+        Relationships: []
+      }
+      disposal_config: {
+        Row: {
+          id: string
+          retention_days: number
+          singleton: boolean
+        }
+        Insert: {
+          id?: string
+          retention_days?: number
+          singleton?: boolean
+        }
+        Update: {
+          id?: string
+          retention_days?: number
+          singleton?: boolean
         }
         Relationships: []
       }
