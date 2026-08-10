@@ -432,7 +432,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          injection_volume_ul: number | null
           is_active: boolean
+          method_group_id: string | null
           name: string
           updated_at: string
         }
@@ -440,7 +442,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          injection_volume_ul?: number | null
           is_active?: boolean
+          method_group_id?: string | null
           name: string
           updated_at?: string
         }
@@ -448,11 +452,21 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          injection_volume_ul?: number | null
           is_active?: boolean
+          method_group_id?: string | null
           name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "compounds_method_group_id_fkey"
+            columns: ["method_group_id"]
+            isOneToOne: false
+            referencedRelation: "method_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_backpressure_logs: {
         Row: {
