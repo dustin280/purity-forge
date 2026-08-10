@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Link2, Link2Off } from "lucide-react";
 import { OptionPicker } from "./solvent-picker";
 import { MaterialReceiptPicker, type PickedReceipt } from "./material-receipt-picker";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { emptySolvent, type DiluentSolvent, type DiluentModifier } from "./types";
 
 interface Props {
@@ -148,6 +148,9 @@ export function StepDiluent({ diluent, modifier, onDiluent, onModifier }: Props)
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Link to Material Receipt</DialogTitle>
+            <DialogDescription className="sr-only">
+              Pick an existing material receipt to link
+            </DialogDescription>
           </DialogHeader>
           <MaterialReceiptPicker onPick={applyReceipt} />
         </DialogContent>

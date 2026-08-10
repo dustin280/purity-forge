@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
 import { listEquipment, upsertEquipment, type Equipment } from "@/lib/sample-prep/master-data.functions";
@@ -106,7 +106,12 @@ function EquipmentPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit equipment" : "New equipment"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit equipment" : "New equipment"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {editing ? "Edit an existing equipment record" : "Add a new equipment record"}
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <F label="Type *"><Input value={form.equipment_type ?? ""} onChange={e => setForm({ ...form, equipment_type: e.target.value })} placeholder="balance, pipette, volumetric flask…" /></F>
             <F label="Internal ID"><Input value={form.equipment_id ?? ""} onChange={e => setForm({ ...form, equipment_id: e.target.value })} /></F>

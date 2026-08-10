@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Download, Wand2 } from "lucide-react";
 import { createRunList, deleteRunList, deleteRunLists, listRunLists } from "@/lib/run-lists.functions";
@@ -159,7 +159,12 @@ function RunListsIndex() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>New Run List</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New Run List</DialogTitle>
+            <DialogDescription className="sr-only">
+              Create a new run list manually
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <Label>Name</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Tuesday peptide batch" autoFocus />

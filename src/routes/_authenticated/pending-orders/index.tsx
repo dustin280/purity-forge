@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson } from "lucide-react";
 import {
   listPendingOrders, getPendingOrder, cancelPendingOrder,
@@ -240,6 +240,9 @@ function PayloadDialog({ id, onOpenChange }: { id: string | null; onOpenChange: 
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Raw webhook payload</DialogTitle>
+          <DialogDescription className="sr-only">
+            Raw JSON payload received from the partner webhook
+          </DialogDescription>
         </DialogHeader>
         {data ? (
           <pre className="text-xs bg-muted p-3 rounded-md overflow-auto whitespace-pre-wrap break-all">

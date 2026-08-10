@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { listSolventOptions, addSolventOption, listModifierOptions, addModifierOption } from "@/lib/standard-preparations.functions";
@@ -67,6 +67,9 @@ export function OptionPicker({ value, onChange, kind, placeholder }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add {kind === "solvent" ? "Solvent" : "Modifier"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Add a new {kind === "solvent" ? "solvent" : "modifier"} option
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus

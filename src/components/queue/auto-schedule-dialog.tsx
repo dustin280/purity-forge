@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -41,6 +41,9 @@ export function AutoScheduleDialog({ open, onOpenChange }: { open: boolean; onOp
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Auto-Schedule Preview</DialogTitle>
+          <DialogDescription className="sr-only">
+            Preview automatic scheduling of pending samples
+          </DialogDescription>
         </DialogHeader>
         {previewMut.isPending && <div className="text-sm text-muted-foreground">Running simulation…</div>}
         {preview && (

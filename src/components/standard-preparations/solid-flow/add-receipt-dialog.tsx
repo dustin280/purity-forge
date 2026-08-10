@@ -1,7 +1,7 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ReceiptForm, valuesToPayload, type PendingAttachments } from "@/components/material-receipts/receipt-form";
 import { createMaterialReceipt, recordAttachment } from "@/lib/material-receipts.functions";
 import { uploadPending } from "@/routes/_authenticated/material-receipts/new";
@@ -52,6 +52,9 @@ export function AddReceiptDialog({ open, onOpenChange, defaultReceiverName, onCr
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Material Receipt</DialogTitle>
+          <DialogDescription className="sr-only">
+            Record a new material receipt to link to this preparation
+          </DialogDescription>
         </DialogHeader>
         <ReceiptForm
           defaultReceiverName={defaultReceiverName}

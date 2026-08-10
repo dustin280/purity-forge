@@ -6,7 +6,7 @@
 import React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { getCocRecord } from "@/lib/lims.functions";
@@ -34,6 +34,9 @@ export function CocViewDialog({ recordId, onOpenChange, fields, onDownload }: {
           <DialogTitle>
             Sample Receipt {rec ? `— ${rec.sample_id}` : ""}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            View sample receipt details and line items
+          </DialogDescription>
         </DialogHeader>
         {!rec ? (
           <div className="py-8 text-sm text-muted-foreground">Loading…</div>

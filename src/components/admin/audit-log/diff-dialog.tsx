@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import type { AuditRow } from "./types";
 
 export function DiffDialog({
@@ -14,6 +14,9 @@ export function DiffDialog({
           <DialogTitle>
             {row?.action} on {row?.table_name}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Before/after diff for this audit log entry
+          </DialogDescription>
         </DialogHeader>
         {row ? (
           <div className="space-y-3">

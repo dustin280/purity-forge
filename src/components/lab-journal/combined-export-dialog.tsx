@@ -5,6 +5,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,9 @@ export function CombinedExportDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Export combined PDF</DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a date range to export multiple journal entries as one PDF
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-3">

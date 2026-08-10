@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags, FlaskConical, AlertTriangle } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
@@ -309,7 +309,12 @@ function RunListDetail() {
 
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="max-w-2xl">
-          <DialogHeader><DialogTitle>Add prep-flagged samples</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add prep-flagged samples</DialogTitle>
+            <DialogDescription className="sr-only">
+              Select prep-flagged samples to add to this run list
+            </DialogDescription>
+          </DialogHeader>
           <div className="max-h-[50vh] overflow-y-auto border border-border rounded">
             {pickable.length === 0 && <div className="p-6 text-center text-muted-foreground text-sm">No prep-flagged samples available. Flag samples from the Samples page.</div>}
             {pickable.map(s => (
@@ -333,7 +338,12 @@ function RunListDetail() {
 
       <Dialog open={!!preview} onOpenChange={(o) => !o && setPreview(null)}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>{preview?.filename}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{preview?.filename}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Preview of the generated run list CSV
+            </DialogDescription>
+          </DialogHeader>
           <pre className="text-xs font-mono bg-muted p-3 rounded overflow-auto max-h-[60vh]">{preview?.csv}</pre>
         </DialogContent>
       </Dialog>

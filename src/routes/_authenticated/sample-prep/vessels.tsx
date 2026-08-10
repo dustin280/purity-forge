@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
 import { listVessels, upsertVessel, type Vessel } from "@/lib/sample-prep/master-data.functions";
@@ -102,7 +102,12 @@ function VesselsPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? "Edit vessel" : "New vessel"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit vessel" : "New vessel"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {editing ? "Edit an existing vessel record" : "Add a new vessel record"}
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div className="col-span-2 space-y-1"><Label className="text-xs">Name *</Label><Input value={form.name ?? ""} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="space-y-1"><Label className="text-xs">Nominal capacity (µL) *</Label><Input type="number" value={form.nominal_capacity_ul ?? ""} onChange={e => setForm({ ...form, nominal_capacity_ul: e.target.value === "" ? undefined : Number(e.target.value) })} /></div>

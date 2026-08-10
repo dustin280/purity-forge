@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 
 /**
@@ -33,6 +33,9 @@ export function ApproveDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Approval decision</DialogTitle>
+          <DialogDescription className="sr-only">
+            Approve or reject this material receipt
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
           <div>

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
@@ -127,7 +127,12 @@ function SolventsPage() {
 
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New solvent formulation</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New solvent formulation</DialogTitle>
+            <DialogDescription className="sr-only">
+              Create a new solvent formulation
+            </DialogDescription>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-3 pt-2">
             <div className="col-span-2 space-y-1"><Label className="text-xs">Name *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
             <div className="space-y-1"><Label className="text-xs">Internal code</Label><Input value={form.internal_code} onChange={e => setForm({ ...form, internal_code: e.target.value })} /></div>

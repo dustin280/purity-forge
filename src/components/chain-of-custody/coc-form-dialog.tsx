@@ -5,7 +5,7 @@
  * renderer that maps a CocField definition to an input control.
  */
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -110,6 +110,9 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
       >
         <DialogHeader>
           <DialogTitle>{recordId ? "Edit Sample Receipt" : "New Sample Receipt"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {recordId ? "Edit an existing sample receipt record" : "Create a new sample receipt record"}
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}

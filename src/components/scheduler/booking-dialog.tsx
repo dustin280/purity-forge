@@ -5,6 +5,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +111,9 @@ export function BookingDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? "Edit booking" : "New booking"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {editing ? "Edit an existing instrument booking" : "Reserve instrument time"}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>

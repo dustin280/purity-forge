@@ -5,7 +5,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays, Cable, Building2, ListChecks, Tags, Wrench, Library, Boxes, PackageOpen, GaugeCircle, Beaker } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useEffect, useState } from "react";
 import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
@@ -121,6 +121,9 @@ export function MobileTopBar() {
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-72 bg-sidebar border-sidebar-border">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetDescription className="sr-only">
+            Lab Manager navigation menu
+          </SheetDescription>
           <SidebarBody onNavigate={() => setOpen(false)} />
         </SheetContent>
       </Sheet>

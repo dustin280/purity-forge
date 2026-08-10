@@ -7,7 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -114,6 +114,9 @@ export function ClientFormDialog({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{clientId ? "Edit Client" : "Add Client"}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {clientId ? "Edit an existing client record" : "Add a new client record"}
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}

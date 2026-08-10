@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { ClientSelect } from "@/components/samples/client-select";
 import type { IntakeSample } from "./types";
@@ -89,6 +89,9 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
           <DialogTitle>
             Verify intake {sample ? `— ${sample.batch_id}` : ""}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Verify sample intake and release to prep
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => { e.preventDefault(); mut.mutate(); }}

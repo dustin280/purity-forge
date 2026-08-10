@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -179,6 +180,9 @@ export function EntriesTable({
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit entry</DialogTitle>
+            <DialogDescription className="sr-only">
+              Edit an existing timesheet entry
+            </DialogDescription>
           </DialogHeader>
           {editing && (
             <EntryForm

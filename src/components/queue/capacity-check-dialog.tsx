@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +29,9 @@ export function CapacityCheckDialog({ open, onOpenChange }: { open: boolean; onO
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Check New Sample Capacity</DialogTitle>
+          <DialogDescription className="sr-only">
+            Check whether the queue has capacity for new samples
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div>

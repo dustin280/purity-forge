@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FileDown, Printer } from "lucide-react";
 
@@ -16,6 +16,9 @@ export function VerifyPrintDialog({ open, synId, onSavePdf, onPrint, onExit }: P
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Preparation Verified ✓</DialogTitle>
+          <DialogDescription className="sr-only">
+            Preparation verification complete, ready to print
+          </DialogDescription>
         </DialogHeader>
         <div className="text-sm space-y-2">
           <p>
