@@ -779,7 +779,9 @@ export type Database = {
           created_by: string | null
           default_method_folder: string | null
           description: string | null
-          drive_folder_id: string | null
+          drive_methods_folder_id: string | null
+          drive_reports_folder_id: string | null
+          drive_sequences_folder_id: string | null
           id: string
           installation_date: string | null
           installer_initials: string | null
@@ -804,7 +806,9 @@ export type Database = {
           created_by?: string | null
           default_method_folder?: string | null
           description?: string | null
-          drive_folder_id?: string | null
+          drive_methods_folder_id?: string | null
+          drive_reports_folder_id?: string | null
+          drive_sequences_folder_id?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
@@ -829,7 +833,9 @@ export type Database = {
           created_by?: string | null
           default_method_folder?: string | null
           description?: string | null
-          drive_folder_id?: string | null
+          drive_methods_folder_id?: string | null
+          drive_reports_folder_id?: string | null
+          drive_sequences_folder_id?: string | null
           id?: string
           installation_date?: string | null
           installer_initials?: string | null
@@ -1518,6 +1524,7 @@ export type Database = {
         Row: {
           description: string | null
           id: string
+          instrument_id: string | null
           last_modified: string | null
           name: string
           relative_path: string
@@ -1527,6 +1534,7 @@ export type Database = {
         Insert: {
           description?: string | null
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           name: string
           relative_path: string
@@ -1536,17 +1544,27 @@ export type Database = {
         Update: {
           description?: string | null
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           name?: string
           relative_path?: string
           size_bytes?: number | null
           synced_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "openlab_methods_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       openlab_reports: {
         Row: {
           id: string
+          instrument_id: string | null
           last_modified: string | null
           name: string
           relative_path: string
@@ -1555,6 +1573,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           name: string
           relative_path: string
@@ -1563,17 +1582,27 @@ export type Database = {
         }
         Update: {
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           name?: string
           relative_path?: string
           size_bytes?: number | null
           synced_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "openlab_reports_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       openlab_sequences: {
         Row: {
           id: string
+          instrument_id: string | null
           last_modified: string | null
           line_count: number
           name: string
@@ -1583,6 +1612,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           line_count?: number
           name: string
@@ -1592,6 +1622,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          instrument_id?: string | null
           last_modified?: string | null
           line_count?: number
           name?: string
@@ -1599,7 +1630,15 @@ export type Database = {
           status?: string
           synced_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "openlab_sequences_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       openlab_settings: {
         Row: {
