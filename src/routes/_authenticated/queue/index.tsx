@@ -19,6 +19,7 @@ import { AtRiskPanel } from "@/components/queue/at-risk-panel";
 import { QuickActions } from "@/components/queue/quick-actions";
 import { AutoScheduleDialog } from "@/components/queue/auto-schedule-dialog";
 import { CapacityCheckDialog } from "@/components/queue/capacity-check-dialog";
+import { CANONICAL_STATUS_FOR_DISPLAY, DISPLAY_STATUS_LABEL, type DisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 
 export const Route = createFileRoute("/_authenticated/queue/")({
   component: QueuePage,
@@ -26,12 +27,8 @@ export const Route = createFileRoute("/_authenticated/queue/")({
 
 type Overview = Awaited<ReturnType<typeof getQueueOverview>>;
 
-const FLAG_STATUSES = [
-  "received", "intake_verified", "scheduled", "prep",
-  "in_progress", "in_analysis", "on_hold", "reviewed",
-  "complete", "approved", "cancelled",
-] as const;
-type FlagStatus = (typeof FLAG_STATUSES)[number];
+const FLAG_STATUSES = Object.keys(DISPLAY_STATUS_LABEL) as DisplayStatus[];
+type FlagStatus = DisplayStatus;
 
 function QueuePage() {
   const overviewFn = useServerFn(getQueueOverview);
@@ -45,7 +42,7 @@ function QueuePage() {
 
   const bulkFn = useServerFn(bulkSetSampleQueueStatus);
   const bulkFlag = useMutation({
-    mutationFn: (v: { sample_ids: string[]; status: FlagStatus }) => bulkFn({ data: v }),
+    mutationFn: (v: { sample_ids: string[]; status: SampleStatus }) => bulkFn({ data: v }),
     onSuccess: (_r, v) => {
       toast.success(`Flagged ${v.sample_ids.length} sample${v.sample_ids.length === 1 ? "" : "s"} as ${v.status.replace("_", " ")}`);
       setSelected(new Set());
@@ -133,14 +130,14 @@ function QueuePage() {
                     </SelectTrigger>
                     <SelectContent>
                       {FLAG_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>
+                        <SelectItem key={s} value={s}>{DISPLAY_STATUS_LABEL[s]}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Button
                     size="sm"
                     disabled={bulkFlag.isPending}
-                    onClick={() => bulkFlag.mutate({ sample_ids: [...selected], status: flagStatus })}
+                    onClick={() => bulkFlag.mutate({ sample_ids: [...selected], status: CANONICAL_STATUS_FOR_DISPLAY[flagStatus] })}
                   >
                     {bulkFlag.isPending ? "Flagging…" : "Flag selected"}
                   </Button>

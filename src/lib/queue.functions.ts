@@ -5,6 +5,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { ACTIVE_SAMPLE_STATUSES } from "@/lib/lims-utils";
 import {
   simulate,
   computeHealth,
@@ -17,16 +18,6 @@ import {
 } from "@/lib/queue/scheduler.server";
 
 type SupabaseCtx = { supabase: import("@supabase/supabase-js").SupabaseClient };
-
-const OPEN_STATUSES = [
-  "received",
-  "intake_verified",
-  "scheduled",
-  "prep",
-  "in_progress",
-  "in_analysis",
-  "on_hold",
-] as const;
 
 async function loadConfig(ctx: SupabaseCtx): Promise<SchedulerConfig> {
   const { data, error } = await ctx.supabase
@@ -47,7 +38,7 @@ async function loadOpenSamples(ctx: SupabaseCtx): Promise<SchedulerInputSample[]
   const { data, error } = await ctx.supabase
     .from("samples")
     .select("id, receipt_date, due_date, assigned_analysis_date, priority, status")
-    .in("status", OPEN_STATUSES as unknown as string[])
+    .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[])
     .order("due_date", { ascending: true });
   if (error) throw error;
   return (data ?? []).map((r) => ({

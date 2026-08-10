@@ -6,6 +6,7 @@ import { listSamples } from "@/lib/lims.functions";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { qk } from "@/lib/query-keys";
+import { toDisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 import { SamplesFiltersCard, type SampleStatusFilter } from "@/components/samples/filters-card";
 import { SamplesTable } from "@/components/samples/samples-table";
 export const Route = createFileRoute("/_authenticated/samples/")({ component: SamplesList });
@@ -18,7 +19,7 @@ function SamplesList() {
   const [prepOnly, setPrepOnly] = useState(false);
 
   const filtered = (data ?? []).filter(s => {
-    if (filter !== "all" && s.status !== filter) return false;
+    if (filter !== "all" && toDisplayStatus(s.status as SampleStatus) !== filter) return false;
     if (prepOnly && !(s as { prep_flag?: boolean | null }).prep_flag) return false;
     if (q && !`${s.batch_id} ${s.client} ${s.project ?? ""} ${(s as { compound?: string | null }).compound ?? ""} ${(s as { lot?: string | null }).lot ?? ""}`.toLowerCase().includes(q.toLowerCase())) return false;
     return true;

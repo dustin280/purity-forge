@@ -29,6 +29,66 @@ export const STATUS_LABEL: Record<SampleStatus, string> = {
 };
 
 /**
+ * Simplified 6-value vocabulary for humans: every UI surface (filters,
+ * badges, dashboard counts, detail-page action buttons) works off this
+ * instead of the 11-value SampleStatus. The underlying enum, every
+ * status-writing code path, and the partner Status API are unchanged —
+ * this is purely a display-layer grouping, not a schema change.
+ */
+export type DisplayStatus = "received" | "in_progress" | "on_hold" | "in_review" | "complete" | "cancelled";
+
+export const DISPLAY_STATUS_MAP: Record<SampleStatus, DisplayStatus> = {
+  received: "received",
+  intake_verified: "in_progress",
+  scheduled: "in_progress",
+  prep: "in_progress",
+  in_progress: "in_progress",
+  in_analysis: "in_progress",
+  on_hold: "on_hold",
+  reviewed: "in_review",
+  complete: "complete",
+  approved: "complete",
+  cancelled: "cancelled",
+};
+
+export const DISPLAY_STATUS_LABEL: Record<DisplayStatus, string> = {
+  received: "Received",
+  in_progress: "In Progress",
+  on_hold: "On Hold",
+  in_review: "In Review",
+  complete: "Complete",
+  cancelled: "Cancelled",
+};
+
+export function toDisplayStatus(s: SampleStatus): DisplayStatus {
+  return DISPLAY_STATUS_MAP[s];
+}
+
+/**
+ * The one concrete raw status to write when a human picks a display status
+ * from a simplified control (detail-page buttons, queue bulk-flag select).
+ * `in_review`/`complete` map to `reviewed`/`approved` (not the bare
+ * `complete` value) so the existing results.reviewed_at/approved_at gates
+ * in updateSampleStatus keep doing their job unchanged.
+ */
+export const CANONICAL_STATUS_FOR_DISPLAY: Record<DisplayStatus, SampleStatus> = {
+  received: "received",
+  in_progress: "in_progress",
+  on_hold: "on_hold",
+  in_review: "reviewed",
+  complete: "approved",
+  cancelled: "cancelled",
+};
+
+/**
+ * Raw statuses considered "active" — eligible for run-list generation and
+ * queue scheduling, and counted as open work on the dashboard. Shared so
+ * those three places can't disagree with each other.
+ */
+export const ACTIVE_SAMPLE_STATUSES: SampleStatus[] = (Object.keys(DISPLAY_STATUS_MAP) as SampleStatus[])
+  .filter((s) => DISPLAY_STATUS_MAP[s] === "received" || DISPLAY_STATUS_MAP[s] === "in_progress");
+
+/**
  * Coarse progress percent per stage. Exposed by the partner Status API so a
  * client portal can render a progress bar without knowing our internal enum.
  */
@@ -60,7 +120,11 @@ export const SAMPLE_STATUS_TRANSITIONS: Record<SampleStatus, SampleStatus[]> = {
   in_progress: ["in_analysis", "reviewed", "on_hold"],
   in_analysis: ["reviewed", "on_hold"],
   on_hold: ["prep", "in_progress", "cancelled"],
-  reviewed: ["complete"],
+  // "approved" is offered directly alongside "complete" so the simplified
+  // detail-page UI can merge them into one "Complete" action (they display
+  // identically — see DISPLAY_STATUS_MAP above) without a separate manual
+  // "complete" click first. Mirrors the server-side copy in samples.functions.ts.
+  reviewed: ["complete", "approved"],
   complete: ["approved"],
   approved: [],
   cancelled: ["received"],
@@ -80,6 +144,17 @@ export function statusClasses(s: SampleStatus): string {
     case "complete":
     case "approved":
       return "bg-[color:var(--status-success)]/10 text-[color:var(--status-success)] border-[color:var(--status-success)]/30";
+  }
+}
+
+export function displayStatusClasses(s: DisplayStatus): string {
+  switch (s) {
+    case "received": return "bg-muted text-muted-foreground border-border";
+    case "in_progress": return "bg-[color:var(--status-warning)]/10 text-[color:var(--status-warning)] border-[color:var(--status-warning)]/30";
+    case "on_hold": return "bg-[color:var(--status-warning)]/15 text-[color:var(--status-warning)] border-[color:var(--status-warning)]/40";
+    case "in_review": return "bg-[color:var(--status-info)]/10 text-[color:var(--status-info)] border-[color:var(--status-info)]/30";
+    case "complete": return "bg-[color:var(--status-success)]/10 text-[color:var(--status-success)] border-[color:var(--status-success)]/30";
+    case "cancelled": return "bg-destructive/10 text-destructive border-destructive/30";
   }
 }
 

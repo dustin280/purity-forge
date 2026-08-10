@@ -104,7 +104,11 @@ const SAMPLE_STATUS_TRANSITIONS: Record<SampleStatusValue, SampleStatusValue[]> 
   in_progress: ["in_analysis", "reviewed", "on_hold"],
   in_analysis: ["reviewed", "on_hold"],
   on_hold: ["prep", "in_progress", "cancelled"],
-  reviewed: ["complete"],
+  // "approved" is offered directly alongside "complete" so the simplified
+  // detail-page UI can merge them into one "Complete" action (they display
+  // identically — see DISPLAY_STATUS_MAP in lims-utils.ts) without needing
+  // a separate manual "complete" click first.
+  reviewed: ["complete", "approved"],
   complete: ["approved"],
   approved: [],
   cancelled: ["received"],

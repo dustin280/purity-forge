@@ -2,7 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/lims/status-pill";
-import { SAMPLE_STATUS_TRANSITIONS, STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
+import {
+  SAMPLE_STATUS_TRANSITIONS, CANONICAL_STATUS_FOR_DISPLAY, DISPLAY_STATUS_LABEL,
+  toDisplayStatus, type SampleStatus, type DisplayStatus,
+} from "@/lib/lims-utils";
 
 type Props = {
   batchId: string;
@@ -15,22 +18,31 @@ type Props = {
   resultApproved: boolean;
 };
 
-export function SampleDetailHeader({ batchId, client, project, status, busy, onChangeStatus, resultReviewed, resultApproved }: Props) {
-  const next = SAMPLE_STATUS_TRANSITIONS[status] ?? [];
+const BUCKET_ACTION_LABEL: Record<DisplayStatus, string> = {
+  received: "Reopen",
+  in_progress: "Start Work",
+  on_hold: "Put On Hold",
+  in_review: "Mark In Review",
+  complete: "Complete",
+  cancelled: "Cancel",
+};
 
-  const actionLabel: Partial<Record<SampleStatus, string>> = {
-    intake_verified: "Verify Intake",
-    scheduled: "Schedule",
-    prep: "Start Prep",
-    in_progress: "Start Analysis",
-    in_analysis: "Mark In Analysis",
-    on_hold: "Put On Hold",
-    reviewed: "Mark Reviewed",
-    complete: "Mark Complete",
-    approved: "Approve Sample",
-    cancelled: "Cancel",
-    received: "Reopen",
-  };
+export function SampleDetailHeader({ batchId, client, project, status, busy, onChangeStatus, resultReviewed, resultApproved }: Props) {
+  const rawNext = SAMPLE_STATUS_TRANSITIONS[status] ?? [];
+
+  // Group the raw next-states by their simplified display bucket (several
+  // raw values collapse to one bucket — e.g. prep/scheduled/in_analysis all
+  // display as "In Progress") and render exactly one button per bucket,
+  // writing the canonical raw value for that bucket when it's a legal
+  // target, falling back to whichever raw value is actually allowed.
+  const byBucket = new Map<DisplayStatus, SampleStatus>();
+  for (const raw of rawNext) {
+    const bucket = toDisplayStatus(raw);
+    if (!byBucket.has(bucket) || raw === CANONICAL_STATUS_FOR_DISPLAY[bucket]) {
+      byBucket.set(bucket, raw);
+    }
+  }
+  const next = Array.from(byBucket.entries());
 
   function blockedReason(target: SampleStatus): string | undefined {
     if (target === "reviewed" && !resultReviewed) return "Review the result on the Results tab first";
@@ -55,20 +67,20 @@ export function SampleDetailHeader({ batchId, client, project, status, busy, onC
           <div className="flex items-center gap-3 flex-wrap justify-end">
             <StatusPill status={status} />
             <div className="flex gap-1.5 flex-wrap justify-end">
-              {next.map((target, i) => {
-                const reason = blockedReason(target);
-                const destructive = target === "cancelled";
+              {next.map(([bucket, raw], i) => {
+                const reason = blockedReason(raw);
+                const destructive = bucket === "cancelled";
                 return (
                   <Button
-                    key={target}
+                    key={bucket}
                     size="sm"
                     variant={destructive ? "ghost" : i === 0 ? "default" : "outline"}
                     className={destructive ? "text-destructive hover:text-destructive" : undefined}
                     disabled={busy || !!reason}
                     title={reason}
-                    onClick={() => onChangeStatus(target)}
+                    onClick={() => onChangeStatus(raw)}
                   >
-                    {actionLabel[target] ?? STATUS_LABEL[target]}
+                    {BUCKET_ACTION_LABEL[bucket]}
                   </Button>
                 );
               })}
@@ -79,7 +91,7 @@ export function SampleDetailHeader({ batchId, client, project, status, busy, onC
           </div>
           {next.length > 0 && (
             <p className="text-xs text-muted-foreground">
-              Next step{next.length > 1 ? "s" : ""}: {next.map(s => STATUS_LABEL[s]).join(" · ")}
+              Next step{next.length > 1 ? "s" : ""}: {next.map(([bucket]) => DISPLAY_STATUS_LABEL[bucket]).join(" · ")}
             </p>
           )}
         </div>

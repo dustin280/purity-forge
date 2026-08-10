@@ -1,9 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import { STATUS_LABEL, type SampleStatus } from "@/lib/lims-utils";
+import { DISPLAY_STATUS_LABEL, type DisplayStatus } from "@/lib/lims-utils";
 
-export type SampleStatusFilter = SampleStatus | "all";
+export type SampleStatusFilter = DisplayStatus | "all";
 
 /**
  * Search + status filter card for the Samples list. Purely presentational —
@@ -32,7 +32,7 @@ export function SamplesFiltersCard({
           />
         </div>
         <div className="flex gap-1.5 text-xs">
-          {(["all", ...Object.keys(STATUS_LABEL)] as const).map(f => (
+          {(["all", ...Object.keys(DISPLAY_STATUS_LABEL)] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f as SampleStatusFilter)}
@@ -40,7 +40,7 @@ export function SamplesFiltersCard({
                 filter === f ? "bg-foreground text-background border-foreground" : "border-border hover:bg-muted"
               }`}
             >
-              {f === "all" ? "All" : STATUS_LABEL[f as SampleStatus]}
+              {f === "all" ? "All" : DISPLAY_STATUS_LABEL[f as DisplayStatus]}
             </button>
           ))}
           {setPrepOnly && (

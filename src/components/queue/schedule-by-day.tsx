@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { displayStatusClasses, DISPLAY_STATUS_LABEL, toDisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 
 type Sample = {
   id: string;
@@ -14,19 +15,6 @@ type Sample = {
 type Day = {
   date: string;
   samples: Sample[];
-};
-
-const STATUS_TONE: Record<string, string> = {
-  scheduled: "text-emerald-400 bg-emerald-500/10",
-  in_analysis: "text-sky-300 bg-sky-500/10",
-  in_progress: "text-sky-300 bg-sky-500/10",
-  received: "text-amber-300 bg-amber-500/10",
-  intake_verified: "text-amber-300 bg-amber-500/10",
-  prep: "text-amber-300 bg-amber-500/10",
-  on_hold: "text-rose-300 bg-rose-500/10",
-  complete: "text-emerald-400 bg-emerald-500/10",
-  approved: "text-emerald-400 bg-emerald-500/10",
-  cancelled: "text-muted-foreground bg-muted",
 };
 
 export function ScheduleByDay({
@@ -119,8 +107,8 @@ export function ScheduleByDay({
               <span className="text-foreground">{formatShort(s.due_date)}</span>
               <span className="text-muted-foreground truncate flex-1">{s.client}</span>
               <span className="text-muted-foreground">Status:</span>
-              <span className={cn("px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-medium", STATUS_TONE[s.status] ?? "bg-muted")}>
-                {s.status.replace("_", " ")}
+              <span className={cn("px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-medium border", displayStatusClasses(toDisplayStatus(s.status as SampleStatus)))}>
+                {DISPLAY_STATUS_LABEL[toDisplayStatus(s.status as SampleStatus)]}
               </span>
               </button>
             </div>
