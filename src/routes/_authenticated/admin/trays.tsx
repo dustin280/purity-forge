@@ -46,8 +46,9 @@ function TraysAdmin() {
     enabled: !!activeId,
   });
   const [newName, setNewName] = useState("");
+  const [newDrawerCount, setNewDrawerCount] = useState("4");
   const createMut = useMutation({
-    mutationFn: () => create({ data: { name: newName.trim(), notes: null } }),
+    mutationFn: () => create({ data: { name: newName.trim(), notes: null, drawer_count: Number(newDrawerCount) } }),
     onSuccess: (c) => { qc.invalidateQueries({ queryKey: qk.trays.all }); setSelectedId(c.id); setNewName(""); toast.success("Tray created"); },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -77,6 +78,15 @@ function TraysAdmin() {
             <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
             <SelectContent>
               {(cfgs ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.is_default ? " (default)" : ""}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="w-32">
+          <Label className="text-xs">Drawers</Label>
+          <Select value={newDrawerCount} onValueChange={setNewDrawerCount}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {[1, 2, 3, 4].map((n) => <SelectItem key={n} value={String(n)}>{n} ({n * 2} trays)</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

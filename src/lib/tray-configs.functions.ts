@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { enumerateAllVialLocations, formatVialLocation, MAX_DRAWERS } from "@/lib/run-lists/vial-location";
 
 export type TrayPositionStatus = "available" | "reserved" | "out_of_service";
 
@@ -14,6 +15,7 @@ export interface TrayConfig {
   name: string;
   notes: string | null;
   is_default: boolean;
+  drawer_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -78,12 +80,17 @@ export const createTrayConfig = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({
     name: z.string().min(1).max(120),
     notes: z.string().max(500).nullable().optional(),
+    drawer_count: z.number().int().min(1).max(MAX_DRAWERS).default(MAX_DRAWERS),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: cfg, error } = await context.supabase
-      .from("tray_configs").insert({ name: data.name, notes: data.notes ?? null }).select().single();
+      .from("tray_configs")
+      .insert({ name: data.name, notes: data.notes ?? null, drawer_count: data.drawer_count })
+      .select().single();
     if (error) throw error;
-    // Seed the same 4-drawer x 54 + Ref 1-5 layout
+    // Seed every valid vial location for this instrument's drawer count
+    // (D1 through D<drawer_count>, both F/B trays, 54 positions each),
+    // plus the separate Ref-1..5 reference-vial positions.
     type PosInsert = {
       tray_config_id: string;
       position_code: string;
@@ -92,17 +99,14 @@ export const createTrayConfig = createServerFn({ method: "POST" })
       col_num: number | null;
       is_ref_vial: boolean;
     };
-    const rows: PosInsert[] = [];
-    for (const d of ["D1F", "D2F", "D3F", "D4B"]) {
-      for (const r of ["A", "B", "C", "D", "E", "F"]) {
-        for (let c = 1; c <= 9; c++) {
-          rows.push({
-            tray_config_id: cfg.id, position_code: `${d}-${r}${c}`,
-            drawer: d, row_label: r, col_num: c, is_ref_vial: false,
-          });
-        }
-      }
-    }
+    const rows: PosInsert[] = enumerateAllVialLocations(data.drawer_count).map((loc) => ({
+      tray_config_id: cfg.id,
+      position_code: formatVialLocation(loc),
+      drawer: `D${loc.drawer}${loc.tray}`,
+      row_label: loc.column,
+      col_num: loc.row,
+      is_ref_vial: false,
+    }));
     for (let i = 1; i <= 5; i++) {
       rows.push({
         tray_config_id: cfg.id, position_code: `Ref-${i}`,
