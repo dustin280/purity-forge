@@ -12,27 +12,33 @@ type Row = {
   is_active: boolean;
   method_group_id: string | null;
   injection_volume_ul: number | null;
+  sp_analyte_id: string | null;
 };
 type MethodGroup = { id: string; name: string };
+type Analyte = { id: string; canonical_name: string };
 
 export function CompoundsList({
   rows,
   methodGroups,
+  analytes,
   isLoading,
   onToggleActive,
   onRename,
   onDelete,
   onMethodGroupChange,
   onVolumeChange,
+  onAnalyteChange,
 }: {
   rows: Row[];
   methodGroups: MethodGroup[];
+  analytes: Analyte[];
   isLoading: boolean;
   onToggleActive: (id: string, is_active: boolean) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onMethodGroupChange: (id: string, method_group_id: string | null) => void;
   onVolumeChange: (id: string, injection_volume_ul: number | null) => void;
+  onAnalyteChange: (id: string, sp_analyte_id: string | null) => void;
 }) {
   const [filter, setFilter] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -181,6 +187,24 @@ export function CompoundsList({
                       className="h-7 w-24 text-xs"
                     />
                     <span className="text-xs text-muted-foreground">µL</span>
+                  </div>
+                  <div className="w-56">
+                    <Select
+                      value={c.sp_analyte_id ?? "__none"}
+                      onValueChange={(v) =>
+                        onAnalyteChange(c.id, v === "__none" ? null : v)
+                      }
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="No Sample Prep analyte" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">No Sample Prep analyte</SelectItem>
+                        {analytes.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>{a.canonical_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               )}

@@ -11,6 +11,8 @@ const lineItemSchema = z.object({
   quantity_unit: z.string().max(32).optional().nullable(),
   container_size: z.string().max(128).optional().nullable(),
   concentration: z.string().max(128).optional().nullable(),
+  received_form: z.enum(["lyophilized", "solution"]).optional().nullable(),
+  received_purity_percent: z.union([z.number(), z.string()]).optional().nullable(),
   vial_count: z.number().int().min(1).max(99).optional().default(1),
   storage: z.string().max(255).optional().nullable(),
   temperature_c: z.union([z.number(), z.string()]).optional().nullable(),
@@ -81,6 +83,9 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       physical_description: string | null;
       created_by: string; status: "received";
       method_group_id: string | null;
+      received_form: "lyophilized" | "solution" | null;
+      received_quantity: number | null; received_quantity_unit: string | null;
+      received_purity_percent: number | null;
     };
     const rows: SampleInsert[] = [];
     let seq = 0;
@@ -90,6 +95,16 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       const tempNum = (() => {
         if (li.temperature_c == null || li.temperature_c === "") return null;
         const n = typeof li.temperature_c === "number" ? li.temperature_c : Number(li.temperature_c);
+        return isNaN(n) ? null : n;
+      })();
+      const quantityNum = (() => {
+        if (li.quantity == null || li.quantity === "") return null;
+        const n = Number(li.quantity);
+        return isNaN(n) ? null : n;
+      })();
+      const purityNum = (() => {
+        if (li.received_purity_percent == null || li.received_purity_percent === "") return null;
+        const n = typeof li.received_purity_percent === "number" ? li.received_purity_percent : Number(li.received_purity_percent);
         return isNaN(n) ? null : n;
       })();
       for (let v = 0; v < vials; v++) {
@@ -118,6 +133,10 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           created_by: userId,
           status: "received" as const,
           method_group_id: methodGroupByCompound.get(li.compound.trim().toLowerCase()) ?? null,
+          received_form: li.received_form ?? null,
+          received_quantity: quantityNum,
+          received_quantity_unit: li.quantity_unit ?? null,
+          received_purity_percent: purityNum,
         });
       }
     });

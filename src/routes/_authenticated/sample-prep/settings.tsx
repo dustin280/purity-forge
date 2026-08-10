@@ -45,6 +45,13 @@ function SettingsPage() {
         <F label="Default calibration levels"><Input type="number" value={form?.default_calibration_levels ?? ""} onChange={e => setForm(f => f ? { ...f, default_calibration_levels: Number(e.target.value) } : f)} /></F>
         <F label="Default target level"><Input type="number" value={form?.default_target_level ?? ""} onChange={e => setForm(f => f ? { ...f, default_target_level: Number(e.target.value) } : f)} /></F>
         <F label="Max dilution steps"><Input type="number" value={form?.max_dilution_steps ?? ""} onChange={e => setForm(f => f ? { ...f, max_dilution_steps: Number(e.target.value) } : f)} /></F>
+        <F label="LM-SamplePrep Drive folder">
+          <Input
+            value={form?.drive_lm_sample_prep_folder_id ?? ""}
+            placeholder="Folder ID or Drive URL"
+            onChange={e => setForm(f => f ? { ...f, drive_lm_sample_prep_folder_id: e.target.value } : f)}
+          />
+        </F>
         <div className="pt-2 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">{isAdmin ? "" : "Read-only — admin required to save."}</span>
           <Button disabled={!isAdmin || save.isPending || !form} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save settings"}</Button>

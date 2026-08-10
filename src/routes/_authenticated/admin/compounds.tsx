@@ -12,6 +12,7 @@ import {
   deleteCompound,
 } from "@/lib/compounds.functions";
 import { listMethodGroups } from "@/lib/method-groups.functions";
+import { listAnalytes } from "@/lib/sample-prep/master-data.functions";
 import { AddCompoundForm } from "@/components/admin/compounds/add-form";
 import { CompoundsList } from "@/components/admin/compounds/compounds-list";
 
@@ -27,6 +28,7 @@ function CompoundsAdmin() {
   const update = useServerFn(updateCompound);
   const del = useServerFn(deleteCompound);
   const listGroups = useServerFn(listMethodGroups);
+  const listAnalytesFn = useServerFn(listAnalytes);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: qk.compounds.list(),
@@ -35,6 +37,10 @@ function CompoundsAdmin() {
   const { data: methodGroups = [] } = useQuery({
     queryKey: qk.methodGroups.list(),
     queryFn: () => listGroups(),
+  });
+  const { data: analytes = [] } = useQuery({
+    queryKey: ["sp-analytes"],
+    queryFn: () => listAnalytesFn(),
   });
 
   const invalidate = () =>
@@ -56,6 +62,7 @@ function CompoundsAdmin() {
       is_active?: boolean;
       method_group_id?: string | null;
       injection_volume_ul?: number | null;
+      sp_analyte_id?: string | null;
     }) => update({ data: v }),
     onSuccess: invalidate,
     onError: (e) =>
@@ -106,6 +113,7 @@ function CompoundsAdmin() {
       <CompoundsList
         rows={rows}
         methodGroups={methodGroups}
+        analytes={analytes}
         isLoading={isLoading}
         onToggleActive={(id, is_active) =>
           updateMut.mutate({ id, is_active })
@@ -117,6 +125,9 @@ function CompoundsAdmin() {
         }
         onVolumeChange={(id, injection_volume_ul) =>
           updateMut.mutate({ id, injection_volume_ul })
+        }
+        onAnalyteChange={(id, sp_analyte_id) =>
+          updateMut.mutate({ id, sp_analyte_id })
         }
       />
     </div>

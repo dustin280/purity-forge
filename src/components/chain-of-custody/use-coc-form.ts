@@ -157,6 +157,9 @@ export function useCocForm({
         client_received_date: (li as unknown as { client_received_date?: string }).client_received_date ?? "",
         manufacture_date: (li as unknown as { manufacture_date?: string }).manufacture_date ?? "",
         physical_description: (li as unknown as { physical_description?: string }).physical_description ?? "",
+        received_form: (li as unknown as { received_form?: "lyophilized" | "solution" }).received_form ?? "",
+        received_purity_percent: (li as unknown as { received_purity_percent?: string | number }).received_purity_percent == null
+          ? "" : String((li as unknown as { received_purity_percent?: string | number }).received_purity_percent),
       })));
     } else {
       setLineItems([emptyLine()]);

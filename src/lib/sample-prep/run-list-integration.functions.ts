@@ -1,13 +1,10 @@
 /**
- * Phase 1D — Run-list ↔ preparation-record integration.
+ * Run-list <-> preparation-record coverage.
  *
- * - generatePrepDraftsForRunList: resolves each unique compound on a run list
- *   to an sp_analyte (name or alias, case-insensitive), picks the most recent
- *   approved sp_method_revision for that analyte, creates one draft
- *   sp_preparation_record per (analyte, revision), and links matching
- *   run_list_items to it. Items already linked are left alone.
- * - getRunListPrepCoverage: per-row coverage view used to render "warn only"
- *   prep-readiness on the run-list detail page.
+ * getRunListPrepCoverage: per-row coverage view used to render "warn only"
+ * prep-readiness on the run-list detail page. Per-sample generation itself
+ * now lives in generate-from-run-list.functions.ts (generateSamplePrepForRunList),
+ * which supersedes the old per-compound draft generator that used to live here.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -52,121 +49,6 @@ async function loadRunListRows(supabase: SB, runListId: string): Promise<RowCtx[
     };
   });
 }
-
-/** Resolve a compound label to an analyte id via name or alias, case-insensitive. */
-async function resolveAnalyteIds(supabase: SB, labels: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (!labels.length) return out;
-  const lc = labels.map(l => l.toLowerCase());
-  const [{ data: byName }, { data: byAlias }] = await Promise.all([
-    supabase.from("sp_analytes").select("id,canonical_name,abbreviation"),
-    supabase.from("sp_analyte_aliases").select("analyte_id,alias"),
-  ]);
-  const analytes = (byName ?? []) as Array<{ id: string; canonical_name: string; abbreviation: string | null }>;
-  const aliases = (byAlias ?? []) as Array<{ analyte_id: string; alias: string }>;
-  for (const label of lc) {
-    const hit = analytes.find(a =>
-      a.canonical_name.toLowerCase() === label ||
-      (a.abbreviation && a.abbreviation.toLowerCase() === label),
-    );
-    if (hit) { out.set(label, hit.id); continue; }
-    const alias = aliases.find(a => a.alias.toLowerCase() === label);
-    if (alias) out.set(label, alias.analyte_id);
-  }
-  return out;
-}
-
-/** Pick the most recent approved revision for each analyte id. */
-async function pickApprovedRevisions(supabase: SB, analyteIds: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (!analyteIds.length) return out;
-  const { data: methods } = await supabase
-    .from("sp_methods")
-    .select("id,analyte_id,is_active")
-    .in("analyte_id", analyteIds)
-    .eq("is_active", true);
-  const methodRows = (methods ?? []) as Array<{ id: string; analyte_id: string }>;
-  if (!methodRows.length) return out;
-  const methodIds = methodRows.map(m => m.id);
-  const { data: revs } = await supabase
-    .from("sp_method_revisions")
-    .select("id,method_id,revision,status,approval_date")
-    .in("method_id", methodIds)
-    .eq("status", "approved")
-    .order("revision", { ascending: false });
-  const revRows = (revs ?? []) as Array<{ id: string; method_id: string; revision: number }>;
-  const methodToAnalyte = new Map(methodRows.map(m => [m.id, m.analyte_id] as const));
-  for (const r of revRows) {
-    const analyte = methodToAnalyte.get(r.method_id);
-    if (analyte && !out.has(analyte)) out.set(analyte, r.id);
-  }
-  return out;
-}
-
-export const generatePrepDraftsForRunList = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => IdInput.parse(d))
-  .handler(async ({ data, context }) => {
-    const rows = await loadRunListRows(context.supabase, data.run_list_id);
-    const unlinked = rows.filter(r => !r.linked_prep_id && r.compound && r.compound.trim());
-    const uniqueCompounds = Array.from(new Set(unlinked.map(r => r.compound!.trim())));
-    const analyteMap = await resolveAnalyteIds(context.supabase, uniqueCompounds);
-    const analyteIds = Array.from(new Set(Array.from(analyteMap.values())));
-    const revMap = await pickApprovedRevisions(context.supabase, analyteIds);
-
-    const created: Array<{ prep_id: string; prep_number: string; analyte_id: string; compound: string }> = [];
-    const unresolved: Array<{ compound: string; reason: "no_analyte" | "no_approved_revision" }> = [];
-    let linkedItems = 0;
-
-    // Cache one draft per (analyte_id, revision_id) so items sharing a compound share a prep.
-    const prepByAnalyte = new Map<string, string>();
-
-    for (const compound of uniqueCompounds) {
-      const key = compound.toLowerCase();
-      const analyteId = analyteMap.get(key);
-      if (!analyteId) { unresolved.push({ compound, reason: "no_analyte" }); continue; }
-      const revisionId = revMap.get(analyteId);
-      if (!revisionId) { unresolved.push({ compound, reason: "no_approved_revision" }); continue; }
-
-      let prepId = prepByAnalyte.get(analyteId);
-      if (!prepId) {
-        const { data: prepNumberData, error: numErr } = await context.supabase.rpc("next_sp_prep_number");
-        if (numErr) throw numErr;
-        const { data: rec, error: insErr } = await context.supabase
-          .from("sp_preparation_records")
-          .insert({
-            prep_number: prepNumberData as unknown as string,
-            method_revision_id: revisionId,
-            analyte_id: analyteId,
-            status: "draft",
-            sample_context: { source: "run_list", run_list_id: data.run_list_id, compound },
-            plan: {},
-            prepared_by: context.userId,
-          })
-          .select("id, prep_number")
-          .single();
-        if (insErr) throw insErr;
-        prepId = rec.id as string;
-        prepByAnalyte.set(analyteId, prepId);
-        created.push({ prep_id: prepId, prep_number: rec.prep_number as string, analyte_id: analyteId, compound });
-      }
-
-      const itemIds = unlinked
-        .filter(r => (r.compound ?? "").trim().toLowerCase() === key)
-        .map(r => r.item_id);
-      if (itemIds.length) {
-        const { error: linkErr } = await context.supabase
-          .from("run_list_items")
-          .update({ sp_preparation_record_id: prepId })
-          .in("id", itemIds);
-        if (linkErr) throw linkErr;
-        linkedItems += itemIds.length;
-      }
-    }
-
-    const skipped_already_linked = rows.filter(r => r.linked_prep_id).length;
-    return { created, unresolved, linked_items: linkedItems, skipped_already_linked };
-  });
 
 export interface PrepCoverageRow {
   item_id: string;

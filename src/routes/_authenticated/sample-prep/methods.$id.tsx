@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SamplePrepShell } from "@/components/sample-prep/section-nav";
 import {
   getMethod, getRevisionFull, updateRevision, setRevisionStatus, createRevisionFrom,
-  saveMobilePhases, saveGradient, saveCalibration, savePrepRules,
+  saveMobilePhases, saveGradient, saveCalibration, savePrepRules, listSolventFormulations,
   type MethodRevision, type GradientStep, type CalibrationLevel, type MobilePhase, type PrepRules,
 } from "@/lib/sample-prep/master-data.functions";
 
@@ -76,6 +76,8 @@ function MethodEditorPage() {
 function RevisionEditor({ revisionId, status }: { revisionId: string; status: string }) {
   const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["sp-revision", revisionId], queryFn: () => getRevisionFull({ data: { id: revisionId } }) });
+  const { data: solventData } = useQuery({ queryKey: ["sp-solvents"], queryFn: () => listSolventFormulations() });
+  const approvedSolvents = (solventData?.formulations ?? []).filter(f => f.status === "approved");
   const readOnly = status === "approved" || status === "superseded" || status === "retired";
   const [rev, setRev] = useState<MethodRevision | null>(null);
   const [mp, setMp] = useState<MobilePhase[]>([]);
@@ -311,6 +313,15 @@ function RevisionEditor({ revisionId, status }: { revisionId: string; status: st
                 <F label="Default target level"><Input disabled={disabled} type="number" value={prep.default_target_level ?? 3} onChange={e => setPrep({ ...prep, default_target_level: Number(e.target.value) })} /></F>
                 <F label="Default stock concentration"><Input disabled={disabled} type="number" step="any" value={prep.default_stock_concentration ?? ""} onChange={e => setPrep({ ...prep, default_stock_concentration: e.target.value === "" ? null : Number(e.target.value) })} /></F>
                 <F label="Stock concentration unit"><Input disabled={disabled} value={prep.default_stock_concentration_unit ?? ""} onChange={e => setPrep({ ...prep, default_stock_concentration_unit: e.target.value })} placeholder="mg/mL" /></F>
+                <F label="Default diluent">
+                  <Select disabled={disabled} value={prep.default_sample_solvent_id ?? "__none"} onValueChange={v => setPrep({ ...prep, default_sample_solvent_id: v === "__none" ? null : v })}>
+                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Not set — analyst chooses per prep</SelectItem>
+                      {approvedSolvents.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </F>
                 <F label="Max dilution steps"><Input disabled={disabled} type="number" value={prep.max_dilution_steps ?? ""} onChange={e => setPrep({ ...prep, max_dilution_steps: e.target.value === "" ? null : Number(e.target.value) })} /></F>
                 <F label="Preferred initial recon volume (µL)"><Input disabled={disabled} type="number" step="any" value={prep.preferred_initial_reconstitution_volume_ul ?? ""} onChange={e => setPrep({ ...prep, preferred_initial_reconstitution_volume_ul: e.target.value === "" ? null : Number(e.target.value) })} /></F>
                 <F label="Preferred final volume (µL)"><Input disabled={disabled} type="number" step="any" value={prep.preferred_final_volume_ul ?? ""} onChange={e => setPrep({ ...prep, preferred_final_volume_ul: e.target.value === "" ? null : Number(e.target.value) })} /></F>

@@ -39,6 +39,7 @@ export type LineItem = {
   vial_count: number; temperature_c: string;
   storage: string; requested_tests: string[];
   client_received_date: string; manufacture_date: string; physical_description: string;
+  received_form: "" | "lyophilized" | "solution"; received_purity_percent: string;
 };
 
 export const emptyLine = (): LineItem => ({
@@ -48,6 +49,7 @@ export const emptyLine = (): LineItem => ({
   vial_count: 1, temperature_c: "",
   storage: "", requested_tests: [],
   client_received_date: "", manufacture_date: "", physical_description: "",
+  received_form: "", received_purity_percent: "",
 });
 
 export type CocAttachmentRow = {

@@ -87,6 +87,7 @@ import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public
 import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
 import { Route as AuthenticatedSamplePrepRecordsIdRouteImport } from './routes/_authenticated/sample-prep/records.$id'
 import { Route as AuthenticatedSamplePrepMethodsIdRouteImport } from './routes/_authenticated/sample-prep/methods.$id'
+import { Route as AuthenticatedRunListsIdPrepRouteImport } from './routes/_authenticated/run-lists/$id.prep'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
 import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
 import { Route as AuthenticatedLabLogsTimesheetsDailyRouteImport } from './routes/_authenticated/lab-logs/timesheets/daily'
@@ -544,6 +545,12 @@ const AuthenticatedSamplePrepMethodsIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedSamplePrepMethodsRoute,
   } as any)
+const AuthenticatedRunListsIdPrepRoute =
+  AuthenticatedRunListsIdPrepRouteImport.update({
+    id: '/prep',
+    path: '/prep',
+    getParentRoute: () => AuthenticatedRunListsIdRoute,
+  } as any)
 const AuthenticatedLabLogsTimesheetsReportsRoute =
   AuthenticatedLabLogsTimesheetsReportsRouteImport.update({
     id: '/lab-logs/timesheets/reports',
@@ -630,7 +637,7 @@ export interface FileRoutesByFullPath {
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
-  '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
@@ -665,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
@@ -717,7 +725,7 @@ export interface FileRoutesByTo {
   '/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
-  '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
@@ -752,6 +760,7 @@ export interface FileRoutesByTo {
   '/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
@@ -806,7 +815,7 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/$id': typeof AuthenticatedMaterialReceiptsIdRoute
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
-  '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRoute
+  '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
   '/_authenticated/sample-prep/equipment': typeof AuthenticatedSamplePrepEquipmentRoute
@@ -841,6 +850,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/timesheets/daily': typeof AuthenticatedLabLogsTimesheetsDailyRoute
   '/_authenticated/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  '/_authenticated/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/_authenticated/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/_authenticated/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
@@ -930,6 +940,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/run-lists/$id/prep'
     | '/sample-prep/methods/$id'
     | '/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
@@ -1017,6 +1028,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/daily'
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
+    | '/run-lists/$id/prep'
     | '/sample-prep/methods/$id'
     | '/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
@@ -1105,6 +1117,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/timesheets/daily'
     | '/_authenticated/lab-logs/timesheets/history'
     | '/_authenticated/lab-logs/timesheets/reports'
+    | '/_authenticated/run-lists/$id/prep'
     | '/_authenticated/sample-prep/methods/$id'
     | '/_authenticated/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
@@ -1682,6 +1695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSamplePrepMethodsIdRouteImport
       parentRoute: typeof AuthenticatedSamplePrepMethodsRoute
     }
+    '/_authenticated/run-lists/$id/prep': {
+      id: '/_authenticated/run-lists/$id/prep'
+      path: '/prep'
+      fullPath: '/run-lists/$id/prep'
+      preLoaderRoute: typeof AuthenticatedRunListsIdPrepRouteImport
+      parentRoute: typeof AuthenticatedRunListsIdRoute
+    }
     '/_authenticated/lab-logs/timesheets/reports': {
       id: '/_authenticated/lab-logs/timesheets/reports'
       path: '/lab-logs/timesheets/reports'
@@ -1740,6 +1760,20 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AuthenticatedRunListsIdRouteChildren {
+  AuthenticatedRunListsIdPrepRoute: typeof AuthenticatedRunListsIdPrepRoute
+}
+
+const AuthenticatedRunListsIdRouteChildren: AuthenticatedRunListsIdRouteChildren =
+  {
+    AuthenticatedRunListsIdPrepRoute: AuthenticatedRunListsIdPrepRoute,
+  }
+
+const AuthenticatedRunListsIdRouteWithChildren =
+  AuthenticatedRunListsIdRoute._addFileChildren(
+    AuthenticatedRunListsIdRouteChildren,
+  )
 
 interface AuthenticatedSamplePrepMethodsRouteChildren {
   AuthenticatedSamplePrepMethodsIdRoute: typeof AuthenticatedSamplePrepMethodsIdRoute
@@ -1804,7 +1838,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsIdRoute: typeof AuthenticatedMaterialReceiptsIdRoute
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
-  AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRoute
+  AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRouteWithChildren
   AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplePrepAnalytesRoute: typeof AuthenticatedSamplePrepAnalytesRoute
   AuthenticatedSamplePrepEquipmentRoute: typeof AuthenticatedSamplePrepEquipmentRoute
@@ -1891,7 +1925,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsAccountingReportRoute:
     AuthenticatedMaterialReceiptsAccountingReportRoute,
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
-  AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRoute,
+  AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRouteWithChildren,
   AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplePrepAnalytesRoute: AuthenticatedSamplePrepAnalytesRoute,
   AuthenticatedSamplePrepEquipmentRoute: AuthenticatedSamplePrepEquipmentRoute,

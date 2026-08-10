@@ -95,6 +95,23 @@ export function LineItemRow({
           onChange={e => onChange({ concentration: e.target.value })} />
       </div>
       <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Physical form</Label>
+        <Select value={li.received_form || undefined} disabled={disabled}
+          onValueChange={(v) => onChange({ received_form: v as "lyophilized" | "solution" })}>
+          <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="lyophilized">Solid / lyophilized</SelectItem>
+            <SelectItem value="solution">Solution / liquid</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-[10px] uppercase text-muted-foreground">Purity (%, if solid)</Label>
+        <Input type="number" step="0.1" min={0} max={100} className="h-8 mt-1" value={li.received_purity_percent} disabled={disabled}
+          placeholder="e.g. 98.5"
+          onChange={e => onChange({ received_purity_percent: e.target.value })} />
+      </div>
+      <div>
         <Label className="text-[10px] uppercase text-muted-foreground">Temperature (°C)</Label>
         <Input type="number" step="0.1" className="h-8 mt-1" value={li.temperature_c} disabled={disabled}
           placeholder="e.g. -20"

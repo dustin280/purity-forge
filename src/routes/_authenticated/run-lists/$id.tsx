@@ -16,7 +16,7 @@ import {
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
 } from "@/lib/run-lists.functions";
 import {
-  generatePrepDraftsForRunList, getRunListPrepCoverage,
+  getRunListPrepCoverage,
 } from "@/lib/sample-prep/run-list-integration.functions";
 import { useOpenLabMethods, useOpenLabSettings } from "@/components/instrument-comm/use-openlab";
 import { pushRunListToDrive } from "@/lib/openlab-drive.functions";
@@ -39,7 +39,6 @@ function RunListDetail() {
   const listPrep = useServerFn(listPrepFlaggedSamples);
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
-  const genPreps = useServerFn(generatePrepDraftsForRunList);
   const prepCoverageFn = useServerFn(getRunListPrepCoverage);
   const navigate = useNavigate();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
@@ -49,24 +48,10 @@ function RunListDetail() {
 
   const { data, isLoading } = useQuery({ queryKey: qk.runLists.detail(id), queryFn: () => get({ data: { id } }) });
   const { data: prepSamples } = useQuery({ queryKey: qk.runLists.prepFlagged(), queryFn: () => listPrep() });
-  const { data: coverage, refetch: refetchCoverage } = useQuery({
+  const { data: coverage } = useQuery({
     queryKey: ["run-list-prep-coverage", id],
     queryFn: () => prepCoverageFn({ data: { run_list_id: id } }),
     enabled: !!id,
-  });
-
-  const genPrepMut = useMutation({
-    mutationFn: () => genPreps({ data: { run_list_id: id } }),
-    onSuccess: (r) => {
-      const parts = [
-        r.created.length ? `${r.created.length} draft${r.created.length === 1 ? "" : "s"} created` : null,
-        r.linked_items ? `${r.linked_items} row${r.linked_items === 1 ? "" : "s"} linked` : null,
-        r.unresolved.length ? `${r.unresolved.length} unresolved` : null,
-      ].filter(Boolean).join(" · ");
-      toast.success(parts || "Nothing to generate");
-      refetchCoverage();
-    },
-    onError: (e: Error) => toast.error(e.message),
   });
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -209,14 +194,16 @@ function RunListDetail() {
               <Tags className="size-4 mr-1" />Print Labels
             </Button>
             <Button
+              asChild
               size="sm"
               variant="outline"
-              onClick={() => genPrepMut.mutate()}
-              disabled={genPrepMut.isPending || items.length === 0}
-              title="Create draft preparation records for each unique compound on this run list"
+              disabled={items.length === 0}
+              title="Compute a dilution plan for every sample on this run list and review before accepting"
             >
-              <FlaskConical className={`size-4 mr-1 ${genPrepMut.isPending ? "animate-pulse" : ""}`} />
-              {genPrepMut.isPending ? "Generating\u2026" : "Generate prep drafts"}
+              <Link to="/run-lists/$id/prep" params={{ id }}>
+                <FlaskConical className="size-4 mr-1" />
+                Generate Sample Prep
+              </Link>
             </Button>
             <Button
               size="sm"

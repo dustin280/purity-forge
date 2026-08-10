@@ -96,6 +96,7 @@ export interface PrepRules {
   default_target_level: number;
   default_stock_concentration: number | null;
   default_stock_concentration_unit: string | null;
+  default_sample_solvent_id: string | null;
   preferred_initial_reconstitution_volume_ul: number | null;
   min_initial_reconstitution_volume_ul: number | null;
   max_initial_reconstitution_volume_ul: number | null;
@@ -128,7 +129,19 @@ export interface Equipment { id: string; equipment_id: string | null; equipment_
 export interface SolventFormulation { id: string; name: string; internal_code: string | null; version: string | null; storage_conditions: string | null; stability_period_days: number | null; approved_uses: string | null; status: "draft"|"approved"|"retired"; notes: string | null }
 export interface SolventComponent { id: string; formulation_id: string; component_name: string; percentage: number | null; percentage_basis: "v/v"|"w/v"|"w/w"|"molar" | null; notes: string | null }
 export interface ReagentLot { id: string; formulation_id: string; lot_number: string; preparation_date: string | null; expiration_date: string | null; final_volume: number | null; final_volume_unit: string | null; ph: number | null; review_status: "pending"|"approved"|"rejected"; notes: string | null }
-export interface PrepSettings { absolute_min_pipette_ul: number; preferred_min_pipette_ul: number; default_calibration_levels: number; default_target_level: number; max_dilution_steps: number }
+export interface PrepSettings { absolute_min_pipette_ul: number; preferred_min_pipette_ul: number; default_calibration_levels: number; default_target_level: number; max_dilution_steps: number; drive_lm_sample_prep_folder_id: string | null }
+
+function extractDriveFolderId(input: unknown): unknown {
+  if (typeof input !== "string") return input;
+  let s = input.trim();
+  if (!s) return s;
+  const m =
+    s.match(/\/folders\/([A-Za-z0-9_-]+)/) ||
+    s.match(/[?&]id=([A-Za-z0-9_-]+)/) ||
+    s.match(/\/file\/d\/([A-Za-z0-9_-]+)/);
+  if (m) s = m[1];
+  return s;
+}
 
 // ---------- Analytes ----------
 const analyteInput = z.object({
@@ -556,6 +569,7 @@ const prepRulesPatch = z.object({
   default_target_level: z.number().int().min(1).max(20).optional(),
   default_stock_concentration: z.number().nullish(),
   default_stock_concentration_unit: z.string().nullish(),
+  default_sample_solvent_id: z.string().uuid().nullish(),
   preferred_initial_reconstitution_volume_ul: z.number().nullish(),
   min_initial_reconstitution_volume_ul: z.number().nullish(),
   max_initial_reconstitution_volume_ul: z.number().nullish(),
@@ -766,7 +780,7 @@ export const getPrepSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase.from("sp_settings").select("*").eq("id", true).maybeSingle();
     if (error) throw error;
-    return (data ?? { absolute_min_pipette_ul: 10, preferred_min_pipette_ul: 20, default_calibration_levels: 6, default_target_level: 3, max_dilution_steps: 5 }) as PrepSettings;
+    return (data ?? { absolute_min_pipette_ul: 10, preferred_min_pipette_ul: 20, default_calibration_levels: 6, default_target_level: 3, max_dilution_steps: 5, drive_lm_sample_prep_folder_id: null }) as PrepSettings;
   });
 
 export const updatePrepSettings = createServerFn({ method: "POST" })
@@ -777,6 +791,10 @@ export const updatePrepSettings = createServerFn({ method: "POST" })
     default_calibration_levels: z.number().int().min(1).max(20),
     default_target_level: z.number().int().min(1).max(20),
     max_dilution_steps: z.number().int().min(1).max(20),
+    drive_lm_sample_prep_folder_id: z.preprocess(
+      extractDriveFolderId,
+      z.string().max(200).regex(/^[A-Za-z0-9_-]*$/, "Invalid Drive folder ID").nullable().optional(),
+    ),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { error } = await context.supabase.from("sp_settings").update({ ...data, updated_by: context.userId }).eq("id", true);
