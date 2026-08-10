@@ -9,26 +9,56 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import { useEffect, useState } from "react";
 import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
-const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/pending-orders", label: "Pending Orders", icon: PackageOpen },
-  { to: "/chain-of-custody", label: "Sample Receipt", icon: ClipboardList },
-  { to: "/clients", label: "Clients", icon: Building2 },
-  { to: "/intake", label: "Intake", icon: Inbox },
-  { to: "/samples", label: "Samples", icon: FlaskConical },
-  { to: "/queue", label: "Analysis Queue", icon: GaugeCircle },
-  { to: "/run-lists", label: "Run Lists", icon: ListChecks },
-  { to: "/vial-labels", label: "Vial Labels", icon: Tags },
-  { to: "/sample-prep", label: "Sample Prep", icon: Beaker },
-  { to: "/lab-logs", label: "Logs", icon: NotebookPen },
-  { to: "/maintenance", label: "Maintenance", icon: Wrench },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/scheduler", label: "Scheduler", icon: CalendarDays },
-  { to: "/instrument-comm", label: "Instrument Comm", icon: Cable },
-  { to: "/lab-journal", label: "Lab Journal", icon: BookOpen },
-  { to: "/issues", label: "Notes", icon: MessageSquareWarning },
-  { to: "/integrations", label: "Integrations", icon: Webhook },
-  { to: "/library", label: "Library", icon: Library },
+/**
+ * Grouped by where each item sits in the lab's actual workflow, not
+ * alphabetically or by when it was added — see the sidebar-menu review
+ * for the reasoning (nav previously was one flat 18-item list).
+ */
+const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; icon: typeof LayoutDashboard }[] }[] = [
+  {
+    label: null,
+    items: [
+      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Sample Pipeline",
+    items: [
+      { to: "/pending-orders", label: "Pending Orders", icon: PackageOpen },
+      { to: "/chain-of-custody", label: "Sample Receipt", icon: ClipboardList },
+      { to: "/intake", label: "Intake Queue", icon: Inbox },
+      { to: "/samples", label: "Samples", icon: FlaskConical },
+      { to: "/queue", label: "Analysis Queue", icon: GaugeCircle },
+      { to: "/run-lists", label: "Run Lists", icon: ListChecks },
+      { to: "/vial-labels", label: "Vial Labels", icon: Tags },
+    ],
+  },
+  {
+    label: "Prep & Instruments",
+    items: [
+      { to: "/sample-prep", label: "Sample Prep", icon: Beaker },
+      { to: "/instrument-comm", label: "Instrument Comm", icon: Cable },
+      { to: "/scheduler", label: "Scheduler", icon: CalendarDays },
+    ],
+  },
+  {
+    label: "Records & Reference",
+    items: [
+      { to: "/lab-logs", label: "Logs", icon: NotebookPen },
+      { to: "/lab-journal", label: "Lab Journal", icon: BookOpen },
+      { to: "/issues", label: "Issues", icon: MessageSquareWarning },
+      { to: "/library", label: "Library", icon: Library },
+      { to: "/maintenance", label: "Maintenance", icon: Wrench },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { to: "/clients", label: "Clients", icon: Building2 },
+      { to: "/inventory", label: "Inventory", icon: Boxes },
+      { to: "/integrations", label: "Integrations", icon: Webhook },
+    ],
+  },
 ];
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
@@ -50,18 +80,24 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        <div className="px-2 py-2 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Operations</div>
-        {NAV.map(item => {
-          const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
-          return (
-            <Link key={item.to} to={item.to} onClick={onNavigate}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                active ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
-              }`}>
-              <item.icon className="size-4" /> {item.label}
-            </Link>
-          );
-        })}
+        {NAV_SECTIONS.map((section, i) => (
+          <div key={section.label ?? `section-${i}`} className={i > 0 ? "mt-4" : ""}>
+            {section.label && (
+              <div className="px-2 py-2 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">{section.label}</div>
+            )}
+            {section.items.map(item => {
+              const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
+              return (
+                <Link key={item.to} to={item.to} onClick={onNavigate}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+                    active ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
+                  }`}>
+                  <item.icon className="size-4" /> {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
         {role === "admin" && (
           <>
             <div className="px-2 py-2 mt-4 text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-widest">Admin</div>
