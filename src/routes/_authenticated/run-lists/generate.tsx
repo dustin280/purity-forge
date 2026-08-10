@@ -16,6 +16,7 @@ import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunList
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
 import { qk } from "@/lib/query-keys";
 import { NoVialsDialog } from "@/components/run-lists/no-vials-dialog";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 export const Route = createFileRoute("/_authenticated/run-lists/generate")({
   component: GenerateRunList,
@@ -27,6 +28,7 @@ function GenerateRunList() {
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
   const navigate = useNavigate();
+  const signalWorkflowEvent = useWorkflowSignal();
   const { data: instruments } = useQuery({
     queryKey: qk.instrumentInventory.list(true),
     queryFn: () => list({ data: { active_only: true } }),
@@ -78,6 +80,7 @@ function GenerateRunList() {
     onSuccess: (r) => {
       downloadCsv(r.filename, r.csv);
       toast.success(`Saved ${r.filename}`);
+      signalWorkflowEvent("run-list-saved");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -241,6 +244,7 @@ function GenerateRunList() {
         <Button
           disabled={!instrumentId || previewMut.isPending}
           onClick={() => previewMut.mutate()}
+          data-guide="generate-analyze"
         >
           <Wand2 className="size-4 mr-1" /> Analyze & propose
         </Button>
@@ -351,7 +355,7 @@ function SequenceCard({ seq, onSave, saving, onPush, pushing, onPrintLabels }: {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onSave} disabled={saving}>
+          <Button variant="outline" onClick={onSave} disabled={saving} data-guide="generate-save">
             <Download className="size-4 mr-1" /> Generate CSV
           </Button>
           <Button onClick={onPush} disabled={pushing}>

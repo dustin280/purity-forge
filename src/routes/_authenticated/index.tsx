@@ -8,6 +8,7 @@ import { RecentSamplesCard } from "@/components/dashboard/recent-samples-card";
 import { AuditStreamCard } from "@/components/dashboard/audit-stream-card";
 import { listBackpressureLogs } from "@/lib/daily-backpressure.functions";
 import { BackpressureTrendChart } from "@/components/daily-backpressure/trend-chart";
+import { WorkflowLauncher } from "@/components/dashboard/workflow-launcher";
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
 
 function Dashboard() {
@@ -26,6 +27,8 @@ function Dashboard() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Lab Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Real-time sample workflow and instrument throughput.</p>
       </header>
+
+      <WorkflowLauncher />
 
       <BackpressureTrendChart rows={bpRows ?? []} isLoading={bpLoading} showOpenLogLink />
 

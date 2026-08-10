@@ -26,7 +26,7 @@ export function PageHeader({
         <Button variant="outline" onClick={onUploadFilled}>
           <Upload className="size-4 mr-1" /> Upload / Photo CoC
         </Button>
-        <Button onClick={onNew}>
+        <Button onClick={onNew} data-guide="coc-new">
           <Plus className="size-4 mr-1" /> New Sample Receipt
         </Button>
       </div>

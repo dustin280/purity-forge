@@ -6,11 +6,13 @@ import { autoSchedulePending } from "@/lib/queue.functions";
 import { qk } from "@/lib/query-keys";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 type Change = { sample_id: string; from: string | null; to: string };
 
 export function AutoScheduleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const qc = useQueryClient();
+  const signalWorkflowEvent = useWorkflowSignal();
   const runFn = useServerFn(autoSchedulePending);
   const [preview, setPreview] = useState<{ changes: Change[]; unassignable: string[] } | null>(null);
 
@@ -24,6 +26,7 @@ export function AutoScheduleDialog({ open, onOpenChange }: { open: boolean; onOp
     mutationFn: async () => runFn({ data: { dry_run: false } }) as Promise<{ applied: number }>,
     onSuccess: (r) => {
       toast.success(`Applied ${r.applied} assignment${r.applied === 1 ? "" : "s"}`);
+      signalWorkflowEvent("auto-scheduled");
       qc.invalidateQueries({ queryKey: qk.queue.all });
       qc.invalidateQueries({ queryKey: qk.samples.all });
       onOpenChange(false);

@@ -21,6 +21,7 @@ import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
 import { createClient as createClientFn, type ClientRow } from "@/lib/clients.functions";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 export type CocAttachment = {
   id: string; file_path: string; file_name: string; content_type: string | null;
@@ -36,6 +37,7 @@ export function useCocForm({
   initialFile?: File | null;
 }) {
   const qc = useQueryClient();
+  const signalWorkflowEvent = useWorkflowSignal();
   const listFields = useServerFn(listCocFields);
   const getRec = useServerFn(getCocRecord);
   const submit = useServerFn(submitCocWithSamples);
@@ -248,6 +250,7 @@ export function useCocForm({
       qc.invalidateQueries({ queryKey: qk.cocRecords.attachmentsAll });
       qc.invalidateQueries({ queryKey: qk.clients.all });
       qc.invalidateQueries({ queryKey: ["pending_orders"] });
+      if (!recordId) signalWorkflowEvent("coc-submitted");
       if (draftId) deleteCocDraft(draftId);
       setIsDirty(false);
       setPendingFiles([]);

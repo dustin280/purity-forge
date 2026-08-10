@@ -29,6 +29,7 @@ export function SamplesFiltersCard({
             value={q}
             onChange={e => setQ(e.target.value)}
             className="pl-9"
+            data-guide="samples-search"
           />
         </div>
         <div className="flex gap-1.5 text-xs">

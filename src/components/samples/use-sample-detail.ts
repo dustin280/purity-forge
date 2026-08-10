@@ -6,9 +6,11 @@ import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveR
 import { type SampleStatus } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 export function useSampleDetail(batchId: string) {
   const qc = useQueryClient();
+  const signalWorkflowEvent = useWorkflowSignal();
   const fn = useServerFn(getSampleDetail);
   const setStatusFn = useServerFn(updateSampleStatus);
   const saveResultFn = useServerFn(saveResult);
@@ -63,6 +65,7 @@ export function useSampleDetail(batchId: string) {
     try {
       await approveResultFn({ data: { resultId } });
       toast.success("Result approved");
+      signalWorkflowEvent("sample-approved");
       qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Approval failed"); }
     finally { setBusy(false); }

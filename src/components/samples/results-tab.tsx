@@ -66,7 +66,7 @@ export function ResultsTab({
                   <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview(latestResult.id)}>Review</Button>
                 )}
                 {canApprove && (
-                  <Button size="sm" disabled={busy} onClick={() => onApprove(latestResult.id)}>Approve</Button>
+                  <Button size="sm" disabled={busy} onClick={() => onApprove(latestResult.id)} data-guide="results-approve">Approve</Button>
                 )}
                 {latestResult.approved_at && (
                   <span className="text-xs text-muted-foreground self-center">Approved</span>
@@ -115,7 +115,7 @@ export function ResultsTab({
         <Textarea rows={6} value={pasted} onChange={e => setPasted(e.target.value)}
           placeholder="3.142  154823.5  98.421  Main  812.4&#10;4.027  1245.1  0.792  Impurity-A  18.2"
           className="font-mono text-xs" />
-        <Button onClick={onSubmit} disabled={busy}>{busy ? "Saving…" : "Save Result"}</Button>
+        <Button onClick={onSubmit} disabled={busy} data-guide="results-submit">{busy ? "Saving…" : "Save Result"}</Button>
       </Card>
     </div>
   );
