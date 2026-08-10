@@ -21,14 +21,14 @@ async function loadContext(supabase: any, instrumentId: string) {
       .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[]),
   ]);
   if (!instrument) throw new Error("Instrument not found");
+  // Ordering doesn't matter here — optimize() sorts parseable vial
+  // locations into canonical row-major order itself (see optimizer.ts).
   const trayId = (instrument as { tray_config_id: string | null }).tray_config_id;
   const trayRes = trayId
     ? await supabase.from("tray_positions")
-        .select("position_code,is_ref_vial,status,drawer,row_label,col_num")
+        .select("position_code,status")
         .eq("tray_config_id", trayId).eq("status", "available")
-        .order("is_ref_vial", { ascending: true })
-        .order("drawer").order("row_label").order("col_num")
-    : { data: [] as Array<{ position_code: string; is_ref_vial: boolean }> };
+    : { data: [] as Array<{ position_code: string }> };
   return {
     instrument: instrument as {
       id: string; instrument_name: string | null; make: string | null; model: string | null;
@@ -40,7 +40,7 @@ async function loadContext(supabase: any, instrumentId: string) {
       default_acquisition_method: string | null; default_processing_method: string | null;
     }>,
     samples: (samples ?? []) as OptimizerSample[],
-    trayPositions: (trayRes.data ?? []) as Array<{ position_code: string; is_ref_vial: boolean }>,
+    trayPositions: (trayRes.data ?? []) as Array<{ position_code: string }>,
   };
 }
 

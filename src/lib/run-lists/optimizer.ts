@@ -3,6 +3,7 @@
  * method groups, and available tray positions — get back QC-interleaved
  * sequences with vial assignments and a short "why" trace.
  */
+import { isQcLocation, tryParseVialLocation, type VialLocation } from "./vial-location";
 
 export interface OptimizerSample {
   id: string;
@@ -25,7 +26,6 @@ export interface OptimizerMethodGroup {
 
 export interface OptimizerTrayPosition {
   position_code: string;
-  is_ref_vial: boolean;
 }
 
 export type SequenceRowType =
@@ -84,16 +84,16 @@ function parseConcentrationMgPerMl(v: string | null | undefined): number {
 function withQC(
   samples: OptimizerSample[],
   groupById: Map<string, OptimizerMethodGroup>,
-  vialFor: (kind: "ref" | "sample") => string | null,
+  vialFor: (kind: "qc" | "sample") => string | null,
 ): SequenceRow[] {
   const rows: SequenceRow[] = [];
-  const push = (type: SequenceRowType, label: string, isRef: boolean, extra?: Partial<SequenceRow>) => {
+  const push = (type: SequenceRowType, label: string, isQc: boolean, extra?: Partial<SequenceRow>) => {
     rows.push({
       type, label, sample_id: null,
       lot: null,
       method_group_id: null, method_group_name: null,
       acquisition_method: null, processing_method: null,
-      vial: vialFor(isRef ? "ref" : "sample"),
+      vial: vialFor(isQc ? "qc" : "sample"),
       why: extra?.why ?? `${type} QC`,
       ...extra,
     });
@@ -229,15 +229,29 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
   }
   flush();
 
-  // Vial allocator — walk tray positions in order
-  const refVials = trayPositions.filter((p) => p.is_ref_vial).map((p) => p.position_code);
-  const sampleVials = trayPositions.filter((p) => !p.is_ref_vial).map((p) => p.position_code);
-  let refIdx = 0, sampleIdx = 0;
-  const vialFor = (kind: "ref" | "sample"): string | null => {
-    if (kind === "ref") return refVials[refIdx++ % Math.max(refVials.length, 1)] ?? null;
-    const v = sampleVials[sampleIdx] ?? null;
-    sampleIdx++;
-    return v;
+  // Vial allocator — D1 is reserved for QC (standards/blanks), D2+ for
+  // samples, never the reverse. Positions that aren't valid tray locations
+  // (e.g. the legacy "Ref-N" reference vials) are ignored — QC now draws
+  // from the real 108-position QC drawer instead. Locations are sorted into
+  // canonical row-major order (per-tray: A1, B1, C1, D1, E1, F1, A2, ...)
+  // rather than trusting whatever order the caller's query happened to
+  // return, since that's the one thing this module must get right.
+  const parsed = trayPositions
+    .map((p) => ({ code: p.position_code, loc: tryParseVialLocation(p.position_code) }))
+    .filter((p): p is { code: string; loc: VialLocation } => p.loc !== null);
+  const trayOrder = { F: 0, B: 1 } as const;
+  parsed.sort((a, z) => {
+    if (a.loc.drawer !== z.loc.drawer) return a.loc.drawer - z.loc.drawer;
+    if (a.loc.tray !== z.loc.tray) return trayOrder[a.loc.tray] - trayOrder[z.loc.tray];
+    if (a.loc.row !== z.loc.row) return a.loc.row - z.loc.row;
+    return a.loc.column.localeCompare(z.loc.column);
+  });
+  const qcVials = parsed.filter((p) => isQcLocation(p.loc)).map((p) => p.code);
+  const sampleVials = parsed.filter((p) => !isQcLocation(p.loc)).map((p) => p.code);
+  let qcIdx = 0, sampleIdx = 0;
+  const vialFor = (kind: "qc" | "sample"): string | null => {
+    if (kind === "qc") return qcVials[qcIdx++] ?? null;
+    return sampleVials[sampleIdx++] ?? null;
   };
 
   return runs.map((r, i) => {
