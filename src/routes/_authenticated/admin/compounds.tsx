@@ -11,6 +11,7 @@ import {
   updateCompound,
   deleteCompound,
 } from "@/lib/compounds.functions";
+import { listMethodGroups } from "@/lib/method-groups.functions";
 import { AddCompoundForm } from "@/components/admin/compounds/add-form";
 import { CompoundsList } from "@/components/admin/compounds/compounds-list";
 
@@ -25,10 +26,15 @@ function CompoundsAdmin() {
   const create = useServerFn(createCompound);
   const update = useServerFn(updateCompound);
   const del = useServerFn(deleteCompound);
+  const listGroups = useServerFn(listMethodGroups);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: qk.compounds.list(),
     queryFn: () => list(),
+  });
+  const { data: methodGroups = [] } = useQuery({
+    queryKey: qk.methodGroups.list(),
+    queryFn: () => listGroups(),
   });
 
   const invalidate = () =>
@@ -44,8 +50,13 @@ function CompoundsAdmin() {
       toast.error(e instanceof Error ? e.message : "Failed to add"),
   });
   const updateMut = useMutation({
-    mutationFn: (v: { id: string; name?: string; is_active?: boolean }) =>
-      update({ data: v }),
+    mutationFn: (v: {
+      id: string;
+      name?: string;
+      is_active?: boolean;
+      method_group_id?: string | null;
+      injection_volume_ul?: number | null;
+    }) => update({ data: v }),
     onSuccess: invalidate,
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Failed to update"),
@@ -94,12 +105,19 @@ function CompoundsAdmin() {
       />
       <CompoundsList
         rows={rows}
+        methodGroups={methodGroups}
         isLoading={isLoading}
         onToggleActive={(id, is_active) =>
           updateMut.mutate({ id, is_active })
         }
         onRename={(id, name) => updateMut.mutate({ id, name })}
         onDelete={(id) => delMut.mutate(id)}
+        onMethodGroupChange={(id, method_group_id) =>
+          updateMut.mutate({ id, method_group_id })
+        }
+        onVolumeChange={(id, injection_volume_ul) =>
+          updateMut.mutate({ id, injection_volume_ul })
+        }
       />
     </div>
   );

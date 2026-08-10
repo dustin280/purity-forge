@@ -49,6 +49,15 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       c => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase()
     ) ?? null;
 
+    // Best-effort link to the compound library's assigned method group —
+    // same case-insensitive match approach as the client lookup above.
+    // No match just means this compound hasn't been assigned a group yet;
+    // the sample is created ungrouped rather than blocked.
+    const { data: candidateCompounds } = await supabase.from("compounds").select("name,method_group_id");
+    const methodGroupByCompound = new Map(
+      (candidateCompounds ?? []).map(c => [c.name.trim().toLowerCase(), c.method_group_id as string | null]),
+    );
+
     const { data: coc, error: cocErr } = await supabase
       .from("chain_of_custody_records")
       .insert({
@@ -71,6 +80,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       client_received_date: string | null; manufacture_date: string | null;
       physical_description: string | null;
       created_by: string; status: "received";
+      method_group_id: string | null;
     };
     const rows: SampleInsert[] = [];
     let seq = 0;
@@ -107,6 +117,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           physical_description: (li.physical_description && li.physical_description.trim()) ? li.physical_description : null,
           created_by: userId,
           status: "received" as const,
+          method_group_id: methodGroupByCompound.get(li.compound.trim().toLowerCase()) ?? null,
         });
       }
     });
