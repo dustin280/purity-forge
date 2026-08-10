@@ -436,7 +436,6 @@ export type Database = {
           is_active: boolean
           method_group_id: string | null
           name: string
-          sp_analyte_id: string | null
           updated_at: string
         }
         Insert: {
@@ -447,7 +446,6 @@ export type Database = {
           is_active?: boolean
           method_group_id?: string | null
           name: string
-          sp_analyte_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -458,7 +456,6 @@ export type Database = {
           is_active?: boolean
           method_group_id?: string | null
           name?: string
-          sp_analyte_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -467,13 +464,6 @@ export type Database = {
             columns: ["method_group_id"]
             isOneToOne: false
             referencedRelation: "method_groups"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compounds_sp_analyte_id_fkey"
-            columns: ["sp_analyte_id"]
-            isOneToOne: false
-            referencedRelation: "sp_analytes"
             referencedColumns: ["id"]
           },
         ]
@@ -2382,10 +2372,6 @@ export type Database = {
           project: string | null
           raw_data_file_path: string | null
           receipt_date: string
-          received_form: string | null
-          received_purity_percent: number | null
-          received_quantity: number | null
-          received_quantity_unit: string | null
           status: Database["public"]["Enums"]["sample_status"]
           temperature_c: number | null
           updated_at: string
@@ -2421,10 +2407,6 @@ export type Database = {
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
-          received_form?: string | null
-          received_purity_percent?: number | null
-          received_quantity?: number | null
-          received_quantity_unit?: string | null
           status?: Database["public"]["Enums"]["sample_status"]
           temperature_c?: number | null
           updated_at?: string
@@ -2460,10 +2442,6 @@ export type Database = {
           project?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
-          received_form?: string | null
-          received_purity_percent?: number | null
-          received_quantity?: number | null
-          received_quantity_unit?: string | null
           status?: Database["public"]["Enums"]["sample_status"]
           temperature_c?: number | null
           updated_at?: string
@@ -2993,13 +2971,6 @@ export type Database = {
             columns: ["revision_id"]
             isOneToOne: true
             referencedRelation: "sp_method_revisions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sp_method_prep_rules_default_sample_solvent_id_fkey"
-            columns: ["default_sample_solvent_id"]
-            isOneToOne: false
-            referencedRelation: "sp_solvent_formulations"
             referencedColumns: ["id"]
           },
         ]
@@ -3555,7 +3526,6 @@ export type Database = {
           absolute_min_pipette_ul: number
           default_calibration_levels: number
           default_target_level: number
-          drive_lm_sample_prep_folder_id: string | null
           id: boolean
           max_dilution_steps: number
           preferred_min_pipette_ul: number
@@ -3566,7 +3536,6 @@ export type Database = {
           absolute_min_pipette_ul?: number
           default_calibration_levels?: number
           default_target_level?: number
-          drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
@@ -3577,7 +3546,6 @@ export type Database = {
           absolute_min_pipette_ul?: number
           default_calibration_levels?: number
           default_target_level?: number
-          drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
