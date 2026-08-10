@@ -50,7 +50,11 @@ function GenerateRunList() {
       const outOfVials = r.sequences.some((seq) =>
         seq.rows.some((row) => row.type === "Sample" && row.vial === null),
       );
-      if (outOfVials) setNoVialsOpen(true);
+      if (outOfVials && !r.tray_configured) {
+        toast.error("This instrument has no tray configured — assign one in Inventory → Instruments before generating.");
+      } else if (outOfVials) {
+        setNoVialsOpen(true);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

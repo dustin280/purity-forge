@@ -56,7 +56,7 @@ const RECEIVE_AND_SCHEDULE_STEPS: WorkflowGuideStep[] = [
 const GENERATE_RUNLIST_STEPS: WorkflowGuideStep[] = [
   {
     title: "Analyze & propose",
-    description: "Pick an instrument and date, then click “Analyze & Propose.”",
+    description: "Pick an instrument, then click “Analyze & Propose.”",
     route: "/run-lists/generate",
     targetSelector: '[data-guide="generate-analyze"]',
     completionEvent: null,

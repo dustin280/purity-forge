@@ -80,19 +80,26 @@ function parseConcentrationMgPerMl(v: string | null | undefined): number {
   return n;
 }
 
-/** Build the fixed QC pattern around up to 30 samples. */
+/**
+ * Build the fixed QC pattern around up to 30 samples. Every QC/blank row
+ * carries the same acquisition/processing method as the samples it's
+ * bracketing — a run never mixes method groups (see the packing logic in
+ * optimize() below), so there's exactly one group to inherit from.
+ */
 function withQC(
   samples: OptimizerSample[],
   groupById: Map<string, OptimizerMethodGroup>,
   vialFor: (kind: "qc" | "sample") => string | null,
+  runGroup: OptimizerMethodGroup | null,
 ): SequenceRow[] {
   const rows: SequenceRow[] = [];
   const push = (type: SequenceRowType, label: string, isQc: boolean, extra?: Partial<SequenceRow>) => {
     rows.push({
       type, label, sample_id: null,
       lot: null,
-      method_group_id: null, method_group_name: null,
-      acquisition_method: null, processing_method: null,
+      method_group_id: runGroup?.id ?? null, method_group_name: runGroup?.name ?? null,
+      acquisition_method: runGroup?.default_acquisition_method ?? null,
+      processing_method: runGroup?.default_processing_method ?? null,
       vial: vialFor(isQc ? "qc" : "sample"),
       why: extra?.why ?? `${type} QC`,
       ...extra,
@@ -255,7 +262,8 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
   };
 
   return runs.map((r, i) => {
-    const rows = withQC(r.samples, groupById, vialFor);
+    const runGroup = r.primaryGroupId ? groupById.get(r.primaryGroupId) ?? null : null;
+    const rows = withQC(r.samples, groupById, vialFor, runGroup);
     return {
       index: i + 1,
       name: `Sequence ${i + 1} — ${r.note}`,

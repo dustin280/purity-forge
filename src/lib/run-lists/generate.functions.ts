@@ -69,7 +69,10 @@ export const previewGeneratedSequences = createServerFn({ method: "POST" })
       methodGroups: ctx.methodGroups,
       trayPositions: ctx.trayPositions,
     });
-    return { instrument: ctx.instrument, sequences, sample_count: ctx.samples.length };
+    return {
+      instrument: ctx.instrument, sequences, sample_count: ctx.samples.length,
+      tray_configured: !!ctx.instrument.tray_config_id,
+    };
   });
 
 /**
