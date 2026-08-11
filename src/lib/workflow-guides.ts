@@ -55,11 +55,18 @@ const RECEIVE_AND_SCHEDULE_STEPS: WorkflowGuideStep[] = [
 
 const GENERATE_RUNLIST_STEPS: WorkflowGuideStep[] = [
   {
-    title: "Analyze & propose",
-    description: "Pick an instrument, then click “Analyze & Propose.”",
+    title: "Pick instrument",
+    description: "Choose which instrument to build a run list for.",
+    route: "/run-lists/generate",
+    targetSelector: '[data-guide="generate-instrument"]',
+    completionEvent: "instrument-picked",
+  },
+  {
+    title: "Select Samples",
+    description: "Click “Select Samples” to preview optimized sequences.",
     route: "/run-lists/generate",
     targetSelector: '[data-guide="generate-analyze"]',
-    completionEvent: null,
+    completionEvent: "samples-selected",
   },
   {
     title: "Save the run list",
@@ -73,17 +80,17 @@ const GENERATE_RUNLIST_STEPS: WorkflowGuideStep[] = [
 const COMPLETE_RESULTS_STEPS: WorkflowGuideStep[] = [
   {
     title: "Find the sample",
-    description: "Search for the sample that's ready for results.",
+    description: "Search for the sample that's ready for results, then open it.",
     route: "/samples",
     targetSelector: '[data-guide="samples-search"]',
-    completionEvent: null,
+    completionEvent: "sample-opened",
   },
   {
     title: "Save the result",
     description: "On the sample's Results tab, paste in the result and click “Save Result.”",
     route: "/samples",
     targetSelector: '[data-guide="results-submit"]',
-    completionEvent: null,
+    completionEvent: "result-submitted",
   },
   {
     title: "Approve the result",

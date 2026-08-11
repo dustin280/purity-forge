@@ -1,9 +1,9 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult } from "@/lib/lims.functions";
-import { type SampleStatus } from "@/lib/lims-utils";
+import { type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
@@ -22,6 +22,10 @@ export function useSampleDetail(batchId: string) {
     queryFn: () => fn({ data: { batchId } }),
   });
 
+  useEffect(() => {
+    if (query.isSuccess) signalWorkflowEvent("sample-opened");
+  }, [query.isSuccess, batchId, signalWorkflowEvent]);
+
   const [busy, setBusy] = useState(false);
 
   async function changeStatus(sampleId: string, status: SampleStatus) {
@@ -35,15 +39,22 @@ export function useSampleDetail(batchId: string) {
     finally { setBusy(false); }
   }
 
-  async function submitResult(args: { testId: string | undefined; sampleId: string; pasted: string; onCleared: () => void }) {
+  async function submitResult(args: {
+    testId: string | undefined; sampleId: string; pasted: string;
+    imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null } | null;
+    onCleared: () => void;
+  }) {
     if (!args.testId) return toast.error("No test assigned");
-    const { peaks, purity } = parsePeaks(args.pasted);
-    if (peaks.length === 0) return toast.error("Paste at least one peak (rt area area_pct)");
+    const { peaks, purity, raw_data_file_path } = args.imported
+      ? { peaks: args.imported.peaks, purity: args.imported.purity, raw_data_file_path: args.imported.raw_data_file_path }
+      : { ...parsePeaks(args.pasted), raw_data_file_path: null as string | null };
+    if (peaks.length === 0) return toast.error("Paste at least one peak (rt area area_pct), or import a report");
     setBusy(true);
     try {
-      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks } });
+      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path } });
       await setStatusFn({ data: { sampleId: args.sampleId, status: "in_progress" } });
       toast.success(`Result saved — ${purity.toFixed(2)}% purity`);
+      signalWorkflowEvent("result-submitted");
       args.onCleared();
       qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }

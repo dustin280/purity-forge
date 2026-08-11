@@ -171,6 +171,9 @@ export interface Peak {
   area_pct: number;
   identity?: string;
   sn?: number;
+  /** From a Drive-imported instrument report, when available. */
+  amount_per_vial_mg?: number | null;
+  percent_label_claim?: number | null;
 }
 
 export function fmtPct(n: number | null | undefined, digits = 3) {

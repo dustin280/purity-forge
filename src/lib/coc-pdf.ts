@@ -5,14 +5,23 @@ import { jsPDF } from "jspdf";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export type CocFieldLite = { field_key: string; label: string };
+export type CocLineItemComponentLite = {
+  compound_id?: string | null; compound?: string;
+  label_content_value?: string; label_content_unit?: string;
+};
 export type CocLineItem = {
   compound?: string; lot?: string; catalog?: string; manufacturer?: string;
-  quantity?: string; quantity_unit?: string;
-  container_size?: string; concentration?: string;
-  vial_count?: number; temperature_c?: string | number;
-  storage?: string; requested_tests?: string[];
+  container_size?: string;
+  vial_count?: number;
+  requested_tests?: string[];
   client_received_date?: string; manufacture_date?: string;
   physical_description?: string;
+  physical_form?: "" | "solid" | "liquid" | "capsule";
+  label_content_value?: string; label_content_unit?: string;
+  is_multi_component?: boolean;
+  components?: CocLineItemComponentLite[];
+  bottle_size?: string; liquid_volume_ml?: string; label_content_basis?: "" | "per_ml" | "per_bottle";
+  capsule_count?: string;
 };
 export type CocRecordLite = {
   id: string;
@@ -118,17 +127,44 @@ export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPD
       const seqLabel = `Sample ${String(idx + 1).padStart(2, "0")}`;
       const headerText = `${seqLabel}${li.compound ? ` — ${li.compound}` : ""}${li.vial_count && li.vial_count > 1 ? `  ×${li.vial_count} vials` : ""}`;
 
+      const labelContent = li.label_content_value
+        ? `${li.label_content_value}${li.label_content_unit ? ` ${li.label_content_unit}` : ""}`
+        : "—";
+      const formPairs: Array<[string, string]> = (() => {
+        switch (li.physical_form) {
+          case "liquid":
+            return [
+              ["Bottle Size", li.bottle_size || "—"],
+              ["Volume in Bottle", li.liquid_volume_ml ? `${li.liquid_volume_ml} mL` : "—"],
+              ["Label Content", li.label_content_basis === "per_bottle" ? `${labelContent} / bottle` : `${labelContent} / mL`],
+            ];
+          case "capsule":
+            return [
+              ["Label Content", `${labelContent} / capsule`],
+              ["# of Capsules", li.capsule_count || "—"],
+            ];
+          case "solid":
+            return [
+              ["Container Size", li.container_size || "—"],
+              ["Label Content", labelContent],
+            ];
+          default:
+            return [];
+        }
+      })();
+      const componentsPair: Array<[string, string]> = (li.is_multi_component && li.components?.length)
+        ? [["Additional Compounds", li.components.map(c => `${c.compound}${c.label_content_value ? ` (${c.label_content_value}${c.label_content_unit ? ` ${c.label_content_unit}` : ""})` : ""}`).join(", ")]]
+        : [];
+
       const pairs: Array<[string, string]> = [
+        ["Physical Form", li.physical_form ? li.physical_form[0].toUpperCase() + li.physical_form.slice(1) : "—"],
         ["Lot / Batch", li.lot || "—"],
         ["Catalog #", li.catalog || "—"],
         ["Manufacturer", li.manufacturer || "—"],
         ["Manufacture Date", li.manufacture_date || "—"],
         ["Client Received Date", li.client_received_date || "—"],
-        ["Container Size", li.container_size || "—"],
-        ["Concentration", li.concentration || "—"],
-        ["Quantity / vial", li.quantity ? `${li.quantity}${li.quantity_unit ? ` ${li.quantity_unit}` : ""}` : "—"],
-        ["Temperature (°C)", li.temperature_c == null || li.temperature_c === "" ? "—" : String(li.temperature_c)],
-        ["Storage", li.storage || "—"],
+        ...formPairs,
+        ...componentsPair,
         ["Requested Tests", (li.requested_tests ?? []).join(", ") || "—"],
         ["Physical Description", li.physical_description || "—"],
       ];

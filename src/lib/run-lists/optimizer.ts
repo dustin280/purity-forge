@@ -41,6 +41,7 @@ export interface SequenceRow {
   acquisition_method: string | null;
   processing_method: string | null;
   vial: string | null;
+  level: string | null;          // calibration level, e.g. CCV rows run at Level 3
   why: string;                   // rationale for review UI
 }
 
@@ -101,6 +102,7 @@ function withQC(
       acquisition_method: runGroup?.default_acquisition_method ?? null,
       processing_method: runGroup?.default_processing_method ?? null,
       vial: vialFor(isQc ? "qc" : "sample"),
+      level: null,
       why: extra?.why ?? `${type} QC`,
       ...extra,
     });
@@ -125,6 +127,7 @@ function withQC(
         acquisition_method: g?.default_acquisition_method ?? null,
         processing_method: g?.default_processing_method ?? null,
         vial: vialFor("sample"),
+        level: null,
         why: [
           s.compound ? `Compound ${s.compound}` : "No compound",
           s.concentration ? `conc ${s.concentration}` : "no concentration",
@@ -133,7 +136,7 @@ function withQC(
       });
     });
     push("CCB", `CCB-${bi + 1}`, true, { why: `Continuing calibration blank after block ${bi + 1}` });
-    push("CCV", `CCV-${bi + 1}`, true, { why: `Continuing calibration verification after block ${bi + 1}` });
+    push("CCV", `CCV-${bi + 1}`, true, { level: "3", why: `Continuing calibration verification after block ${bi + 1}` });
   });
   return rows;
 }
@@ -144,25 +147,45 @@ export interface OptimizerInput {
   trayPositions: OptimizerTrayPosition[];       // in preferred pack order
 }
 
+/**
+ * Two samples can share a run only if they'll actually run under the same
+ * instrument method — so the merge key is the method group's real
+ * (acquisition, processing) method pair, not the group's id. Groups with no
+ * acquisition/processing method configured don't get merged with each other
+ * (there's nothing to prove they're compatible), and samples with no
+ * resolvable group stay isolated as before.
+ */
+function methodKeyFor(gid: string | null, groupById: Map<string, OptimizerMethodGroup>): string {
+  if (!gid) return "__nogroup__";
+  const g = groupById.get(gid);
+  if (!g) return `__unresolved_${gid}__`;
+  const acq = g.default_acquisition_method ?? "";
+  const proc = g.default_processing_method ?? "";
+  if (!acq && !proc) return `__nomethod_${gid}__`;
+  return `method::${acq}::${proc}`;
+}
+
 export function optimize(input: OptimizerInput): OptimizedSequence[] {
   const { samples, methodGroups, trayPositions } = input;
   const groupById = new Map(methodGroups.map((g) => [g.id, g]));
 
-  // Homogeneity-first strategy: bucket samples by (method_group_id, compound)
-  // so every batch shares an acquisition method AND analyte. Within each
-  // bucket, order by ascending concentration (least → greatest) to minimize
-  // carryover. Method-group buckets are only split when a compound spans more
-  // than MAX_SAMPLES_PER_SEQ; different compounds may share a run only when
-  // a single compound isn't enough to fill one on its own.
-  type Bucket = { key: string; primaryGroupId: string | null; compound: string | null; samples: OptimizerSample[] };
+  // Homogeneity-first strategy: bucket samples by (instrument method,
+  // compound) so every batch shares an acquisition method AND analyte.
+  // Within each bucket, order by ascending concentration (least → greatest)
+  // to minimize carryover. Method buckets are only split when a compound
+  // spans more than MAX_SAMPLES_PER_SEQ; different compounds — even from
+  // different method_group_id records — may share a run whenever their
+  // groups resolve to the same real acquisition+processing method, since
+  // that's what actually determines run compatibility on the instrument.
+  type Bucket = { key: string; methodKey: string; primaryGroupId: string | null; compound: string | null; samples: OptimizerSample[] };
   const buckets = new Map<string, Bucket>();
   for (const s of samples) {
-    const gid = s.method_group_id ?? "__nogroup__";
+    const methodKey = methodKeyFor(s.method_group_id, groupById);
     const cmp = s.compound ?? "__nocompound__";
-    const key = `${gid}::${cmp}`;
+    const key = `${methodKey}::${cmp}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { key, primaryGroupId: s.method_group_id ?? null, compound: s.compound ?? null, samples: [] };
+      b = { key, methodKey, primaryGroupId: s.method_group_id ?? null, compound: s.compound ?? null, samples: [] };
       buckets.set(key, b);
     }
     b.samples.push(s);
@@ -194,7 +217,7 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
   // never mixes method groups. Compounds that overflow a run get their own
   // dedicated chunked runs (still ascending concentration).
   const runs: { samples: OptimizerSample[]; primaryGroupId: string | null; temp: number | null; note: string }[] = [];
-  let current: { samples: OptimizerSample[]; primaryGroupId: string | null; temp: number | null; compounds: string[] } | null = null;
+  let current: { samples: OptimizerSample[]; methodKey: string; primaryGroupId: string | null; temp: number | null; compounds: string[] } | null = null;
   const flush = () => {
     if (!current || current.samples.length === 0) return;
     const g = current.primaryGroupId ? groupById.get(current.primaryGroupId) : null;
@@ -225,11 +248,11 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
       });
       continue;
     }
-    // Start a new run when method group changes or the current one would overflow.
-    if (!current || current.primaryGroupId !== b.primaryGroupId ||
+    // Start a new run when the instrument method changes or the current one would overflow.
+    if (!current || current.methodKey !== b.methodKey ||
         current.samples.length + b.samples.length > MAX_SAMPLES_PER_SEQ) {
       flush();
-      current = { samples: [], primaryGroupId: b.primaryGroupId, temp: null, compounds: [] };
+      current = { samples: [], methodKey: b.methodKey, primaryGroupId: b.primaryGroupId, temp: null, compounds: [] };
     }
     current.samples.push(...b.samples);
     current.compounds.push(label);

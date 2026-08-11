@@ -162,24 +162,9 @@ export function useCocForm({
     if (resumedLines && resumedLines.length) {
       setLineItems(resumedLines.map(li => ({ ...emptyLine(), ...li })));
     } else if (existingItems && existingItems.length) {
-      setLineItems(existingItems.map(li => ({
-        compound: li.compound ?? "",
-        compound_id: (li as unknown as { compound_id?: string | null }).compound_id ?? null,
-        lot: li.lot ?? "", catalog: li.catalog ?? "",
-        manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
-        quantity_unit: li.quantity_unit ?? "",
-        container_size: li.container_size ?? "", concentration: li.concentration ?? "",
-        vial_count: li.vial_count ?? 1,
-        temperature_c: (li as unknown as { temperature_c?: string | number }).temperature_c == null
-          ? "" : String((li as unknown as { temperature_c?: string | number }).temperature_c),
-        storage: li.storage ?? "", requested_tests: li.requested_tests ?? [],
-        client_received_date: (li as unknown as { client_received_date?: string }).client_received_date ?? "",
-        manufacture_date: (li as unknown as { manufacture_date?: string }).manufacture_date ?? "",
-        physical_description: (li as unknown as { physical_description?: string }).physical_description ?? "",
-        received_form: (li as unknown as { received_form?: "lyophilized" | "solution" }).received_form ?? "",
-        received_purity_percent: (li as unknown as { received_purity_percent?: string | number }).received_purity_percent == null
-          ? "" : String((li as unknown as { received_purity_percent?: string | number }).received_purity_percent),
-      })));
+      // Spread over emptyLine() defaults so records saved before a field
+      // existed (e.g. pre-multi-compound-rework) still hydrate cleanly.
+      setLineItems(existingItems.map(li => ({ ...emptyLine(), ...li })));
     } else {
       setLineItems([emptyLine()]);
     }

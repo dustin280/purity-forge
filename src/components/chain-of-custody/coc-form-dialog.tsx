@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AttachmentsSection } from "./attachments-section";
 import { MultiselectField } from "./coc-multiselect-field";
 import { CocLineItemsSection } from "./coc-line-items-section";
@@ -17,6 +18,14 @@ import { useCocForm } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
 import type { CocField } from "./types";
+
+// TODO: move to an admin-configurable table once storage units/trays need
+// to vary per-site — hardcoded for now, matching the lab's current setup.
+const STORAGE_UNITS = [
+  "Fridge #1", "Fridge #2", "Fridge #3", "Fridge #4",
+  "Freezer #1", "Freezer #2", "Freezer #3", "Freezer #4",
+];
+const STORAGE_TRAYS = Array.from({ length: 20 }, (_, i) => `Tray #${i + 1}`);
 
 export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, initialFile }: {
   open: boolean; onOpenChange: (v: boolean) => void; recordId: string | null;
@@ -66,6 +75,27 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
           placeholder={v ? "" : "Generating…"}
           className="font-mono bg-muted/40"
         />
+      );
+    }
+    if (field.field_key === "internal_storage_location") {
+      const [unitPart, trayPart] = v.includes(" / ") ? v.split(" / ") : [v, ""];
+      const unit = STORAGE_UNITS.includes(unitPart) ? unitPart : "";
+      const tray = STORAGE_TRAYS.includes(trayPart) ? trayPart : "";
+      return (
+        <div className="flex gap-2">
+          <Select value={unit} onValueChange={(u) => set(tray ? `${u} / ${tray}` : u)}>
+            <SelectTrigger id={field.field_key}><SelectValue placeholder="Unit…" /></SelectTrigger>
+            <SelectContent>
+              {STORAGE_UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={tray} onValueChange={(t) => set(unit ? `${unit} / ${t}` : t)} disabled={!unit}>
+            <SelectTrigger><SelectValue placeholder="Tray…" /></SelectTrigger>
+            <SelectContent>
+              {STORAGE_TRAYS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       );
     }
     const common = {

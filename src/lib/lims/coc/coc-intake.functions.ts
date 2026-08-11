@@ -2,26 +2,72 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const lineItemComponentSchema = z.object({
+  compound_id: z.string().uuid().optional().nullable(),
+  compound: z.string().max(255).optional().default(""),
+  label_content_value: z.union([z.number(), z.string()]).optional().nullable(),
+  label_content_unit: z.enum(["mg", "ug", ""]).optional().nullable(),
+});
+
 const lineItemSchema = z.object({
   compound: z.string().min(1).max(255),
   compound_id: z.string().uuid().optional().nullable(),
   lot: z.string().max(255).optional().nullable(),
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
-  quantity: z.string().max(64).optional().nullable(),
-  quantity_unit: z.string().max(32).optional().nullable(),
   container_size: z.string().max(128).optional().nullable(),
-  concentration: z.string().max(128).optional().nullable(),
-  received_form: z.enum(["lyophilized", "solution"]).optional().nullable(),
-  received_purity_percent: z.union([z.number(), z.string()]).optional().nullable(),
   vial_count: z.number().int().min(1).max(99).optional().default(1),
-  storage: z.string().max(255).optional().nullable(),
-  temperature_c: z.union([z.number(), z.string()]).optional().nullable(),
   client_received_date: z.string().max(32).optional().nullable(),
   manufacture_date: z.string().max(32).optional().nullable(),
   physical_description: z.string().max(2000).optional().nullable(),
   requested_tests: z.array(z.string().min(1).max(128)).max(200).optional().default([]),
+  physical_form: z.enum(["solid", "liquid", "capsule", ""]).optional().nullable(),
+  label_content_value: z.union([z.number(), z.string()]).optional().nullable(),
+  label_content_unit: z.enum(["mg", "ug", ""]).optional().nullable(),
+  is_multi_component: z.boolean().optional().default(false),
+  components: z.array(lineItemComponentSchema).max(20).optional().default([]),
+  bottle_size: z.string().max(128).optional().nullable(),
+  liquid_volume_ml: z.union([z.number(), z.string()]).optional().nullable(),
+  label_content_basis: z.enum(["per_ml", "per_bottle", ""]).optional().nullable(),
+  capsule_count: z.union([z.number(), z.string()]).optional().nullable(),
 });
+
+/** Derives the legacy solid/liquid received_form + quantity fields the
+ * Sample Prep dilution engine reads, from the new physical-form line item.
+ * Capsules have no equivalent yet (dilution planning isn't modeled for
+ * them) — left null, which Sample Prep already surfaces as a clear
+ * "needs input" gap rather than guessing. */
+function deriveReceivedFields(li: z.infer<typeof lineItemSchema>): {
+  received_form: "lyophilized" | "solution" | null;
+  received_quantity: number | null;
+  received_quantity_unit: string | null;
+  concentration: string | null;
+} {
+  const val = li.label_content_value == null || li.label_content_value === ""
+    ? null : Number(li.label_content_value);
+  const unit = li.label_content_unit || null;
+  if (li.physical_form === "solid") {
+    return {
+      received_form: "lyophilized",
+      received_quantity: val,
+      received_quantity_unit: unit,
+      concentration: null,
+    };
+  }
+  if (li.physical_form === "liquid") {
+    let concentration: string | null = null;
+    if (val != null && unit) {
+      if (li.label_content_basis === "per_bottle" && li.liquid_volume_ml) {
+        const vol = Number(li.liquid_volume_ml);
+        if (!isNaN(vol) && vol > 0) concentration = `${(val / vol).toFixed(4)} ${unit}/mL`;
+      } else {
+        concentration = `${val} ${unit}/mL`;
+      }
+    }
+    return { received_form: "solution", received_quantity: null, received_quantity_unit: null, concentration };
+  }
+  return { received_form: null, received_quantity: null, received_quantity_unit: null, concentration: null };
+}
 
 export const submitCocWithSamples = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -85,7 +131,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       compound_id: string | null;
       lot: string | null; catalog: string | null;
       container_size: string | null; concentration: string | null;
-      temperature_c: number | null; line_item_index: number;
+      line_item_index: number;
       client_received_date: string | null; manufacture_date: string | null;
       physical_description: string | null;
       created_by: string; status: "received";
@@ -93,26 +139,31 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       received_form: "lyophilized" | "solution" | null;
       received_quantity: number | null; received_quantity_unit: string | null;
       received_purity_percent: number | null;
+      physical_form: "solid" | "liquid" | "capsule" | null;
+      label_content_value: number | null; label_content_unit: string | null;
+      is_multi_component: boolean;
+      components: z.infer<typeof lineItemComponentSchema>[];
+      physical_form_details: Record<string, string | number | null | undefined> | null;
     };
     const rows: SampleInsert[] = [];
     let seq = 0;
     data.line_items.forEach((li, lineIdx) => {
       const vials = Math.max(1, li.vial_count ?? 1);
       const params = li.requested_tests ?? [];
-      const tempNum = (() => {
-        if (li.temperature_c == null || li.temperature_c === "") return null;
-        const n = typeof li.temperature_c === "number" ? li.temperature_c : Number(li.temperature_c);
+      const derived = deriveReceivedFields(li);
+      const labelContentNum = (() => {
+        if (li.label_content_value == null || li.label_content_value === "") return null;
+        const n = Number(li.label_content_value);
         return isNaN(n) ? null : n;
       })();
-      const quantityNum = (() => {
-        if (li.quantity == null || li.quantity === "") return null;
-        const n = Number(li.quantity);
-        return isNaN(n) ? null : n;
-      })();
-      const purityNum = (() => {
-        if (li.received_purity_percent == null || li.received_purity_percent === "") return null;
-        const n = typeof li.received_purity_percent === "number" ? li.received_purity_percent : Number(li.received_purity_percent);
-        return isNaN(n) ? null : n;
+      const physicalFormDetails: Record<string, string | number | null | undefined> | null = (() => {
+        if (li.physical_form === "liquid") {
+          return { bottle_size: li.bottle_size || null, liquid_volume_ml: li.liquid_volume_ml || null, label_content_basis: li.label_content_basis || null };
+        }
+        if (li.physical_form === "capsule") {
+          return { capsule_count: li.capsule_count || null };
+        }
+        return null;
       })();
       for (let v = 0; v < vials; v++) {
         seq += 1;
@@ -132,8 +183,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           lot: li.lot ?? null,
           catalog: li.catalog ?? null,
           container_size: li.container_size ?? null,
-          concentration: li.concentration ?? null,
-          temperature_c: tempNum,
+          concentration: derived.concentration,
           line_item_index: lineIdx,
           client_received_date: (li.client_received_date && li.client_received_date.trim()) ? li.client_received_date.slice(0, 10) : null,
           manufacture_date: (li.manufacture_date && li.manufacture_date.trim()) ? li.manufacture_date.slice(0, 10) : null,
@@ -143,10 +193,16 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           method_group_id: li.compound_id
             ? methodGroupByCompoundId.get(li.compound_id) ?? null
             : methodGroupByCompoundName.get(li.compound.trim().toLowerCase()) ?? null,
-          received_form: li.received_form ?? null,
-          received_quantity: quantityNum,
-          received_quantity_unit: li.quantity_unit ?? null,
-          received_purity_percent: purityNum,
+          received_form: derived.received_form,
+          received_quantity: derived.received_quantity,
+          received_quantity_unit: derived.received_quantity_unit,
+          received_purity_percent: null,
+          physical_form: li.physical_form || null,
+          label_content_value: labelContentNum,
+          label_content_unit: li.label_content_unit || null,
+          is_multi_component: !!li.is_multi_component,
+          components: li.is_multi_component ? (li.components ?? []) : [],
+          physical_form_details: physicalFormDetails,
         });
       }
     });

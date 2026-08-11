@@ -8,7 +8,10 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
-type Change = { sample_id: string; from: string | null; to: string };
+type Change = {
+  sample_id: string; from: string | null; to: string;
+  batch_id: string | null; client: string | null; compound: string | null;
+};
 
 export function AutoScheduleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const qc = useQueryClient();
@@ -62,8 +65,11 @@ export function AutoScheduleDialog({ open, onOpenChange }: { open: boolean; onOp
                 <div className="p-4 text-sm text-muted-foreground">No changes needed. Everything already scheduled optimally.</div>
               ) : preview.changes.map((c) => (
                 <div key={c.sample_id} className="p-2 text-xs flex items-center justify-between gap-2">
-                  <span className="font-mono truncate">{c.sample_id.slice(0, 8)}</span>
-                  <span className="text-muted-foreground">{c.from ?? "—"} → <span className="text-foreground">{c.to}</span></span>
+                  <span className="truncate">
+                    <span className="font-medium">{c.batch_id ?? c.sample_id.slice(0, 8)}</span>
+                    {c.compound && <span className="text-muted-foreground"> — {c.compound}</span>}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">{c.from ?? "—"} → <span className="text-foreground">{c.to}</span></span>
                 </div>
               ))}
             </div>

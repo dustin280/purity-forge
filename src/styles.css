@@ -46,6 +46,7 @@
 
 :root {
   --radius: 0.5rem;
+  color-scheme: dark;
   /* Darkened theme (~30% darker) with high-contrast foregrounds */
   --background: oklch(0.15 0.02 255);
   --foreground: oklch(0.95 0.01 255);

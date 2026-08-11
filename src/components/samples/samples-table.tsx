@@ -35,11 +35,21 @@ export function SamplesTable({
   const setFlag = useServerFn(setSamplePrepFlag);
   const toggle = useMutation({
     mutationFn: (v: { sample_id: string; flag: boolean }) => setFlag({ data: v }),
-    onSuccess: () => {
+    onMutate: async (v) => {
+      await qc.cancelQueries({ queryKey: qk.samples.list() });
+      const previous = qc.getQueryData<SampleRow[]>(qk.samples.list());
+      qc.setQueryData<SampleRow[]>(qk.samples.list(), (rows) =>
+        rows?.map((r) => (r.id === v.sample_id ? { ...r, prep_flag: v.flag } : r)));
+      return { previous };
+    },
+    onError: (e: Error, _v, ctx) => {
+      if (ctx?.previous) qc.setQueryData(qk.samples.list(), ctx.previous);
+      toast.error(e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: qk.samples.all });
       qc.invalidateQueries({ queryKey: qk.runLists.prepFlagged() });
     },
-    onError: (e: Error) => toast.error(e.message),
   });
   return (
     <Card className="border-border overflow-hidden">

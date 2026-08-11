@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { X, ArrowRight, Compass } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,25 @@ interface Rect {
   left: number;
   width: number;
   height: number;
+}
+
+const CARD_GAP = 12;
+const VIEWPORT_MARGIN = 16;
+
+/** Places the card beside its target (below, or above if there's no room),
+ * clamped to the viewport — falls back to bottom-right when there's no
+ * target (e.g. a DONE_STEP) so it never has to guess a position. */
+function cardStyleFor(rect: Rect | null, size: { width: number; height: number } | null): CSSProperties {
+  if (!rect || !size) return { bottom: VIEWPORT_MARGIN, right: VIEWPORT_MARGIN };
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const spaceBelow = vh - (rect.top + rect.height);
+  const spaceAbove = rect.top;
+  const top = spaceBelow >= size.height + CARD_GAP || spaceBelow >= spaceAbove
+    ? Math.min(rect.top + rect.height + CARD_GAP, vh - size.height - VIEWPORT_MARGIN)
+    : Math.max(rect.top - size.height - CARD_GAP, VIEWPORT_MARGIN);
+  const left = Math.min(Math.max(rect.left, VIEWPORT_MARGIN), vw - size.width - VIEWPORT_MARGIN);
+  return { top, left };
 }
 
 function useTargetRect(selector: string | null): Rect | null {
@@ -48,6 +67,18 @@ export function GuideOverlay() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const rect = useTargetRect(currentStep?.targetSelector ?? null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardSize, setCardSize] = useState<{ width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const measure = () => setCardSize({ width: el.offsetWidth, height: el.offsetHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   if (!activeWorkflow || !currentStep) return null;
   const guide = WORKFLOW_GUIDES[activeWorkflow];
@@ -70,7 +101,11 @@ export function GuideOverlay() {
         />
       )}
 
-      <div className="fixed bottom-4 right-4 z-[71] w-80 max-w-[calc(100vw-2rem)] rounded-xl border bg-card shadow-lg">
+      <div
+        ref={cardRef}
+        className="fixed z-[71] w-80 max-w-[calc(100vw-2rem)] rounded-xl border bg-card shadow-lg"
+        style={cardStyleFor(rect, cardSize)}
+      >
         <div className="flex items-start justify-between gap-2 px-4 pt-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground">
             <Compass className="size-3" /> {guide.label}

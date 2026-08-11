@@ -153,9 +153,12 @@ function sequenceToCsv(
     // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
     // QC rows keep their label as-is.
     const isSample = r.type === "Sample";
-    const sampleName = isSample
+    const baseName = isSample
       ? (r.lot ? `${r.label.split(" — ")[0].split(" (Lot")[0]}_${r.lot}` : r.label.split(" — ")[0].split(" (Lot")[0])
       : r.label;
+    // OpenLab appends a result timestamp when the sample name carries this
+    // literal marker — required by the analyst's instrument workflow.
+    const sampleName = `${baseName} <D>`;
     return [
       sampleName,
       mapSampleType(r.type),
@@ -165,7 +168,7 @@ function sequenceToCsv(
       fullMethodPath(r.processing_method, methodFolder, "pmx"),
       "", // Data file — let OpenLab auto-generate
       desc,
-      "", // Level — not tracked yet
+      r.level ?? "",
     ].map(csvEscape).join(",");
   });
   return [headers.join(","), ...rows].join("\r\n");
@@ -186,6 +189,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       vial: z.string().nullable(),
       acquisition_method: z.string().nullable(),
       processing_method: z.string().nullable(),
+      level: z.string().nullable().optional(),
     })).min(1),
   }).parse(d))
   .handler(async ({ context, data }) => {
@@ -223,7 +227,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
         type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot ?? null,
         method_group_id: null, method_group_name: null,
         acquisition_method: r.acquisition_method, processing_method: r.processing_method,
-        vial: r.vial, why: "",
+        vial: r.vial, level: r.level ?? null, why: "",
       })),
     };
     const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder);

@@ -17,6 +17,15 @@ type Sample = {
   notes: string | null;
   compound?: string | null;
   lot?: string | null;
+  catalog?: string | null;
+  container_size?: string | null;
+  physical_description?: string | null;
+  priority?: number | null;
+  due_date?: string | null;
+  received_form?: string | null;
+  received_quantity?: number | null;
+  received_quantity_unit?: string | null;
+  received_purity_percent?: number | null;
 };
 
 type Test = {
@@ -64,6 +73,17 @@ export function SampleInfoTab({ sample, test, batchId }: { sample: Sample; test:
           <InfoRow k="Project" v={sample.project ?? "—"} />
           <InfoRow k="Compound" v={sample.compound ?? "—"} />
           <InfoRow k="Lot" v={sample.lot ?? "—"} />
+          <InfoRow k="Catalog #" v={sample.catalog ?? "—"} />
+          <InfoRow k="Received Form" v={sample.received_form ?? "—"} />
+          <InfoRow
+            k="Received Qty"
+            v={sample.received_quantity != null ? `${sample.received_quantity} ${sample.received_quantity_unit ?? ""}`.trim() : "—"}
+          />
+          <InfoRow k="Received Purity" v={sample.received_purity_percent != null ? `${sample.received_purity_percent}%` : "—"} />
+          <InfoRow k="Container Size" v={sample.container_size ?? "—"} />
+          <InfoRow k="Physical Description" v={sample.physical_description ?? "—"} />
+          <InfoRow k="Priority" v={sample.priority != null ? String(sample.priority) : "—"} />
+          <InfoRow k="Due Date" v={sample.due_date ?? "—"} />
           <InfoRow k="Receipt" v={sample.receipt_date} />
           <InfoRow k="Created" v={new Date(sample.created_at).toLocaleString()} />
           <InfoRow k="Notes" v={sample.notes ?? "—"} />

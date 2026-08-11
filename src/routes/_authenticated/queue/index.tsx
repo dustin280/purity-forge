@@ -119,6 +119,12 @@ function QueuePage() {
             onSelect={setActiveDate}
           />
 
+          <QuickActions
+            onAutoSchedule={() => setAutoOpen(true)}
+            onCheckCapacity={() => setCheckOpen(true)}
+            isPending={false}
+          />
+
           <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4">
             <div className="lg:col-span-2">
               {selected.size > 0 && (
@@ -155,11 +161,6 @@ function QueuePage() {
               onToggleAll={toggleAll}
             />
             <div className="space-y-4">
-              <QuickActions
-                onAutoSchedule={() => setAutoOpen(true)}
-                onCheckCapacity={() => setCheckOpen(true)}
-                isPending={false}
-              />
               <AtRiskPanel samples={data.at_risk} onOpen={openSample} />
               {data.backlog.length > 0 && (
                 <div className="rounded-xl border bg-card p-4">

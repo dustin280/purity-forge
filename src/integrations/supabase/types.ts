@@ -2363,12 +2363,16 @@ export type Database = {
           coc_line_no: number | null
           compound: string | null
           compound_id: string | null
+          components: Json
           concentration: string | null
           container_size: string | null
           created_at: string
           created_by: string | null
           due_date: string | null
           id: string
+          is_multi_component: boolean
+          label_content_unit: string | null
+          label_content_value: number | null
           line_item_index: number | null
           lot: string | null
           manufacture_date: string | null
@@ -2376,6 +2380,8 @@ export type Database = {
           notes: string | null
           parameters: string[]
           physical_description: string | null
+          physical_form: string | null
+          physical_form_details: Json | null
           prep_flag: boolean
           prep_flagged_at: string | null
           prep_flagged_by: string | null
@@ -2403,12 +2409,16 @@ export type Database = {
           coc_line_no?: number | null
           compound?: string | null
           compound_id?: string | null
+          components?: Json
           concentration?: string | null
           container_size?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
           id?: string
+          is_multi_component?: boolean
+          label_content_unit?: string | null
+          label_content_value?: number | null
           line_item_index?: number | null
           lot?: string | null
           manufacture_date?: string | null
@@ -2416,6 +2426,8 @@ export type Database = {
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
+          physical_form?: string | null
+          physical_form_details?: Json | null
           prep_flag?: boolean
           prep_flagged_at?: string | null
           prep_flagged_by?: string | null
@@ -2443,12 +2455,16 @@ export type Database = {
           coc_line_no?: number | null
           compound?: string | null
           compound_id?: string | null
+          components?: Json
           concentration?: string | null
           container_size?: string | null
           created_at?: string
           created_by?: string | null
           due_date?: string | null
           id?: string
+          is_multi_component?: boolean
+          label_content_unit?: string | null
+          label_content_value?: number | null
           line_item_index?: number | null
           lot?: string | null
           manufacture_date?: string | null
@@ -2456,6 +2472,8 @@ export type Database = {
           notes?: string | null
           parameters?: string[]
           physical_description?: string | null
+          physical_form?: string | null
+          physical_form_details?: Json | null
           prep_flag?: boolean
           prep_flagged_at?: string | null
           prep_flagged_by?: string | null
@@ -3565,6 +3583,7 @@ export type Database = {
           absolute_min_pipette_ul: number
           default_calibration_levels: number
           default_target_level: number
+          drive_lm_reports_complete_folder_id: string | null
           drive_lm_sample_prep_folder_id: string | null
           id: boolean
           max_dilution_steps: number
@@ -3576,6 +3595,7 @@ export type Database = {
           absolute_min_pipette_ul?: number
           default_calibration_levels?: number
           default_target_level?: number
+          drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number
@@ -3587,6 +3607,7 @@ export type Database = {
           absolute_min_pipette_ul?: number
           default_calibration_levels?: number
           default_target_level?: number
+          drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number

@@ -201,7 +201,19 @@ export const autoSchedulePending = createServerFn({ method: "POST" })
       }));
 
     if (data.dry_run) {
-      return { dry_run: true, changes, unassignable: result.unassignable };
+      let labelById = new Map<string, { batch_id: string; client: string; compound: string | null }>();
+      if (changes.length > 0) {
+        const { data: rows } = await context.supabase
+          .from("samples")
+          .select("id, batch_id, client, compound")
+          .in("id", changes.map((c) => c.sample_id));
+        labelById = new Map((rows ?? []).map((r) => [r.id as string, r as unknown as { batch_id: string; client: string; compound: string | null }]));
+      }
+      const labeledChanges = changes.map((c) => {
+        const s = labelById.get(c.sample_id);
+        return { ...c, batch_id: s?.batch_id ?? null, client: s?.client ?? null, compound: s?.compound ?? null };
+      });
+      return { dry_run: true, changes: labeledChanges, unassignable: result.unassignable };
     }
 
     for (const c of changes) {

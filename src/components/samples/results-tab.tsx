@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Chromatogram } from "@/components/lims/chromatogram";
 import { fmtPct, type Peak } from "@/lib/lims-utils";
 import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
+import { CloudDownload, X } from "lucide-react";
+import { DriveReportPickerDialog, type ImportedResult } from "./drive-report-picker-dialog";
+import { parsePeaks } from "@/lib/parse-peaks";
 
 type LatestResult = {
   id: string;
@@ -26,22 +30,39 @@ export function ResultsTab({
   currentUserId,
   onReview,
   onApprove,
+  batchId,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
   pasted: string;
   setPasted: (v: string) => void;
-  onSubmit: () => void;
+  onSubmit: (imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null }) => void;
   busy: boolean;
   spec: SpecRange;
   currentUserId: string | null;
   onReview: (resultId: string) => void;
   onApprove: (resultId: string) => void;
+  batchId: string;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const verdictColor = verdict === "pass" ? "var(--status-success)" : verdict === "fail" ? "var(--destructive)" : "var(--muted-foreground)";
   const canReview = !!latestResult && !latestResult.reviewed_at && latestResult.analyst_id !== currentUserId;
   const canApprove = !!latestResult && !!latestResult.reviewed_at && !latestResult.approved_at;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [imported, setImported] = useState<ImportedResult | null>(null);
+
+  const pastedLineCount = pasted.split(/\r?\n/).map(l => l.trim()).filter(Boolean).length;
+  const pastedPeakCount = pasted.trim() ? parsePeaks(pasted).peaks.length : 0;
+  const pastedFailedCount = Math.max(0, pastedLineCount - pastedPeakCount);
+
+  function handleSubmit() {
+    if (imported) {
+      onSubmit({ peaks: imported.peaks, purity: imported.purity, raw_data_file_path: imported.raw_data_file_path });
+    } else {
+      onSubmit();
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -106,17 +127,75 @@ export function ResultsTab({
       )}
 
       <Card className="p-5 border-border space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">Enter Result</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Paste Agilent export rows. Format: <span className="font-mono">rt &nbsp; area &nbsp; area_pct &nbsp; [identity] &nbsp; [s/n]</span> — one peak per line.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold">Enter Result</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Import a completed instrument report from Drive, or paste Agilent export rows. Format:{" "}
+              <span className="font-mono">rt &nbsp; area &nbsp; area_pct &nbsp; [identity] &nbsp; [s/n]</span> — one peak per line.
+            </p>
+          </div>
+          {!imported && (
+            <Button type="button" size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
+              <CloudDownload className="size-3.5 mr-1" /> Import from Drive
+            </Button>
+          )}
         </div>
-        <Textarea rows={6} value={pasted} onChange={e => setPasted(e.target.value)}
-          placeholder="3.142  154823.5  98.421  Main  812.4&#10;4.027  1245.1  0.792  Impurity-A  18.2"
-          className="font-mono text-xs" />
-        <Button onClick={onSubmit} disabled={busy} data-guide="results-submit">{busy ? "Saving…" : "Save Result"}</Button>
+
+        {imported ? (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-medium truncate">{imported.file_name}</div>
+              <button type="button" onClick={() => setImported(null)} className="text-muted-foreground hover:text-destructive shrink-0">
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {imported.peaks.length} compound{imported.peaks.length === 1 ? "" : "s"} imported · purity {imported.purity.toFixed(2)}%
+            </div>
+            <table className="w-full text-xs font-mono">
+              <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left py-1">Identity</th>
+                  <th className="text-right py-1">RT</th>
+                  <th className="text-right py-1">Amount/Vial</th>
+                  <th className="text-right py-1">Purity %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {imported.peaks.map(p => (
+                  <tr key={p.peak_id}>
+                    <td className="py-1">{p.identity}</td>
+                    <td className="py-1 text-right">{p.rt.toFixed(3)}</td>
+                    <td className="py-1 text-right">{p.amount_per_vial_mg ?? "—"}</td>
+                    <td className="py-1 text-right">{p.area_pct.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <>
+            <Textarea rows={6} value={pasted} onChange={e => setPasted(e.target.value)}
+              placeholder="3.142  154823.5  98.421  Main  812.4&#10;4.027  1245.1  0.792  Impurity-A  18.2"
+              className="font-mono text-xs" />
+            {pastedFailedCount > 0 && (
+              <p className="text-xs text-amber-400">
+                {pastedFailedCount} line{pastedFailedCount === 1 ? "" : "s"} couldn't be parsed as "rt area area_pct" and will be skipped.
+              </p>
+            )}
+          </>
+        )}
+
+        <Button onClick={handleSubmit} disabled={busy} data-guide="results-submit">{busy ? "Saving…" : "Save Result"}</Button>
       </Card>
+
+      <DriveReportPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        batchId={batchId}
+        onImport={setImported}
+      />
     </div>
   );
 }

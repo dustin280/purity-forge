@@ -34,7 +34,6 @@ function GenerateRunList() {
     queryFn: () => list({ data: { active_only: true } }),
   });
   const [instrumentId, setInstrumentId] = useState<string>("");
-  const [injVol, setInjVol] = useState<string>("method");
   const [sequences, setSequences] = useState<OptimizedSequence[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set([1]));
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -55,6 +54,7 @@ function GenerateRunList() {
       } else if (outOfVials) {
         setNoVialsOpen(true);
       }
+      signalWorkflowEvent("samples-selected");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -67,7 +67,7 @@ function GenerateRunList() {
     URL.revokeObjectURL(url);
   };
 
-  const injectionVolumeForServer = injVol === "method" ? "method" as const : Number(injVol) || 2.5;
+  const injectionVolumeForServer = "method" as const;
 
   const saveMut = useMutation({
     mutationFn: (seq: OptimizedSequence) => save({
@@ -78,6 +78,7 @@ function GenerateRunList() {
         rows: seq.rows.map((r) => ({
           type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
           acquisition_method: r.acquisition_method, processing_method: r.processing_method,
+          level: r.level,
         })),
       },
     }),
@@ -96,6 +97,7 @@ function GenerateRunList() {
     rows: seq.rows.map((row) => ({
       type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
       acquisition_method: row.acquisition_method, processing_method: row.processing_method,
+      level: row.level,
     })),
   });
 
@@ -183,6 +185,7 @@ function GenerateRunList() {
             rows: seq.rows.map((row) => ({
               type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
               acquisition_method: row.acquisition_method, processing_method: row.processing_method,
+              level: row.level,
             })),
           },
         });
@@ -212,8 +215,11 @@ function GenerateRunList() {
       <Card className="p-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-64">
           <Label className="text-xs">Instrument (active only)</Label>
-          <Select value={instrumentId} onValueChange={setInstrumentId}>
-            <SelectTrigger><SelectValue placeholder="Select instrument…" /></SelectTrigger>
+          <Select
+            value={instrumentId}
+            onValueChange={(v) => { setInstrumentId(v); signalWorkflowEvent("instrument-picked"); }}
+          >
+            <SelectTrigger data-guide="generate-instrument"><SelectValue placeholder="Select instrument…" /></SelectTrigger>
             <SelectContent>
               {(instruments ?? []).map((it) => (
                 <SelectItem key={it.id} value={it.id}>
@@ -228,35 +234,18 @@ function GenerateRunList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-40">
-          <Label className="text-xs">Injection volume</Label>
-          <Select value={injVol} onValueChange={setInjVol}>
-            <SelectTrigger><SelectValue placeholder="Select volume…" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="method">Use Method</SelectItem>
-              <SelectItem value="1">1 µL</SelectItem>
-              <SelectItem value="2">2 µL</SelectItem>
-              <SelectItem value="2.5">2.5 µL</SelectItem>
-              <SelectItem value="5">5 µL</SelectItem>
-              <SelectItem value="10">10 µL</SelectItem>
-              <SelectItem value="20">20 µL</SelectItem>
-              <SelectItem value="50">50 µL</SelectItem>
-              <SelectItem value="100">100 µL</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
         <Button
           disabled={!instrumentId || previewMut.isPending}
           onClick={() => previewMut.mutate()}
           data-guide="generate-analyze"
         >
-          <Wand2 className="size-4 mr-1" /> Analyze & propose
+          <Wand2 className="size-4 mr-1" /> Select Samples
         </Button>
       </Card>
 
       {sequences.length === 0 && !previewMut.isPending && (
         <Card className="p-8 text-center text-sm text-muted-foreground">
-          Pick an instrument and click <b>Analyze & propose</b> to preview optimized sequences.
+          Pick an instrument and click <b>Select Samples</b> to preview optimized sequences.
         </Card>
       )}
 

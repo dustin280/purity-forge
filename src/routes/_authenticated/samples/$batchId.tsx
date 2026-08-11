@@ -63,8 +63,9 @@ function SampleDetail() {
           peaks={peaks}
           pasted={pasted}
           setPasted={setPasted}
-          onSubmit={() => submitResult({ testId: test?.id, sampleId: sample.id, pasted, onCleared: () => setPasted("") })}
+          onSubmit={(imported) => submitResult({ testId: test?.id, sampleId: sample.id, pasted, imported, onCleared: () => setPasted("") })}
           busy={busy}
+          batchId={batchId}
           spec={{ spec_min: (test as { spec_min?: number | null } | undefined)?.spec_min ?? null, spec_max: (test as { spec_max?: number | null } | undefined)?.spec_max ?? null }}
           currentUserId={user?.id ?? null}
           onReview={reviewLatestResult}

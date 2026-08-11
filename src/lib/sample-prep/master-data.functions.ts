@@ -129,7 +129,7 @@ export interface Equipment { id: string; equipment_id: string | null; equipment_
 export interface SolventFormulation { id: string; name: string; internal_code: string | null; version: string | null; storage_conditions: string | null; stability_period_days: number | null; approved_uses: string | null; status: "draft"|"approved"|"retired"; notes: string | null }
 export interface SolventComponent { id: string; formulation_id: string; component_name: string; percentage: number | null; percentage_basis: "v/v"|"w/v"|"w/w"|"molar" | null; notes: string | null }
 export interface ReagentLot { id: string; formulation_id: string; lot_number: string; preparation_date: string | null; expiration_date: string | null; final_volume: number | null; final_volume_unit: string | null; ph: number | null; review_status: "pending"|"approved"|"rejected"; notes: string | null }
-export interface PrepSettings { absolute_min_pipette_ul: number; preferred_min_pipette_ul: number; default_calibration_levels: number; default_target_level: number; max_dilution_steps: number; drive_lm_sample_prep_folder_id: string | null }
+export interface PrepSettings { absolute_min_pipette_ul: number; preferred_min_pipette_ul: number; default_calibration_levels: number; default_target_level: number; max_dilution_steps: number; drive_lm_sample_prep_folder_id: string | null; drive_lm_reports_complete_folder_id: string | null }
 
 function extractDriveFolderId(input: unknown): unknown {
   if (typeof input !== "string") return input;
@@ -780,7 +780,7 @@ export const getPrepSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase.from("sp_settings").select("*").eq("id", true).maybeSingle();
     if (error) throw error;
-    return (data ?? { absolute_min_pipette_ul: 10, preferred_min_pipette_ul: 20, default_calibration_levels: 6, default_target_level: 3, max_dilution_steps: 5, drive_lm_sample_prep_folder_id: null }) as PrepSettings;
+    return (data ?? { absolute_min_pipette_ul: 10, preferred_min_pipette_ul: 20, default_calibration_levels: 6, default_target_level: 3, max_dilution_steps: 5, drive_lm_sample_prep_folder_id: null, drive_lm_reports_complete_folder_id: null }) as PrepSettings;
   });
 
 export const updatePrepSettings = createServerFn({ method: "POST" })
@@ -792,6 +792,10 @@ export const updatePrepSettings = createServerFn({ method: "POST" })
     default_target_level: z.number().int().min(1).max(20),
     max_dilution_steps: z.number().int().min(1).max(20),
     drive_lm_sample_prep_folder_id: z.preprocess(
+      extractDriveFolderId,
+      z.string().max(200).regex(/^[A-Za-z0-9_-]*$/, "Invalid Drive folder ID").nullable().optional(),
+    ),
+    drive_lm_reports_complete_folder_id: z.preprocess(
       extractDriveFolderId,
       z.string().max(200).regex(/^[A-Za-z0-9_-]*$/, "Invalid Drive folder ID").nullable().optional(),
     ),

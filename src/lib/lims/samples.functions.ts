@@ -171,6 +171,8 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
 const peakSchema = z.object({
   peak_id: z.string(), rt: z.number(), area: z.number(),
   area_pct: z.number(), identity: z.string().optional(), sn: z.number().optional(),
+  amount_per_vial_mg: z.number().optional().nullable(),
+  percent_label_claim: z.number().optional().nullable(),
 });
 
 export const saveResult = createServerFn({ method: "POST" })
