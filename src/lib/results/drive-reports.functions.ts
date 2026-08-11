@@ -32,12 +32,18 @@ import type { Peak } from "@/lib/lims-utils";
 // unchanged — just resolved at build time instead of at runtime. No types
 // ship for this internal vendor path, hence the ts-expect-error below.
 // @ts-expect-error — untyped vendor JS module, see comment above
-import * as PDFJS from "pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js";
+import PDFJSDefault from "pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js";
 
 type PdfParseFn = (data: Buffer) => Promise<{ text: string }>;
 export const pdfParse: PdfParseFn = async (dataBuffer: Buffer) => {
+  // Rollup's ESM interop for this CJS module yields a frozen exports
+  // object — setting disableWorker directly on it throws ("object is not
+  // extensible"). Wrapping it in a plain object that prototype-delegates
+  // to it keeps every inherited method (getDocument, etc.) while making
+  // disableWorker a genuinely settable own property.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const engine = PDFJS as any;
+  const source = PDFJSDefault as any;
+  const engine = Object.create(source);
   engine.disableWorker = true;
   const doc = await engine.getDocument(dataBuffer);
   let text = "";
