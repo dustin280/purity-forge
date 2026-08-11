@@ -1527,42 +1527,6 @@ export type Database = {
         }
         Relationships: []
       }
-      notification_recipients: {
-        Row: {
-          created_at: string
-          email: string | null
-          id: string
-          is_active: boolean
-          name: string
-          notify_email: boolean
-          notify_sms: boolean
-          phone: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          notify_email?: boolean
-          notify_sms?: boolean
-          phone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          notify_email?: boolean
-          notify_sms?: boolean
-          phone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       openlab_drive_pushes: {
         Row: {
           drive_file_id: string
