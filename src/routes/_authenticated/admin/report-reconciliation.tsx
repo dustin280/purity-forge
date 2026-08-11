@@ -9,12 +9,13 @@
  * existing Review/Approve flow in the Results tab — nothing here bypasses
  * that.
  */
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, RefreshCw, FileQuestion, FileWarning, CircleHelp, FileX, FileStack } from "lucide-react";
+import { ArrowLeft, RefreshCw, FileQuestion, FileWarning, CircleHelp, FileX, FileStack, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { qk } from "@/lib/query-keys";
@@ -37,11 +38,21 @@ function ReportReconciliationAdmin() {
     queryFn: () => readOnlyFn(),
   });
 
+  const [lastFailed, setLastFailed] = useState<Array<{ batch_id: string; file_name: string; error: string }>>([]);
+
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.reportReconciliation.all });
 
   const runNowMut = useMutation({
     mutationFn: () => runNowFn(),
-    onSuccess: (r) => { toast.success(`Applied ${r.applied} result${r.applied === 1 ? "" : "s"}`); invalidate(); },
+    onSuccess: (r) => {
+      setLastFailed(r.failed);
+      if (r.failed.length > 0) {
+        toast.error(`Applied ${r.applied}, ${r.failed.length} failed — see details below`);
+      } else {
+        toast.success(`Applied ${r.applied} result${r.applied === 1 ? "" : "s"}`);
+      }
+      invalidate();
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Run failed"),
   });
 
@@ -83,6 +94,22 @@ function ReportReconciliationAdmin() {
           Run now
         </Button>
       </div>
+
+      {lastFailed.length > 0 && (
+        <Card className="border-destructive/50 p-4 mb-6">
+          <div className="flex items-center gap-2 text-sm font-medium text-destructive mb-2">
+            <AlertTriangle className="size-4" />
+            {lastFailed.length} failed to apply on the last run
+          </div>
+          <div className="space-y-1">
+            {lastFailed.map((f, i) => (
+              <div key={i} className="text-xs text-muted-foreground">
+                <span className="font-mono text-foreground">{f.batch_id}</span> — {f.error}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>

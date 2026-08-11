@@ -170,16 +170,38 @@ async function applyOneMatch(
   }
 }
 
+// Applies matches with bounded concurrency rather than firing every
+// download+parse at once — a full backlog can be 100+ files, and blasting
+// that many simultaneous requests at the Drive connector gateway risks
+// rate-limiting that fails the whole batch together instead of a few.
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let next = 0;
+  async function worker() {
+    while (next < items.length) {
+      const i = next++;
+      try {
+        results[i] = { status: "fulfilled", value: await fn(items[i]) };
+      } catch (reason) {
+        results[i] = { status: "rejected", reason };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
 export async function runReconciliation({ supabase, autoApply }: {
   supabase: SupabaseClientLike; autoApply: boolean;
 }): Promise<{
   applied: number; samples: ReconciliationSample[];
   no_coc_files: Array<{ id: string; name: string }>; orphan_files: Array<{ id: string; name: string }>;
+  failed: Array<{ batch_id: string; file_name: string; error: string }>;
 }> {
   const { data: allSamples, error: sErr } = await supabase
     .from("samples").select("id,batch_id,compound,lot,status").neq("status", "cancelled");
   if (sErr) throw sErr;
-  if (!allSamples || allSamples.length === 0) return { applied: 0, samples: [], no_coc_files: [], orphan_files: [] };
+  if (!allSamples || allSamples.length === 0) return { applied: 0, samples: [], no_coc_files: [], orphan_files: [], failed: [] };
 
   const sampleIds = allSamples.map((s) => s.id as string);
   const { data: testRows, error: tErr } = await supabase.from("tests").select("id,sample_id").in("sample_id", sampleIds);
@@ -205,16 +227,23 @@ export async function runReconciliation({ supabase, autoApply }: {
   const { samples: matched, noCocFiles, orphanFiles } = computeMatches(eligible, files);
 
   let applied = 0;
+  const failed: Array<{ batch_id: string; file_name: string; error: string }> = [];
   if (autoApply) {
     const toApply = matched.filter((m) => m.tier === "batch_id" && m.file);
     const eligibleById = new Map(eligible.map((s) => [s.id, s]));
-    const outcomes = await Promise.allSettled(toApply.map((m) =>
+    const outcomes = await mapWithConcurrency(toApply, 5, (m) =>
       applyOneMatch(supabase, { id: m.id, batch_id: m.batch_id, status: eligibleById.get(m.id)?.status }, m.file as MatchedFile)
-    ));
-    for (const o of outcomes) {
-      if (o.status === "fulfilled") applied++;
-      else console.error("report reconciliation: apply failed", o.reason);
-    }
+    );
+    outcomes.forEach((o, i) => {
+      if (o.status === "fulfilled") {
+        applied++;
+      } else {
+        const m = toApply[i];
+        const message = o.reason instanceof Error ? o.reason.message : String(o.reason);
+        console.error("report reconciliation: apply failed", m.batch_id, message);
+        failed.push({ batch_id: m.batch_id, file_name: m.file?.name ?? "", error: message });
+      }
+    });
   }
 
   return {
@@ -222,6 +251,7 @@ export async function runReconciliation({ supabase, autoApply }: {
     samples: matched,
     no_coc_files: noCocFiles.map((f) => ({ id: f.id, name: f.name })),
     orphan_files: orphanFiles.map((f) => ({ id: f.id, name: f.name })),
+    failed,
   };
 }
 
