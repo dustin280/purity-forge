@@ -160,5 +160,14 @@ export const parseReportFile = createServerFn({ method: "POST" })
     const bytes = await driveDownload(data.file_id);
     const { text } = await pdfParse(Buffer.from(bytes));
     const parsed = parseReportText(text);
-    return { file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed };
+    // Normalize the report's "Analysis date:" text into a real timestamp
+    // so it can be saved verbatim — the raw extracted string is usually
+    // Postgres-parseable already (e.g. "2026-08-03 21:35:13-07:00") but
+    // isn't strictly ISO 8601, so round-trip it through Date first.
+    const analysisDate = (() => {
+      if (!parsed.analysis_date) return null;
+      const d = new Date(parsed.analysis_date);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    })();
+    return { file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed, analysis_date: analysisDate };
   });

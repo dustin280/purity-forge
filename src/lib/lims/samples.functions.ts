@@ -183,6 +183,10 @@ export const saveResult = createServerFn({ method: "POST" })
       purity_percentage: z.number().min(0).max(100),
       peaks: z.array(peakSchema).max(200),
       raw_data_file_path: z.string().max(1000).optional().nullable(),
+      // Only set when a Drive-imported report supplied its own "Analysis
+      // date:" — omitted (not null) for manual paste so the results table's
+      // own default (save time) applies, same as before this field existed.
+      analysis_date: z.string().optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -193,6 +197,7 @@ export const saveResult = createServerFn({ method: "POST" })
       peak_details: data.peaks,
       raw_data_file_path: data.raw_data_file_path ?? null,
       analyst_id: userId,
+      analysis_date: data.analysis_date ?? undefined,
     }).select().single();
     if (error) throw error;
     return res;
