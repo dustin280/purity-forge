@@ -19,13 +19,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Peak } from "@/lib/lims-utils";
 import * as pdfParseModule from "pdf-parse";
 // pdf-parse is CJS (`module.exports = function`) — depending on how the
 // SSR bundler interops it, the namespace import is either directly
 // callable or has the function on `.default`. Handle both at runtime
 // rather than assuming one shape.
 type PdfParseFn = (data: Buffer) => Promise<{ text: string }>;
-const pdfParse: PdfParseFn = typeof pdfParseModule === "function"
+export const pdfParse: PdfParseFn = typeof pdfParseModule === "function"
   ? (pdfParseModule as unknown as PdfParseFn)
   : (pdfParseModule as unknown as { default: PdfParseFn }).default;
 
@@ -40,7 +41,10 @@ function gatewayHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": ck };
 }
 
-async function driveList(folderId: string): Promise<Array<{ id: string; name: string; modifiedTime?: string }>> {
+// Exported: shared with report-reconciliation.functions.ts (both the
+// single-file picker and the bulk/automated reconciliation path need the
+// same Drive access + parsing).
+export async function driveList(folderId: string): Promise<Array<{ id: string; name: string; modifiedTime?: string }>> {
   const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and mimeType = 'application/pdf'`);
   const fields = encodeURIComponent("files(id,name,modifiedTime)");
   const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=modifiedTime desc`, {
@@ -51,13 +55,13 @@ async function driveList(folderId: string): Promise<Array<{ id: string; name: st
   return json.files ?? [];
 }
 
-async function driveDownload(fileId: string): Promise<ArrayBuffer> {
+export async function driveDownload(fileId: string): Promise<ArrayBuffer> {
   const r = await fetch(`${GATEWAY}/drive/v3/files/${fileId}?alt=media`, { headers: gatewayHeaders() });
   if (!r.ok) throw new Error(`Drive download ${fileId} failed (${r.status})`);
   return await r.arrayBuffer();
 }
 
-async function loadReportsFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string> {
+export async function loadReportsFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string> {
   const { data } = await supabase.from("sp_settings").select("drive_lm_reports_complete_folder_id").eq("id", true).maybeSingle();
   const folderId = data?.drive_lm_reports_complete_folder_id;
   if (!folderId) throw new Error("LM-Reports Complete Drive folder is not configured. Set it in Sample Prep → Settings first.");
@@ -151,6 +155,21 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
     total_peptide_contents_mg: totalMatch ? Number(totalMatch[1]) : null,
     compounds,
   };
+}
+
+/**
+ * Maps a parsed report's compound rows to Peak[] + the sample's overall
+ * purity (the peak with the highest area_pct) — shared by the single-file
+ * picker dialog and the bulk reconciliation path so both save results the
+ * same way.
+ */
+export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Peak[]; purity: number } {
+  const peaks: Peak[] = compounds.map((c, i) => ({
+    peak_id: `P${i + 1}`, rt: c.rt, area: c.area ?? 0, area_pct: c.purity_pct ?? 0,
+    identity: c.compound, amount_per_vial_mg: c.amount_per_vial_mg, percent_label_claim: c.percent_label_claim,
+  }));
+  const main = peaks.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), peaks[0]);
+  return { peaks, purity: main?.area_pct ?? 0 };
 }
 
 export const parseReportFile = createServerFn({ method: "POST" })

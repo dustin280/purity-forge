@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
@@ -20,6 +20,7 @@ const TILES = [
   { to: "/admin/partner-webhook-secret", title: "Partner Webhook Secret", desc: "View status and rotate the shared secret partners use to sign order intake webhooks.", icon: KeyRound },
   { to: "/admin/queue-config", title: "Analysis Queue Config", desc: "Daily capacity, TAT days, business-days-only, and the amber warning threshold.", icon: GaugeCircle },
   { to: "/admin/notifications", title: "Notifications", desc: "Who gets emailed/texted when a new Sample Receipt is submitted.", icon: BellRing },
+  { to: "/admin/report-reconciliation", title: "Report Reconciliation", desc: "Auto-matches completed reports to samples hourly. Review low-confidence and ambiguous matches here.", icon: FileStack },
   { to: "/users", title: "Users & Roles", desc: "Grant or revoke admin, reviewer, and tech roles.", icon: Users },
 ] as const;
 

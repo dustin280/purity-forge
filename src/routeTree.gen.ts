@@ -36,6 +36,7 @@ import { Route as AuthenticatedInventoryIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_authenticated/instrument-comm/index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedSamplePrepVesselsRouteImport } from './routes/_authenticated/sample-prep/vessels'
@@ -63,6 +64,7 @@ import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes
 import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authenticated/admin/trays'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
+import { Route as AuthenticatedAdminReportReconciliationRouteImport } from './routes/_authenticated/admin/report-reconciliation'
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
 import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
@@ -247,6 +249,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiCronReconcileReportsRoute = ApiCronReconcileReportsRouteImport.update({
+  id: '/api/cron/reconcile-reports',
+  path: '/api/cron/reconcile-reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
   id: '/samples/new',
   path: '/samples/new',
@@ -404,6 +411,12 @@ const AuthenticatedAdminRunListColumnsRoute =
   AuthenticatedAdminRunListColumnsRouteImport.update({
     id: '/admin/run-list-columns',
     path: '/admin/run-list-columns',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminReportReconciliationRoute =
+  AuthenticatedAdminReportReconciliationRouteImport.update({
+    id: '/admin/report-reconciliation',
+    path: '/admin/report-reconciliation',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminQueueConfigRoute =
@@ -631,6 +644,7 @@ export interface FileRoutesByFullPath {
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
+  '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
@@ -658,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
@@ -720,6 +735,7 @@ export interface FileRoutesByTo {
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
+  '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
@@ -747,6 +763,7 @@ export interface FileRoutesByTo {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm': typeof AuthenticatedInstrumentCommIndexRoute
@@ -811,6 +828,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
+  '/_authenticated/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/admin/trays': typeof AuthenticatedAdminTraysRoute
@@ -838,6 +856,7 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
@@ -902,6 +921,7 @@ export interface FileRouteTypes {
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
+    | '/admin/report-reconciliation'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/admin/trays'
@@ -929,6 +949,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/reconcile-reports'
     | '/admin/'
     | '/clients/'
     | '/instrument-comm/'
@@ -991,6 +1012,7 @@ export interface FileRouteTypes {
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
+    | '/admin/report-reconciliation'
     | '/admin/run-list-columns'
     | '/admin/timesheet-projects'
     | '/admin/trays'
@@ -1018,6 +1040,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/reconcile-reports'
     | '/admin'
     | '/clients'
     | '/instrument-comm'
@@ -1081,6 +1104,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/parameters'
     | '/_authenticated/admin/partner-webhook-secret'
     | '/_authenticated/admin/queue-config'
+    | '/_authenticated/admin/report-reconciliation'
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/admin/trays'
@@ -1108,6 +1132,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/vessels'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
+    | '/api/cron/reconcile-reports'
     | '/_authenticated/admin/'
     | '/_authenticated/clients/'
     | '/_authenticated/instrument-comm/'
@@ -1153,6 +1178,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
+  ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
@@ -1351,6 +1377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/cron/reconcile-reports': {
+      id: '/api/cron/reconcile-reports'
+      path: '/api/cron/reconcile-reports'
+      fullPath: '/api/cron/reconcile-reports'
+      preLoaderRoute: typeof ApiCronReconcileReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/samples/new': {
       id: '/_authenticated/samples/new'
       path: '/samples/new'
@@ -1538,6 +1571,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/run-list-columns'
       fullPath: '/admin/run-list-columns'
       preLoaderRoute: typeof AuthenticatedAdminRunListColumnsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/report-reconciliation': {
+      id: '/_authenticated/admin/report-reconciliation'
+      path: '/admin/report-reconciliation'
+      fullPath: '/admin/report-reconciliation'
+      preLoaderRoute: typeof AuthenticatedAdminReportReconciliationRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/queue-config': {
@@ -1845,6 +1885,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
+  AuthenticatedAdminReportReconciliationRoute: typeof AuthenticatedAdminReportReconciliationRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedAdminTraysRoute: typeof AuthenticatedAdminTraysRoute
@@ -1925,6 +1966,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminPartnerWebhookSecretRoute:
     AuthenticatedAdminPartnerWebhookSecretRoute,
   AuthenticatedAdminQueueConfigRoute: AuthenticatedAdminQueueConfigRoute,
+  AuthenticatedAdminReportReconciliationRoute:
+    AuthenticatedAdminReportReconciliationRoute,
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
@@ -2019,6 +2062,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
+  ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,

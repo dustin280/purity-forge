@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText, CheckCircle2, AlertTriangle } from "lucide-react";
-import { listReportFiles, parseReportFile, type ParsedReport } from "@/lib/results/drive-reports.functions";
+import { listReportFiles, parseReportFile, compoundsToPeaks, type ParsedReport } from "@/lib/results/drive-reports.functions";
 import type { Peak } from "@/lib/lims-utils";
 
 export type ImportedResult = {
@@ -67,18 +67,9 @@ export function DriveReportPickerDialog({
       toast.error("No compound results could be parsed from this report — try another file or enter results manually.");
       return;
     }
-    const peaks: Peak[] = parsed.compounds.map((c, i) => ({
-      peak_id: `P${i + 1}`,
-      rt: c.rt,
-      area: c.area ?? 0,
-      area_pct: c.purity_pct ?? 0,
-      identity: c.compound,
-      amount_per_vial_mg: c.amount_per_vial_mg,
-      percent_label_claim: c.percent_label_claim,
-    }));
-    const main = peaks.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), peaks[0]);
+    const { peaks, purity } = compoundsToPeaks(parsed.compounds);
     onImport({
-      peaks, purity: main.area_pct,
+      peaks, purity,
       raw_data_file_path: `https://drive.google.com/file/d/${parsed.file_id}/view`,
       file_name: parsed.file_name, sample_id_in_report: parsed.sample_id_in_report,
       analysis_date: parsed.analysis_date,

@@ -226,4 +226,9 @@ export const qk = {
     all: ["instrument-inventory"] as const,
     list: (activeOnly: boolean) => ["instrument-inventory", activeOnly] as const,
   },
+
+  reportReconciliation: {
+    all: ["report-reconciliation"] as const,
+    list: () => ["report-reconciliation"] as const,
+  },
 } as const;
