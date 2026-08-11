@@ -3617,6 +3617,7 @@ export type Database = {
       sp_settings: {
         Row: {
           absolute_min_pipette_ul: number
+          cron_secret: string
           default_calibration_levels: number
           default_target_level: number
           drive_lm_reports_complete_folder_id: string | null
@@ -3629,6 +3630,7 @@ export type Database = {
         }
         Insert: {
           absolute_min_pipette_ul?: number
+          cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
           drive_lm_reports_complete_folder_id?: string | null
@@ -3641,6 +3643,7 @@ export type Database = {
         }
         Update: {
           absolute_min_pipette_ul?: number
+          cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
           drive_lm_reports_complete_folder_id?: string | null
@@ -4423,6 +4426,7 @@ export type Database = {
         Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
+      trigger_report_reconciliation: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
