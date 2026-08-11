@@ -2397,9 +2397,9 @@ export type Database = {
           client_received_date: string | null
           coc_id: string | null
           coc_line_no: number | null
+          components: Json
           compound: string | null
           compound_id: string | null
-          components: Json
           concentration: string | null
           container_size: string | null
           created_at: string
@@ -2443,9 +2443,9 @@ export type Database = {
           client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
+          components?: Json
           compound?: string | null
           compound_id?: string | null
-          components?: Json
           concentration?: string | null
           container_size?: string | null
           created_at?: string
@@ -2489,9 +2489,9 @@ export type Database = {
           client_received_date?: string | null
           coc_id?: string | null
           coc_line_no?: number | null
+          components?: Json
           compound?: string | null
           compound_id?: string | null
-          components?: Json
           concentration?: string | null
           container_size?: string | null
           created_at?: string
