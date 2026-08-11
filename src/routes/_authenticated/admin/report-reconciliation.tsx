@@ -7,7 +7,8 @@
  * to pick, plus informational counts (not-yet-run samples, walk-in "No
  * COC" reports, orphan files). Applied results still go through the
  * existing Review/Approve flow in the Results tab — nothing here bypasses
- * that.
+ * that. Every stat card is clickable and filters the table below to that
+ * category, so an analyst can drill into exactly what's behind a number.
  */
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -26,6 +27,17 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin/report-reconciliation")({ component: ReportReconciliationAdmin });
 
+type Category = "batch_id" | "lot_code" | "ambiguous" | "not_run" | "no_coc" | "orphan_files";
+
+const CATEGORY_LABEL: Record<Category, string> = {
+  batch_id: "Auto-applied (batch_id)",
+  lot_code: "Needs review (lot_code)",
+  ambiguous: "Ambiguous",
+  not_run: "Not yet run",
+  no_coc: "No COC (walk-ins)",
+  orphan_files: "Orphan files",
+};
+
 function ReportReconciliationAdmin() {
   const { role } = useAuth();
   const qc = useQueryClient();
@@ -39,6 +51,7 @@ function ReportReconciliationAdmin() {
   });
 
   const [lastFailed, setLastFailed] = useState<Array<{ batch_id: string; file_name: string; error: string }>>([]);
+  const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.reportReconciliation.all });
 
@@ -68,12 +81,25 @@ function ReportReconciliationAdmin() {
 
   const samples = data?.samples ?? [];
   const byTier = (t: ReconciliationSample["tier"]) => samples.filter((s) => s.tier === t);
-  const batchIdCount = byTier("batch_id").length;
+  const batchIdRows = byTier("batch_id");
   const lotCodeRows = byTier("lot_code");
   const ambiguousRows = byTier("ambiguous");
-  const notRunCount = byTier("not_run").length;
-  const noCocCount = data?.no_coc_files.length ?? 0;
-  const orphanCount = data?.orphan_files.length ?? 0;
+  const notRunRows = byTier("not_run");
+  const noCocFiles = data?.no_coc_files ?? [];
+  const orphanFiles = data?.orphan_files ?? [];
+
+  const counts: Record<Category, number> = {
+    batch_id: batchIdRows.length,
+    lot_code: lotCodeRows.length,
+    ambiguous: ambiguousRows.length,
+    not_run: notRunRows.length,
+    no_coc: noCocFiles.length,
+    orphan_files: orphanFiles.length,
+  };
+
+  function toggleCategory(c: Category) {
+    setActiveCategory((cur) => (cur === c ? null : c));
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
@@ -86,7 +112,7 @@ function ReportReconciliationAdmin() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Report Reconciliation</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
             Runs hourly on its own — high-confidence matches (batch_id found in the report filename) are
-            auto-applied and land in Review same as any other result. This page shows what's left over.
+            auto-applied and land in Review same as any other result. Click a category below to see what's behind it.
           </p>
         </div>
         <Button onClick={() => runNowMut.mutate()} disabled={runNowMut.isPending} className="gap-2">
@@ -116,35 +142,69 @@ function ReportReconciliationAdmin() {
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-            <StatCard icon={FileStack} label="Auto-applied (batch_id)" value={batchIdCount} tone="good" />
-            <StatCard icon={FileQuestion} label="Needs review (lot_code)" value={lotCodeRows.length} tone="warn" />
-            <StatCard icon={CircleHelp} label="Ambiguous" value={ambiguousRows.length} tone="warn" />
-            <StatCard icon={FileWarning} label="Not yet run" value={notRunCount} tone="neutral" />
-            <StatCard icon={FileX} label="No COC (walk-ins)" value={noCocCount} tone="neutral" />
-            <StatCard icon={FileWarning} label="Orphan files" value={orphanCount} tone="neutral" />
+            <StatCard icon={FileStack} label={CATEGORY_LABEL.batch_id} value={counts.batch_id} tone="good"
+              active={activeCategory === "batch_id"} onClick={() => toggleCategory("batch_id")} />
+            <StatCard icon={FileQuestion} label={CATEGORY_LABEL.lot_code} value={counts.lot_code} tone="warn"
+              active={activeCategory === "lot_code"} onClick={() => toggleCategory("lot_code")} />
+            <StatCard icon={CircleHelp} label={CATEGORY_LABEL.ambiguous} value={counts.ambiguous} tone="warn"
+              active={activeCategory === "ambiguous"} onClick={() => toggleCategory("ambiguous")} />
+            <StatCard icon={FileWarning} label={CATEGORY_LABEL.not_run} value={counts.not_run} tone="neutral"
+              active={activeCategory === "not_run"} onClick={() => toggleCategory("not_run")} />
+            <StatCard icon={FileX} label={CATEGORY_LABEL.no_coc} value={counts.no_coc} tone="neutral"
+              active={activeCategory === "no_coc"} onClick={() => toggleCategory("no_coc")} />
+            <StatCard icon={FileWarning} label={CATEGORY_LABEL.orphan_files} value={counts.orphan_files} tone="neutral"
+              active={activeCategory === "orphan_files"} onClick={() => toggleCategory("orphan_files")} />
           </div>
 
-          {(lotCodeRows.length > 0 || ambiguousRows.length > 0) && (
+          {activeCategory === null && (
+            <p className="text-sm text-muted-foreground">Click a category above to see the reports behind it.</p>
+          )}
+
+          {activeCategory && (activeCategory === "no_coc" || activeCategory === "orphan_files") && (
+            <Card className="border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr><th className="text-left px-3 py-2">{CATEGORY_LABEL[activeCategory]}</th></tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(activeCategory === "no_coc" ? noCocFiles : orphanFiles).map((f) => (
+                    <tr key={f.id}><td className="px-3 py-2 text-xs text-muted-foreground truncate">{f.name}</td></tr>
+                  ))}
+                  {(activeCategory === "no_coc" ? noCocFiles : orphanFiles).length === 0 && (
+                    <tr><td className="px-3 py-4 text-center text-muted-foreground">Nothing here.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </Card>
+          )}
+
+          {activeCategory && (activeCategory === "batch_id" || activeCategory === "lot_code" || activeCategory === "ambiguous" || activeCategory === "not_run") && (
             <Card className="border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
                     <th className="text-left px-3 py-2">Batch ID</th>
                     <th className="text-left px-3 py-2">Compound</th>
-                    <th className="text-left px-3 py-2">Tier</th>
                     <th className="text-left px-3 py-2">Candidate file</th>
                     <th className="text-right px-3 py-2">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {[...lotCodeRows, ...ambiguousRows].map((s) => (
+                  {(activeCategory === "batch_id" ? batchIdRows
+                    : activeCategory === "lot_code" ? lotCodeRows
+                    : activeCategory === "ambiguous" ? ambiguousRows
+                    : notRunRows
+                  ).map((s) => (
                     <tr key={s.id}>
-                      <td className="px-3 py-2 font-mono text-xs">{s.batch_id}</td>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        <Link to="/samples/$batchId" params={{ batchId: s.batch_id }} className="text-primary hover:underline">
+                          {s.batch_id}
+                        </Link>
+                      </td>
                       <td className="px-3 py-2">{s.compound ?? "—"}</td>
-                      <td className="px-3 py-2 capitalize">{s.tier.replace("_", " ")}</td>
                       <td className="px-3 py-2 text-xs text-muted-foreground truncate max-w-xs">{s.file?.name ?? "—"}</td>
                       <td className="px-3 py-2 text-right">
-                        {s.file && (
+                        {s.file && (activeCategory === "lot_code" || activeCategory === "ambiguous") && (
                           <Button
                             size="sm" variant="outline"
                             disabled={applyMut.isPending}
@@ -153,17 +213,26 @@ function ReportReconciliationAdmin() {
                             Apply
                           </Button>
                         )}
+                        {activeCategory === "batch_id" && (
+                          <Link to="/samples/$batchId" params={{ batchId: s.batch_id }}>
+                            <Button size="sm" variant="ghost">Review</Button>
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
+                  {(activeCategory === "batch_id" ? batchIdRows
+                    : activeCategory === "lot_code" ? lotCodeRows
+                    : activeCategory === "ambiguous" ? ambiguousRows
+                    : notRunRows
+                  ).length === 0 && (
+                    <tr><td colSpan={4} className="px-3 py-4 text-center text-muted-foreground">Nothing here.</td></tr>
+                  )}
                 </tbody>
               </table>
             </Card>
           )}
 
-          {lotCodeRows.length === 0 && ambiguousRows.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nothing needs manual attention right now.</p>
-          )}
           {isFetching && !isLoading && <p className="text-xs text-muted-foreground mt-3">Refreshing…</p>}
         </>
       )}
@@ -171,17 +240,20 @@ function ReportReconciliationAdmin() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, tone }: {
+function StatCard({ icon: Icon, label, value, tone, active, onClick }: {
   icon: typeof FileStack; label: string; value: number; tone: "good" | "warn" | "neutral";
+  active: boolean; onClick: () => void;
 }) {
   const toneClass = tone === "good" ? "text-emerald-500" : tone === "warn" ? "text-amber-400" : "text-muted-foreground";
   return (
-    <Card className="p-4 border-border">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-        <Icon className={`size-3.5 ${toneClass}`} />
-        {label}
-      </div>
-      <div className="text-2xl font-bold tracking-tight">{value}</div>
-    </Card>
+    <button type="button" onClick={onClick} className="text-left">
+      <Card className={`p-4 border-border transition-colors hover:border-primary/50 ${active ? "border-primary ring-1 ring-primary" : ""}`}>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <Icon className={`size-3.5 ${toneClass}`} />
+          {label}
+        </div>
+        <div className="text-2xl font-bold tracking-tight">{value}</div>
+      </Card>
+    </button>
   );
 }

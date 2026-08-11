@@ -26,8 +26,15 @@ export const updateTestSpec = createServerFn({ method: "POST" })
 export const listSamples = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // Batch-created samples (CoC intake) can share the same created_at
+    // down to the millisecond — without a tiebreaker Postgres doesn't
+    // guarantee a stable order for those ties, so a plain refetch (e.g.
+    // after toggling a prep-flag checkbox) can come back in a different
+    // order and look like the list randomly reshuffled.
     const { data, error } = await context.supabase
-      .from("samples").select("*").order("created_at", { ascending: false });
+      .from("samples").select("*")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true });
     if (error) throw error;
     return data;
   });

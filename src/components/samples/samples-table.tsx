@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { setSamplePrepFlag } from "@/lib/run-lists.functions";
 import { qk } from "@/lib/query-keys";
 import { toast } from "sonner";
+import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 
 type SampleRow = {
   id: string;
@@ -21,15 +22,31 @@ type SampleRow = {
   prep_flag?: boolean | null;
 };
 
+export type SamplesSortKey = "batch_id" | "compound" | "client" | "receipt_date" | "status";
+export type SortDir = "asc" | "desc";
+
+const COLUMNS: { key: SamplesSortKey; label: string }[] = [
+  { key: "batch_id", label: "Sample ID" },
+  { key: "compound", label: "Compound / Lot" },
+  { key: "client", label: "Client / Project" },
+  { key: "receipt_date", label: "Received" },
+  { key: "status", label: "Status" },
+];
+
 /**
  * Samples list as a Card-wrapped table. Each Sample ID links to its
- * detail page. Renders loading + empty states inline.
+ * detail page. Renders loading + empty states inline. Sorting is
+ * controlled by the parent (SamplesList owns sort/page state) — this
+ * component only renders the clickable headers and current rows.
  */
 export function SamplesTable({
-  rows, isLoading,
+  rows, isLoading, sortKey, sortDir, onSort,
 }: {
   rows: SampleRow[];
   isLoading: boolean;
+  sortKey: SamplesSortKey;
+  sortDir: SortDir;
+  onSort: (key: SamplesSortKey) => void;
 }) {
   const qc = useQueryClient();
   const setFlag = useServerFn(setSamplePrepFlag);
@@ -57,11 +74,22 @@ export function SamplesTable({
         <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="text-left px-3 py-3 font-semibold w-10">Prep</th>
-            <th className="text-left px-4 py-3 font-semibold">Sample ID</th>
-            <th className="text-left px-4 py-3 font-semibold">Compound / Lot</th>
-            <th className="text-left px-4 py-3 font-semibold">Client / Project</th>
-            <th className="text-left px-4 py-3 font-semibold">Received</th>
-            <th className="text-left px-4 py-3 font-semibold">Status</th>
+            {COLUMNS.map((col) => (
+              <th key={col.key} className="text-left px-4 py-3 font-semibold">
+                <button
+                  type="button"
+                  onClick={() => onSort(col.key)}
+                  className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                >
+                  {col.label}
+                  {sortKey === col.key ? (
+                    sortDir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+                  ) : (
+                    <ArrowUpDown className="size-3 opacity-40" />
+                  )}
+                </button>
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
