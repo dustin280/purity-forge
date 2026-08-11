@@ -66,6 +66,7 @@ import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
 import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
 import { Route as AuthenticatedAdminParametersRouteImport } from './routes/_authenticated/admin/parameters'
+import { Route as AuthenticatedAdminNotificationsRouteImport } from './routes/_authenticated/admin/notifications'
 import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './routes/_authenticated/admin/mobile-phase-reagents'
 import { Route as AuthenticatedAdminMethodGroupsRouteImport } from './routes/_authenticated/admin/method-groups'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
@@ -423,6 +424,12 @@ const AuthenticatedAdminParametersRoute =
     path: '/admin/parameters',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminNotificationsRoute =
+  AuthenticatedAdminNotificationsRouteImport.update({
+    id: '/admin/notifications',
+    path: '/admin/notifications',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminMobilePhaseReagentsRoute =
   AuthenticatedAdminMobilePhaseReagentsRouteImport.update({
     id: '/admin/mobile-phase-reagents',
@@ -620,6 +627,7 @@ export interface FileRoutesByFullPath {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
@@ -708,6 +716,7 @@ export interface FileRoutesByTo {
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
+  '/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
@@ -798,6 +807,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
   '/_authenticated/admin/mobile-phase-reagents': typeof AuthenticatedAdminMobilePhaseReagentsRoute
+  '/_authenticated/admin/notifications': typeof AuthenticatedAdminNotificationsRoute
   '/_authenticated/admin/parameters': typeof AuthenticatedAdminParametersRoute
   '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
@@ -888,6 +898,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
+    | '/admin/notifications'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
@@ -976,6 +987,7 @@ export interface FileRouteTypes {
     | '/admin/instruments'
     | '/admin/method-groups'
     | '/admin/mobile-phase-reagents'
+    | '/admin/notifications'
     | '/admin/parameters'
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
@@ -1065,6 +1077,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/method-groups'
     | '/_authenticated/admin/mobile-phase-reagents'
+    | '/_authenticated/admin/notifications'
     | '/_authenticated/admin/parameters'
     | '/_authenticated/admin/partner-webhook-secret'
     | '/_authenticated/admin/queue-config'
@@ -1548,6 +1561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametersRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/notifications': {
+      id: '/_authenticated/admin/notifications'
+      path: '/admin/notifications'
+      fullPath: '/admin/notifications'
+      preLoaderRoute: typeof AuthenticatedAdminNotificationsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/mobile-phase-reagents': {
       id: '/_authenticated/admin/mobile-phase-reagents'
       path: '/admin/mobile-phase-reagents'
@@ -1821,6 +1841,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMethodGroupsRoute: typeof AuthenticatedAdminMethodGroupsRoute
   AuthenticatedAdminMobilePhaseReagentsRoute: typeof AuthenticatedAdminMobilePhaseReagentsRoute
+  AuthenticatedAdminNotificationsRoute: typeof AuthenticatedAdminNotificationsRoute
   AuthenticatedAdminParametersRoute: typeof AuthenticatedAdminParametersRoute
   AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
@@ -1899,6 +1920,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminMethodGroupsRoute: AuthenticatedAdminMethodGroupsRoute,
   AuthenticatedAdminMobilePhaseReagentsRoute:
     AuthenticatedAdminMobilePhaseReagentsRoute,
+  AuthenticatedAdminNotificationsRoute: AuthenticatedAdminNotificationsRoute,
   AuthenticatedAdminParametersRoute: AuthenticatedAdminParametersRoute,
   AuthenticatedAdminPartnerWebhookSecretRoute:
     AuthenticatedAdminPartnerWebhookSecretRoute,

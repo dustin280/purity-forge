@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -221,6 +222,15 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
         linked_coc_id: coc.id,
       }).eq("id", data.pending_order_id);
     }
+
+    await notifyNewIntake(supabase, {
+      client: headerClient,
+      project: headerProject,
+      sampleId: data.sample_id,
+      sampleCount: (samples ?? []).length,
+      compounds: Array.from(new Set((samples ?? []).map(s => s.compound as string).filter(Boolean))),
+    });
+
     return { coc, samples: samples ?? [] };
   });
 

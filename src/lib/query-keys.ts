@@ -38,6 +38,11 @@ export const qk = {
     list: () => ["test_parameters"] as const,
   },
 
+  notificationRecipients: {
+    all: ["notification_recipients"] as const,
+    list: () => ["notification_recipients"] as const,
+  },
+
   standardPreps: {
     all: ["standard-preparations"] as const,
     list: (filters?: unknown) =>
