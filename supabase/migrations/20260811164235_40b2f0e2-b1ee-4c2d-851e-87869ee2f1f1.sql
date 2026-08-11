@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.trigger_report_reconciliation() FROM PUBLIC, anon, authenticated;

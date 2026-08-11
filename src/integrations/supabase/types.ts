@@ -4426,6 +4426,7 @@ export type Database = {
         Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
+      trigger_report_reconciliation: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "tech" | "reviewer"
