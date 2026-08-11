@@ -177,6 +177,49 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
   return { compound, rt, area: null, amount_per_vial_mg: null, percent_label_claim: null, purity_pct: null, unparsed_tail: tail };
 }
 
+/**
+ * Older report template ("Single Injection Report" / per-injection
+ * calibration report, used roughly through 2026-07-23 before the lab
+ * switched to the "Single-Analyte Assay Report" table template the parser
+ * above targets) — confirmed by pulling and diffing real report PDFs from
+ * both eras during the first live reconciliation run, which failed to
+ * parse any pre-switch file. Fields are scattered label:value pairs
+ * instead of a squished table row, e.g.:
+ *   "Sample name:SYX-000002-02 / Lot RGIC-SS31-50-070826"
+ *   "Purity99.27%"
+ *   "Net Peptide Content54.807 mg/vialInjection date:2026-07-22 21:04:50-07:00"
+ *   "% of Label Claim109.61%Location:D2F-A5"
+ *   "Compound:SS-31 (DAD1A)"
+ *   "Exp. RT:5.208"
+ */
+function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> | null {
+  if (!/Single Injection Report/.test(text)) return null;
+  const sampleIdMatch = text.match(/Sample name:\s*([A-Za-z0-9-]+)/);
+  const purityMatch = text.match(/Purity\s*([<>]?\d+\.\d{2})%/);
+  const netContentMatch = text.match(/Net Peptide Content\s*(\d+\.\d+)\s*mg\/vial/);
+  const injectionDateMatch = text.match(/Injection date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n%]*)/);
+  const labelClaimMatch = text.match(/% of Label Claim\s*(\d+\.\d{2})%/);
+  const compoundMatch = text.match(/Compound:\s*([A-Za-z0-9+\-]+)/);
+  const rtMatch = text.match(/Exp\.\s*RT:\s*(\d+\.\d{3})/);
+  if (!purityMatch || !compoundMatch) return null;
+
+  const compound: ParsedReportCompound = {
+    compound: compoundMatch[1],
+    rt: rtMatch ? Number(rtMatch[1]) : 0,
+    area: null,
+    amount_per_vial_mg: netContentMatch ? Number(netContentMatch[1]) : null,
+    percent_label_claim: labelClaimMatch ? Number(labelClaimMatch[1]) : null,
+    purity_pct: Number(purityMatch[1].replace(/^[<>]/, "")),
+  };
+
+  return {
+    sample_id_in_report: sampleIdMatch ? sampleIdMatch[1].trim() : null,
+    analysis_date: injectionDateMatch ? injectionDateMatch[1].trim() : null,
+    total_peptide_contents_mg: null,
+    compounds: [compound],
+  };
+}
+
 export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
   const sampleIdMatch = text.match(/Sample ID:\s*([^\n]+?)(?:Analyte:|Product:|\n)/);
   const analysisDateMatch = text.match(/Analysis date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*?)(?:Report|\n)/);
@@ -187,6 +230,10 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
     if (/^Compound(Not Found|RT)/.test(line)) continue; // header row or "Compound Not Found" row
     const parsed = parseCompoundLine(line);
     if (parsed) compounds.push(parsed);
+  }
+  if (compounds.length === 0) {
+    const legacy = parseSingleInjectionReport(text);
+    if (legacy) return legacy;
   }
   return {
     sample_id_in_report: sampleIdMatch ? sampleIdMatch[1].trim() : null,
