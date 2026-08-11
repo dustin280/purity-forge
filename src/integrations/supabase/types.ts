@@ -2362,7 +2362,6 @@ export type Database = {
           coc_id: string | null
           coc_line_no: number | null
           compound: string | null
-          compound_id: string | null
           concentration: string | null
           container_size: string | null
           created_at: string
@@ -2402,7 +2401,6 @@ export type Database = {
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
-          compound_id?: string | null
           concentration?: string | null
           container_size?: string | null
           created_at?: string
@@ -2442,7 +2440,6 @@ export type Database = {
           coc_id?: string | null
           coc_line_no?: number | null
           compound?: string | null
-          compound_id?: string | null
           concentration?: string | null
           container_size?: string | null
           created_at?: string
@@ -2484,13 +2481,6 @@ export type Database = {
             columns: ["coc_id"]
             isOneToOne: false
             referencedRelation: "chain_of_custody_records"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "samples_compound_id_fkey"
-            columns: ["compound_id"]
-            isOneToOne: false
-            referencedRelation: "compounds"
             referencedColumns: ["id"]
           },
           {
