@@ -20,15 +20,48 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Peak } from "@/lib/lims-utils";
-import * as pdfParseModule from "pdf-parse";
-// pdf-parse is CJS (`module.exports = function`) — depending on how the
-// SSR bundler interops it, the namespace import is either directly
-// callable or has the function on `.default`. Handle both at runtime
-// rather than assuming one shape.
+// pdf-parse's own wrapper (pdf-parse/lib/pdf-parse.js) resolves its PDF.js
+// engine via `require(`./pdf.js/${version}/build/pdf.js`)` — a template-
+// string require Rollup can't statically analyze, so it throws
+// "Could not dynamically require..." in the deployed Cloudflare Workers
+// build (this only ever "worked" when pdf-parse was exercised directly in
+// a plain Node process, never through the actual bundled server). Importing
+// the same bundled engine via a static path sidesteps Rollup's dynamic-
+// require limitation entirely; the few lines below are a direct port of
+// pdf-parse's own PDF() wrapper (lib/pdf-parse.js) so parsing behavior is
+// unchanged — just resolved at build time instead of at runtime. No types
+// ship for this internal vendor path, hence the ts-expect-error below.
+// @ts-expect-error — untyped vendor JS module, see comment above
+import * as PDFJS from "pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js";
+
 type PdfParseFn = (data: Buffer) => Promise<{ text: string }>;
-export const pdfParse: PdfParseFn = typeof pdfParseModule === "function"
-  ? (pdfParseModule as unknown as PdfParseFn)
-  : (pdfParseModule as unknown as { default: PdfParseFn }).default;
+export const pdfParse: PdfParseFn = async (dataBuffer: Buffer) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const engine = PDFJS as any;
+  engine.disableWorker = true;
+  const doc = await engine.getDocument(dataBuffer);
+  let text = "";
+  const pageCount = doc.numPages;
+  for (let i = 1; i <= pageCount; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pageText = await doc.getPage(i).then((pageData: any) =>
+      pageData.getTextContent({ normalizeWhitespace: false, disableCombineTextItems: false }).then((textContent: any) => {
+        let lastY: number | undefined;
+        let out = "";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const item of textContent.items as any[]) {
+          if (lastY === item.transform[5] || lastY === undefined) out += item.str;
+          else out += `\n${item.str}`;
+          lastY = item.transform[5];
+        }
+        return out;
+      })
+    ).catch(() => "");
+    text += `\n\n${pageText}`;
+  }
+  doc.destroy();
+  return { text };
+};
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 
