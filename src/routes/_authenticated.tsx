@@ -27,6 +27,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { WorkflowGuideProvider } from "@/contexts/workflow-guide-context";
 import { GuideOverlay } from "@/components/workflow-guide/guide-overlay";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -78,15 +79,17 @@ function AuthedLayout() {
   if (loading) return <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>;
   if (!user) return <div className="min-h-screen grid place-items-center text-muted-foreground">Redirecting…</div>;
   return (
-    <WorkflowGuideProvider>
-      <div className="min-h-screen flex bg-background">
-        <SidebarNav />
-        <div className="flex-1 flex flex-col min-w-0">
-          <MobileTopBar />
-          <main className="flex-1 min-w-0 overflow-x-auto"><Outlet /></main>
+    <TooltipProvider delayDuration={200}>
+      <WorkflowGuideProvider>
+        <div className="min-h-screen flex bg-background">
+          <SidebarNav />
+          <div className="flex-1 flex flex-col min-w-0">
+            <MobileTopBar />
+            <main className="flex-1 min-w-0 overflow-x-auto"><Outlet /></main>
+          </div>
         </div>
-      </div>
-      <GuideOverlay />
-    </WorkflowGuideProvider>
+        <GuideOverlay />
+      </WorkflowGuideProvider>
+    </TooltipProvider>
   );
 }
