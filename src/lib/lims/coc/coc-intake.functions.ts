@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const lineItemSchema = z.object({
   compound: z.string().min(1).max(255),
+  compound_id: z.string().uuid().optional().nullable(),
   lot: z.string().max(255).optional().nullable(),
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
@@ -51,12 +52,17 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       c => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase()
     ) ?? null;
 
-    // Best-effort link to the compound library's assigned method group —
-    // same case-insensitive match approach as the client lookup above.
-    // No match just means this compound hasn't been assigned a group yet;
-    // the sample is created ungrouped rather than blocked.
-    const { data: candidateCompounds } = await supabase.from("compounds").select("name,method_group_id");
-    const methodGroupByCompound = new Map(
+    // Link to the compound library's assigned method group. The CoC form's
+    // compound picker sets compound_id directly on every line item now, so
+    // this is a real id lookup, not a guess — the case-insensitive name
+    // match only exists as a fallback for the rare row that somehow lacks
+    // a compound_id (e.g. a very old client, or a draft resumed from before
+    // the picker existed).
+    const { data: candidateCompounds } = await supabase.from("compounds").select("id,name,method_group_id");
+    const methodGroupByCompoundId = new Map(
+      (candidateCompounds ?? []).map(c => [c.id as string, c.method_group_id as string | null]),
+    );
+    const methodGroupByCompoundName = new Map(
       (candidateCompounds ?? []).map(c => [c.name.trim().toLowerCase(), c.method_group_id as string | null]),
     );
 
@@ -76,6 +82,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       batch_id: string; client: string; client_id: string | null; project: string | null;
       receipt_date: string; parameters: string[]; notes: string | null;
       coc_id: string; coc_line_no: number; compound: string;
+      compound_id: string | null;
       lot: string | null; catalog: string | null;
       container_size: string | null; concentration: string | null;
       temperature_c: number | null; line_item_index: number;
@@ -121,6 +128,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           coc_id: coc.id,
           coc_line_no: seq,
           compound: li.compound,
+          compound_id: li.compound_id ?? null,
           lot: li.lot ?? null,
           catalog: li.catalog ?? null,
           container_size: li.container_size ?? null,
@@ -132,7 +140,9 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           physical_description: (li.physical_description && li.physical_description.trim()) ? li.physical_description : null,
           created_by: userId,
           status: "received" as const,
-          method_group_id: methodGroupByCompound.get(li.compound.trim().toLowerCase()) ?? null,
+          method_group_id: li.compound_id
+            ? methodGroupByCompoundId.get(li.compound_id) ?? null
+            : methodGroupByCompoundName.get(li.compound.trim().toLowerCase()) ?? null,
           received_form: li.received_form ?? null,
           received_quantity: quantityNum,
           received_quantity_unit: li.quantity_unit ?? null,
@@ -178,6 +188,7 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       client_id: z.string().uuid(),
       project: z.string().max(255).optional().nullable(),
       compound: z.string().min(1).max(255),
+      compound_id: z.string().uuid().optional().nullable(),
       lot: z.string().max(255).optional().nullable(),
       parameters: z.array(z.string().min(1).max(128)).max(200),
       notes: z.string().max(2000).optional().nullable(),
@@ -190,6 +201,17 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
     if (clientErr) throw clientErr;
     if (!client) throw new Error("Selected client not found");
 
+    // Re-derive method_group_id in case the compound was corrected during
+    // verification — same id-first-then-name pattern as intake.
+    let methodGroupId: string | null = null;
+    if (data.compound_id) {
+      const { data: c } = await supabase.from("compounds").select("method_group_id").eq("id", data.compound_id).maybeSingle();
+      methodGroupId = c?.method_group_id ?? null;
+    } else {
+      const { data: c } = await supabase.from("compounds").select("method_group_id").ilike("name", data.compound.trim()).maybeSingle();
+      methodGroupId = c?.method_group_id ?? null;
+    }
+
     const { error } = await supabase
       .from("samples")
       .update({
@@ -197,6 +219,8 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
         client: client.company_name,
         project: data.project,
         compound: data.compound,
+        compound_id: data.compound_id ?? null,
+        method_group_id: methodGroupId,
         lot: data.lot,
         parameters: data.parameters,
         notes: data.notes,

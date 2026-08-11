@@ -10,17 +10,20 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Camera, Upload, X, ImageIcon } from "lucide-react";
+import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
 import type { LineItem } from "./types";
 
 export const CONTAINER_SIZES = ["2 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
 
 export function LineItemRow({
-  li, disabled, onChange, testOptions, pendingFiles, onAddFiles, onRemoveFile,
+  li, disabled, onChange, testOptions, compoundOptions, onCreateCompound, pendingFiles, onAddFiles, onRemoveFile,
 }: {
   li: LineItem;
   disabled: boolean;
   onChange: (patch: Partial<LineItem>) => void;
   testOptions: { id: string; name: string }[];
+  compoundOptions: CompoundOption[];
+  onCreateCompound: (name: string) => Promise<CompoundOption>;
   pendingFiles: File[];
   onAddFiles: (files: File[]) => void;
   onRemoveFile: (idx: number) => void;
@@ -36,8 +39,15 @@ export function LineItemRow({
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
       <div className="sm:col-span-2">
         <Label className="text-[10px] uppercase text-muted-foreground">Product / Compound *</Label>
-        <Input className="h-8 mt-1" value={li.compound} disabled={disabled}
-          onChange={e => onChange({ compound: e.target.value })} />
+        <div className="mt-1">
+          <CompoundPicker
+            options={compoundOptions}
+            value={{ compound_id: li.compound_id, name: li.compound }}
+            onChange={(v) => onChange({ compound_id: v.compound_id, compound: v.name })}
+            onCreateCompound={onCreateCompound}
+            disabled={disabled}
+          />
+        </div>
       </div>
       <div>
         <Label className="text-[10px] uppercase text-muted-foreground"># of Vials</Label>

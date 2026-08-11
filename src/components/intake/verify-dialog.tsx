@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { X } from "lucide-react";
 import { verifySampleIntake, listParameters } from "@/lib/lims.functions";
+import { listCompounds, createCompound } from "@/lib/compounds.functions";
 import { qk } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { ClientSelect } from "@/components/samples/client-select";
+import { CompoundPicker } from "@/components/compounds/compound-picker";
 import type { IntakeSample } from "./types";
 
 /**
@@ -29,17 +31,32 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
 }) {
   const verify = useServerFn(verifySampleIntake);
   const listParams = useServerFn(listParameters);
+  const listCompoundsFn = useServerFn(listCompounds);
+  const createCompoundFn = useServerFn(createCompound);
+  const qc = useQueryClient();
   const { data: allParams = [] } = useQuery({
     queryKey: qk.testParameters.list(),
     queryFn: () => listParams(),
     enabled: !!sample,
   });
   const activeParams = (allParams as { id: string; name: string; is_active: boolean }[]).filter(p => p.is_active);
+  const { data: allCompounds = [] } = useQuery({
+    queryKey: qk.compounds.list(),
+    queryFn: () => listCompoundsFn(),
+    enabled: !!sample,
+  });
+  const compoundOptions = allCompounds.filter(c => c.is_active).map(c => ({ id: c.id, name: c.name }));
+  async function handleCreateCompound(name: string) {
+    const row = await createCompoundFn({ data: { name } });
+    qc.invalidateQueries({ queryKey: qk.compounds.all });
+    return { id: row.id, name: row.name };
+  }
 
   const [clientId, setClientId] = useState("");
   const [clientName, setClientName] = useState("");
   const [project, setProject] = useState("");
   const [compound, setCompound] = useState("");
+  const [compoundId, setCompoundId] = useState<string | null>(null);
   const [lot, setLot] = useState("");
   const [notes, setNotes] = useState("");
   const [params, setParams] = useState<string[]>([]);
@@ -51,6 +68,7 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
     setClientName(sample.client ?? "");
     setProject(sample.project ?? "");
     setCompound(sample.compound ?? "");
+    setCompoundId(sample.compound_id ?? null);
     setLot(sample.lot ?? "");
     setNotes(sample.notes ?? "");
     setParams(sample.parameters ?? []);
@@ -66,6 +84,7 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
         client_id: clientId,
         project: project.trim() || null,
         compound: compound.trim(),
+        compound_id: compoundId,
         lot: lot.trim() || null,
         parameters: params,
         notes: notes.trim() || null,
@@ -109,7 +128,14 @@ export function VerifyDialog({ sample, onOpenChange, onDone }: {
             </div>
             <div>
               <Label className="text-xs">Compound</Label>
-              <Input className="mt-1" value={compound} onChange={e => setCompound(e.target.value)} required />
+              <div className="mt-1">
+                <CompoundPicker
+                  options={compoundOptions}
+                  value={{ compound_id: compoundId, name: compound }}
+                  onChange={(v) => { setCompoundId(v.compound_id); setCompound(v.name); }}
+                  onCreateCompound={handleCreateCompound}
+                />
+              </div>
             </div>
             <div>
               <Label className="text-xs">Lot / Batch</Label>

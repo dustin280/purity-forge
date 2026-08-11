@@ -20,6 +20,8 @@ import { qk } from "@/lib/query-keys";
 import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types";
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
 import { createClient as createClientFn, type ClientRow } from "@/lib/clients.functions";
+import { listCompounds, createCompound as createCompoundFn } from "@/lib/compounds.functions";
+import type { CompoundOption } from "@/components/compounds/compound-picker";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
@@ -48,6 +50,8 @@ export function useCocForm({
   const deleteAttachment = useServerFn(deleteCocAttachment);
   const signAttachmentUrl = useServerFn(signedCocAttachmentUrl);
   const listParams = useServerFn(listParameters);
+  const listCompoundsFn = useServerFn(listCompounds);
+  const createCompoundFnCall = useServerFn(createCompoundFn);
 
   const { data: fields = [] } = useQuery({
     queryKey: qk.cocFields.list(),
@@ -72,6 +76,19 @@ export function useCocForm({
 
   const activeFields = useMemo(() => fields.filter(f => f.is_active), [fields]);
   const activeParams = allParams.filter((p: { is_active: boolean }) => p.is_active);
+  const { data: compoundRows = [] } = useQuery({
+    queryKey: qk.compounds.list(),
+    queryFn: () => listCompoundsFn(),
+    enabled: open,
+  });
+  const compoundOptions: CompoundOption[] = compoundRows
+    .filter((c) => c.is_active)
+    .map((c) => ({ id: c.id, name: c.name }));
+  async function createCompoundOption(name: string): Promise<CompoundOption> {
+    const row = await createCompoundFnCall({ data: { name } });
+    qc.invalidateQueries({ queryKey: qk.compounds.all });
+    return { id: row.id, name: row.name };
+  }
 
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
@@ -146,7 +163,9 @@ export function useCocForm({
       setLineItems(resumedLines.map(li => ({ ...emptyLine(), ...li })));
     } else if (existingItems && existingItems.length) {
       setLineItems(existingItems.map(li => ({
-        compound: li.compound ?? "", lot: li.lot ?? "", catalog: li.catalog ?? "",
+        compound: li.compound ?? "",
+        compound_id: (li as unknown as { compound_id?: string | null }).compound_id ?? null,
+        lot: li.lot ?? "", catalog: li.catalog ?? "",
         manufacturer: li.manufacturer ?? "", quantity: li.quantity ?? "",
         quantity_unit: li.quantity_unit ?? "",
         container_size: li.container_size ?? "", concentration: li.concentration ?? "",
@@ -313,6 +332,7 @@ export function useCocForm({
 
   return {
     activeFields, activeParams, attachments,
+    compoundOptions, createCompoundOption,
     values, setValues, setValuesDirty,
     lineItems, setLineItems, setLineItemsDirty,
     pendingFiles, setPendingFiles, setIsDirty, isDirty,

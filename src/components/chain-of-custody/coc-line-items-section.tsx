@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash } from "lucide-react";
 import { LineItemRow } from "./line-item-row";
 import { emptyLine, type LineItem } from "./types";
+import type { CompoundOption } from "@/components/compounds/compound-picker";
 
 /**
  * "Compounds / Lots" section of the CoC form. Each row is one sample; in edit
@@ -14,6 +15,8 @@ export function CocLineItemsSection({
   lineItems,
   setLineItemsDirty,
   activeParams,
+  compoundOptions,
+  onCreateCompound,
   pendingByLine,
   setPendingByLine,
   setIsDirty,
@@ -22,6 +25,8 @@ export function CocLineItemsSection({
   lineItems: LineItem[];
   setLineItemsDirty: (updater: (prev: LineItem[]) => LineItem[]) => void;
   activeParams: { id: string; name: string }[];
+  compoundOptions: CompoundOption[];
+  onCreateCompound: (name: string) => Promise<CompoundOption>;
   pendingByLine: Record<number, File[]>;
   setPendingByLine: (updater: (prev: Record<number, File[]>) => Record<number, File[]>) => void;
   setIsDirty: (v: boolean) => void;
@@ -62,6 +67,8 @@ export function CocLineItemsSection({
               disabled={!!recordId}
               onChange={(patch) => setLineItemsDirty(prev => prev.map((x, i) => i === idx ? { ...x, ...patch } : x))}
               testOptions={activeParams}
+              compoundOptions={compoundOptions}
+              onCreateCompound={onCreateCompound}
               pendingFiles={pendingByLine[idx] ?? []}
               onAddFiles={(files) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: [...(prev[idx] ?? []), ...files] })); }}
               onRemoveFile={(fileIdx) => { setIsDirty(true); setPendingByLine(prev => ({ ...prev, [idx]: (prev[idx] ?? []).filter((_, i) => i !== fileIdx) })); }}

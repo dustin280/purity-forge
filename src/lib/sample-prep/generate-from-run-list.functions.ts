@@ -56,11 +56,23 @@ interface SampleCtx {
   id: string;
   batch_id: string | null;
   compound: string | null;
+  compound_id: string | null;
   concentration: string | null;
   received_form: "lyophilized" | "solution" | null;
   received_quantity: number | null;
   received_quantity_unit: string | null;
   received_purity_percent: number | null;
+}
+
+/**
+ * Resolution key for a sample's compound: prefer the real compound_id FK
+ * (set by the intake picker) over a case-insensitive name match, which
+ * only exists now as a fallback for rows that predate the picker.
+ */
+function resolutionKeyFor(sample: Pick<SampleCtx, "compound_id" | "compound">): string | null {
+  if (sample.compound_id) return `id:${sample.compound_id}`;
+  const name = (sample.compound ?? "").trim();
+  return name ? `name:${name.toLowerCase()}` : null;
 }
 
 /** Mirrors dilution.ts's own unit tables — kept local since those aren't exported. */
@@ -124,17 +136,34 @@ async function resolveRevisionContexts(supabase: SB, samples: SampleCtx[]): Prom
   byCompoundLower: Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>;
 }> {
   const byCompoundLower = new Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>();
-  const compoundNames = Array.from(new Set(samples.map(s => (s.compound ?? "").trim()).filter(Boolean)));
-  if (!compoundNames.length) return { byCompoundLower };
 
-  const { data: compoundRows } = await supabase
-    .from("compounds").select("name, sp_analyte_id").in("name", compoundNames);
-  const analyteIdByCompoundLower = new Map(
-    ((compoundRows ?? []) as Array<{ name: string; sp_analyte_id: string | null }>)
-      .map(c => [c.name.trim().toLowerCase(), c.sp_analyte_id] as const),
-  );
+  // One "unit" per unique resolution key needed (id-based when the intake
+  // picker set compound_id, name-based as a fallback for older rows).
+  const units = new Map<string, string>(); // key -> display label
+  for (const s of samples) {
+    const key = resolutionKeyFor(s);
+    if (!key) continue;
+    if (!units.has(key)) units.set(key, (s.compound ?? "").trim() || key);
+  }
+  if (!units.size) return { byCompoundLower };
 
-  const analyteIds = Array.from(new Set(Array.from(analyteIdByCompoundLower.values()).filter(Boolean))) as string[];
+  const compoundIds = Array.from(units.keys()).filter(k => k.startsWith("id:")).map(k => k.slice(3));
+  const compoundNames = Array.from(units.keys()).filter(k => k.startsWith("name:")).map(k => units.get(k) as string);
+
+  type CompoundRow = { id: string; name: string; sp_analyte_id: string | null };
+  const [{ data: byIdRows }, { data: byNameRows }] = await Promise.all([
+    compoundIds.length
+      ? supabase.from("compounds").select("id, name, sp_analyte_id").in("id", compoundIds)
+      : Promise.resolve({ data: [] }),
+    compoundNames.length
+      ? supabase.from("compounds").select("id, name, sp_analyte_id").in("name", compoundNames)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const analyteIdByKey = new Map<string, string | null>();
+  for (const c of (byIdRows ?? []) as CompoundRow[]) analyteIdByKey.set(`id:${c.id}`, c.sp_analyte_id);
+  for (const c of (byNameRows ?? []) as CompoundRow[]) analyteIdByKey.set(`name:${c.name.trim().toLowerCase()}`, c.sp_analyte_id);
+
+  const analyteIds = Array.from(new Set(Array.from(analyteIdByKey.values()).filter(Boolean))) as string[];
   const { data: analyteRows } = analyteIds.length
     ? await supabase.from("sp_analytes").select("id, canonical_name").in("id", analyteIds)
     : { data: [] };
@@ -189,9 +218,8 @@ async function resolveRevisionContexts(supabase: SB, samples: SampleCtx[]): Prom
     : { data: [] };
   const solventNameById = new Map(((solventRows ?? []) as Array<{ id: string; name: string }>).map(s => [s.id, s.name] as const));
 
-  for (const compound of compoundNames) {
-    const key = compound.toLowerCase();
-    const analyteId = analyteIdByCompoundLower.get(key);
+  for (const [key, compound] of units) {
+    const analyteId = analyteIdByKey.get(key);
     if (!analyteId) { byCompoundLower.set(key, { reason: "no_analyte_link", message: `"${compound}" isn't linked to a Sample Prep analyte (Admin → Compounds).` }); continue; }
     const revisionId = revisionByAnalyte.get(analyteId);
     if (!revisionId) {
@@ -388,7 +416,7 @@ async function loadUnlinkedSampleRows(supabase: SB, runListId: string): Promise<
   const unlinked = rows.filter(r => r.sample_id && !r.sp_preparation_record_id);
   const sampleIds = Array.from(new Set(unlinked.map(r => r.sample_id))) as string[];
   const { data: sampleRows } = sampleIds.length
-    ? await supabase.from("samples").select("id, batch_id, compound, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent").in("id", sampleIds)
+    ? await supabase.from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent").in("id", sampleIds)
     : { data: [] };
   const samples = new Map(((sampleRows ?? []) as SampleCtx[]).map(s => [s.id, s] as const));
   return {
@@ -414,12 +442,12 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
     for (const item of items) {
       const sample = samples.get(item.sample_id);
       if (!sample) continue;
-      const compound = (sample.compound ?? "").trim();
-      if (!compound) {
+      const resolutionKey = resolutionKeyFor(sample);
+      if (!resolutionKey) {
         needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "no_compound", message: "Sample has no compound recorded." });
         continue;
       }
-      const resolved = byCompoundLower.get(compound.toLowerCase());
+      const resolved = byCompoundLower.get(resolutionKey);
       if (!resolved || "reason" in resolved) {
         needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_analyte_link", message: resolved?.message ?? "Could not resolve method." });
         continue;
@@ -464,18 +492,18 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
     if (!item.sample_id) throw new Error("Row has no sample.");
 
     const { data: sampleRow, error: sErr } = await context.supabase
-      .from("samples").select("id, batch_id, compound, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent")
+      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent")
       .eq("id", item.sample_id).single();
     if (sErr) throw sErr;
     const sample = sampleRow as SampleCtx;
-    const compound = (sample.compound ?? "").trim();
-    if (!compound) throw new Error("Sample has no compound recorded.");
+    const resolutionKey = resolutionKeyFor(sample);
+    if (!resolutionKey) throw new Error("Sample has no compound recorded.");
 
     const [{ byCompoundLower }, assets] = await Promise.all([
       resolveRevisionContexts(context.supabase, [sample]),
       loadLabAssets(context.supabase),
     ]);
-    const resolved = byCompoundLower.get(compound.toLowerCase());
+    const resolved = byCompoundLower.get(resolutionKey);
     if (!resolved || "reason" in resolved) throw new Error(resolved?.message ?? "Could not resolve method.");
 
     const built = buildPlanInput(sample, resolved, data.overrides, assets);

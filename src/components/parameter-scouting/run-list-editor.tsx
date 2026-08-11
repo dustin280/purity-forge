@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
-import { CompoundPicker, type CompoundOption } from "./compound-picker";
+import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
 import type { RunListItem } from "@/lib/parameter-scouting.functions";
 
 interface RunListEditorProps {
@@ -52,8 +52,8 @@ export function RunListEditor({
             <div className="grid grid-cols-[1fr_180px_auto] gap-2 items-center">
               <CompoundPicker
                 options={options}
-                value={{ parameter_id: r.parameter_id, name: r.name }}
-                onChange={(v) => update(i, v)}
+                value={{ compound_id: r.parameter_id, name: r.name }}
+                onChange={(v) => update(i, { parameter_id: v.compound_id, name: v.name })}
                 onCreateCompound={onCreateCompound}
                 disabled={disabled}
               />

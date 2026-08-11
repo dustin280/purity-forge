@@ -26,6 +26,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
   const f = useCocForm({ open, recordId, resumeDraftId, onOpenChange, initialFile: initialFile ?? null });
   const {
     activeFields, activeParams, attachments,
+    compoundOptions, createCompoundOption,
     values, setValuesDirty,
     lineItems, setLineItemsDirty,
     pendingFiles, setPendingFiles, setIsDirty,
@@ -155,6 +156,8 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
             lineItems={lineItems}
             setLineItemsDirty={setLineItemsDirty}
             activeParams={activeParams}
+            compoundOptions={compoundOptions}
+            onCreateCompound={createCompoundOption}
             pendingByLine={pendingByLine}
             setPendingByLine={setPendingByLine}
             setIsDirty={setIsDirty}

@@ -33,7 +33,7 @@ export type CocLineItemView = {
 };
 
 export type LineItem = {
-  compound: string; lot: string; catalog: string; manufacturer: string;
+  compound: string; compound_id: string | null; lot: string; catalog: string; manufacturer: string;
   quantity: string; quantity_unit: string;
   container_size: string; concentration: string;
   vial_count: number; temperature_c: string;
@@ -43,7 +43,7 @@ export type LineItem = {
 };
 
 export const emptyLine = (): LineItem => ({
-  compound: "", lot: "", catalog: "", manufacturer: "",
+  compound: "", compound_id: null, lot: "", catalog: "", manufacturer: "",
   quantity: "", quantity_unit: "",
   container_size: "", concentration: "",
   vial_count: 1, temperature_c: "",

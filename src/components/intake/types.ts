@@ -9,6 +9,7 @@ export type IntakeSample = {
   client_id: string | null;
   project: string | null;
   compound: string | null;
+  compound_id: string | null;
   lot: string | null;
   parameters: string[];
   notes: string | null;

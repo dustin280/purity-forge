@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { GradientEditor } from "./gradient-editor";
 import { RunListEditor } from "./run-list-editor";
 import { ScoutingAttachmentPanel } from "./attachment-panel";
-import type { CompoundOption } from "./compound-picker";
+import type { CompoundOption } from "@/components/compounds/compound-picker";
 import type {
   GradientStep,
   ParameterScoutingRow,

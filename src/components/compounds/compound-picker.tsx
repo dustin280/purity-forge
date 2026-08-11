@@ -23,8 +23,8 @@ export interface CompoundOption {
 
 interface CompoundPickerProps {
   options: CompoundOption[];
-  value: { parameter_id: string | null; name: string };
-  onChange: (next: { parameter_id: string | null; name: string }) => void;
+  value: { compound_id: string | null; name: string };
+  onChange: (next: { compound_id: string | null; name: string }) => void;
   onCreateCompound?: (name: string) => Promise<CompoundOption>;
   disabled?: boolean;
 }
@@ -50,7 +50,7 @@ export function CompoundPicker({
     try {
       setCreating(true);
       const created = await onCreateCompound(trimmed);
-      onChange({ parameter_id: created.id, name: created.name });
+      onChange({ compound_id: created.id, name: created.name });
       setSearch("");
       setOpen(false);
     } catch {
@@ -113,14 +113,14 @@ export function CompoundPicker({
                   key={o.id}
                   value={o.name}
                   onSelect={() => {
-                    onChange({ parameter_id: o.id, name: o.name });
+                    onChange({ compound_id: o.id, name: o.name });
                     setOpen(false);
                   }}
                 >
                   <Check
                     className={cn(
                       "mr-2 size-4",
-                      value.parameter_id === o.id
+                      value.compound_id === o.id
                         ? "opacity-100"
                         : "opacity-0",
                     )}
