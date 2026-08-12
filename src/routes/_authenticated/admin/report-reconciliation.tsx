@@ -16,7 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, RefreshCw, FileQuestion, FileWarning, CircleHelp, FileX, FileStack, AlertTriangle } from "lucide-react";
+import { ArrowLeft, RefreshCw, FileQuestion, FileWarning, CircleHelp, FileX, FileStack, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { qk } from "@/lib/query-keys";
@@ -27,7 +27,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin/report-reconciliation")({ component: ReportReconciliationAdmin });
 
-type Category = "batch_id" | "lot_code" | "ambiguous" | "not_run" | "no_coc" | "orphan_files";
+type Category = "batch_id" | "lot_code" | "ambiguous" | "not_run" | "no_coc" | "already_resolved" | "orphan_files";
 
 const CATEGORY_LABEL: Record<Category, string> = {
   batch_id: "Auto-applied (batch_id)",
@@ -35,6 +35,7 @@ const CATEGORY_LABEL: Record<Category, string> = {
   ambiguous: "Ambiguous",
   not_run: "Not yet run",
   no_coc: "No COC (walk-ins)",
+  already_resolved: "Already resolved (extra copies)",
   orphan_files: "Orphan files",
 };
 
@@ -87,6 +88,7 @@ function ReportReconciliationAdmin() {
   const notRunRows = byTier("not_run");
   const noCocFiles = data?.no_coc_files ?? [];
   const orphanFiles = data?.orphan_files ?? [];
+  const alreadyResolvedFiles = data?.already_resolved_files ?? [];
 
   const counts: Record<Category, number> = {
     batch_id: batchIdRows.length,
@@ -94,6 +96,7 @@ function ReportReconciliationAdmin() {
     ambiguous: ambiguousRows.length,
     not_run: notRunRows.length,
     no_coc: noCocFiles.length,
+    already_resolved: alreadyResolvedFiles.length,
     orphan_files: orphanFiles.length,
   };
 
@@ -152,6 +155,8 @@ function ReportReconciliationAdmin() {
               active={activeCategory === "not_run"} onClick={() => toggleCategory("not_run")} />
             <StatCard icon={FileX} label={CATEGORY_LABEL.no_coc} value={counts.no_coc} tone="neutral"
               active={activeCategory === "no_coc"} onClick={() => toggleCategory("no_coc")} />
+            <StatCard icon={CheckCircle2} label={CATEGORY_LABEL.already_resolved} value={counts.already_resolved} tone="good"
+              active={activeCategory === "already_resolved"} onClick={() => toggleCategory("already_resolved")} />
             <StatCard icon={FileWarning} label={CATEGORY_LABEL.orphan_files} value={counts.orphan_files} tone="neutral"
               active={activeCategory === "orphan_files"} onClick={() => toggleCategory("orphan_files")} />
           </div>
@@ -175,6 +180,38 @@ function ReportReconciliationAdmin() {
                   )}
                 </tbody>
               </table>
+            </Card>
+          )}
+
+          {activeCategory === "already_resolved" && (
+            <Card className="border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="text-left px-3 py-2">Batch ID</th>
+                    <th className="text-left px-3 py-2">File</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {alreadyResolvedFiles.map((f) => (
+                    <tr key={f.id}>
+                      <td className="px-3 py-2 font-mono text-xs">
+                        <Link to="/samples/$batchId" params={{ batchId: f.batch_id }} className="text-primary hover:underline">
+                          {f.batch_id}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground truncate">{f.name}</td>
+                    </tr>
+                  ))}
+                  {alreadyResolvedFiles.length === 0 && (
+                    <tr><td colSpan={2} className="px-3 py-4 text-center text-muted-foreground">Nothing here.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              <p className="text-xs text-muted-foreground px-3 py-2 border-t border-border">
+                These files match a known sample that already has a saved result — reruns, do-overs, or the sample's own
+                already-applied file. Nothing to do here; shown for reference.
+              </p>
             </Card>
           )}
 

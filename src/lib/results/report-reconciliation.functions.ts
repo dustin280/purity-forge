@@ -219,17 +219,36 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
   return results;
 }
 
+// "Orphan" should mean "we have no idea what sample this belongs to" —
+// but computeMatches only ever looks at eligible (no-result-yet) samples,
+// so once a sample gets a result (from this feature or otherwise), every
+// OTHER report file for it — including its own already-applied file, and
+// legitimate rerun/"anomalous" do-overs — falls out of consideration and
+// used to land in orphan_files despite matching a perfectly well-known
+// sample. Confirmed live: the majority of a 116-file "orphan" count had
+// clean batch_ids for already-resulted samples. This re-checks each
+// leftover file against the FULL sample list (not just eligible ones)
+// purely to explain it — it never changes what gets auto-applied.
+function explainOrphan(file: FileEntry, allSamples: SampleEntry[]): string | null {
+  const batchMatch = allSamples.find((s) => batchIdMatches(file.name, s.batch_id));
+  if (batchMatch) return batchMatch.batch_id;
+  const lotMatch = allSamples.find((s) => s.lot && file.name.includes(s.lot));
+  return lotMatch ? lotMatch.batch_id : null;
+}
+
 export async function runReconciliation({ supabase, autoApply }: {
   supabase: SupabaseClientLike; autoApply: boolean;
 }): Promise<{
   applied: number; samples: ReconciliationSample[];
   no_coc_files: Array<{ id: string; name: string }>; orphan_files: Array<{ id: string; name: string }>;
+  already_resolved_files: Array<{ id: string; name: string; batch_id: string }>;
   failed: Array<{ batch_id: string; file_name: string; error: string }>;
 }> {
-  const { data: allSamples, error: sErr } = await supabase
+  const { data: allSamplesRaw, error: sErr } = await supabase
     .from("samples").select("id,batch_id,compound,lot,status").neq("status", "cancelled");
   if (sErr) throw sErr;
-  if (!allSamples || allSamples.length === 0) return { applied: 0, samples: [], no_coc_files: [], orphan_files: [], failed: [] };
+  if (!allSamplesRaw || allSamplesRaw.length === 0) return { applied: 0, samples: [], no_coc_files: [], orphan_files: [], already_resolved_files: [], failed: [] };
+  const allSamples = allSamplesRaw as SampleEntry[];
 
   const sampleIds = allSamples.map((s) => s.id as string);
   const { data: testRows, error: tErr } = await supabase.from("tests").select("id,sample_id").in("sample_id", sampleIds);
@@ -252,7 +271,18 @@ export async function runReconciliation({ supabase, autoApply }: {
 
   const folderId = await loadReportsFolderId(supabase);
   const files = await driveList(folderId);
-  const { samples: matched, noCocFiles, orphanFiles } = computeMatches(eligible, files);
+  const { samples: matched, noCocFiles, orphanFiles: unexplainedFiles } = computeMatches(eligible, files);
+
+  // Split "no eligible sample claimed this file" into true orphans (no
+  // sample anywhere matches it) vs. files for a real, known sample that
+  // simply already has a result — see explainOrphan above.
+  const orphanFiles: FileEntry[] = [];
+  const alreadyResolvedFiles: Array<{ id: string; name: string; batch_id: string }> = [];
+  for (const f of unexplainedFiles) {
+    const batchId = explainOrphan(f, allSamples);
+    if (batchId) alreadyResolvedFiles.push({ id: f.id, name: f.name, batch_id: batchId });
+    else orphanFiles.push(f);
+  }
 
   let applied = 0;
   const failed: Array<{ batch_id: string; file_name: string; error: string }> = [];
@@ -297,6 +327,7 @@ export async function runReconciliation({ supabase, autoApply }: {
     samples: matched,
     no_coc_files: noCocFiles.map((f) => ({ id: f.id, name: f.name })),
     orphan_files: orphanFiles.map((f) => ({ id: f.id, name: f.name })),
+    already_resolved_files: alreadyResolvedFiles,
     failed,
   };
 }
