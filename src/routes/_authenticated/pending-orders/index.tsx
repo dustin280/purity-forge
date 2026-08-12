@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson } from "lucide-react";
+import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil } from "lucide-react";
 import {
   listPendingOrders, getPendingOrder, cancelPendingOrder,
 } from "@/lib/pending-orders.functions";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
+import { EditPendingOrderDialog } from "@/components/pending-orders/edit-order-dialog";
 import { saveCocDraft, newDraftId } from "@/lib/coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
@@ -59,6 +60,7 @@ function PendingOrdersPage() {
 
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [payloadId, setPayloadId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [cocOpen, setCocOpen] = useState(false);
   const [resumeDraftId, setResumeDraftId] = useState<string | null>(null);
 
@@ -68,6 +70,7 @@ function PendingOrdersPage() {
   });
 
   const canCancel = role === "admin" || role === "reviewer";
+  const canEdit = role === "admin" || role === "reviewer" || role === "tech";
 
   async function handleReceive(order: PendingOrder) {
     try {
@@ -190,6 +193,11 @@ function PendingOrdersPage() {
                       <CheckCircle2 className="size-3.5 mr-1" /> Receive
                     </Button>
                   )}
+                  {o.status === "pending" && canEdit && (
+                    <Button size="sm" variant="outline" onClick={() => setEditId(o.id)}>
+                      <Pencil className="size-3.5 mr-1" /> Edit
+                    </Button>
+                  )}
                   {o.status === "received" && o.linked_coc_id && (
                     <Badge variant="outline" className="text-xs">
                       <ExternalLink className="size-3 mr-1" /> Linked
@@ -210,6 +218,11 @@ function PendingOrdersPage() {
       <PayloadDialog
         id={payloadId}
         onOpenChange={(v) => { if (!v) setPayloadId(null); }}
+      />
+
+      <EditPendingOrderDialog
+        orderId={editId}
+        onOpenChange={(v) => { if (!v) setEditId(null); }}
       />
 
       <CocFormDialog
