@@ -154,9 +154,12 @@ async function applyOneMatch(
     // Record the failure so this exact file is never retried — without
     // this, an unparseable report gets downloaded + parsed again every
     // hour forever, run away Drive/compute usage on a file that will
-    // never succeed on its own.
-    await supabase.from("report_reconciliation_failures")
+    // never succeed on its own. Supabase JS doesn't throw on an RLS/grant
+    // denial (it resolves with {error}), so this write silently no-op'd
+    // for months if it isn't checked — log if it does.
+    const { error: recordErr } = await supabase.from("report_reconciliation_failures")
       .upsert({ sample_id: sample.id, file_id: file.id, file_name: file.name, error: message }, { onConflict: "sample_id,file_id" });
+    if (recordErr) console.error("report reconciliation: failed to record failure (retry cap won't apply)", sample.batch_id, recordErr.message);
     throw err;
   }
   const { peaks, purity } = compoundsToPeaks(parsed.compounds);
