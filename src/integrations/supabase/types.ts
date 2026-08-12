@@ -2124,6 +2124,7 @@ export type Database = {
           analysis_date: string
           analyst_id: string | null
           approved_at: string | null
+          chromatogram_image: string | null
           created_at: string
           id: string
           peak_details: Json | null
@@ -2138,6 +2139,7 @@ export type Database = {
           analysis_date?: string
           analyst_id?: string | null
           approved_at?: string | null
+          chromatogram_image?: string | null
           created_at?: string
           id?: string
           peak_details?: Json | null
@@ -2152,6 +2154,7 @@ export type Database = {
           analysis_date?: string
           analyst_id?: string | null
           approved_at?: string | null
+          chromatogram_image?: string | null
           created_at?: string
           id?: string
           peak_details?: Json | null
