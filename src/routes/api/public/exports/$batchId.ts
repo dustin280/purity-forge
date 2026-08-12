@@ -63,6 +63,7 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
               analyst_id: r.analyst_id,
               reviewer_id: r.reviewer_id,
               approved_at: r.approved_at,
+              chromatogram_image: r.chromatogram_image,
             })),
           })),
           extras,

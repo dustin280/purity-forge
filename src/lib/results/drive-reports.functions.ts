@@ -111,6 +111,39 @@ export async function driveDownload(fileId: string): Promise<ArrayBuffer> {
   return await r.arrayBuffer();
 }
 
+// The chromatogram picture embedded in a report xlsx by OpenLab/Excel's
+// default clipboard paste is a Windows EMF metafile, not a PNG — nothing
+// server-side can rasterize that (this app runs on Cloudflare Workers, no
+// native image tools available). A small Windows agent on the lab PC that
+// produces the xlsx watches for new reports, converts the embedded EMF to
+// PNG with .NET's own GDI+ (System.Drawing.Imaging.Metafile — the same
+// renderer Windows already uses to display it correctly), and writes it
+// as a sibling "<report>.chromatogram.png" next to the report in the same
+// Drive folder rather than rewriting the xlsx's internal zip structure.
+// This looks that sibling up and inlines it as a data URI for the partner
+// COA payload — best-effort, since a missing/failed conversion should
+// never block parsing or saving the report's actual results.
+function chromatogramSiblingName(reportFileName: string): string {
+  return reportFileName.replace(/\.[^.]+$/, "") + ".chromatogram.png";
+}
+
+export async function findChromatogramImage(folderId: string, reportFileName: string): Promise<string | null> {
+  try {
+    const siblingName = chromatogramSiblingName(reportFileName).replace(/'/g, "\\'");
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and name = '${siblingName}'`);
+    const fields = encodeURIComponent("files(id,name)");
+    const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=1`, { headers: gatewayHeaders() });
+    if (!r.ok) return null;
+    const json = (await r.json()) as { files?: Array<{ id: string; name: string }> };
+    const file = json.files?.[0];
+    if (!file) return null;
+    const bytes = await driveDownload(file.id);
+    return `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function loadReportsFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string> {
   const { data } = await supabase.from("sp_settings").select("drive_lm_reports_complete_folder_id").eq("id", true).maybeSingle();
   const folderId = data?.drive_lm_reports_complete_folder_id;
@@ -144,6 +177,7 @@ export type ParsedReport = {
   total_peptide_contents_mg: number | null;
   compounds: ParsedReportCompound[];
   raw_text: string;
+  chromatogram_image: string | null;
 };
 
 function numField(s: string): number | null {
@@ -203,7 +237,7 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
  *   "Compound:SS-31 (DAD1A)"
  *   "Exp. RT:5.208"
  */
-function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> | null {
+function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> | null {
   if (!/Single Injection Report/.test(text)) return null;
   const sampleIdMatch = text.match(/Sample name:\s*([A-Za-z0-9-]+)/);
   const purityMatch = text.match(/Purity\s*([<>]?\d+\.\d{2})%/);
@@ -231,7 +265,7 @@ function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" 
   };
 }
 
-export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
+export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
   const sampleIdMatch = text.match(/Sample ID:\s*([^\n]+?)(?:Analyte:|Product:|\n)/);
   const analysisDateMatch = text.match(/Analysis date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*?)(?:Report|\n)/);
   const totalMatch = text.match(/Total Peptide Contents:\s*([\d.]+)\s*mg/i);
@@ -323,7 +357,7 @@ function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
   return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
 }
 
-function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
+function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
   const header = findXlsxHeaderRow(rows);
   const compounds: ParsedReportCompound[] = [];
   if (header) {
@@ -352,7 +386,7 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
   };
 }
 
-export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
+export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
   return parseXlsxRows(xlsxRowsFromBuffer(buffer));
 }
 
@@ -366,7 +400,7 @@ function isXlsxFile(fileName: string): boolean {
  * pipeline (compoundsToPeaks, result insertion) never needs to know which
  * format a given report came in as.
  */
-export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> & { raw_text: string }> {
+export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> & { raw_text: string }> {
   if (isXlsxFile(fileName)) {
     const rows = xlsxRowsFromBuffer(Buffer.from(bytes));
     return { ...parseXlsxRows(rows), raw_text: JSON.stringify(rows) };
@@ -393,7 +427,7 @@ export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Pe
 export const parseReportFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ file_id: z.string().min(1), file_name: z.string().min(1) }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ context, data }) => {
     const bytes = await driveDownload(data.file_id);
     const { raw_text: text, ...parsed } = await parseReportBuffer(bytes, data.file_name);
     // Normalize the report's "Analysis date:" text into a real timestamp
@@ -405,5 +439,10 @@ export const parseReportFile = createServerFn({ method: "POST" })
       const d = new Date(parsed.analysis_date);
       return isNaN(d.getTime()) ? null : d.toISOString();
     })();
-    return { file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed, analysis_date: analysisDate };
+    const folderId = await loadReportsFolderId(context.supabase);
+    const chromatogramImage = await findChromatogramImage(folderId, data.file_name);
+    return {
+      file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed,
+      analysis_date: analysisDate, chromatogram_image: chromatogramImage,
+    };
   });

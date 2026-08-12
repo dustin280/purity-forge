@@ -25,7 +25,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   driveList, driveDownload, loadReportsFolderId,
-  parseReportBuffer, compoundsToPeaks,
+  parseReportBuffer, compoundsToPeaks, findChromatogramImage,
 } from "./drive-reports.functions";
 
 type SupabaseClientLike = import("@supabase/supabase-js").SupabaseClient;
@@ -136,6 +136,7 @@ async function applyOneMatch(
   supabase: SupabaseClientLike,
   sample: { id: string; batch_id: string; status?: string },
   file: { id: string; name: string },
+  folderId: string,
 ): Promise<void> {
   const { data: tests, error: testErr } = await supabase.from("tests").select("id").eq("sample_id", sample.id).limit(1);
   if (testErr) throw testErr;
@@ -164,6 +165,7 @@ async function applyOneMatch(
     const d = new Date(parsed.analysis_date);
     return isNaN(d.getTime()) ? undefined : d.toISOString();
   })();
+  const chromatogramImage = await findChromatogramImage(folderId, file.name);
 
   const { error: insErr } = await supabase.from("results").insert({
     test_id: testId,
@@ -172,6 +174,7 @@ async function applyOneMatch(
     raw_data_file_path: `https://drive.google.com/file/d/${file.id}/view`,
     analysis_date: analysisDate,
     analyst_id: null,
+    chromatogram_image: chromatogramImage,
   });
   if (insErr) throw insErr;
 
@@ -262,7 +265,7 @@ export async function runReconciliation({ supabase, autoApply }: {
 
     const eligibleById = new Map(eligible.map((s) => [s.id, s]));
     const outcomes = await mapWithConcurrency(toApply, 5, (m) =>
-      applyOneMatch(supabase, { id: m.id, batch_id: m.batch_id, status: eligibleById.get(m.id)?.status }, m.file as MatchedFile)
+      applyOneMatch(supabase, { id: m.id, batch_id: m.batch_id, status: eligibleById.get(m.id)?.status }, m.file as MatchedFile, folderId)
     );
     outcomes.forEach((o, i) => {
       if (o.status === "fulfilled") {
@@ -308,6 +311,7 @@ export const applyMatchedReport = createServerFn({ method: "POST" })
       .from("samples").select("id,batch_id,status").eq("id", data.sample_id).maybeSingle();
     if (error) throw error;
     if (!sample) throw new Error("Sample not found");
-    await applyOneMatch(context.supabase, sample, { id: data.file_id, name: data.file_name });
+    const folderId = await loadReportsFolderId(context.supabase);
+    await applyOneMatch(context.supabase, sample, { id: data.file_id, name: data.file_name }, folderId);
     return { ok: true };
   });

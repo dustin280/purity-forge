@@ -41,20 +41,24 @@ export function useSampleDetail(batchId: string) {
 
   async function submitResult(args: {
     testId: string | undefined; sampleId: string; pasted: string;
-    imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null } | null;
+    imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null; chromatogram_image: string | null } | null;
     onCleared: () => void;
   }) {
     if (!args.testId) return toast.error("No test assigned");
-    const { peaks, purity, raw_data_file_path, analysis_date } = args.imported
+    const { peaks, purity, raw_data_file_path, analysis_date, chromatogram_image } = args.imported
       ? {
           peaks: args.imported.peaks, purity: args.imported.purity,
           raw_data_file_path: args.imported.raw_data_file_path, analysis_date: args.imported.analysis_date,
+          chromatogram_image: args.imported.chromatogram_image,
         }
-      : { ...parsePeaks(args.pasted), raw_data_file_path: null as string | null, analysis_date: null as string | null };
+      : {
+          ...parsePeaks(args.pasted), raw_data_file_path: null as string | null, analysis_date: null as string | null,
+          chromatogram_image: null as string | null,
+        };
     if (peaks.length === 0) return toast.error("Paste at least one peak (rt area area_pct), or import a report");
     setBusy(true);
     try {
-      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path, analysis_date } });
+      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path, analysis_date, chromatogram_image } });
       await setStatusFn({ data: { sampleId: args.sampleId, status: "in_progress" } });
       toast.success(`Result saved — ${purity.toFixed(2)}% purity`);
       signalWorkflowEvent("result-submitted");

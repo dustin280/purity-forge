@@ -36,7 +36,7 @@ export function ResultsTab({
   peaks: Peak[];
   pasted: string;
   setPasted: (v: string) => void;
-  onSubmit: (imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null }) => void;
+  onSubmit: (imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null; chromatogram_image: string | null }) => void;
   busy: boolean;
   spec: SpecRange;
   currentUserId: string | null;
@@ -61,6 +61,7 @@ export function ResultsTab({
       onSubmit({
         peaks: imported.peaks, purity: imported.purity,
         raw_data_file_path: imported.raw_data_file_path, analysis_date: imported.analysis_date,
+        chromatogram_image: imported.chromatogram_image,
       });
     } else {
       onSubmit();

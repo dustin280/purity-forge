@@ -194,6 +194,10 @@ export const saveResult = createServerFn({ method: "POST" })
       // date:" — omitted (not null) for manual paste so the results table's
       // own default (save time) applies, same as before this field existed.
       analysis_date: z.string().optional().nullable(),
+      // data: URI sourced from the report's sibling "<report>.chromatogram.png"
+      // in Drive (see findChromatogramImage) — null for manual paste or when
+      // no converted chromatogram exists yet.
+      chromatogram_image: z.string().max(2_000_000).optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -205,6 +209,7 @@ export const saveResult = createServerFn({ method: "POST" })
       raw_data_file_path: data.raw_data_file_path ?? null,
       analyst_id: userId,
       analysis_date: data.analysis_date ?? undefined,
+      chromatogram_image: data.chromatogram_image ?? null,
     }).select().single();
     if (error) throw error;
     return res;

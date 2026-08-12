@@ -23,6 +23,7 @@ export type ImportedResult = {
   file_name: string;
   sample_id_in_report: string | null;
   analysis_date: string | null;
+  chromatogram_image: string | null;
 };
 
 export function DriveReportPickerDialog({
@@ -72,7 +73,7 @@ export function DriveReportPickerDialog({
       peaks, purity,
       raw_data_file_path: `https://drive.google.com/file/d/${parsed.file_id}/view`,
       file_name: parsed.file_name, sample_id_in_report: parsed.sample_id_in_report,
-      analysis_date: parsed.analysis_date,
+      analysis_date: parsed.analysis_date, chromatogram_image: parsed.chromatogram_image,
     });
     onOpenChange(false);
     reset();
