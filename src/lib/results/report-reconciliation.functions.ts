@@ -142,9 +142,22 @@ async function applyOneMatch(
   const testId = tests?.[0]?.id as string | undefined;
   if (!testId) throw new Error(`No test row for sample ${sample.batch_id}`);
 
-  const bytes = await driveDownload(file.id);
-  const parsed = await parseReportBuffer(bytes, file.name);
-  if (parsed.compounds.length === 0) throw new Error(`No compound rows parsed from ${file.name}`);
+  let bytes: ArrayBuffer;
+  let parsed: Awaited<ReturnType<typeof parseReportBuffer>>;
+  try {
+    bytes = await driveDownload(file.id);
+    parsed = await parseReportBuffer(bytes, file.name);
+    if (parsed.compounds.length === 0) throw new Error(`No compound rows parsed from ${file.name}`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // Record the failure so this exact file is never retried — without
+    // this, an unparseable report gets downloaded + parsed again every
+    // hour forever, run away Drive/compute usage on a file that will
+    // never succeed on its own.
+    await supabase.from("report_reconciliation_failures")
+      .upsert({ sample_id: sample.id, file_id: file.id, file_name: file.name, error: message }, { onConflict: "sample_id,file_id" });
+    throw err;
+  }
   const { peaks, purity } = compoundsToPeaks(parsed.compounds);
   const analysisDate = (() => {
     if (!parsed.analysis_date) return undefined;
@@ -228,7 +241,25 @@ export async function runReconciliation({ supabase, autoApply }: {
   let applied = 0;
   const failed: Array<{ batch_id: string; file_name: string; error: string }> = [];
   if (autoApply) {
-    const toApply = matched.filter((m) => m.tier === "batch_id" && m.file);
+    const candidates = matched.filter((m) => m.tier === "batch_id" && m.file);
+
+    // Skip any (sample, file) pair that already failed once — capped at
+    // one parse attempt per file, see applyOneMatch.
+    const { data: priorFailures } = candidates.length
+      ? await supabase.from("report_reconciliation_failures")
+          .select("sample_id,file_id,file_name,error")
+          .in("sample_id", candidates.map((m) => m.id))
+      : { data: [] as Array<{ sample_id: string; file_id: string; file_name: string; error: string }> };
+    const failedKeys = new Set((priorFailures ?? []).map((f) => `${f.sample_id}:${f.file_id}`));
+    const failureByKey = new Map((priorFailures ?? []).map((f) => [`${f.sample_id}:${f.file_id}`, f]));
+
+    const toApply = candidates.filter((m) => !failedKeys.has(`${m.id}:${(m.file as MatchedFile).id}`));
+    for (const m of candidates) {
+      const key = `${m.id}:${(m.file as MatchedFile).id}`;
+      const prior = failureByKey.get(key);
+      if (prior) failed.push({ batch_id: m.batch_id, file_name: prior.file_name, error: `${prior.error} (not retried — already attempted once)` });
+    }
+
     const eligibleById = new Map(eligible.map((s) => [s.id, s]));
     const outcomes = await mapWithConcurrency(toApply, 5, (m) =>
       applyOneMatch(supabase, { id: m.id, batch_id: m.batch_id, status: eligibleById.get(m.id)?.status }, m.file as MatchedFile)

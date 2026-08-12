@@ -2081,6 +2081,41 @@ export type Database = {
         }
         Relationships: []
       }
+      report_reconciliation_failures: {
+        Row: {
+          created_at: string
+          error: string
+          file_id: string
+          file_name: string
+          id: string
+          sample_id: string
+        }
+        Insert: {
+          created_at?: string
+          error: string
+          file_id: string
+          file_name: string
+          id?: string
+          sample_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string
+          file_id?: string
+          file_name?: string
+          id?: string
+          sample_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_reconciliation_failures_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       results: {
         Row: {
           analysis_date: string
