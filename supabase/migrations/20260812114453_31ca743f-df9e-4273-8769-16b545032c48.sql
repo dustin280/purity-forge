@@ -1,0 +1,1 @@
+ALTER TABLE public.results ADD COLUMN IF NOT EXISTS chromatogram_image TEXT;
