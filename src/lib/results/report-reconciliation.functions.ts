@@ -82,11 +82,21 @@ function computeMatches(samples: SampleEntry[], files: FileEntry[]): {
   }
 
   // Tier 2: lot code fallback for everything batch_id couldn't resolve.
+  // Real bug found in production: one sample's lot code can be a literal
+  // substring of another's (e.g. "APKA-SS31-50-070726" inside
+  // "APKA-SS31-50-070726-02"), so a file already consumed by a Tier 1
+  // batch_id match for sample A would ALSO lot-match sample B here if the
+  // candidate pool weren't narrowed first — and since a lot_code match
+  // only conflicts-checks against OTHER lot_code matches (not against
+  // already-used files), sample B silently got offered A's file as a
+  // "suggestion," and applying it overwrote B with A's actual lab result.
+  // Excluding already-used files from the pool closes this off entirely.
   const remaining = samples.filter((s) => !matchedByBatchId.has(s.id));
+  const unusedCandidateFiles = candidateFiles.filter((f) => !usedFileIds.has(f.id));
   const lotMatchesBySample = new Map<string, FileEntry[]>();
   for (const s of remaining) {
     if (!s.lot) continue;
-    const matches = candidateFiles.filter((f) => f.name.includes(s.lot as string));
+    const matches = unusedCandidateFiles.filter((f) => f.name.includes(s.lot as string));
     if (matches.length > 0) lotMatchesBySample.set(s.id, matches);
   }
   // Detect the real collision risk: the same file lot-matching more than
