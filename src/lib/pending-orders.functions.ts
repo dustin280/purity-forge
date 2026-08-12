@@ -57,15 +57,6 @@ export const cancelPendingOrder = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const sampleLineSchema = z.object({
-  id: z.string().uuid().optional().nullable(),
-  product_name: z.string().min(1).max(255),
-  quantity: z.number().int().min(1).max(9999),
-  lot_batch: z.string().max(128).optional().nullable(),
-  external_sample_id: z.string().max(128).optional().nullable(),
-  notes: z.string().max(2000).optional().nullable(),
-});
-
 /**
  * Edit a pending order (header fields + sample lines) before it is received.
  * Tech / reviewer / admin may edit; the original webhook `raw_payload` is left
@@ -85,7 +76,14 @@ export const updatePendingOrder = createServerFn({ method: "POST" })
       order_date: z.string().nullable().optional(),
       expected_arrival: z.string().nullable().optional(),
       special_instructions: z.string().max(4000).nullable().optional(),
-      samples: z.array(sampleLineSchema).max(500),
+      samples: z.array(z.object({
+        id: z.string().uuid().optional().nullable(),
+        product_name: z.string().min(1).max(255),
+        quantity: z.number().int().min(1).max(9999),
+        lot_batch: z.string().max(128).optional().nullable(),
+        external_sample_id: z.string().max(128).optional().nullable(),
+        notes: z.string().max(2000).optional().nullable(),
+      })).max(500),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
