@@ -2089,6 +2089,7 @@ export type Database = {
           file_name: string
           id: string
           sample_id: string
+          updated_at: string
         }
         Insert: {
           created_at?: string
@@ -2097,6 +2098,7 @@ export type Database = {
           file_name: string
           id?: string
           sample_id: string
+          updated_at?: string
         }
         Update: {
           created_at?: string
@@ -2105,6 +2107,7 @@ export type Database = {
           file_name?: string
           id?: string
           sample_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
