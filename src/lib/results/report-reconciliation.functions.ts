@@ -24,8 +24,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
-  driveList, driveDownload, pdfParse, loadReportsFolderId,
-  parseReportText, compoundsToPeaks,
+  driveList, driveDownload, loadReportsFolderId,
+  parseReportBuffer, compoundsToPeaks,
 } from "./drive-reports.functions";
 
 type SupabaseClientLike = import("@supabase/supabase-js").SupabaseClient;
@@ -143,8 +143,7 @@ async function applyOneMatch(
   if (!testId) throw new Error(`No test row for sample ${sample.batch_id}`);
 
   const bytes = await driveDownload(file.id);
-  const { text } = await pdfParse(Buffer.from(bytes));
-  const parsed = parseReportText(text);
+  const parsed = await parseReportBuffer(bytes, file.name);
   if (parsed.compounds.length === 0) throw new Error(`No compound rows parsed from ${file.name}`);
   const { peaks, purity } = compoundsToPeaks(parsed.compounds);
   const analysisDate = (() => {

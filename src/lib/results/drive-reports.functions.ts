@@ -18,6 +18,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import * as XLSX from "xlsx";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Peak } from "@/lib/lims-utils";
 // pdf-parse's own wrapper (pdf-parse/lib/pdf-parse.js) resolves its PDF.js
@@ -83,8 +84,18 @@ function gatewayHeaders(): Record<string, string> {
 // Exported: shared with report-reconciliation.functions.ts (both the
 // single-file picker and the bulk/automated reconciliation path need the
 // same Drive access + parsing).
+// Reports come in either as PDF (the original OpenLab CDS export) or, once
+// the lab finishes moving report generation to Excel, .xlsx — the query
+// accepts both so the folder can hold a mix during the transition.
+const REPORT_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.ms-excel", // legacy .xls
+];
+
 export async function driveList(folderId: string): Promise<Array<{ id: string; name: string; modifiedTime?: string }>> {
-  const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and mimeType = 'application/pdf'`);
+  const mimeClause = REPORT_MIME_TYPES.map((m) => `mimeType = '${m}'`).join(" or ");
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and (${mimeClause})`);
   const fields = encodeURIComponent("files(id,name,modifiedTime)");
   const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=modifiedTime desc`, {
     headers: gatewayHeaders(),
@@ -244,6 +255,127 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
 }
 
 /**
+ * .xlsx counterpart to parseReportText, for once report generation moves
+ * off PDF. Built without a real sample export to test against yet — it's
+ * deliberately header-driven (scans every row for a header containing
+ * recognizable column names, rather than assuming a fixed row/column
+ * layout) and scans all cells for "Sample ID"/"Analysis date"-style
+ * labels, so it isn't tied to exact positioning. Once real exports exist,
+ * cross-check this against them the same way parseReportText was
+ * validated against real PDFs, and adjust the column aliases below.
+ */
+const XLSX_COLUMN_ALIASES: Record<keyof Pick<ParsedReportCompound, "compound" | "rt" | "area" | "amount_per_vial_mg" | "percent_label_claim" | "purity_pct">, string[]> = {
+  compound: ["compound", "analyte", "identity"],
+  rt: ["rt", "rt [min]", "retention time"],
+  area: ["area"],
+  amount_per_vial_mg: ["amount/vial", "amount/vial [mg]", "amount [mg]", "amount per vial"],
+  percent_label_claim: ["% label claim", "label claim", "%labelclaim"],
+  purity_pct: ["purity %", "purity", "area purity %", "area %"],
+};
+
+const LABEL_ALIASES: Record<"sample_id" | "analysis_date", string[]> = {
+  sample_id: ["sample id", "sample name"],
+  analysis_date: ["analysis date", "injection date"],
+};
+
+function cellText(v: unknown): string {
+  return v == null ? "" : String(v).trim();
+}
+
+function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>> } | null {
+  for (let i = 0; i < rows.length; i++) {
+    const row = (rows[i] ?? []).map((c) => cellText(c).toLowerCase());
+    const colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>> = {};
+    for (const [key, aliases] of Object.entries(XLSX_COLUMN_ALIASES) as [keyof typeof XLSX_COLUMN_ALIASES, string[]][]) {
+      const idx = row.findIndex((cell) => aliases.some((a) => cell === a || cell.startsWith(a)));
+      if (idx !== -1) colMap[key] = idx;
+    }
+    // A real header row needs at minimum a compound name and RT column.
+    if (colMap.compound !== undefined && colMap.rt !== undefined) return { rowIdx: i, colMap };
+  }
+  return null;
+}
+
+function findLabelValue(rows: unknown[][], aliases: string[]): string | null {
+  for (const row of rows) {
+    for (let c = 0; c < row.length; c++) {
+      const cell = cellText(row[c]).toLowerCase().replace(/:$/, "");
+      if (aliases.some((a) => cell === a)) {
+        const next = cellText(row[c + 1]);
+        if (next) return next;
+      }
+    }
+  }
+  return null;
+}
+
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const s = String(v).trim();
+  if (/^N\/A$/i.test(s)) return null;
+  const n = Number(s.replace(/^[<>]/, "").replace(/%$/, ""));
+  return isNaN(n) ? null : n;
+}
+
+function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
+  const wb = XLSX.read(buffer, { type: "buffer" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
+}
+
+function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
+  const header = findXlsxHeaderRow(rows);
+  const compounds: ParsedReportCompound[] = [];
+  if (header) {
+    for (let i = header.rowIdx + 1; i < rows.length; i++) {
+      const row = rows[i] ?? [];
+      const compoundName = cellText(row[header.colMap.compound as number]);
+      if (!compoundName || /not (found|detected)/i.test(compoundName)) continue;
+      const rt = header.colMap.rt !== undefined ? numOrNull(row[header.colMap.rt]) : null;
+      if (rt === null) continue; // no RT means nothing quantitative on this row
+      compounds.push({
+        compound: compoundName,
+        rt,
+        area: header.colMap.area !== undefined ? numOrNull(row[header.colMap.area]) : null,
+        amount_per_vial_mg: header.colMap.amount_per_vial_mg !== undefined ? numOrNull(row[header.colMap.amount_per_vial_mg]) : null,
+        percent_label_claim: header.colMap.percent_label_claim !== undefined ? numOrNull(row[header.colMap.percent_label_claim]) : null,
+        purity_pct: header.colMap.purity_pct !== undefined ? numOrNull(row[header.colMap.purity_pct]) : null,
+      });
+    }
+  }
+
+  return {
+    sample_id_in_report: findLabelValue(rows, LABEL_ALIASES.sample_id),
+    analysis_date: findLabelValue(rows, LABEL_ALIASES.analysis_date),
+    total_peptide_contents_mg: null,
+    compounds,
+  };
+}
+
+export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> {
+  return parseXlsxRows(xlsxRowsFromBuffer(buffer));
+}
+
+function isXlsxFile(fileName: string): boolean {
+  return /\.xlsx?$/i.test(fileName);
+}
+
+/**
+ * Single entry point both the picker dialog and bulk reconciliation call —
+ * picks the PDF or Excel parser by file extension so the rest of the
+ * pipeline (compoundsToPeaks, result insertion) never needs to know which
+ * format a given report came in as.
+ */
+export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text"> & { raw_text: string }> {
+  if (isXlsxFile(fileName)) {
+    const rows = xlsxRowsFromBuffer(Buffer.from(bytes));
+    return { ...parseXlsxRows(rows), raw_text: JSON.stringify(rows) };
+  }
+  const { text } = await pdfParse(Buffer.from(bytes));
+  return { ...parseReportText(text), raw_text: text };
+}
+
+/**
  * Maps a parsed report's compound rows to Peak[] + the sample's overall
  * purity (the peak with the highest area_pct) — shared by the single-file
  * picker dialog and the bulk reconciliation path so both save results the
@@ -263,8 +395,7 @@ export const parseReportFile = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ file_id: z.string().min(1), file_name: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
     const bytes = await driveDownload(data.file_id);
-    const { text } = await pdfParse(Buffer.from(bytes));
-    const parsed = parseReportText(text);
+    const { raw_text: text, ...parsed } = await parseReportBuffer(bytes, data.file_name);
     // Normalize the report's "Analysis date:" text into a real timestamp
     // so it can be saved verbatim — the raw extracted string is usually
     // Postgres-parseable already (e.g. "2026-08-03 21:35:13-07:00") but
