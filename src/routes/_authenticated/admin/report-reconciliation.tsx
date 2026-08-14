@@ -52,6 +52,7 @@ function ReportReconciliationAdmin() {
   });
 
   const [lastFailed, setLastFailed] = useState<Array<{ batch_id: string; file_name: string; error: string }>>([]);
+  const [lastApplied, setLastApplied] = useState<Array<{ batch_id: string; file_name: string; chromatogram: boolean }>>([]);
   const [activeCategory, setActiveCategory] = useState<Category | null>(null);
 
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.reportReconciliation.all });
@@ -60,6 +61,7 @@ function ReportReconciliationAdmin() {
     mutationFn: () => runNowFn(),
     onSuccess: (r) => {
       setLastFailed(r.failed);
+      setLastApplied(r.applied_results);
       if (r.failed.length > 0) {
         toast.error(`Applied ${r.applied}, ${r.failed.length} failed — see details below`);
       } else {
@@ -72,7 +74,10 @@ function ReportReconciliationAdmin() {
 
   const applyMut = useMutation({
     mutationFn: (v: { sample_id: string; file_id: string; file_name: string }) => applyFn({ data: v }),
-    onSuccess: () => { toast.success("Result applied"); invalidate(); },
+    onSuccess: (r) => {
+      toast.success(`Result applied${r.chromatogram ? " — chromatogram captured" : ""}`);
+      invalidate();
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Apply failed"),
   });
 
@@ -134,6 +139,30 @@ function ReportReconciliationAdmin() {
             {lastFailed.map((f, i) => (
               <div key={i} className="text-xs text-muted-foreground">
                 <span className="font-mono text-foreground">{f.batch_id}</span> — {f.error}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {lastApplied.length > 0 && (
+        <Card className="border-border p-4 mb-6">
+          <div className="flex items-center gap-2 text-sm font-medium mb-2">
+            <CheckCircle2 className="size-4 text-emerald-500" />
+            {lastApplied.length} applied on the last run
+          </div>
+          <div className="space-y-1">
+            {lastApplied.map((r, i) => (
+              <div key={i} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="font-mono text-foreground">{r.batch_id}</span>
+                <span className="truncate">— {r.file_name}</span>
+                {r.chromatogram ? (
+                  <span className="ml-auto shrink-0 inline-flex items-center gap-1 text-emerald-500">
+                    <CheckCircle2 className="size-3" /> chromatogram
+                  </span>
+                ) : (
+                  <span className="ml-auto shrink-0 text-muted-foreground/70">no chromatogram</span>
+                )}
               </div>
             ))}
           </div>
