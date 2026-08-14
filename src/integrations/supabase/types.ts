@@ -480,6 +480,7 @@ export type Database = {
       }
       daily_backpressure_logs: {
         Row: {
+          acquisition_method: string | null
           backpressure: number
           backpressure_unit: string
           column_name: string | null
@@ -487,6 +488,8 @@ export type Database = {
           column_temp_unit: string | null
           created_at: string
           created_by: string | null
+          drive_dx_file_id: string | null
+          drive_result_folder_id: string | null
           flow_rate: number | null
           flow_rate_unit: string | null
           id: string
@@ -494,12 +497,16 @@ export type Database = {
           instrument: string
           mobile_phase: string | null
           notes: string | null
+          pressure_run_max: number | null
+          pressure_run_min: number | null
           reading_at: string
+          source: string
           updated_at: string
           user_id: string | null
           user_name: string
         }
         Insert: {
+          acquisition_method?: string | null
           backpressure: number
           backpressure_unit?: string
           column_name?: string | null
@@ -507,6 +514,8 @@ export type Database = {
           column_temp_unit?: string | null
           created_at?: string
           created_by?: string | null
+          drive_dx_file_id?: string | null
+          drive_result_folder_id?: string | null
           flow_rate?: number | null
           flow_rate_unit?: string | null
           id?: string
@@ -514,12 +523,16 @@ export type Database = {
           instrument?: string
           mobile_phase?: string | null
           notes?: string | null
+          pressure_run_max?: number | null
+          pressure_run_min?: number | null
           reading_at?: string
+          source?: string
           updated_at?: string
           user_id?: string | null
           user_name: string
         }
         Update: {
+          acquisition_method?: string | null
           backpressure?: number
           backpressure_unit?: string
           column_name?: string | null
@@ -527,6 +540,8 @@ export type Database = {
           column_temp_unit?: string | null
           created_at?: string
           created_by?: string | null
+          drive_dx_file_id?: string | null
+          drive_result_folder_id?: string | null
           flow_rate?: number | null
           flow_rate_unit?: string | null
           id?: string
@@ -534,7 +549,10 @@ export type Database = {
           instrument?: string
           mobile_phase?: string | null
           notes?: string | null
+          pressure_run_max?: number | null
+          pressure_run_min?: number | null
           reading_at?: string
+          source?: string
           updated_at?: string
           user_id?: string | null
           user_name?: string
@@ -644,33 +662,53 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          installed_at: string | null
+          installed_on_instrument_id: string | null
           is_active: boolean
           name: string
           part_number: string | null
+          rated_max_pressure_bar: number | null
           source_receipt_id: string | null
+          total_injections: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           id?: string
+          installed_at?: string | null
+          installed_on_instrument_id?: string | null
           is_active?: boolean
           name: string
           part_number?: string | null
+          rated_max_pressure_bar?: number | null
           source_receipt_id?: string | null
+          total_injections?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           created_by?: string | null
           id?: string
+          installed_at?: string | null
+          installed_on_instrument_id?: string | null
           is_active?: boolean
           name?: string
           part_number?: string | null
+          rated_max_pressure_bar?: number | null
           source_receipt_id?: string | null
+          total_injections?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hplc_columns_installed_on_instrument_id_fkey"
+            columns: ["installed_on_instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       instrument_bookings: {
         Row: {
@@ -3661,6 +3699,7 @@ export type Database = {
           cron_secret: string
           default_calibration_levels: number
           default_target_level: number
+          drive_hplc_results_folder_id: string | null
           drive_lm_reports_complete_folder_id: string | null
           drive_lm_sample_prep_folder_id: string | null
           id: boolean
@@ -3674,6 +3713,7 @@ export type Database = {
           cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
+          drive_hplc_results_folder_id?: string | null
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
@@ -3687,6 +3727,7 @@ export type Database = {
           cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
+          drive_hplc_results_folder_id?: string | null
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           id?: boolean
@@ -4437,6 +4478,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_hplc_column_injections: {
+        Args: { p_column_id: string; p_count: number }
+        Returns: undefined
+      }
       match_ai_knowledge_chunks: {
         Args: {
           match_count?: number
@@ -4467,6 +4512,7 @@ export type Database = {
         Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
+      trigger_pressure_log_watcher: { Args: never; Returns: undefined }
       trigger_report_reconciliation: { Args: never; Returns: undefined }
     }
     Enums: {
