@@ -147,7 +147,7 @@ async function applyOneMatch(
   sample: { id: string; batch_id: string; status?: string },
   file: { id: string; name: string },
   folderId: string,
-): Promise<void> {
+): Promise<{ hasChromatogram: boolean }> {
   const { data: tests, error: testErr } = await supabase.from("tests").select("id").eq("sample_id", sample.id).limit(1);
   if (testErr) throw testErr;
   const testId = tests?.[0]?.id as string | undefined;
@@ -196,6 +196,8 @@ async function applyOneMatch(
       await supabase.from("samples").update({ status: "in_progress" }).eq("id", sample.id);
     } catch { /* non-critical — result is saved either way */ }
   }
+
+  return { hasChromatogram: chromatogramImage != null };
 }
 
 // Applies matches with bounded concurrency rather than firing every
@@ -243,11 +245,14 @@ export async function runReconciliation({ supabase, autoApply }: {
   no_coc_files: Array<{ id: string; name: string }>; orphan_files: Array<{ id: string; name: string }>;
   already_resolved_files: Array<{ id: string; name: string; batch_id: string }>;
   failed: Array<{ batch_id: string; file_name: string; error: string }>;
+  applied_results: Array<{ batch_id: string; file_name: string; chromatogram: boolean }>;
 }> {
   const { data: allSamplesRaw, error: sErr } = await supabase
     .from("samples").select("id,batch_id,compound,lot,status").neq("status", "cancelled");
   if (sErr) throw sErr;
-  if (!allSamplesRaw || allSamplesRaw.length === 0) return { applied: 0, samples: [], no_coc_files: [], orphan_files: [], already_resolved_files: [], failed: [] };
+  if (!allSamplesRaw || allSamplesRaw.length === 0) {
+    return { applied: 0, samples: [], no_coc_files: [], orphan_files: [], already_resolved_files: [], failed: [], applied_results: [] };
+  }
   const allSamples = allSamplesRaw as SampleEntry[];
 
   const sampleIds = allSamples.map((s) => s.id as string);
@@ -286,6 +291,7 @@ export async function runReconciliation({ supabase, autoApply }: {
 
   let applied = 0;
   const failed: Array<{ batch_id: string; file_name: string; error: string }> = [];
+  const appliedResults: Array<{ batch_id: string; file_name: string; chromatogram: boolean }> = [];
   if (autoApply) {
     const candidates = matched.filter((m) => m.tier === "batch_id" && m.file);
 
@@ -311,10 +317,11 @@ export async function runReconciliation({ supabase, autoApply }: {
       applyOneMatch(supabase, { id: m.id, batch_id: m.batch_id, status: eligibleById.get(m.id)?.status }, m.file as MatchedFile, folderId)
     );
     outcomes.forEach((o, i) => {
+      const m = toApply[i];
       if (o.status === "fulfilled") {
         applied++;
+        appliedResults.push({ batch_id: m.batch_id, file_name: m.file?.name ?? "", chromatogram: o.value.hasChromatogram });
       } else {
-        const m = toApply[i];
         const message = o.reason instanceof Error ? o.reason.message : String(o.reason);
         console.error("report reconciliation: apply failed", m.batch_id, message);
         failed.push({ batch_id: m.batch_id, file_name: m.file?.name ?? "", error: message });
@@ -329,6 +336,7 @@ export async function runReconciliation({ supabase, autoApply }: {
     orphan_files: orphanFiles.map((f) => ({ id: f.id, name: f.name })),
     already_resolved_files: alreadyResolvedFiles,
     failed,
+    applied_results: appliedResults,
   };
 }
 
@@ -356,6 +364,6 @@ export const applyMatchedReport = createServerFn({ method: "POST" })
     if (error) throw error;
     if (!sample) throw new Error("Sample not found");
     const folderId = await loadReportsFolderId(context.supabase);
-    await applyOneMatch(context.supabase, sample, { id: data.file_id, name: data.file_name }, folderId);
-    return { ok: true };
+    const { hasChromatogram } = await applyOneMatch(context.supabase, sample, { id: data.file_id, name: data.file_name }, folderId);
+    return { ok: true, chromatogram: hasChromatogram };
   });
