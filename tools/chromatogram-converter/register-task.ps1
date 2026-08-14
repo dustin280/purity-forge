@@ -25,5 +25,5 @@ $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" 
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force
 
-Write-Host "Registered scheduled task '$TaskName' — runs every $IntervalMinutes minute(s)."
+Write-Host "Registered scheduled task '$TaskName' - runs every $IntervalMinutes minute(s)."
 Write-Host "To remove it later: Unregister-ScheduledTask -TaskName $TaskName"
