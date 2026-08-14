@@ -142,6 +142,19 @@ export function DriveReportPickerDialog({
               </div>
             </div>
 
+            {parsed.chromatogram_image ? (
+              <div className="rounded-md border border-border p-2 space-y-1.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <CheckCircle2 className="size-3 text-emerald-500" /> Chromatogram found — will be attached to this result
+                </div>
+                <img src={parsed.chromatogram_image} alt="Chromatogram preview" className="w-full h-auto rounded border border-border" />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No chromatogram found for this report — check that the lab PC converter has processed it yet.
+              </p>
+            )}
+
             <table className="w-full text-xs font-mono">
               <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <tr>
