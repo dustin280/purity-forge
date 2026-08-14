@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { CalendarIcon, ExternalLink } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
   CartesianGrid,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,8 +21,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { BackpressureRow } from "@/lib/daily-backpressure.functions";
+import { listHplcColumns } from "@/lib/hplc-columns.functions";
+import { qk } from "@/lib/query-keys";
 
 const SERIES_COLORS = [
   "var(--primary)",
@@ -95,6 +107,24 @@ export function BackpressureTrendChart({
     from.setHours(0, 0, 0, 0);
     return { from, to };
   });
+  const [selectedColumn, setSelectedColumn] = useState("__all__");
+
+  const listCols = useServerFn(listHplcColumns);
+  const { data: hplcColumns = [] } = useQuery({
+    queryKey: qk.hplcColumns.list(),
+    queryFn: () => listCols(),
+  });
+
+  const columnOptions = useMemo(() => {
+    const names = new Set<string>();
+    rows.forEach((r) => { if (r.column_name) names.add(r.column_name); });
+    return Array.from(names).sort();
+  }, [rows]);
+
+  const ratedMaxForSelected =
+    selectedColumn === "__all__"
+      ? null
+      : hplcColumns.find((c) => c.name === selectedColumn)?.rated_max_pressure_bar ?? null;
 
   const { data, instruments, unit, count, hasInjections } = useMemo(() => {
     const fromMs = range?.from ? new Date(range.from).setHours(0, 0, 0, 0) : -Infinity;
@@ -105,7 +135,9 @@ export function BackpressureTrendChart({
         : Infinity;
     const filtered = rows.filter((r) => {
       const t = new Date(r.reading_at).getTime();
-      return t >= fromMs && t <= toMs;
+      if (t < fromMs || t > toMs) return false;
+      if (selectedColumn !== "__all__" && r.column_name !== selectedColumn) return false;
+      return true;
     });
     const sorted = [...filtered].sort(
       (a, b) => new Date(a.reading_at).getTime() - new Date(b.reading_at).getTime(),
@@ -133,7 +165,7 @@ export function BackpressureTrendChart({
       count: sorted.length,
       hasInjections,
     };
-  }, [rows, range]);
+  }, [rows, range, selectedColumn]);
 
   const rangeLabel = range?.from
     ? range.to && range.to.getTime() !== range.from.getTime()
@@ -152,6 +184,19 @@ export function BackpressureTrendChart({
             </div>
           </div>
           <div className="flex items-center gap-2">
+          <Select value={selectedColumn} onValueChange={setSelectedColumn}>
+            <SelectTrigger className="w-[180px] h-9">
+              <SelectValue placeholder="All columns" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All columns</SelectItem>
+              {columnOptions.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {showOpenLogLink && (
             <Button asChild variant="outline" size="sm">
               <Link to="/lab-logs/daily-backpressure">
@@ -251,6 +296,19 @@ export function BackpressureTrendChart({
                 />
                 {(instruments.length > 1 || hasInjections) && (
                   <Legend wrapperStyle={{ fontSize: 11 }} />
+                )}
+                {ratedMaxForSelected != null && (
+                  <ReferenceLine
+                    y={ratedMaxForSelected}
+                    stroke="var(--destructive)"
+                    strokeDasharray="4 4"
+                    label={{
+                      value: `Rated max (${ratedMaxForSelected} ${unit})`,
+                      position: "insideTopRight",
+                      fontSize: 10,
+                      fill: "var(--destructive)",
+                    }}
+                  />
                 )}
                 {instruments.map((inst, i) => {
                   const color = SERIES_COLORS[i % SERIES_COLORS.length];

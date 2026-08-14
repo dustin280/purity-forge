@@ -1,6 +1,7 @@
 import { Gauge, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type { BackpressureRow } from "@/lib/daily-backpressure.functions";
 
 interface ReadingsTableProps {
@@ -56,9 +57,14 @@ export function ReadingsTable({
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap">{r.user_name}</td>
                   <td className="px-4 py-2">{r.instrument}</td>
-                  <td className="px-4 py-2 text-right font-mono">
+                  <td className="px-4 py-2 text-right font-mono whitespace-nowrap">
                     {r.backpressure}{" "}
                     <span className="text-muted-foreground">{r.backpressure_unit}</span>
+                    {r.source === "auto" && (
+                      <Badge variant="secondary" className="ml-1.5 align-middle font-sans">
+                        Auto
+                      </Badge>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-right font-mono">
                     {r.injections_count ?? "—"}

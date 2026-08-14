@@ -59,6 +59,13 @@ function SettingsPage() {
             onChange={e => setForm(f => f ? { ...f, drive_lm_reports_complete_folder_id: e.target.value } : f)}
           />
         </F>
+        <F label="HPLC Results Drive folder">
+          <Input
+            value={form?.drive_hplc_results_folder_id ?? ""}
+            placeholder="Folder ID or Drive URL"
+            onChange={e => setForm(f => f ? { ...f, drive_hplc_results_folder_id: e.target.value } : f)}
+          />
+        </F>
         <div className="pt-2 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">{isAdmin ? "" : "Read-only — admin required to save."}</span>
           <Button disabled={!isAdmin || save.isPending || !form} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save settings"}</Button>

@@ -37,6 +37,7 @@ import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
+import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedSamplePrepVesselsRouteImport } from './routes/_authenticated/sample-prep/vessels'
@@ -252,6 +253,11 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
 const ApiCronReconcileReportsRoute = ApiCronReconcileReportsRouteImport.update({
   id: '/api/cron/reconcile-reports',
   path: '/api/cron/reconcile-reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronPressureLogRoute = ApiCronPressureLogRouteImport.update({
+  id: '/api/cron/pressure-log',
+  path: '/api/cron/pressure-log',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
@@ -672,6 +678,7 @@ export interface FileRoutesByFullPath {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
@@ -763,6 +770,7 @@ export interface FileRoutesByTo {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
@@ -856,6 +864,7 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
@@ -949,6 +958,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin/'
     | '/clients/'
@@ -1040,6 +1050,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin'
     | '/clients'
@@ -1132,6 +1143,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/vessels'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
+    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/_authenticated/admin/'
     | '/_authenticated/clients/'
@@ -1178,6 +1190,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
+  ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
@@ -1382,6 +1395,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/reconcile-reports'
       fullPath: '/api/cron/reconcile-reports'
       preLoaderRoute: typeof ApiCronReconcileReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/pressure-log': {
+      id: '/api/cron/pressure-log'
+      path: '/api/cron/pressure-log'
+      fullPath: '/api/cron/pressure-log'
+      preLoaderRoute: typeof ApiCronPressureLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/samples/new': {
@@ -2062,6 +2082,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
+  ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,

@@ -21,6 +21,12 @@ export interface BackpressureRow {
   column_temp: number | null;
   column_temp_unit: string | null;
   column_name: string | null;
+  source: "manual" | "auto";
+  acquisition_method: string | null;
+  pressure_run_min: number | null;
+  pressure_run_max: number | null;
+  drive_result_folder_id: string | null;
+  drive_dx_file_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
