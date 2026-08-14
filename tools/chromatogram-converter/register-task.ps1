@@ -11,8 +11,7 @@ param(
 
 $exePath = Join-Path $PSScriptRoot "ChromatogramConverter.exe"
 if (-not (Test-Path $exePath)) {
-    Write-Error "ChromatogramConverter.exe not found next to this script. Publish the project first (see README.md)."
-    exit 1
+    throw "ChromatogramConverter.exe not found next to this script. Publish the project first (see README.md)."
 }
 
 $action = New-ScheduledTaskAction -Execute $exePath -WorkingDirectory $PSScriptRoot
@@ -26,11 +25,9 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd 
     -ExecutionTimeLimit (New-TimeSpan -Minutes 10) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 
-try {
-    Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null
-    Write-Host "Registered scheduled task '$TaskName' - runs every $IntervalMinutes minute(s)."
-    Write-Host "To remove it later: Unregister-ScheduledTask -TaskName $TaskName"
-} catch {
-    Write-Error "Failed to register scheduled task: $($_.Exception.Message)"
-    exit 1
-}
+# -ErrorAction Stop turns a failed registration into a terminating error,
+# which stops the script and prints the error without closing the
+# PowerShell window it's running in (unlike exit, which would).
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null
+Write-Host "Registered scheduled task '$TaskName' - runs every $IntervalMinutes minute(s)."
+Write-Host "To remove it later: Unregister-ScheduledTask -TaskName $TaskName"
