@@ -48,6 +48,14 @@ function average(vals: number[]): number | null {
   return vals.reduce((a, b) => a + b, 0) / vals.length;
 }
 
+// Raw trace values carry far more float precision than is meaningful for a
+// pressure gauge reading — round to match how a technician would record it.
+function round(value: number | null, decimals: number): number | null {
+  if (value === null) return null;
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
 async function readTrace(zip: JSZip, traceId: string): Promise<AgilentTrace | null> {
   const file = zip.file(`${traceId}.IT`);
   if (!file) return null;
@@ -158,19 +166,19 @@ export async function runPressureWatcher({ supabase }: { supabase: SupabaseClien
         reading_at: manifest.runDateTime ?? new Date().toISOString(),
         user_name: "Automated Watcher",
         instrument: DEFAULT_INSTRUMENT_NAME,
-        backpressure,
+        backpressure: round(backpressure, 2),
         backpressure_unit: "bar",
-        flow_rate: flowRate,
+        flow_rate: round(flowRate, 3),
         flow_rate_unit: flowRate !== null ? "mL/min" : null,
-        column_temp: columnTemp,
+        column_temp: round(columnTemp, 1),
         column_temp_unit: columnTemp !== null ? "C" : null,
         column_name: installedColumn?.name ?? null,
         injections_count: dxFiles.length,
         acquisition_method: manifest.acquisitionMethod ? basename(manifest.acquisitionMethod) : null,
         source: "auto",
         notes: `Auto-imported from ${folder.name} / ${first.name}`,
-        pressure_run_min: pressureMin,
-        pressure_run_max: pressureMax,
+        pressure_run_min: round(pressureMin, 2),
+        pressure_run_max: round(pressureMax, 2),
         drive_result_folder_id: folder.id,
         drive_dx_file_id: first.id,
       });
