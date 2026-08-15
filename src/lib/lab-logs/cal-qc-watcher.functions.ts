@@ -1,16 +1,28 @@
 /**
- * Automated Cal Std / QC Check peak-area/RT trend watcher. Scans two
- * separate Drive folders (Cal Std, QC) for `.rslt` sequence folders, reads
- * each sequence's `.acaml` manifest for injection metadata, and — for
+ * Automated Cal Std / QC Check peak-area/RT trend watcher. Scans the
+ * configured Drive folder(s) for `.rslt` sequence folders, reads each
+ * sequence's `.acaml` manifest for injection metadata, and — for
  * injections the lab has already integrated in OpenLab CDS — pulls the
  * peak table from the matching per-injection `.rx` result package.
  *
- * `sample_type` ('cal_std' | 'qc_check') is determined purely by which of
- * the two configured folders a sequence was found in — reliable, unlike
- * text-parsing a filename. Dedup is per Agilent InjectionId (Agilent's own
- * stable UUID, extracted from the manifest) — an injection skipped this run
- * because it hadn't been integrated yet is retried for free on the next
- * hourly run, no extra bookkeeping needed.
+ * `sample_type` ('cal_std' | 'qc_check') comes from each injection's own
+ * ACAML `SampleType` attribute (Agilent's fixed vocabulary: "Sample",
+ * "QC check", "Blank", "Calibration" — confirmed against a real Agilent
+ * sequence-template reference), not from which folder it was found in.
+ * That turned out to matter for two reasons: the lab's QC injections live
+ * mixed into the same general Results folder as everything else rather
+ * than a dedicated folder, and even the dedicated Cal Std folder has
+ * non-calibration blank/equilibration injections mixed in that shouldn't
+ * be logged as calibration readings. The two configured folders (which,
+ * via Drive's multi-parent folders, can genuinely share the same
+ * underlying `.rslt` sequence subfolders) are just where to look — every
+ * injection is classified independently once found.
+ *
+ * Dedup is per Agilent InjectionId (Agilent's own stable UUID, extracted
+ * from the manifest) — an injection skipped this run because it hadn't
+ * been integrated yet is retried for free on the next hourly run, and a
+ * sequence folder reachable from both configured folders is only ever
+ * processed once.
  */
 import JSZip from "jszip";
 import { createServerFn } from "@tanstack/react-start";
@@ -40,6 +52,20 @@ function resultFileNameFor(injection: AcamlInjection): string | null {
   return injection.rawDataFileName.replace(/\.dx$/i, ".rx");
 }
 
+/**
+ * Agilent's SampleType vocabulary (confirmed): "Sample", "QC check",
+ * "Blank", "Calibration". Substring/case-insensitive match rather than an
+ * exact enum comparison — safer against minor casing/spacing variance
+ * ("QC Check" vs "QC check") without a real example of every variant yet.
+ */
+function classifySampleType(acamlSampleType: string | null): "cal_std" | "qc_check" | null {
+  if (!acamlSampleType) return null;
+  const t = acamlSampleType.toLowerCase();
+  if (t.includes("calibration")) return "cal_std";
+  if (t.includes("qc")) return "qc_check";
+  return null;
+}
+
 async function fetchInjectionAcaml(rxBytes: ArrayBuffer): Promise<string | null> {
   const zip = await JSZip.loadAsync(rxBytes);
   const entry = zip.file("Base/InjectionACAML");
@@ -51,11 +77,15 @@ export interface CalQcWatcherResult {
   imported: number;
   skippedNotIntegrated: number;
   skippedNoResultFile: number;
+  skippedOtherSampleType: number;
   errors: string[];
 }
 
 export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLike }): Promise<CalQcWatcherResult> {
   const [calFolderId, qcFolderId] = await Promise.all([loadCalStdFolderId(supabase), loadQcFolderId(supabase)]);
+  // Both settings just say where to look — a sequence folder reachable via
+  // both (Drive folders can have multiple parents) is only scanned once.
+  const topFolderIds = Array.from(new Set([calFolderId, qcFolderId].filter((id): id is string => !!id)));
 
   const { data: already } = await supabase.from("cal_qc_peak_log").select("injection_id");
   const seenInjections = new Set((already ?? []).map((r: { injection_id: string }) => r.injection_id));
@@ -63,24 +93,23 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
   let imported = 0;
   let skippedNotIntegrated = 0;
   let skippedNoResultFile = 0;
+  let skippedOtherSampleType = 0;
   const errors: string[] = [];
+  const scannedSequenceFolders = new Set<string>();
 
-  const folders: Array<["cal_std" | "qc_check", string | null]> = [
-    ["cal_std", calFolderId],
-    ["qc_check", qcFolderId],
-  ];
-
-  for (const [sampleType, folderId] of folders) {
-    if (!folderId) continue;
+  for (const topFolderId of topFolderIds) {
     let sequenceFolders;
     try {
-      sequenceFolders = await driveListFolders(folderId);
+      sequenceFolders = await driveListFolders(topFolderId);
     } catch (e) {
-      errors.push(`${sampleType} folder: ${(e as Error).message}`);
+      errors.push(`folder ${topFolderId}: ${(e as Error).message}`);
       continue;
     }
 
     for (const seqFolder of sequenceFolders) {
+      if (scannedSequenceFolders.has(seqFolder.id)) continue;
+      scannedSequenceFolders.add(seqFolder.id);
+
       try {
         const acamlFiles = await driveListByExt(seqFolder.id, "acaml");
         if (acamlFiles.length === 0) continue;
@@ -94,6 +123,12 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
         const rxByName = new Map(rxFiles.map((f) => [f.name, f]));
 
         for (const inj of pendingInjections) {
+          const sampleType = classifySampleType(inj.sampleType);
+          if (!sampleType) {
+            skippedOtherSampleType++;
+            continue;
+          }
+
           const rxName = resultFileNameFor(inj);
           const rxFile = rxName ? rxByName.get(rxName) : undefined;
           if (!rxFile) {
@@ -136,6 +171,7 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
             if (error) errors.push(`${inj.sampleName} / ${peak.compound}: ${error.message}`);
             else imported++;
           }
+          seenInjections.add(inj.injectionId);
         }
       } catch (e) {
         errors.push(`${seqFolder.name}: ${(e as Error).message}`);
@@ -143,7 +179,7 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
     }
   }
 
-  return { imported, skippedNotIntegrated, skippedNoResultFile, errors };
+  return { imported, skippedNotIntegrated, skippedNoResultFile, skippedOtherSampleType, errors };
 }
 
 export const runCalQcWatcherNow = createServerFn({ method: "POST" })

@@ -65,7 +65,7 @@ function CalQcTrendPage() {
     onSuccess: (result) => {
       toast.success(
         `Imported ${result.imported} peak(s); ${result.skippedNotIntegrated} not yet integrated in OpenLab; ` +
-          `${result.skippedNoResultFile} missing a result file` +
+          `${result.skippedNoResultFile} missing a result file; ${result.skippedOtherSampleType} not Cal Std/QC` +
           (result.errors.length ? `; ${result.errors.length} error(s)` : ""),
       );
       if (result.errors.length) console.warn("Cal/QC watcher errors:", result.errors);
