@@ -210,6 +210,74 @@ export type Database = {
         }
         Relationships: []
       }
+      cal_qc_peak_log: {
+        Row: {
+          amount: number | null
+          area: number | null
+          calibration_level: number | null
+          compound_id: string | null
+          concentration_level: number | null
+          concentration_unit: string | null
+          created_at: string
+          id: string
+          injection_id: string
+          match_confidence: string
+          raw_compound_name: string
+          reading_at: string
+          rt: number
+          sample_name: string | null
+          sample_type: string
+          sequence_name: string
+          source_result_file_id: string
+        }
+        Insert: {
+          amount?: number | null
+          area?: number | null
+          calibration_level?: number | null
+          compound_id?: string | null
+          concentration_level?: number | null
+          concentration_unit?: string | null
+          created_at?: string
+          id?: string
+          injection_id: string
+          match_confidence: string
+          raw_compound_name: string
+          reading_at: string
+          rt: number
+          sample_name?: string | null
+          sample_type: string
+          sequence_name: string
+          source_result_file_id: string
+        }
+        Update: {
+          amount?: number | null
+          area?: number | null
+          calibration_level?: number | null
+          compound_id?: string | null
+          concentration_level?: number | null
+          concentration_unit?: string | null
+          created_at?: string
+          id?: string
+          injection_id?: string
+          match_confidence?: string
+          raw_compound_name?: string
+          reading_at?: string
+          rt?: number
+          sample_name?: string | null
+          sample_type?: string
+          sequence_name?: string
+          source_result_file_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cal_qc_peak_log_compound_id_fkey"
+            columns: ["compound_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chain_of_custody_fields: {
         Row: {
           created_at: string
@@ -3699,9 +3767,11 @@ export type Database = {
           cron_secret: string
           default_calibration_levels: number
           default_target_level: number
+          drive_cal_std_folder_id: string | null
           drive_hplc_results_folder_id: string | null
           drive_lm_reports_complete_folder_id: string | null
           drive_lm_sample_prep_folder_id: string | null
+          drive_qc_samples_folder_id: string | null
           id: boolean
           max_dilution_steps: number
           preferred_min_pipette_ul: number
@@ -3713,9 +3783,11 @@ export type Database = {
           cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
+          drive_cal_std_folder_id?: string | null
           drive_hplc_results_folder_id?: string | null
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
+          drive_qc_samples_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
@@ -3727,9 +3799,11 @@ export type Database = {
           cron_secret?: string
           default_calibration_levels?: number
           default_target_level?: number
+          drive_cal_std_folder_id?: string | null
           drive_hplc_results_folder_id?: string | null
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
+          drive_qc_samples_folder_id?: string | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
@@ -4512,6 +4586,7 @@ export type Database = {
         Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
+      trigger_cal_qc_watcher: { Args: never; Returns: undefined }
       trigger_pressure_log_watcher: { Args: never; Returns: undefined }
       trigger_report_reconciliation: { Args: never; Returns: undefined }
     }
