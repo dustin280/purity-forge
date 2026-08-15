@@ -231,4 +231,11 @@ export const qk = {
     all: ["report-reconciliation"] as const,
     list: () => ["report-reconciliation"] as const,
   },
+
+  calQcPeakLog: {
+    all: ["cal-qc-peak-log"] as const,
+    list: () => ["cal-qc-peak-log"] as const,
+    unmatched: () => ["cal-qc-peak-log", "unmatched"] as const,
+    rtBand: (compoundId: string) => ["cal-qc-peak-log", "rt-band", compoundId] as const,
+  },
 } as const;

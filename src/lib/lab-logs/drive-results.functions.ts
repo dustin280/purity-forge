@@ -50,6 +50,23 @@ export async function driveListDxFiles(folderId: string): Promise<DriveEntry[]> 
   return (json.files ?? []).sort((a, b) => a.name.localeCompare(b.name));
 }
 
+// Generic file-extension listing — used for .acaml (mimeType "text/xml",
+// too broad to filter on alone) and .rx (mimeType "application/x-zip",
+// shared with several other Agilent sidecar file types in the same folder).
+export async function driveListByExt(folderId: string, ext: string): Promise<DriveEntry[]> {
+  const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and name contains '.${ext}'`);
+  const fields = encodeURIComponent("files(id,name,modifiedTime)");
+  const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=200&orderBy=name`, {
+    headers: gatewayHeaders(),
+  });
+  if (!r.ok) throw new Error(`Drive list .${ext} files failed (${r.status}): ${await r.text()}`);
+  const json = (await r.json()) as { files?: DriveEntry[] };
+  // "contains" is a substring match server-side — confirm the extension is
+  // actually a suffix client-side (e.g. excludes "foo.acaml.bak").
+  const suffix = `.${ext.toLowerCase()}`;
+  return (json.files ?? []).filter((f) => f.name.toLowerCase().endsWith(suffix));
+}
+
 export async function driveDownload(fileId: string): Promise<ArrayBuffer> {
   const r = await fetch(`${GATEWAY}/drive/v3/files/${fileId}?alt=media`, { headers: gatewayHeaders() });
   if (!r.ok) throw new Error(`Drive download ${fileId} failed (${r.status})`);
@@ -61,4 +78,14 @@ export async function loadResultsFolderId(supabase: import("@supabase/supabase-j
   const folderId = data?.drive_hplc_results_folder_id;
   if (!folderId) throw new Error("HPLC Results Drive folder is not configured. Set it in Sample Prep → Settings first.");
   return folderId;
+}
+
+export async function loadCalStdFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string | null> {
+  const { data } = await supabase.from("sp_settings").select("drive_cal_std_folder_id").eq("id", true).maybeSingle();
+  return data?.drive_cal_std_folder_id ?? null;
+}
+
+export async function loadQcFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string | null> {
+  const { data } = await supabase.from("sp_settings").select("drive_qc_samples_folder_id").eq("id", true).maybeSingle();
+  return data?.drive_qc_samples_folder_id ?? null;
 }

@@ -38,6 +38,7 @@ import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
 import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
+import { Route as ApiCronCalQcWatcherRouteImport } from './routes/api/cron/cal-qc-watcher'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
 import { Route as AuthenticatedSamplePrepVesselsRouteImport } from './routes/_authenticated/sample-prep/vessels'
@@ -85,6 +86,7 @@ import { Route as AuthenticatedLabLogsSampleDisposalIndexRouteImport } from './r
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
+import { Route as AuthenticatedLabLogsCalQcTrendIndexRouteImport } from './routes/_authenticated/lab-logs/cal-qc-trend/index'
 import { Route as ApiPublicStatusBatchIdRouteImport } from './routes/api/public/status/$batchId'
 import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
@@ -258,6 +260,11 @@ const ApiCronReconcileReportsRoute = ApiCronReconcileReportsRouteImport.update({
 const ApiCronPressureLogRoute = ApiCronPressureLogRouteImport.update({
   id: '/api/cron/pressure-log',
   path: '/api/cron/pressure-log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronCalQcWatcherRoute = ApiCronCalQcWatcherRouteImport.update({
+  id: '/api/cron/cal-qc-watcher',
+  path: '/api/cron/cal-qc-watcher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSamplesNewRoute = AuthenticatedSamplesNewRouteImport.update({
@@ -538,6 +545,12 @@ const AuthenticatedLabLogsDailyBackpressureIndexRoute =
     path: '/lab-logs/daily-backpressure/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsCalQcTrendIndexRoute =
+  AuthenticatedLabLogsCalQcTrendIndexRouteImport.update({
+    id: '/lab-logs/cal-qc-trend/',
+    path: '/lab-logs/cal-qc-trend/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicStatusBatchIdRoute = ApiPublicStatusBatchIdRouteImport.update({
   id: '/api/public/status/$batchId',
   path: '/api/public/status/$batchId',
@@ -678,6 +691,7 @@ export interface FileRoutesByFullPath {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -709,6 +723,7 @@ export interface FileRoutesByFullPath {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -770,6 +785,7 @@ export interface FileRoutesByTo {
   '/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -801,6 +817,7 @@ export interface FileRoutesByTo {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/lab-logs/cal-qc-trend': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -864,6 +881,7 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/vessels': typeof AuthenticatedSamplePrepVesselsRoute
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
+  '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -895,6 +913,7 @@ export interface FileRoutesById {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/_authenticated/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -958,6 +977,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/cal-qc-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin/'
@@ -989,6 +1009,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/lab-logs/cal-qc-trend/'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
@@ -1050,6 +1071,7 @@ export interface FileRouteTypes {
     | '/sample-prep/vessels'
     | '/samples/$batchId'
     | '/samples/new'
+    | '/api/cron/cal-qc-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin'
@@ -1081,6 +1103,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/lab-logs/cal-qc-trend'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
@@ -1143,6 +1166,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/vessels'
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
+    | '/api/cron/cal-qc-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/_authenticated/admin/'
@@ -1174,6 +1198,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/_authenticated/lab-logs/cal-qc-trend/'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
@@ -1190,6 +1215,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
+  ApiCronCalQcWatcherRoute: typeof ApiCronCalQcWatcherRoute
   ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
@@ -1402,6 +1428,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/pressure-log'
       fullPath: '/api/cron/pressure-log'
       preLoaderRoute: typeof ApiCronPressureLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/cal-qc-watcher': {
+      id: '/api/cron/cal-qc-watcher'
+      path: '/api/cron/cal-qc-watcher'
+      fullPath: '/api/cron/cal-qc-watcher'
+      preLoaderRoute: typeof ApiCronCalQcWatcherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/samples/new': {
@@ -1733,6 +1766,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/cal-qc-trend/': {
+      id: '/_authenticated/lab-logs/cal-qc-trend/'
+      path: '/lab-logs/cal-qc-trend'
+      fullPath: '/lab-logs/cal-qc-trend/'
+      preLoaderRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/status/$batchId': {
       id: '/api/public/status/$batchId'
       path: '/api/public/status/$batchId'
@@ -1955,6 +1995,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsTimesheetsDailyRoute: typeof AuthenticatedLabLogsTimesheetsDailyRoute
   AuthenticatedLabLogsTimesheetsHistoryRoute: typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   AuthenticatedLabLogsTimesheetsReportsRoute: typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  AuthenticatedLabLogsCalQcTrendIndexRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
@@ -2056,6 +2097,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsTimesheetsHistoryRoute,
   AuthenticatedLabLogsTimesheetsReportsRoute:
     AuthenticatedLabLogsTimesheetsReportsRoute,
+  AuthenticatedLabLogsCalQcTrendIndexRoute:
+    AuthenticatedLabLogsCalQcTrendIndexRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
   AuthenticatedLabLogsMobilePhaseIndexRoute:
@@ -2082,6 +2125,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
+  ApiCronCalQcWatcherRoute: ApiCronCalQcWatcherRoute,
   ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
