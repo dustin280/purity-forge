@@ -2240,6 +2240,8 @@ export type Database = {
           reviewer_id: string | null
           test_id: string
           updated_at: string
+          uv_conf_match: number | null
+          wavelength_nm: number | null
         }
         Insert: {
           analysis_date?: string
@@ -2255,6 +2257,8 @@ export type Database = {
           reviewer_id?: string | null
           test_id: string
           updated_at?: string
+          uv_conf_match?: number | null
+          wavelength_nm?: number | null
         }
         Update: {
           analysis_date?: string
@@ -2270,6 +2274,8 @@ export type Database = {
           reviewer_id?: string | null
           test_id?: string
           updated_at?: string
+          uv_conf_match?: number | null
+          wavelength_nm?: number | null
         }
         Relationships: [
           {
