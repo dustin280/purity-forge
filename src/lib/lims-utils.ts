@@ -167,13 +167,15 @@ export function generateBatchId() {
 export interface Peak {
   peak_id: string;
   rt: number;
-  area: number;
+  /** Nullable: honest "not available" rather than a fake 0 when the source report has no raw area column. */
+  area: number | null;
   area_pct: number;
   identity?: string;
   sn?: number;
   /** From a Drive-imported instrument report, when available. */
   amount_per_vial_mg?: number | null;
   percent_label_claim?: number | null;
+  height?: number | null;
 }
 
 export function fmtPct(n: number | null | undefined, digits = 3) {

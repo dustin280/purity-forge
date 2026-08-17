@@ -38,6 +38,19 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           ? (await supabaseAdmin.from("results").select("*").in("test_id", testIds)).data ?? []
           : [];
 
+        // uuid -> display name, same precedence as profileDisplayName (src/hooks/use-auth.tsx):
+        // first+last name, then full_name, then email.
+        const userIds = Array.from(new Set(
+          results.flatMap(r => [r.analyst_id, r.reviewer_id]).filter((id): id is string => !!id)
+        ));
+        const profiles = userIds.length
+          ? (await supabaseAdmin.from("profiles").select("id,full_name,first_name,last_name,email").in("id", userIds)).data ?? []
+          : [];
+        const nameById = new Map(profiles.map(p => {
+          const fl = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+          return [p.id, fl || p.full_name || p.email || null] as const;
+        }));
+
         const extras: Record<string, unknown> = {};
         if (cfg.include_lcs) extras.lcs_recovery = null;
         if (cfg.include_ccv) extras.ccv_recovery = null;
@@ -61,9 +74,14 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
               peak_details: r.peak_details,
               analysis_date: r.analysis_date,
               analyst_id: r.analyst_id,
+              analyst_name: r.analyst_id ? nameById.get(r.analyst_id) ?? null : null,
               reviewer_id: r.reviewer_id,
+              reviewer_name: r.reviewer_id ? nameById.get(r.reviewer_id) ?? null : null,
               approved_at: r.approved_at,
-              chromatogram_image: r.chromatogram_image,
+              chromatogram_png: r.chromatogram_image,
+              appearance: sample.physical_description ?? null,
+              uv_conf_match: r.uv_conf_match ?? null,
+              wavelength_nm: r.wavelength_nm ?? null,
             })),
           })),
           extras,

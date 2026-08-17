@@ -120,7 +120,7 @@ export function ResultsTab({
                 <tr key={p.peak_id}>
                   <td className="px-3 py-1.5">{p.peak_id}</td>
                   <td className="px-3 py-1.5 text-right">{p.rt.toFixed(3)}</td>
-                  <td className="px-3 py-1.5 text-right">{p.area.toFixed(1)}</td>
+                  <td className="px-3 py-1.5 text-right">{p.area != null ? p.area.toFixed(1) : "—"}</td>
                   <td className="px-3 py-1.5 text-right">{p.area_pct.toFixed(3)}</td>
                   <td className="px-3 py-1.5">{p.identity ?? "—"}</td>
                 </tr>

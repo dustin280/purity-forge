@@ -176,10 +176,11 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
   });
 
 const peakSchema = z.object({
-  peak_id: z.string(), rt: z.number(), area: z.number(),
+  peak_id: z.string(), rt: z.number(), area: z.number().nullable(),
   area_pct: z.number(), identity: z.string().optional(), sn: z.number().optional(),
   amount_per_vial_mg: z.number().optional().nullable(),
   percent_label_claim: z.number().optional().nullable(),
+  height: z.number().optional().nullable(),
 });
 
 export const saveResult = createServerFn({ method: "POST" })
@@ -198,6 +199,11 @@ export const saveResult = createServerFn({ method: "POST" })
       // in Drive (see findChromatogramImage) — null for manual paste or when
       // no converted chromatogram exists yet.
       chromatogram_image: z.string().max(2_000_000).optional().nullable(),
+      // Instrument-sourced values — no manual-entry UI supplies these yet,
+      // but the schema accepts them the moment a real source (report
+      // template or ACAML) is wired in.
+      uv_conf_match: z.number().min(0).max(1000).optional().nullable(),
+      wavelength_nm: z.number().positive().optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -210,6 +216,8 @@ export const saveResult = createServerFn({ method: "POST" })
       analyst_id: userId,
       analysis_date: data.analysis_date ?? undefined,
       chromatogram_image: data.chromatogram_image ?? null,
+      uv_conf_match: data.uv_conf_match ?? null,
+      wavelength_nm: data.wavelength_nm ?? null,
     }).select().single();
     if (error) throw error;
     return res;

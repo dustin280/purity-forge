@@ -417,7 +417,7 @@ export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): P
  */
 export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Peak[]; purity: number } {
   const peaks: Peak[] = compounds.map((c, i) => ({
-    peak_id: `P${i + 1}`, rt: c.rt, area: c.area ?? 0, area_pct: c.purity_pct ?? 0,
+    peak_id: `P${i + 1}`, rt: c.rt, area: c.area ?? null, area_pct: c.purity_pct ?? 0,
     identity: c.compound, amount_per_vial_mg: c.amount_per_vial_mg, percent_label_claim: c.percent_label_claim,
   }));
   const main = peaks.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), peaks[0]);
