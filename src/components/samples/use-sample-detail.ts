@@ -66,7 +66,16 @@ export function useSampleDetail(batchId: string) {
     setBusy(true);
     try {
       await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path, analysis_date, chromatogram_image, uv_conf_match, wavelength_nm, report_metadata } });
-      await setStatusFn({ data: { sampleId: args.sampleId, status: "in_progress" } });
+      // Only meaningful the first time a sample gets a result ("prep" ->
+      // "in_progress") — re-entering a result on a sample that's already
+      // moved past that (reviewed, approved, etc.) hits a transition the
+      // state machine correctly rejects. That's not a save failure, so
+      // don't let it block the success toast or leave the form populated
+      // for a save that actually went through (same non-critical
+      // treatment report-reconciliation.functions.ts already gives this).
+      try {
+        await setStatusFn({ data: { sampleId: args.sampleId, status: "in_progress" } });
+      } catch { /* non-critical — result is saved either way */ }
       toast.success(`Result saved — ${purity.toFixed(2)}% purity`);
       signalWorkflowEvent("result-submitted");
       args.onCleared();
