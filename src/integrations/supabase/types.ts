@@ -2236,6 +2236,7 @@ export type Database = {
           peak_details: Json | null
           purity_percentage: number | null
           raw_data_file_path: string | null
+          report_metadata: Json | null
           reviewed_at: string | null
           reviewer_id: string | null
           test_id: string
@@ -2253,6 +2254,7 @@ export type Database = {
           peak_details?: Json | null
           purity_percentage?: number | null
           raw_data_file_path?: string | null
+          report_metadata?: Json | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           test_id: string
@@ -2270,6 +2272,7 @@ export type Database = {
           peak_details?: Json | null
           purity_percentage?: number | null
           raw_data_file_path?: string | null
+          report_metadata?: Json | null
           reviewed_at?: string | null
           reviewer_id?: string | null
           test_id?: string

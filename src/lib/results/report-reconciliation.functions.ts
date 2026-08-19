@@ -172,7 +172,7 @@ async function applyOneMatch(
     if (recordErr) console.error("report reconciliation: failed to record failure (retry cap won't apply)", sample.batch_id, recordErr.message);
     throw err;
   }
-  const { peaks, purity } = compoundsToPeaks(parsed.compounds);
+  const { peaks, purity, uv_conf_match, wavelength_nm } = compoundsToPeaks(parsed.compounds);
   const analysisDate = (() => {
     if (!parsed.analysis_date) return undefined;
     const d = new Date(parsed.analysis_date);
@@ -188,6 +188,9 @@ async function applyOneMatch(
     analysis_date: analysisDate,
     analyst_id: null,
     chromatogram_image: chromatogramImage,
+    uv_conf_match,
+    wavelength_nm,
+    report_metadata: parsed.report_metadata,
   });
   if (insErr) throw insErr;
 

@@ -176,6 +176,12 @@ export interface Peak {
   amount_per_vial_mg?: number | null;
   percent_label_claim?: number | null;
   height?: number | null;
+  rf?: number | null;
+  concentration_mg?: number | null;
+  peak_purity?: number | null;
+  peak_purity_passed?: boolean | null;
+  uv_match?: number | null;
+  wavelength_nm?: number | null;
 }
 
 export function fmtPct(n: number | null | undefined, digits = 3) {

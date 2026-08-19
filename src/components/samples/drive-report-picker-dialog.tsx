@@ -24,6 +24,9 @@ export type ImportedResult = {
   sample_id_in_report: string | null;
   analysis_date: string | null;
   chromatogram_image: string | null;
+  uv_conf_match: number | null;
+  wavelength_nm: number | null;
+  report_metadata: Record<string, string> | null;
 };
 
 export function DriveReportPickerDialog({
@@ -68,12 +71,13 @@ export function DriveReportPickerDialog({
       toast.error("No compound results could be parsed from this report — try another file or enter results manually.");
       return;
     }
-    const { peaks, purity } = compoundsToPeaks(parsed.compounds);
+    const { peaks, purity, uv_conf_match, wavelength_nm } = compoundsToPeaks(parsed.compounds);
     onImport({
       peaks, purity,
       raw_data_file_path: `https://drive.google.com/file/d/${parsed.file_id}/view`,
       file_name: parsed.file_name, sample_id_in_report: parsed.sample_id_in_report,
       analysis_date: parsed.analysis_date, chromatogram_image: parsed.chromatogram_image,
+      uv_conf_match, wavelength_nm, report_metadata: parsed.report_metadata,
     });
     onOpenChange(false);
     reset();
@@ -140,6 +144,15 @@ export function DriveReportPickerDialog({
                 Analysis date: {parsed.analysis_date ?? "—"}
                 {parsed.total_peptide_contents_mg != null && ` · Total peptide contents: ${parsed.total_peptide_contents_mg} mg/vial`}
               </div>
+              {parsed.report_metadata && (
+                <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5 pt-1 border-t border-border/60 mt-1">
+                  {Object.entries(parsed.report_metadata).map(([key, value]) => (
+                    <div key={key} className="truncate">
+                      <span className="capitalize">{key.replace(/_/g, " ")}:</span> {value}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {parsed.chromatogram_image ? (

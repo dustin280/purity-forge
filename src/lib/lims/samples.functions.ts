@@ -181,6 +181,12 @@ const peakSchema = z.object({
   amount_per_vial_mg: z.number().optional().nullable(),
   percent_label_claim: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  rf: z.number().optional().nullable(),
+  concentration_mg: z.number().optional().nullable(),
+  peak_purity: z.number().optional().nullable(),
+  peak_purity_passed: z.boolean().optional().nullable(),
+  uv_match: z.number().optional().nullable(),
+  wavelength_nm: z.number().optional().nullable(),
 });
 
 export const saveResult = createServerFn({ method: "POST" })
@@ -204,6 +210,10 @@ export const saveResult = createServerFn({ method: "POST" })
       // template or ACAML) is wired in.
       uv_conf_match: z.number().min(0).max(1000).optional().nullable(),
       wavelength_nm: z.number().positive().optional().nullable(),
+      // Report-header fields with no dedicated column (data file, operator,
+      // instrument, injection volume, location, method names, etc.) — null
+      // for manual paste or when the parser found none.
+      report_metadata: z.record(z.string(), z.string()).optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -218,6 +228,7 @@ export const saveResult = createServerFn({ method: "POST" })
       chromatogram_image: data.chromatogram_image ?? null,
       uv_conf_match: data.uv_conf_match ?? null,
       wavelength_nm: data.wavelength_nm ?? null,
+      report_metadata: data.report_metadata ?? null,
     }).select().single();
     if (error) throw error;
     return res;

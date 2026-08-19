@@ -166,6 +166,17 @@ export type ParsedReportCompound = {
   amount_per_vial_mg: number | null;
   percent_label_claim: number | null;
   purity_pct: number | null;
+  // Xlsx-report-only fields (null from the PDF parsers, which have no
+  // equivalent columns) — response factor, raw detector peak height,
+  // calibration-curve concentration, spectral peak-purity score/pass flag,
+  // and UV spectral match, all straight off the instrument's per-peak table.
+  rf: number | null;
+  peak_height_mau: number | null;
+  concentration_mg: number | null;
+  peak_purity: number | null;
+  peak_purity_passed: boolean | null;
+  uv_match: number | null;
+  wavelength_nm: number | null;
   unparsed_tail?: string;
 };
 
@@ -178,6 +189,11 @@ export type ParsedReport = {
   compounds: ParsedReportCompound[];
   raw_text: string;
   chromatogram_image: string | null;
+  // Report-header label:value pairs that don't belong to any one compound
+  // row (data file, operator, instrument, injection volume, location,
+  // acquisition/processing method, signal, etc.) — xlsx reports only, null
+  // from the PDF parsers.
+  report_metadata: Record<string, string> | null;
 };
 
 function numField(s: string): number | null {
@@ -201,12 +217,18 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
   const [, compound, rtStr, tail] = m;
   const rt = Number(rtStr);
 
+  // Xlsx-only fields have no PDF equivalent — always null from this parser.
+  const noXlsxFields = {
+    rf: null, peak_height_mau: null, concentration_mg: null,
+    peak_purity: null, peak_purity_passed: null, uv_match: null, wavelength_nm: null,
+  } as const;
+
   const five = tail.match(FIVE_FIELD);
   if (five) {
     const [, area, amount, labelClaim, purity] = five;
     return {
       compound, rt, area: numField(area), amount_per_vial_mg: numField(amount),
-      percent_label_claim: pctField(labelClaim), purity_pct: pctField(purity),
+      percent_label_claim: pctField(labelClaim), purity_pct: pctField(purity), ...noXlsxFields,
     };
   }
   const four = tail.match(FOUR_FIELD);
@@ -214,12 +236,12 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
     const [, amount, labelClaim, purity] = four;
     return {
       compound, rt, area: null, amount_per_vial_mg: numField(amount),
-      percent_label_claim: pctField(labelClaim), purity_pct: pctField(purity),
+      percent_label_claim: pctField(labelClaim), purity_pct: pctField(purity), ...noXlsxFields,
     };
   }
   // Row shape didn't match either known template — still surface the
   // compound name/RT we're confident about, flag the rest for manual entry.
-  return { compound, rt, area: null, amount_per_vial_mg: null, percent_label_claim: null, purity_pct: null, unparsed_tail: tail };
+  return { compound, rt, area: null, amount_per_vial_mg: null, percent_label_claim: null, purity_pct: null, ...noXlsxFields, unparsed_tail: tail };
 }
 
 /**
@@ -255,6 +277,8 @@ function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" 
     amount_per_vial_mg: netContentMatch ? Number(netContentMatch[1]) : null,
     percent_label_claim: labelClaimMatch ? Number(labelClaimMatch[1]) : null,
     purity_pct: Number(purityMatch[1].replace(/^[<>]/, "")),
+    rf: null, peak_height_mau: null, concentration_mg: null,
+    peak_purity: null, peak_purity_passed: null, uv_match: null, wavelength_nm: null,
   };
 
   return {
@@ -262,6 +286,7 @@ function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" 
     analysis_date: injectionDateMatch ? injectionDateMatch[1].trim() : null,
     total_peptide_contents_mg: null,
     compounds: [compound],
+    report_metadata: null,
   };
 }
 
@@ -285,6 +310,7 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
     analysis_date: analysisDateMatch ? analysisDateMatch[1].trim() : null,
     total_peptide_contents_mg: totalMatch ? Number(totalMatch[1]) : null,
     compounds,
+    report_metadata: null,
   };
 }
 
@@ -298,13 +324,20 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
  * cross-check this against them the same way parseReportText was
  * validated against real PDFs, and adjust the column aliases below.
  */
-const XLSX_COLUMN_ALIASES: Record<keyof Pick<ParsedReportCompound, "compound" | "rt" | "area" | "amount_per_vial_mg" | "percent_label_claim" | "purity_pct">, string[]> = {
-  compound: ["compound", "analyte", "identity"],
+const XLSX_COLUMN_ALIASES: Record<keyof Pick<ParsedReportCompound, "compound" | "rt" | "area" | "amount_per_vial_mg" | "percent_label_claim" | "purity_pct" | "rf" | "peak_height_mau" | "concentration_mg" | "peak_purity" | "peak_purity_passed" | "uv_match" | "wavelength_nm">, string[]> = {
+  compound: ["compound", "analyte", "identity", "name"],
   rt: ["rt", "rt [min]", "retention time"],
   area: ["area"],
   amount_per_vial_mg: ["amount/vial", "amount/vial [mg]", "amount [mg]", "amount per vial"],
   percent_label_claim: ["% label claim", "label claim", "%labelclaim"],
   purity_pct: ["purity %", "purity", "area purity %", "area %"],
+  rf: ["rf"],
+  peak_height_mau: ["peak height [mau]", "peak height", "height"],
+  concentration_mg: ["concentration [mg]", "concentration"],
+  peak_purity: ["peak purity"],
+  peak_purity_passed: ["peak purity passed"],
+  uv_match: ["uv match [0-1000]", "uv match"],
+  wavelength_nm: ["λ [nm]", "wavelength [nm]", "wavelength"],
 };
 
 const LABEL_ALIASES: Record<"sample_id" | "analysis_date", string[]> = {
@@ -312,16 +345,43 @@ const LABEL_ALIASES: Record<"sample_id" | "analysis_date", string[]> = {
   analysis_date: ["analysis date", "injection date"],
 };
 
+// Report-header label:value pairs, keyed for report_metadata. "type" is
+// deliberately last/specific-enough for this template — every other alias
+// here only appears once on the sheet as an actual field label.
+const REPORT_METADATA_LABEL_ALIASES: Record<string, string[]> = {
+  data_file: ["data file"],
+  operator: ["operator"],
+  instrument: ["instrument"],
+  injection_volume: ["inj. volume", "injection volume"],
+  location: ["location"],
+  acquisition_method: ["acq. method", "acquisition method"],
+  processing_method: ["processing method"],
+  sample_amount: ["sample amount"],
+  sample_type: ["type"],
+  signal: ["signal"],
+  calib_level: ["calib level"],
+  manually_modified: ["manually modified"],
+};
+
 function cellText(v: unknown): string {
   return v == null ? "" : String(v).trim();
 }
 
+// Excel wraps long header text (e.g. "Amount/Vial [mg]") at arbitrary
+// points, embedding a literal \r\n mid-word ("Amount/Vi\r\nal [mg]") —
+// collapsing runs of whitespace to a single space still leaves "vi al"
+// instead of "vial", so alias matching strips whitespace entirely from
+// both sides instead of just lowercasing.
+function normKey(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, "");
+}
+
 function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>> } | null {
   for (let i = 0; i < rows.length; i++) {
-    const row = (rows[i] ?? []).map((c) => cellText(c).toLowerCase());
+    const row = (rows[i] ?? []).map((c) => normKey(cellText(c)));
     const colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>> = {};
     for (const [key, aliases] of Object.entries(XLSX_COLUMN_ALIASES) as [keyof typeof XLSX_COLUMN_ALIASES, string[]][]) {
-      const idx = row.findIndex((cell) => aliases.some((a) => cell === a || cell.startsWith(a)));
+      const idx = row.findIndex((cell) => aliases.some((a) => cell === normKey(a) || cell.startsWith(normKey(a))));
       if (idx !== -1) colMap[key] = idx;
     }
     // A real header row needs at minimum a compound name and RT column.
@@ -333,10 +393,22 @@ function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial
 function findLabelValue(rows: unknown[][], aliases: string[]): string | null {
   for (const row of rows) {
     for (let c = 0; c < row.length; c++) {
-      const cell = cellText(row[c]).toLowerCase().replace(/:$/, "");
-      if (aliases.some((a) => cell === a)) {
-        const next = cellText(row[c + 1]);
-        if (next) return next;
+      const cell = normKey(cellText(row[c]).replace(/:$/, ""));
+      if (aliases.some((a) => cell === normKey(a))) {
+        // The report template pads a label with several blank merged-cell
+        // columns before its actual value (e.g. "Sample name:" at column 1,
+        // value at column 7) — the immediate next cell is usually empty, so
+        // scan rightward for the first non-blank cell instead. But some
+        // labels (e.g. "Calib Level:") are legitimately blank for a given
+        // sample, with another label sharing the row further right (e.g.
+        // "Sample amount:") — stop at the first cell that itself looks like
+        // a label rather than treating it as this label's value.
+        for (let k = c + 1; k < row.length; k++) {
+          const next = cellText(row[k]);
+          if (!next) continue;
+          if (/:$/.test(next)) break;
+          return next;
+        }
       }
     }
   }
@@ -349,6 +421,22 @@ function numOrNull(v: unknown): number | null {
   if (/^N\/A$/i.test(s)) return null;
   const n = Number(s.replace(/^[<>]/, "").replace(/%$/, ""));
   return isNaN(n) ? null : n;
+}
+
+function boolOrNull(v: unknown): boolean | null {
+  const s = cellText(v).toLowerCase();
+  if (s === "true") return true;
+  if (s === "false") return false;
+  return null;
+}
+
+function findReportMetadata(rows: unknown[][]): Record<string, string> | null {
+  const metadata: Record<string, string> = {};
+  for (const [key, aliases] of Object.entries(REPORT_METADATA_LABEL_ALIASES)) {
+    const value = findLabelValue(rows, aliases);
+    if (value) metadata[key] = value;
+  }
+  return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
 function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
@@ -374,6 +462,13 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
         amount_per_vial_mg: header.colMap.amount_per_vial_mg !== undefined ? numOrNull(row[header.colMap.amount_per_vial_mg]) : null,
         percent_label_claim: header.colMap.percent_label_claim !== undefined ? numOrNull(row[header.colMap.percent_label_claim]) : null,
         purity_pct: header.colMap.purity_pct !== undefined ? numOrNull(row[header.colMap.purity_pct]) : null,
+        rf: header.colMap.rf !== undefined ? numOrNull(row[header.colMap.rf]) : null,
+        peak_height_mau: header.colMap.peak_height_mau !== undefined ? numOrNull(row[header.colMap.peak_height_mau]) : null,
+        concentration_mg: header.colMap.concentration_mg !== undefined ? numOrNull(row[header.colMap.concentration_mg]) : null,
+        peak_purity: header.colMap.peak_purity !== undefined ? numOrNull(row[header.colMap.peak_purity]) : null,
+        peak_purity_passed: header.colMap.peak_purity_passed !== undefined ? boolOrNull(row[header.colMap.peak_purity_passed]) : null,
+        uv_match: header.colMap.uv_match !== undefined ? numOrNull(row[header.colMap.uv_match]) : null,
+        wavelength_nm: header.colMap.wavelength_nm !== undefined ? numOrNull(row[header.colMap.wavelength_nm]) : null,
       });
     }
   }
@@ -383,6 +478,7 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
     analysis_date: findLabelValue(rows, LABEL_ALIASES.analysis_date),
     total_peptide_contents_mg: null,
     compounds,
+    report_metadata: findReportMetadata(rows),
   };
 }
 
@@ -415,13 +511,22 @@ export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): P
  * picker dialog and the bulk reconciliation path so both save results the
  * same way.
  */
-export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Peak[]; purity: number } {
+export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Peak[]; purity: number; uv_conf_match: number | null; wavelength_nm: number | null } {
   const peaks: Peak[] = compounds.map((c, i) => ({
     peak_id: `P${i + 1}`, rt: c.rt, area: c.area ?? null, area_pct: c.purity_pct ?? 0,
     identity: c.compound, amount_per_vial_mg: c.amount_per_vial_mg, percent_label_claim: c.percent_label_claim,
+    height: c.peak_height_mau, rf: c.rf, concentration_mg: c.concentration_mg,
+    peak_purity: c.peak_purity, peak_purity_passed: c.peak_purity_passed,
+    uv_match: c.uv_match, wavelength_nm: c.wavelength_nm,
   }));
   const main = peaks.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), peaks[0]);
-  return { peaks, purity: main?.area_pct ?? 0 };
+  // results.uv_conf_match/wavelength_nm are single columns per result (not
+  // per-peak) — sourced from the same main/purity peak used for the overall
+  // purity number, same convention as chromatogram_image.
+  return {
+    peaks, purity: main?.area_pct ?? 0,
+    uv_conf_match: main?.uv_match ?? null, wavelength_nm: main?.wavelength_nm ?? null,
+  };
 }
 
 export const parseReportFile = createServerFn({ method: "POST" })

@@ -36,7 +36,11 @@ export function ResultsTab({
   peaks: Peak[];
   pasted: string;
   setPasted: (v: string) => void;
-  onSubmit: (imported?: { peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null; chromatogram_image: string | null }) => void;
+  onSubmit: (imported?: {
+    peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null;
+    chromatogram_image: string | null; uv_conf_match: number | null; wavelength_nm: number | null;
+    report_metadata: Record<string, string> | null;
+  }) => void;
   busy: boolean;
   spec: SpecRange;
   currentUserId: string | null;
@@ -62,6 +66,8 @@ export function ResultsTab({
         peaks: imported.peaks, purity: imported.purity,
         raw_data_file_path: imported.raw_data_file_path, analysis_date: imported.analysis_date,
         chromatogram_image: imported.chromatogram_image,
+        uv_conf_match: imported.uv_conf_match, wavelength_nm: imported.wavelength_nm,
+        report_metadata: imported.report_metadata,
       });
     } else {
       onSubmit();

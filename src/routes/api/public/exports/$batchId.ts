@@ -82,6 +82,7 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
               appearance: sample.physical_description ?? null,
               uv_conf_match: r.uv_conf_match ?? null,
               wavelength_nm: r.wavelength_nm ?? null,
+              report_metadata: r.report_metadata ?? null,
             })),
           })),
           extras,
