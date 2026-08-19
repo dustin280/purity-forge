@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
+import { provisionTestsForSample } from "@/lib/lims/test-provisioning";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -278,7 +279,7 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       methodGroupId = c?.method_group_id ?? null;
     }
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("samples")
       .update({
         client_id: data.client_id,
@@ -292,7 +293,9 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
         notes: data.notes,
         status: "prep",
       })
-      .eq("id", data.sampleId);
+      .eq("id", data.sampleId)
+      .select("id,batch_id")
+      .single();
     if (error) throw error;
     await supabase.from("audit_log").insert({
       action: "intake_verified",
@@ -301,14 +304,6 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       changed_by: userId,
       diff: { status: "prep" },
     });
-    const { data: existing } = await supabase.from("tests").select("id").eq("sample_id", data.sampleId).limit(1);
-    if (!existing || existing.length === 0) {
-      await supabase.from("tests").insert({
-        sample_id: data.sampleId,
-        method_name: "Peptide Purity HPLC-DAD",
-        instrument: "Agilent 1290 DAD",
-        assigned_tech: userId,
-      });
-    }
+    await provisionTestsForSample(supabase, updated, data.parameters, userId);
     return { ok: true };
   });

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { releaseSampleFromInstrument } from "@/lib/run-lists/vial-release.functions";
+import { provisionTestsForSample } from "@/lib/lims/test-provisioning";
 
 export const updateTestSpec = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -63,10 +64,7 @@ export const createSample = createServerFn({ method: "POST" })
       ...rest, client_id, client: client.company_name, created_by: userId,
     }).select().single();
     if (error) throw error;
-    await supabase.from("tests").insert({
-      sample_id: sample.id, method_name: "Peptide Purity HPLC-DAD",
-      instrument: "Agilent 1290 DAD", assigned_tech: userId,
-    });
+    await provisionTestsForSample(supabase, sample, data.parameters, userId);
     return sample;
   });
 
@@ -83,13 +81,21 @@ export const getSampleDetail = createServerFn({ method: "GET" })
     const results = testIds.length
       ? (await supabase.from("results").select("*").in("test_id", testIds)).data ?? []
       : [];
+    const nonchromResults = testIds.length
+      ? (await supabase.from("nonchrom_results").select("*").in("test_id", testIds).order("analysis_date", { ascending: false })).data ?? []
+      : [];
+    const nonchromAttachments = testIds.length
+      ? (await supabase.from("nonchrom_test_attachments").select("*").in("test_id", testIds).order("uploaded_at", { ascending: false })).data ?? []
+      : [];
     const userIds = Array.from(new Set(
-      results.flatMap(r => [r.analyst_id, r.reviewer_id]).filter((id): id is string => !!id)
+      [...results, ...nonchromResults]
+        .flatMap(r => [r.analyst_id, r.reviewer_id])
+        .filter((id): id is string => !!id)
     ));
     const profiles = userIds.length
       ? (await supabase.from("profiles").select("id,full_name,first_name,last_name,email,title").in("id", userIds)).data ?? []
       : [];
-    return { sample, tests: tests ?? [], results, profiles };
+    return { sample, tests: tests ?? [], results, profiles, nonchromResults, nonchromAttachments };
   });
 
 const SAMPLE_STATUSES = [

@@ -9,11 +9,12 @@ import { CoaTab } from "@/components/samples/coa-tab";
 import { useSampleDetail } from "@/components/samples/use-sample-detail";
 import { downloadCoa } from "@/components/samples/download-coa";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
+import { NonchromResultCard } from "@/components/samples/nonchrom/nonchrom-result-card";
 export const Route = createFileRoute("/_authenticated/samples/$batchId")({ component: SampleDetail });
 
 function SampleDetail() {
   const { batchId } = Route.useParams();
-  const { query, busy, changeStatus, submitResult, reviewLatestResult, approveLatestResult } = useSampleDetail(batchId);
+  const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult } = useSampleDetail(batchId);
   const { user } = useAuth();
   const { data, isLoading } = query;
   const [tab, setTab] = useState<SampleDetailTab>("info");
@@ -22,8 +23,12 @@ function SampleDetail() {
   if (isLoading) return <div className="p-8 text-muted-foreground">Loading…</div>;
   if (!data) return <div className="p-8">Not found</div>;
 
-  const { sample, tests, results, profiles } = data;
-  const test = tests[0];
+  const { sample, tests, results, profiles, nonchromResults } = data;
+  // Multiple tests can exist per sample now (purity + any flagged
+  // sterility/endotoxin/heavy-metals) — the purity one drives the sample's
+  // own status/spec/COA, same as the single test every sample used to have.
+  const test = tests.find(t => t.test_type === "purity") ?? tests[0];
+  const nonPurityTests = tests.filter(t => t.test_type !== "purity");
   const latestResult = results[results.length - 1];
   const peaks: Peak[] = (latestResult?.peak_details as Peak[] | null) ?? [];
   const nameFor = (id: string | null) => {
@@ -77,6 +82,22 @@ function SampleDetail() {
           onApprove={approveLatestResult}
         />
       )}
+
+      {tab === "results" && nonPurityTests.map(t => {
+        // nonchromResults is ordered newest-first (see getSampleDetail), so
+        // the first match per test_id is the latest entry.
+        const latest = nonchromResults.find(r => r.test_id === t.id) ?? null;
+        return (
+          <NonchromResultCard
+            key={t.id}
+            test={t}
+            latest={latest}
+            analystName={nameFor(latest?.analyst_id ?? null)}
+            busy={busy}
+            onSave={(testType, resultData) => submitNonchromResult({ test_type: testType, testId: t.id, data: resultData })}
+          />
+        );
+      })}
 
       {tab === "coa" && (
         <CoaTab

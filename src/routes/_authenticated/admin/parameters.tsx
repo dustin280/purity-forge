@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { qk } from "@/lib/query-keys";
 import { AddParameterForm } from "@/components/admin/parameters/add-form";
 import { ParametersList } from "@/components/admin/parameters/parameters-list";
+import type { NonPurityTestType } from "@/components/admin/parameters/test-type-options";
 export const Route = createFileRoute("/_authenticated/admin/parameters")({ component: ParametersAdmin });
 
 function ParametersAdmin() {
@@ -26,12 +27,12 @@ function ParametersAdmin() {
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.testParameters.list() });
 
   const addMut = useMutation({
-    mutationFn: (name: string) => create({ data: { name } }),
+    mutationFn: (v: { name: string; maps_to_test_type: NonPurityTestType | null }) => create({ data: v }),
     onSuccess: () => { toast.success("Parameter added"); invalidate(); },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to add"),
   });
   const updateMut = useMutation({
-    mutationFn: (v: { id: string; name?: string; is_active?: boolean }) => update({ data: v }),
+    mutationFn: (v: { id: string; name?: string; is_active?: boolean; maps_to_test_type?: NonPurityTestType | null }) => update({ data: v }),
     onSuccess: invalidate,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update"),
   });
@@ -60,13 +61,14 @@ function ParametersAdmin() {
 
       <AddParameterForm
         busy={addMut.isPending}
-        onAdd={(name, reset) => addMut.mutate(name, { onSuccess: reset })}
+        onAdd={(name, maps_to_test_type, reset) => addMut.mutate({ name, maps_to_test_type }, { onSuccess: reset })}
       />
       <ParametersList
         rows={rows}
         isLoading={isLoading}
         onToggleActive={(id, is_active) => updateMut.mutate({ id, is_active })}
         onDelete={(id) => delMut.mutate(id)}
+        onChangeTestType={(id, maps_to_test_type) => updateMut.mutate({ id, maps_to_test_type })}
       />
     </div>
   );

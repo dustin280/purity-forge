@@ -7,3 +7,4 @@ export * from "./lims/settings.functions";
 export * from "./lims/users.functions";
 export * from "./lims/parameters.functions";
 export * from "./lims/coc.functions";
+export * from "./lims/nonchrom-results.functions";

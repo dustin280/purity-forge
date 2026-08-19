@@ -2,11 +2,25 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult } from "@/lib/lims.functions";
+import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult, saveNonchromResult } from "@/lib/lims.functions";
 import { type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
+import type { SterilityData } from "@/components/samples/nonchrom/sterility-fields";
+import type { EndotoxinData } from "@/components/samples/nonchrom/endotoxin-fields";
+import type { HeavyMetalsData } from "@/components/samples/nonchrom/heavy-metals-fields";
+
+// Loose rather than a strict discriminated union: NonchromResultCard's
+// onSave callback (shared across all three field forms) can't correlate
+// test_type with data at the type level, only at the call site inside each
+// *-fields.tsx component (which always pairs them correctly). The server's
+// Zod discriminatedUnion in saveNonchromResult is the actual safety net.
+type NonchromSaveArgs = {
+  test_type: "sterility" | "endotoxin" | "heavy_metals";
+  testId: string;
+  data: SterilityData | EndotoxinData | HeavyMetalsData;
+};
 
 export function useSampleDetail(batchId: string) {
   const qc = useQueryClient();
@@ -16,6 +30,7 @@ export function useSampleDetail(batchId: string) {
   const saveResultFn = useServerFn(saveResult);
   const reviewResultFn = useServerFn(reviewResult);
   const approveResultFn = useServerFn(approveResult);
+  const saveNonchromResultFn = useServerFn(saveNonchromResult);
 
   const query = useQuery({
     queryKey: qk.samples.detail(batchId),
@@ -84,6 +99,20 @@ export function useSampleDetail(batchId: string) {
     finally { setBusy(false); }
   }
 
+  // Unlike submitResult, this never touches the sample's own status — Micro
+  // (sterility/endotoxin) and heavy metals results append to the sample
+  // whenever they're ready, independent of purity's own review/approve/
+  // complete lifecycle. See use of provisionTestsForSample.
+  async function submitNonchromResult(args: NonchromSaveArgs) {
+    setBusy(true);
+    try {
+      await saveNonchromResultFn({ data: args });
+      toast.success(`${args.test_type === "heavy_metals" ? "Heavy metals" : args.test_type[0].toUpperCase() + args.test_type.slice(1)} result saved`);
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Save failed"); }
+    finally { setBusy(false); }
+  }
+
   async function reviewLatestResult(resultId: string) {
     setBusy(true);
     try {
@@ -105,5 +134,5 @@ export function useSampleDetail(batchId: string) {
     finally { setBusy(false); }
   }
 
-  return { query, busy, changeStatus, submitResult, reviewLatestResult, approveLatestResult };
+  return { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult };
 }

@@ -37,11 +37,23 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
         const results = testIds.length
           ? (await supabaseAdmin.from("results").select("*").in("test_id", testIds)).data ?? []
           : [];
+        // Sterility/endotoxin/heavy-metals results — unlike purity, these
+        // have no in-app review/approve step (Micro reviews sterility/
+        // endotoxin independently before it reaches here; heavy metals is
+        // an outsourced lab's already-reviewed report), so a test's status
+        // is simply pending (flagged, nothing entered yet) vs available
+        // (a result exists) — see nonchrom_results in the schema.
+        const nonchromResults = testIds.length
+          ? (await supabaseAdmin.from("nonchrom_results").select("*").in("test_id", testIds)
+              .order("analysis_date", { ascending: false })).data ?? []
+          : [];
 
         // uuid -> display name, same precedence as profileDisplayName (src/hooks/use-auth.tsx):
         // first+last name, then full_name, then email.
         const userIds = Array.from(new Set(
-          results.flatMap(r => [r.analyst_id, r.reviewer_id]).filter((id): id is string => !!id)
+          [...results, ...nonchromResults]
+            .flatMap(r => [r.analyst_id, r.reviewer_id])
+            .filter((id): id is string => !!id)
         ));
         const profiles = userIds.length
           ? (await supabaseAdmin.from("profiles").select("id,full_name,first_name,last_name,email").in("id", userIds)).data ?? []
@@ -64,27 +76,56 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           receipt_date: sample.receipt_date,
           status: sample.status,
           notes: sample.notes,
-          tests: (tests ?? []).map(t => ({
-            id: t.id,
-            method_name: t.method_name,
-            instrument: t.instrument,
-            parameters: t.parameters,
-            results: results.filter(r => r.test_id === t.id).map(r => ({
-              purity_percentage: r.purity_percentage,
-              peak_details: r.peak_details,
-              analysis_date: r.analysis_date,
-              analyst_id: r.analyst_id,
-              analyst_name: r.analyst_id ? nameById.get(r.analyst_id) ?? null : null,
-              reviewer_id: r.reviewer_id,
-              reviewer_name: r.reviewer_id ? nameById.get(r.reviewer_id) ?? null : null,
-              approved_at: r.approved_at,
-              chromatogram_png: r.chromatogram_image,
-              appearance: sample.physical_description ?? null,
-              uv_conf_match: r.uv_conf_match ?? null,
-              wavelength_nm: r.wavelength_nm ?? null,
-              report_metadata: r.report_metadata ?? null,
-            })),
-          })),
+          // test_type is the stable field to key off of (purity/sterility/
+          // endotoxin/heavy_metals, never renamed once shipped) —
+          // method_name stays free text and can be renamed anytime.
+          tests: (tests ?? []).map(t => {
+            if (t.test_type === "purity") {
+              return {
+                id: t.id,
+                test_type: t.test_type,
+                sub_id: t.sub_id,
+                method_name: t.method_name,
+                instrument: t.instrument,
+                parameters: t.parameters,
+                status: "available",
+                results: results.filter(r => r.test_id === t.id).map(r => ({
+                  purity_percentage: r.purity_percentage,
+                  peak_details: r.peak_details,
+                  analysis_date: r.analysis_date,
+                  analyst_id: r.analyst_id,
+                  analyst_name: r.analyst_id ? nameById.get(r.analyst_id) ?? null : null,
+                  reviewer_id: r.reviewer_id,
+                  reviewer_name: r.reviewer_id ? nameById.get(r.reviewer_id) ?? null : null,
+                  approved_at: r.approved_at,
+                  chromatogram_png: r.chromatogram_image,
+                  appearance: sample.physical_description ?? null,
+                  uv_conf_match: r.uv_conf_match ?? null,
+                  wavelength_nm: r.wavelength_nm ?? null,
+                  report_metadata: r.report_metadata ?? null,
+                })),
+              };
+            }
+            // Sterility/endotoxin/heavy-metals: newest nonchrom_results row
+            // for this test, if any. Attachments (e.g. a heavy-metals
+            // sub-report) are intentionally not included here — deferred.
+            const latest = nonchromResults.find(r => r.test_id === t.id) ?? null;
+            return {
+              id: t.id,
+              test_type: t.test_type,
+              sub_id: t.sub_id,
+              method_name: t.method_name,
+              instrument: t.instrument,
+              parameters: t.parameters,
+              status: latest ? "available" : "pending",
+              results: latest ? [{
+                data: latest.data,
+                analysis_date: latest.analysis_date,
+                analyst_id: latest.analyst_id,
+                analyst_name: latest.analyst_id ? nameById.get(latest.analyst_id) ?? null : null,
+              }] : [],
+            };
+          }),
           extras,
           generated_at: new Date().toISOString(),
         };

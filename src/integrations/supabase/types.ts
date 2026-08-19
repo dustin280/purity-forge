@@ -4298,12 +4298,107 @@ export type Database = {
         }
         Relationships: []
       }
+      nonchrom_results: {
+        Row: {
+          analysis_date: string
+          analyst_id: string | null
+          approved_at: string | null
+          created_at: string
+          data: Json
+          id: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at: string
+        }
+        Insert: {
+          analysis_date?: string
+          analyst_id?: string | null
+          approved_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Update: {
+          analysis_date?: string
+          analyst_id?: string | null
+          approved_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          test_id?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nonchrom_results_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nonchrom_test_attachments: {
+        Row: {
+          content_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          kind: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes: number | null
+          test_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes?: number | null
+          test_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes?: number | null
+          test_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nonchrom_test_attachments_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_parameters: {
         Row: {
           created_at: string
           created_by: string | null
           id: string
           is_active: boolean
+          maps_to_test_type: Database["public"]["Enums"]["test_type"] | null
           name: string
           updated_at: string
         }
@@ -4312,6 +4407,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean
+          maps_to_test_type?: Database["public"]["Enums"]["test_type"] | null
           name: string
           updated_at?: string
         }
@@ -4320,6 +4416,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           is_active?: boolean
+          maps_to_test_type?: Database["public"]["Enums"]["test_type"] | null
           name?: string
           updated_at?: string
         }
@@ -4337,6 +4434,8 @@ export type Database = {
           spec_max: number | null
           spec_min: number | null
           status: Database["public"]["Enums"]["test_status"]
+          sub_id: string | null
+          test_type: Database["public"]["Enums"]["test_type"]
           updated_at: string
         }
         Insert: {
@@ -4350,6 +4449,8 @@ export type Database = {
           spec_max?: number | null
           spec_min?: number | null
           status?: Database["public"]["Enums"]["test_status"]
+          sub_id?: string | null
+          test_type?: Database["public"]["Enums"]["test_type"]
           updated_at?: string
         }
         Update: {
@@ -4363,6 +4464,8 @@ export type Database = {
           spec_max?: number | null
           spec_min?: number | null
           status?: Database["public"]["Enums"]["test_status"]
+          sub_id?: string | null
+          test_type?: Database["public"]["Enums"]["test_type"]
           updated_at?: string
         }
         Relationships: [
@@ -4620,6 +4723,7 @@ export type Database = {
         | "photo"
         | "other"
       material_type: "controlled" | "uncontrolled"
+      nonchrom_attachment_kind: "lab_report" | "coa" | "other"
       run_list_column_source:
         | "literal"
         | "sample_field"
@@ -4660,6 +4764,7 @@ export type Database = {
         | "other"
       standard_prep_status: "draft" | "reviewed" | "approved"
       test_status: "pending" | "running" | "completed" | "failed"
+      test_type: "purity" | "sterility" | "endotoxin" | "heavy_metals"
       tray_position_status: "available" | "reserved" | "out_of_service"
     }
     CompositeTypes: {
@@ -4810,6 +4915,7 @@ export const Constants = {
         "other",
       ],
       material_type: ["controlled", "uncontrolled"],
+      nonchrom_attachment_kind: ["lab_report", "coa", "other"],
       run_list_column_source: [
         "literal",
         "sample_field",
@@ -4855,6 +4961,7 @@ export const Constants = {
       ],
       standard_prep_status: ["draft", "reviewed", "approved"],
       test_status: ["pending", "running", "completed", "failed"],
+      test_type: ["purity", "sterility", "endotoxin", "heavy_metals"],
       tray_position_status: ["available", "reserved", "out_of_service"],
     },
   },
