@@ -59,6 +59,11 @@ function SampleDetail() {
             reviewer_id: latestResult.reviewer_id,
             reviewed_at: latestResult.reviewed_at,
             approved_at: latestResult.approved_at,
+            chromatogram_image: (latestResult as { chromatogram_image?: string | null }).chromatogram_image ?? null,
+            raw_data_file_path: (latestResult as { raw_data_file_path?: string | null }).raw_data_file_path ?? null,
+            uv_conf_match: (latestResult as { uv_conf_match?: number | null }).uv_conf_match ?? null,
+            wavelength_nm: (latestResult as { wavelength_nm?: number | null }).wavelength_nm ?? null,
+            report_metadata: (latestResult as { report_metadata?: Record<string, string> | null }).report_metadata ?? null,
           } : null}
           peaks={peaks}
           pasted={pasted}

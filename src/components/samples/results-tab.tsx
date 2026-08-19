@@ -17,6 +17,11 @@ type LatestResult = {
   reviewer_id: string | null;
   reviewed_at: string | null;
   approved_at: string | null;
+  chromatogram_image: string | null;
+  raw_data_file_path: string | null;
+  uv_conf_match: number | null;
+  wavelength_nm: number | null;
+  report_metadata: Record<string, string> | null;
 } | null;
 
 export function ResultsTab({
@@ -92,6 +97,17 @@ export function ResultsTab({
               <div className="text-xs text-muted-foreground font-mono">
                 {new Date(latestResult.analysis_date).toLocaleString()}
               </div>
+              {(latestResult.uv_conf_match != null || latestResult.wavelength_nm != null) && (
+                <div className="text-xs text-muted-foreground font-mono">
+                  {latestResult.uv_conf_match != null && `UV match ${latestResult.uv_conf_match}`}
+                  {latestResult.uv_conf_match != null && latestResult.wavelength_nm != null && " · "}
+                  {latestResult.wavelength_nm != null && `λ ${latestResult.wavelength_nm} nm`}
+                </div>
+              )}
+              {latestResult.raw_data_file_path && (
+                <a href={latestResult.raw_data_file_path} target="_blank" rel="noreferrer"
+                  className="text-xs text-primary hover:underline block">Source report</a>
+              )}
               <div className="flex gap-1.5 justify-end">
                 {canReview && (
                   <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview(latestResult.id)}>Review</Button>
@@ -109,30 +125,63 @@ export function ResultsTab({
             </div>
           </div>
           <div className="h-56 bg-card">
-            <Chromatogram peaks={peaks} />
+            {latestResult.chromatogram_image ? (
+              <img src={latestResult.chromatogram_image} alt="Chromatogram" className="w-full h-full object-contain" />
+            ) : (
+              <Chromatogram peaks={peaks} />
+            )}
           </div>
-          <table className="w-full text-xs font-mono">
-            <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="text-left px-3 py-2">Peak</th>
-                <th className="text-right px-3 py-2">RT</th>
-                <th className="text-right px-3 py-2">Area</th>
-                <th className="text-right px-3 py-2">Area %</th>
-                <th className="text-left px-3 py-2">Identity</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {peaks.map(p => (
-                <tr key={p.peak_id}>
-                  <td className="px-3 py-1.5">{p.peak_id}</td>
-                  <td className="px-3 py-1.5 text-right">{p.rt.toFixed(3)}</td>
-                  <td className="px-3 py-1.5 text-right">{p.area != null ? p.area.toFixed(1) : "—"}</td>
-                  <td className="px-3 py-1.5 text-right">{p.area_pct.toFixed(3)}</td>
-                  <td className="px-3 py-1.5">{p.identity ?? "—"}</td>
-                </tr>
+          {latestResult.report_metadata && (
+            <div className="px-4 py-3 border-t border-border grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {Object.entries(latestResult.report_metadata).map(([key, value]) => (
+                <div key={key} className="truncate">
+                  <span className="capitalize">{key.replace(/_/g, " ")}:</span> <span className="text-foreground">{value}</span>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs font-mono">
+              <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2">Peak</th>
+                  <th className="text-right px-3 py-2">RT</th>
+                  <th className="text-right px-3 py-2">Area</th>
+                  <th className="text-right px-3 py-2">Area %</th>
+                  <th className="text-left px-3 py-2">Identity</th>
+                  <th className="text-right px-3 py-2">Amount/Vial</th>
+                  <th className="text-right px-3 py-2">%Label Claim</th>
+                  <th className="text-right px-3 py-2">RF</th>
+                  <th className="text-right px-3 py-2">Height</th>
+                  <th className="text-right px-3 py-2">Conc [mg]</th>
+                  <th className="text-right px-3 py-2">Peak Purity</th>
+                  <th className="text-center px-3 py-2">Purity Pass</th>
+                  <th className="text-right px-3 py-2">UV Match</th>
+                  <th className="text-right px-3 py-2">λ [nm]</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {peaks.map(p => (
+                  <tr key={p.peak_id}>
+                    <td className="px-3 py-1.5">{p.peak_id}</td>
+                    <td className="px-3 py-1.5 text-right">{p.rt.toFixed(3)}</td>
+                    <td className="px-3 py-1.5 text-right">{p.area != null ? p.area.toFixed(1) : "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.area_pct.toFixed(3)}</td>
+                    <td className="px-3 py-1.5">{p.identity ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.amount_per_vial_mg ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.percent_label_claim ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.rf ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.height ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.concentration_mg ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.peak_purity ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-center">{p.peak_purity_passed == null ? "—" : p.peak_purity_passed ? "Pass" : "Fail"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.uv_match ?? "—"}</td>
+                    <td className="px-3 py-1.5 text-right">{p.wavelength_nm ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Card>
       )}
 
