@@ -194,6 +194,7 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
           diluentLot={state.diluentLot}
           onDiluentName={v => setState(prev => ({ ...prev, diluentName: v }))}
           onDiluentLot={v => setState(prev => ({ ...prev, diluentLot: v }))}
+          description="An aqueous primary is a straight dilution of the received stock into one diluent — no percentage mixing."
         />
       )}
       {step === 2 && (
@@ -201,6 +202,7 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
           value={state.concentration}
           onChange={c => setState(prev => ({ ...prev, concentration: c }))}
           dilutionResult={dilutionResult}
+          description="Enter the target concentration and final volume — the dilution from the received stock is computed below."
         />
       )}
       {step === 3 && dilutionResult && !dilutionResult.error && state.source && (

@@ -8,16 +8,20 @@ interface Props {
   diluentLot: string;
   onDiluentName: (v: string) => void;
   onDiluentLot: (v: string) => void;
+  /** Shared verbatim by aqueous-flow, which dilutes a material receipt
+   * rather than an internal standard — override the wording there. */
+  description?: string;
 }
 
-export function StepDiluent({ diluentName, diluentLot, onDiluentName, onDiluentLot }: Props) {
+export function StepDiluent({
+  diluentName, diluentLot, onDiluentName, onDiluentLot,
+  description = "A working standard is a straight dilution of the primary into one diluent — no percentage mixing.",
+}: Props) {
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Step 2 — Diluent</h2>
-        <p className="text-sm text-muted-foreground">
-          A working standard is a straight dilution of the primary into one diluent — no percentage mixing.
-        </p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
       <Card className="p-4 space-y-3">

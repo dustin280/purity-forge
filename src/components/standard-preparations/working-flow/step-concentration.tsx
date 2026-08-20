@@ -12,11 +12,16 @@ interface Props {
   value: WorkingConcentration;
   onChange: (c: WorkingConcentration) => void;
   dilutionResult: DilutionResult | null;
+  /** Shared verbatim by aqueous-flow — override the wording there. */
+  description?: string;
 }
 
 const UNITS: ConcUnit[] = ["mg/mL", "mg/L", "µg/mL", "µg/L"];
 
-export function StepConcentration({ value, onChange, dilutionResult }: Props) {
+export function StepConcentration({
+  value, onChange, dilutionResult,
+  description = "Enter the target concentration and final volume — the dilution from the primary is computed below.",
+}: Props) {
   function up<K extends keyof WorkingConcentration>(k: K, v: WorkingConcentration[K]) {
     onChange({ ...value, [k]: v });
   }
@@ -25,9 +30,7 @@ export function StepConcentration({ value, onChange, dilutionResult }: Props) {
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Step 3 — Concentration & Storage</h2>
-        <p className="text-sm text-muted-foreground">
-          Enter the target concentration and final volume — the dilution from the primary is computed below.
-        </p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
 
       <Card className="p-4 space-y-3">
