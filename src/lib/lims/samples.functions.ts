@@ -90,6 +90,7 @@ export const getSampleDetail = createServerFn({ method: "GET" })
     const userIds = Array.from(new Set(
       [...results, ...nonchromResults]
         .flatMap(r => [r.analyst_id, r.reviewer_id])
+        .concat(sample.purity_waived_by)
         .filter((id): id is string => !!id)
     ));
     const profiles = userIds.length
@@ -140,7 +141,7 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
 
     const { data: sample, error: sampleErr } = await supabase
-      .from("samples").select("status").eq("id", data.sampleId).maybeSingle();
+      .from("samples").select("status, purity_waived").eq("id", data.sampleId).maybeSingle();
     if (sampleErr) throw sampleErr;
     if (!sample) throw new Error("Sample not found");
 
@@ -150,7 +151,9 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
       throw new Error(`Cannot move sample from "${currentStatus}" to "${data.status}"`);
     }
 
-    if (data.status === "reviewed" || data.status === "approved") {
+    // A purity-waived sample (referee-lab work with no purity requested at
+    // all) has no results row to check against — skip the gate entirely.
+    if ((data.status === "reviewed" || data.status === "approved") && !sample.purity_waived) {
       const { data: tests } = await supabase.from("tests").select("id").eq("sample_id", data.sampleId);
       const testIds = (tests ?? []).map(t => t.id);
       const { data: latestResult } = testIds.length
@@ -178,6 +181,27 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
     if (data.status === "approved") {
       await releaseSampleFromInstrument(supabase, data.sampleId);
     }
+    return { ok: true };
+  });
+
+export const setPurityWaived = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ sampleId: z.string().uuid(), waived: z.boolean() }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("samples").update({
+      purity_waived: data.waived,
+      purity_waived_at: data.waived ? new Date().toISOString() : null,
+      purity_waived_by: data.waived ? userId : null,
+    }).eq("id", data.sampleId);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      action: data.waived ? "purity_waived" : "purity_waived:undo",
+      table_name: "samples", record_id: data.sampleId, changed_by: userId,
+      diff: { purity_waived: data.waived },
+    });
     return { ok: true };
   });
 

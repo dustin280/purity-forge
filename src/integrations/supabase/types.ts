@@ -2592,6 +2592,9 @@ export type Database = {
           prep_flagged_by: string | null
           priority: number
           project: string | null
+          purity_waived: boolean
+          purity_waived_at: string | null
+          purity_waived_by: string | null
           raw_data_file_path: string | null
           receipt_date: string
           received_form: string | null
@@ -2639,6 +2642,9 @@ export type Database = {
           prep_flagged_by?: string | null
           priority?: number
           project?: string | null
+          purity_waived?: boolean
+          purity_waived_at?: string | null
+          purity_waived_by?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
           received_form?: string | null
@@ -2686,6 +2692,9 @@ export type Database = {
           prep_flagged_by?: string | null
           priority?: number
           project?: string | null
+          purity_waived?: boolean
+          purity_waived_at?: string | null
+          purity_waived_by?: string | null
           raw_data_file_path?: string | null
           receipt_date?: string
           received_form?: string | null

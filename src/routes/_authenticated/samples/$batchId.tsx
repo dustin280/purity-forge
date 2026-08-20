@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/samples/$batchId")({ compo
 
 function SampleDetail() {
   const { batchId } = Route.useParams();
-  const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult } = useSampleDetail(batchId);
+  const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState } = useSampleDetail(batchId);
   const { user } = useAuth();
   const { data, isLoading } = query;
   const [tab, setTab] = useState<SampleDetailTab>("info");
@@ -47,8 +47,8 @@ function SampleDetail() {
         status={sample.status as SampleStatus}
         busy={busy}
         onChangeStatus={status => changeStatus(sample.id, status)}
-        resultReviewed={!!latestResult?.reviewed_at}
-        resultApproved={!!latestResult?.approved_at}
+        resultReviewed={!!latestResult?.reviewed_at || sample.purity_waived}
+        resultApproved={!!latestResult?.approved_at || sample.purity_waived}
       />
 
       <SampleDetailTabs tab={tab} setTab={setTab} />
@@ -83,6 +83,10 @@ function SampleDetail() {
           currentUserId={user?.id ?? null}
           onReview={reviewLatestResult}
           onApprove={approveLatestResult}
+          purityWaived={sample.purity_waived}
+          waivedByName={nameFor(sample.purity_waived_by)}
+          waivedAt={sample.purity_waived_at}
+          onWaivePurity={waived => setPurityWaivedState(sample.id, waived)}
         />
       )}
 

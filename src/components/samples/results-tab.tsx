@@ -39,6 +39,10 @@ export function ResultsTab({
   onReview,
   onApprove,
   batchId,
+  purityWaived,
+  waivedByName,
+  waivedAt,
+  onWaivePurity,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
@@ -56,6 +60,10 @@ export function ResultsTab({
   onReview: (resultId: string) => void;
   onApprove: (resultId: string) => void;
   batchId: string;
+  purityWaived: boolean;
+  waivedByName: string | null;
+  waivedAt: string | null;
+  onWaivePurity: (waived: boolean) => void;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const verdictColor = verdict === "pass" ? "var(--status-success)" : verdict === "fail" ? "var(--destructive)" : "var(--muted-foreground)";
@@ -216,6 +224,26 @@ export function ResultsTab({
               </tbody>
             </table>
           </div>
+        </Card>
+      )}
+
+      {!latestResult && (
+        <Card className="p-4 border-border flex items-center justify-between gap-3 flex-wrap">
+          {purityWaived ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Purity requirement waived{waivedByName ? ` by ${waivedByName}` : ""}{waivedAt ? ` on ${new Date(waivedAt).toLocaleDateString()}` : ""} — this sample can be reviewed/completed without a purity result.
+              </p>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onWaivePurity(false)}>Undo</Button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                No purity data yet. If this sample doesn't require purity (e.g. referee-lab, other-analysis-only), you can skip it instead of entering a result.
+              </p>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => onWaivePurity(true)}>No Purity</Button>
+            </>
+          )}
         </Card>
       )}
 
