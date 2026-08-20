@@ -115,7 +115,14 @@ export function ResultsTab({
               )}
               <div className="flex gap-1.5 justify-end">
                 {canReview && (
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => onReview(latestResult.id)}>Review</Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => onReview(latestResult.id)}
+                    className="bg-[#ff2d95] hover:bg-[#ff54ab] text-white border-0 font-bold animate-pulse shadow-[0_0_18px_5px_rgba(255,45,149,0.9)] hover:shadow-[0_0_26px_9px_rgba(255,45,149,1)]"
+                  >
+                    Review
+                  </Button>
                 )}
                 {canApprove && (
                   <Button size="sm" disabled={busy} onClick={() => onApprove(latestResult.id)} data-guide="results-approve">Approve</Button>
