@@ -244,12 +244,10 @@ export const saveResult = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: res, error } = await supabase.from("results").insert({
-      test_id: data.testId,
+    const payload = {
       purity_percentage: data.purity_percentage,
       peak_details: data.peaks,
       raw_data_file_path: data.raw_data_file_path ?? null,
-      analyst_id: userId,
       analysis_date: data.analysis_date ?? undefined,
       chromatogram_image: data.chromatogram_image ?? null,
       calibration_image: data.calibration_image ?? null,
@@ -257,7 +255,24 @@ export const saveResult = createServerFn({ method: "POST" })
       uv_conf_match: data.uv_conf_match ?? null,
       wavelength_nm: data.wavelength_nm ?? null,
       report_metadata: data.report_metadata ?? null,
-    }).select().single();
+    };
+    // Re-submitting for a test that already has a result updates it in
+    // place instead of appending a duplicate row — the common case is
+    // backfilling newly-available data (e.g. a calibration curve the
+    // converter didn't produce yet at first-import time) onto an
+    // already-saved/reviewed result, not re-doing the analysis. Review/
+    // approval state and who originally analyzed it are left untouched.
+    const { data: existing } = await supabase.from("results")
+      .select("id").eq("test_id", data.testId)
+      .order("analysis_date", { ascending: false }).limit(1).maybeSingle();
+    if (existing) {
+      const { data: res, error } = await supabase.from("results")
+        .update(payload).eq("id", existing.id).select().single();
+      if (error) throw error;
+      return res;
+    }
+    const { data: res, error } = await supabase.from("results")
+      .insert({ ...payload, test_id: data.testId, analyst_id: userId }).select().single();
     if (error) throw error;
     return res;
   });
