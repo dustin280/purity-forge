@@ -135,9 +135,12 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
     <Dialog open={open} onOpenChange={(v) => { if (!v) attemptClose(); else onOpenChange(true); }}>
       <DialogContent
         className="max-w-3xl max-h-[90vh] overflow-y-auto"
-        onEscapeKeyDown={(e) => { e.preventDefault(); attemptClose(); }}
-        onPointerDownOutside={(e) => { e.preventDefault(); attemptClose(); }}
-        onInteractOutside={(e) => { e.preventDefault(); attemptClose(); }}
+        // Deliberately hard to dismiss by accident — a stray click or Escape
+        // must not throw an in-progress receipt into drafts. Only the
+        // explicit Cancel button (or a successful submit) closes this.
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>{recordId ? "Edit Sample Receipt" : "New Sample Receipt"}</DialogTitle>

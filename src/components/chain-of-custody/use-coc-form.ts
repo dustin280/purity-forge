@@ -4,7 +4,7 @@
  * resuming, autosaves on every meaningful change, drives the save mutation,
  * and uploads pending attachments after a successful submit.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ import {
 import {
   getCocDraft, saveCocDraft, deleteCocDraft, newDraftId,
 } from "@/lib/coc-drafts";
+import { saveDraftFiles, getDraftFiles, deleteDraftFiles } from "@/lib/coc-draft-files";
 import { qk } from "@/lib/query-keys";
 import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types";
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
@@ -96,6 +97,7 @@ export function useCocForm({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingByLine, setPendingByLine] = useState<Record<number, File[]>>({});
   const [draftId, setDraftId] = useState<string | null>(null);
+  const draftIdRef = useRef<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [registerNewClient, setRegisterNewClient] = useState(false);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
@@ -126,6 +128,7 @@ export function useCocForm({
     const resumed = resumeDraftId ? getCocDraft(resumeDraftId) : null;
     const id = resumed?.draftId ?? newDraftId(recordId ? `edit-${recordId.slice(0, 8)}` : "new");
     setDraftId(id);
+    draftIdRef.current = id;
     setPendingOrderId(resumed?.pendingOrderId ?? null);
 
     const init: Record<string, string | string[]> = {};
@@ -177,6 +180,17 @@ export function useCocForm({
         const inv = (r as { invoice: string }).invoice;
         setValues(prev => (prev.sample_id ? prev : { ...prev, sample_id: inv }));
       }).catch(() => { /* leave blank on failure */ });
+    }
+    // Pending attachment files live in IndexedDB (see coc-draft-files.ts),
+    // not the localStorage draft — reload them separately, async. Guard
+    // against a stale write landing after the dialog has since moved on to
+    // a different draft, via a ref updated synchronously on every run.
+    if (resumed) {
+      getDraftFiles(resumed.draftId).then((files) => {
+        if (!files || draftIdRef.current !== id) return;
+        if (files.pendingFiles.length) setPendingFiles(files.pendingFiles);
+        if (Object.keys(files.pendingByLine).length) setPendingByLine(files.pendingByLine);
+      }).catch(() => { /* leave empty on failure */ });
     }
     setTimeout(() => setHydrated(true), 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -258,7 +272,7 @@ export function useCocForm({
       qc.invalidateQueries({ queryKey: qk.clients.all });
       qc.invalidateQueries({ queryKey: ["pending_orders"] });
       if (!recordId) signalWorkflowEvent("coc-submitted");
-      if (draftId) deleteCocDraft(draftId);
+      if (draftId) { deleteCocDraft(draftId); void deleteDraftFiles(draftId); }
       setIsDirty(false);
       setPendingFiles([]);
       setPendingByLine({});
@@ -272,18 +286,22 @@ export function useCocForm({
   function attemptClose() {
     setIsDirty(false);
     setPendingFiles([]);
+    setPendingByLine({});
     if (draftId && getCocDraft(draftId)) {
-      toast.info("Draft saved — resume it from the Drafts panel on the Sample Receipt page.");
+      toast.info(pendingOrderId
+        ? "Draft saved — resume it from this order on the Pending Orders page."
+        : "Draft saved — resume it from the Drafts panel on the Sample Receipt page.");
     }
     onOpenChange(false);
   }
 
-  // Autosave to localStorage on every change (skip empty/initial state).
+  // Autosave to localStorage (+ IndexedDB for the actual file bytes) on
+  // every change (skip empty/initial state).
   useEffect(() => {
     if (!open || !hydrated || !draftId) return;
     const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
     const hasLines = lineItems.some(li => li.compound.trim() !== "" || li.lot.trim() !== "" || li.catalog.trim() !== "");
-    const hasPending = pendingFiles.length > 0;
+    const hasPending = pendingFiles.length > 0 || Object.values(pendingByLine).some(arr => arr.length > 0);
     if (!hasValues && !hasLines && !hasPending) return;
     const summaryParts: string[] = [];
     const invoice = (values.sample_id as string)?.trim();
@@ -302,7 +320,8 @@ export function useCocForm({
       summary: summaryParts.join(" · ") || (recordId ? "Editing existing record" : "New chain of custody"),
       pendingOrderId: pendingOrderId ?? null,
     });
-  }, [open, hydrated, draftId, values, lineItems, pendingFiles, recordId, pendingOrderId]);
+    if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine });
+  }, [open, hydrated, draftId, values, lineItems, pendingFiles, pendingByLine, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };

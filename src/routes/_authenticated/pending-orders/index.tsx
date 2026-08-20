@@ -1,20 +1,22 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, Tags } from "lucide-react";
+import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, Tags, ClipboardList, Trash2 } from "lucide-react";
 import {
   listPendingOrders, getPendingOrder, cancelPendingOrder, reserveSampleIdForOrder,
 } from "@/lib/pending-orders.functions";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
 import { EditPendingOrderDialog } from "@/components/pending-orders/edit-order-dialog";
-import { saveCocDraft, newDraftId } from "@/lib/coc-drafts";
+import { saveCocDraft, newDraftId, deleteCocDraft } from "@/lib/coc-drafts";
+import { deleteDraftFiles } from "@/lib/coc-draft-files";
+import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -75,7 +77,23 @@ function PendingOrdersPage() {
   const canCancel = role === "admin" || role === "reviewer";
   const canEdit = role === "admin" || role === "reviewer" || role === "tech";
 
+  const drafts = useCocDrafts();
+  const draftByOrderId = useMemo(
+    () => new Map(drafts.filter(d => d.pendingOrderId).map(d => [d.pendingOrderId as string, d])),
+    [drafts],
+  );
+
   async function handleReceive(order: PendingOrder) {
+    // A draft already in progress for this order lives here, not a fresh
+    // one — resuming it (rather than always minting a new draft id) is
+    // what keeps "drafts live where they were initiated" true even across
+    // repeated clicks.
+    const existing = draftByOrderId.get(order.id);
+    if (existing) {
+      setResumeDraftId(existing.draftId);
+      setCocOpen(true);
+      return;
+    }
     try {
       const [detail, reserved] = await Promise.all([
         getOne({ data: { id: order.id } }) as Promise<{ order: PendingOrder; samples: PendingOrderSample[] }>,
@@ -208,6 +226,11 @@ function PendingOrdersPage() {
                     <Badge variant="outline" className="text-xs">
                       {o.total_samples ?? "?"} sample{(o.total_samples ?? 0) === 1 ? "" : "s"}
                     </Badge>
+                    {draftByOrderId.has(o.id) && (
+                      <Badge variant="secondary" className="text-xs">
+                        <ClipboardList className="size-3 mr-1" /> Draft in progress
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1 truncate">
                     {o.customer_company ?? "Unknown client"}
@@ -230,7 +253,23 @@ function PendingOrdersPage() {
                   </Button>
                   {o.status === "pending" && (
                     <Button size="sm" onClick={() => handleReceive(o)}>
-                      <CheckCircle2 className="size-3.5 mr-1" /> Receive
+                      <CheckCircle2 className="size-3.5 mr-1" /> {draftByOrderId.has(o.id) ? "Resume Draft" : "Receive"}
+                    </Button>
+                  )}
+                  {o.status === "pending" && draftByOrderId.has(o.id) && (
+                    <Button
+                      size="icon" variant="ghost"
+                      onClick={() => {
+                        const d = draftByOrderId.get(o.id);
+                        if (!d) return;
+                        if (!confirm("Discard this draft? The order stays pending and can be received fresh.")) return;
+                        deleteCocDraft(d.draftId);
+                        void deleteDraftFiles(d.draftId);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Discard draft"
+                    >
+                      <Trash2 className="size-4" />
                     </Button>
                   )}
                   {o.status === "pending" && canEdit && (

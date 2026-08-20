@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Trash2 } from "lucide-react";
 import { deleteCocDraft, type CocDraft } from "@/lib/coc-drafts";
+import { deleteDraftFiles } from "@/lib/coc-draft-files";
 
 export function DraftsPanel({
   drafts, onResume,
@@ -33,13 +34,13 @@ export function DraftsPanel({
               </div>
               <div className="text-xs text-muted-foreground">
                 {d.recordId ? "Edit draft" : "New CoC draft"} · saved {new Date(d.updatedAt).toLocaleString()}
-                {d.pendingFileNames.length > 0 && ` · ${d.pendingFileNames.length} photo${d.pendingFileNames.length === 1 ? "" : "s"} pending (re-attach on resume)`}
+                {d.pendingFileNames.length > 0 && ` · ${d.pendingFileNames.length} photo${d.pendingFileNames.length === 1 ? "" : "s"} attached`}
               </div>
             </div>
             <Button size="sm" variant="default" onClick={() => onResume(d)}>Resume</Button>
             <Button
               size="icon" variant="ghost"
-              onClick={() => { if (confirm("Discard this draft?")) deleteCocDraft(d.draftId); }}
+              onClick={() => { if (confirm("Discard this draft?")) { deleteCocDraft(d.draftId); void deleteDraftFiles(d.draftId); } }}
               className="text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" />

@@ -83,6 +83,13 @@ export function getCocDraft(draftId: string): CocDraft | null {
   return safeRead()[draftId] ?? null;
 }
 
+/** Find the (at most one) in-progress draft seeded from a given pending
+ * order, so its own page can offer "Resume" instead of starting a fresh
+ * draft that would orphan the old one. */
+export function findDraftByPendingOrderId(pendingOrderId: string): CocDraft | null {
+  return listCocDrafts().find((d) => d.pendingOrderId === pendingOrderId) ?? null;
+}
+
 export function saveCocDraft(draft: CocDraft) {
   if (isDraftDeleted(draft.draftId)) return;
   const map = safeRead();

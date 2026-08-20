@@ -83,7 +83,10 @@ function CocPage() {
         onChange={onUploadChange}
       />
 
-      <DraftsPanel drafts={drafts} onResume={openDraft} />
+      {/* Drafts seeded from a pending order live on the Pending Orders page
+          instead — that's where they were started, and where "Resume"
+          naturally belongs (see pending-orders/index.tsx). */}
+      <DraftsPanel drafts={drafts.filter(d => !d.pendingOrderId)} onResume={openDraft} />
 
       <RecordsList
         records={records}
