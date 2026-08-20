@@ -42,7 +42,7 @@ export const listStandardPreparations = createServerFn({ method: "GET" })
     const ascending = sortDir === "asc";
     let q = context.supabase
       .from("standard_preparation_logs")
-      .select("*, material_receipt:material_receipts(receipt_number, internal_lot)")
+      .select("*, material_receipt:material_receipts!standard_preparation_logs_material_receipt_id_fkey(receipt_number, internal_lot)")
       .order(sortBy, { ascending, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(500);
@@ -76,7 +76,7 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
     const [{ data: log, error: e1 }, { data: atts, error: e2 }, { data: targets, error: e3 }] = await Promise.all([
       context.supabase
         .from("standard_preparation_logs")
-        .select("*, material_receipt:material_receipts(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
+        .select("*, material_receipt:material_receipts!standard_preparation_logs_material_receipt_id_fkey(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
         .eq("id", data.id)
         .single(),
       context.supabase

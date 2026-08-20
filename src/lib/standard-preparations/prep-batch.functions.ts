@@ -119,7 +119,7 @@ export const getStandardPreparationBatch = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
       .from("standard_preparation_logs")
-      .select("*, material_receipt:material_receipts(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
+      .select("*, material_receipt:material_receipts!standard_preparation_logs_material_receipt_id_fkey(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
       .eq("batch_group_id", data.group_id)
       .order("syn_id", { ascending: true });
     if (error) throw error;
