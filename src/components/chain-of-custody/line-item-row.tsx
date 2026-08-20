@@ -36,6 +36,13 @@ export function LineItemRow({
 }) {
   const uploadRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
+  // Local draft text for # of Vials so the field can be cleared and retyped
+  // normally. Committing a coerced number on every keystroke (including the
+  // empty intermediate state) forced the controlled input back to "1" before
+  // a replacement digit could be typed, so clearing only ever "worked" by
+  // typing in front and backspacing the old digit out from behind it.
+  const [vialCountText, setVialCountText] = React.useState(String(li.vial_count));
+  React.useEffect(() => { setVialCountText(String(li.vial_count)); }, [li.vial_count]);
   function toggleTest(name: string) {
     const set = new Set(li.requested_tests ?? []);
     if (set.has(name)) set.delete(name); else set.add(name);
@@ -117,8 +124,18 @@ export function LineItemRow({
         </div>
         <div>
           <Label className="text-[10px] uppercase text-muted-foreground"># of Vials</Label>
-          <Input type="number" min={1} max={99} className="h-8 mt-1" value={li.vial_count} disabled={disabled}
-            onChange={e => onChange({ vial_count: Math.max(1, parseInt(e.target.value || "1", 10) || 1) })} />
+          <Input type="number" min={1} max={99} className="h-8 mt-1" value={vialCountText} disabled={disabled}
+            onChange={e => {
+              const raw = e.target.value;
+              setVialCountText(raw);
+              const n = parseInt(raw, 10);
+              if (raw !== "" && Number.isFinite(n) && n >= 1 && n <= 99) onChange({ vial_count: n });
+            }}
+            onBlur={() => {
+              const n = Math.max(1, Math.min(99, parseInt(vialCountText, 10) || 1));
+              setVialCountText(String(n));
+              onChange({ vial_count: n });
+            }} />
         </div>
         <div>
           <Label className="text-[10px] uppercase text-muted-foreground">Lot / Batch</Label>
