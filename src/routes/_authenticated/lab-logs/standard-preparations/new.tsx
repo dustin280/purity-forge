@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { valuesToBatchPayload } from "@/components/standard-preparations/prep-batch-payload";
 import { SolidFlow } from "@/components/standard-preparations/solid-flow/solid-flow";
 import { WorkingFlow } from "@/components/standard-preparations/working-flow/working-flow";
+import { AqueousFlow } from "@/components/standard-preparations/aqueous-flow/aqueous-flow";
 
 type PrepType = "solid" | "batch" | "aqueous" | "working" | null;
 
@@ -67,7 +68,7 @@ function NewPrep() {
               icon={<Droplet className="size-6" />}
               title="Primary Standard: Aqueous"
               desc="Liquid stock reference standard."
-              disabled
+              onClick={() => setType("aqueous")}
             />
             <PickCard
               icon={<Beaker className="size-6" />}
@@ -100,6 +101,18 @@ function NewPrep() {
             <div className="text-sm text-muted-foreground">Working Standard</div>
           </div>
           <WorkingFlow defaultAnalystName={defaultAnalystName} userToken={userToken} />
+        </>
+      )}
+
+      {type === "aqueous" && (
+        <>
+          <div className="flex items-center gap-2 mb-4 print:hidden">
+            <Button variant="ghost" size="sm" onClick={() => setType(null)}>
+              <ArrowLeft className="size-4 mr-1" /> Change type
+            </Button>
+            <div className="text-sm text-muted-foreground">Primary Standard: Aqueous</div>
+          </div>
+          <AqueousFlow defaultAnalystName={defaultAnalystName} userToken={userToken} />
         </>
       )}
 
