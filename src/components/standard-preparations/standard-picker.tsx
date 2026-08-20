@@ -14,6 +14,9 @@ export interface PickedStandard {
   final_concentration_value: number;
   final_concentration_unit: ConcUnit;
   final_volume_ml: number;
+  /** Null on rows created before volume tracking existed — treat as fully
+   * available (falls back to final_volume_ml at every use site). */
+  volume_remaining_ml: number | null;
   expiration_date: string | null;
   material_receipt_id: string | null;
   ref_material_name: string | null;
@@ -71,7 +74,7 @@ export function StandardPicker({ placeholder = "Search standard name or SYX ID�
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">{s.standard_name}</div>
               <div className="text-[11px] text-muted-foreground truncate">
-                {s.syn_id || "—"} · {s.final_concentration_value} {s.final_concentration_unit} · {s.final_volume_ml} mL
+                {s.syn_id || "—"} · {s.final_concentration_value} {s.final_concentration_unit} · {s.volume_remaining_ml ?? s.final_volume_ml} of {s.final_volume_ml} mL left
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {s.expiration_date ? `Expires ${s.expiration_date}` : "No expiration recorded"}

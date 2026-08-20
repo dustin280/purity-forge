@@ -81,6 +81,9 @@ export interface StandardPrepRow {
   ref_concentration_mg_per_ml: number | null;
   ref_molecular_weight: number | null;
   ref_receipt_date: string | null;
+  final_volume_ml: number | null;
+  volume_remaining_ml: number | null;
+  lifecycle_status: string;
 }
 
 export interface PrepAttachmentRow {

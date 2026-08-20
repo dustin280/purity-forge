@@ -73,7 +73,7 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const [{ data: log, error: e1 }, { data: atts, error: e2 }, { data: targets, error: e3 }] = await Promise.all([
+    const [{ data: log, error: e1 }, { data: atts, error: e2 }, { data: targets, error: e3 }, { data: usage, error: e4 }] = await Promise.all([
       context.supabase
         .from("standard_preparation_logs")
         .select("*, material_receipt:material_receipts!standard_preparation_logs_material_receipt_id_fkey(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
@@ -89,14 +89,24 @@ export const getStandardPreparation = createServerFn({ method: "GET" })
         .select("*")
         .eq("prep_id", data.id)
         .order("row_no", { ascending: true }),
+      context.supabase
+        .from("standard_preparation_usage_log")
+        .select("id, withdrawn_ml, purpose, notes, actor_name, created_at")
+        .eq("prep_id", data.id)
+        .order("created_at", { ascending: false }),
     ]);
     if (e1) throw e1;
     if (e2) throw e2;
     if (e3) throw e3;
+    if (e4) throw e4;
     return {
       log: log as unknown as StandardPrepRow & { material_receipt: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null },
       attachments: (atts ?? []) as PrepAttachmentRow[],
       targets: (targets ?? []) as PrepTargetRow[],
+      usageLog: (usage ?? []) as Array<{
+        id: string; withdrawn_ml: number; purpose: string | null; notes: string | null;
+        actor_name: string; created_at: string;
+      }>,
     };
   });
 

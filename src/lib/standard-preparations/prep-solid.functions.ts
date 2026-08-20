@@ -120,6 +120,7 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
       final_concentration_value: data.final_concentration_value,
       final_concentration_unit: data.final_concentration_unit,
       final_volume_ml: data.final_volume_ml,
+      volume_remaining_ml: data.final_volume_ml,
       preparation_instructions: data.preparation_instructions,
     };
 
@@ -133,7 +134,6 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
 
     const { error: tErr } = await context.supabase
       .from("standard_preparation_targets")
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert({
         prep_id: row.id,
         row_no: 1,

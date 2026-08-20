@@ -41,11 +41,14 @@ export function WorkingFlow({ defaultAnalystName, userToken }: Props) {
   const mut = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      create({ data: payload as any }) as Promise<{ id: string; log_number: string; syn_id: string }>,
+      create({ data: payload as any }) as Promise<{ id: string; log_number: string; syn_id: string; parent_usage_warning: string | null }>,
     onSuccess: (res) => {
       setSavedSyn(res.syn_id);
       setSavedId(res.id);
       toast.success(`Saved ${res.syn_id}`);
+      if (res.parent_usage_warning) {
+        toast.warning(`Saved, but couldn't update the primary's remaining volume: ${res.parent_usage_warning}`);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -62,7 +65,7 @@ export function WorkingFlow({ defaultAnalystName, userToken }: Props) {
     const v2 = Number(state.concentration.final_volume_ml);
     if (!Number.isFinite(v2) || v2 <= 0 || !Number.isFinite(targetMgPerMl) || targetMgPerMl <= 0) return null;
     return computeDilution({
-      stock: { conc: stockMgPerMl, massUnit: "mg", volUnit: "mL", availableVol: state.source.final_volume_ml, availableVolUnit: "mL" },
+      stock: { conc: stockMgPerMl, massUnit: "mg", volUnit: "mL", availableVol: state.source.volume_remaining_ml ?? state.source.final_volume_ml, availableVolUnit: "mL" },
       target: { conc: targetMgPerMl, massUnit: "mg", volUnit: "mL", finalVol: v2, finalVolUnit: "mL" },
       diluentName: state.diluentName.trim() || "Diluent",
       minPipetteUl: MIN_PIPETTE_UL,
@@ -86,6 +89,7 @@ export function WorkingFlow({ defaultAnalystName, userToken }: Props) {
       user_token: userToken,
       parent_prep_id: state.source.id,
       parent_expiration_date: state.source.expiration_date,
+      parent_withdrawal_ml: dilutionResult.steps[0].aliquotUl / 1000,
       material_receipt_id: state.source.material_receipt_id,
       ref_material_name: state.source.ref_material_name,
       ref_lot: state.source.ref_lot,
@@ -161,6 +165,9 @@ export function WorkingFlow({ defaultAnalystName, userToken }: Props) {
       ref_concentration_mg_per_ml: stockMgPerMl,
       ref_molecular_weight: state.source.ref_molecular_weight,
       ref_receipt_date: state.source.ref_receipt_date,
+      final_volume_ml: Number(state.concentration.final_volume_ml),
+      volume_remaining_ml: Number(state.concentration.final_volume_ml),
+      lifecycle_status: "in_use",
     };
     exportPrepPdf(row, null, 0);
   }

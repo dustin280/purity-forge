@@ -101,6 +101,7 @@ export const createAqueousPrimary = createServerFn({ method: "POST" })
       final_concentration_value: data.final_concentration_value,
       final_concentration_unit: data.final_concentration_unit,
       final_volume_ml: data.final_volume_ml,
+      volume_remaining_ml: data.final_volume_ml,
       preparation_instructions: data.preparation_instructions,
     };
 

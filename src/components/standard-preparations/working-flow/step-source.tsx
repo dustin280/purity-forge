@@ -31,7 +31,7 @@ export function StepSource({ source, onChange }: Props) {
               <div className="min-w-0">
                 <div className="font-semibold">{source.standard_name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {source.syn_id || "—"} · {source.final_concentration_value} {source.final_concentration_unit} · {source.final_volume_ml} mL available
+                  {source.syn_id || "—"} · {source.final_concentration_value} {source.final_concentration_unit} · {source.volume_remaining_ml ?? source.final_volume_ml} mL available
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {source.expiration_date ? `Expires ${source.expiration_date}` : "No expiration recorded"}

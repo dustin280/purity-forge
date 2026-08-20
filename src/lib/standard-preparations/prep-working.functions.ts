@@ -24,9 +24,11 @@ export const searchApprovedStandardsUnexpired = createServerFn({ method: "GET" }
     const today = new Date().toISOString().slice(0, 10);
     let q = context.supabase
       .from("standard_preparation_logs")
-      .select("id, syn_id, standard_name, final_concentration_value, final_concentration_unit, final_volume_ml, expiration_date, material_receipt_id, ref_material_name, ref_lot, ref_purity_percent, ref_molecular_weight, ref_receipt_date")
+      .select("id, syn_id, standard_name, final_concentration_value, final_concentration_unit, final_volume_ml, volume_remaining_ml, lifecycle_status, expiration_date, material_receipt_id, ref_material_name, ref_lot, ref_purity_percent, ref_molecular_weight, ref_receipt_date")
       .eq("status", "approved")
       .ilike("prep_type", "primary_%")
+      .neq("lifecycle_status", "discarded")
+      .or("volume_remaining_ml.gt.0,volume_remaining_ml.is.null")
       .or(`expiration_date.is.null,expiration_date.gte.${today}`)
       .order("prepared_at", { ascending: true })
       .limit(data.limit ?? 20);
@@ -49,6 +51,8 @@ export const searchApprovedStandardsUnexpired = createServerFn({ method: "GET" }
       final_concentration_value: number | null;
       final_concentration_unit: string | null;
       final_volume_ml: number | null;
+      volume_remaining_ml: number | null;
+      lifecycle_status: string;
       expiration_date: string | null;
       material_receipt_id: string | null;
       ref_material_name: string | null;
@@ -66,6 +70,10 @@ const workingPayloadSchema = z.object({
   // Source (picked primary standard)
   parent_prep_id: z.string().uuid(),
   parent_expiration_date: z.string().nullable().optional(),
+  // The actual amount drawn from the parent's true stock — for a serial
+  // dilution this is always the FIRST step's aliquot; later steps dilute an
+  // intermediate solution, never the parent again.
+  parent_withdrawal_ml: z.number().positive(),
   material_receipt_id: z.string().uuid().nullable().optional(),
   ref_material_name: z.string().max(255).nullable().optional(),
   ref_lot: z.string().max(255).nullable().optional(),
@@ -157,6 +165,7 @@ export const createWorkingStandard = createServerFn({ method: "POST" })
       syn_id,
       prep_type: "working",
       parent_prep_id: data.parent_prep_id,
+      volume_remaining_ml: data.final_volume_ml,
       final_concentration_value: data.final_concentration_value,
       final_concentration_unit: data.final_concentration_unit,
       final_volume_ml: data.final_volume_ml,
@@ -187,8 +196,24 @@ export const createWorkingStandard = createServerFn({ method: "POST" })
       } as any);
     if (tErr) throw tErr;
 
+    // Decrement the parent by what this dilution actually drew from it.
+    // Non-fatal: the working standard itself is already saved by this
+    // point, and a failed decrement (e.g. the parent was discarded in the
+    // meantime) shouldn't lose that — surface it as a warning instead.
+    let parentUsageWarning: string | null = null;
+    const { error: usageErr } = await context.supabase.rpc("record_standard_usage", {
+      p_prep_id: data.parent_prep_id,
+      p_withdrawn_ml: data.parent_withdrawal_ml,
+      p_actor_id: context.userId,
+      p_actor_name: data.analyst_name,
+      p_purpose: "working_standard_prep",
+      p_notes: `Drawn for working standard ${syn_id}`,
+    });
+    if (usageErr) parentUsageWarning = usageErr.message;
+
     return {
       id: row.id as string,
+      parent_usage_warning: parentUsageWarning,
       log_number: row.log_number as string,
       syn_id: (row.syn_id as string | null) ?? syn_id,
     };

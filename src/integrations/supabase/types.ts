@@ -4052,6 +4052,7 @@ export type Database = {
           final_volume_ml: number | null
           id: string
           initial_solvent: string | null
+          lifecycle_status: string
           log_number: string
           manufacturer_lot: string | null
           material_overridden: boolean
@@ -4084,6 +4085,7 @@ export type Database = {
           syn_id: string | null
           target_concentration: string | null
           updated_at: string
+          volume_remaining_ml: number | null
         }
         Insert: {
           analyst_id?: string | null
@@ -4107,6 +4109,7 @@ export type Database = {
           final_volume_ml?: number | null
           id?: string
           initial_solvent?: string | null
+          lifecycle_status?: string
           log_number?: string
           manufacturer_lot?: string | null
           material_overridden?: boolean
@@ -4139,6 +4142,7 @@ export type Database = {
           syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
+          volume_remaining_ml?: number | null
         }
         Update: {
           analyst_id?: string | null
@@ -4162,6 +4166,7 @@ export type Database = {
           final_volume_ml?: number | null
           id?: string
           initial_solvent?: string | null
+          lifecycle_status?: string
           log_number?: string
           manufacturer_lot?: string | null
           material_overridden?: boolean
@@ -4194,6 +4199,7 @@ export type Database = {
           syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
+          volume_remaining_ml?: number | null
         }
         Relationships: [
           {
@@ -4255,6 +4261,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "standard_preparation_targets_prep_id_fkey"
+            columns: ["prep_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      standard_preparation_usage_log: {
+        Row: {
+          actor_id: string | null
+          actor_name: string
+          created_at: string
+          id: string
+          notes: string | null
+          prep_id: string
+          purpose: string | null
+          withdrawn_ml: number
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_name: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          prep_id: string
+          purpose?: string | null
+          withdrawn_ml: number
+        }
+        Update: {
+          actor_id?: string | null
+          actor_name?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          prep_id?: string
+          purpose?: string | null
+          withdrawn_ml?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standard_preparation_usage_log_prep_id_fkey"
             columns: ["prep_id"]
             isOneToOne: false
             referencedRelation: "standard_preparation_logs"
@@ -4678,6 +4725,10 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      discard_standard_prep: {
+        Args: { p_actor_name: string; p_prep_id: string; p_reason: string | null }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4718,6 +4769,17 @@ export type Database = {
       next_syn_id: {
         Args: { p_day: string; p_user_token: string }
         Returns: string
+      }
+      record_standard_usage: {
+        Args: {
+          p_actor_id: string
+          p_actor_name: string
+          p_notes: string | null
+          p_prep_id: string
+          p_purpose: string | null
+          p_withdrawn_ml: number
+        }
+        Returns: number
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
       trigger_cal_qc_watcher: { Args: never; Returns: undefined }

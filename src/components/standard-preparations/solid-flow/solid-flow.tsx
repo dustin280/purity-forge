@@ -163,6 +163,9 @@ export function SolidFlow({ defaultAnalystName, userToken }: Props) {
       ref_concentration_mg_per_ml: null,
       ref_molecular_weight: state.source.molecular_weight,
       ref_receipt_date: state.source.received_at,
+      final_volume_ml: Number(state.concentration.final_volume_ml),
+      volume_remaining_ml: Number(state.concentration.final_volume_ml),
+      lifecycle_status: "in_use",
     };
     exportPrepPdf(row, null, 0);
   }

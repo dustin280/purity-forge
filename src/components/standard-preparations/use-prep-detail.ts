@@ -8,6 +8,7 @@ import {
   transitionStandardPreparation,
   updateStandardPreparation,
 } from "@/lib/standard-preparations.functions";
+import { recordStandardUsage, discardStandardPrep } from "@/lib/standard-preparations/prep-lifecycle.functions";
 import { clearPrepDraft, prepValuesToPayload } from "@/components/standard-preparations/prep-form";
 import { qk } from "@/lib/query-keys";
 
@@ -18,6 +19,8 @@ export function usePrepDetail(id: string) {
   const update = useServerFn(updateStandardPreparation);
   const del = useServerFn(deleteStandardPreparation);
   const transition = useServerFn(transitionStandardPreparation);
+  const recordUsage = useServerFn(recordStandardUsage);
+  const discard = useServerFn(discardStandardPrep);
 
   const query = useQuery({
     queryKey: qk.standardPreps.detail(id),
@@ -54,5 +57,25 @@ export function usePrepDetail(id: string) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { query, updateMut, deleteMut, transitionMut };
+  const recordUsageMut = useMutation({
+    mutationFn: (args: { withdrawn_ml: number; actor_name: string; purpose?: string | null; notes?: string | null }) =>
+      recordUsage({ data: { prep_id: id, ...args } }),
+    onSuccess: (res) => {
+      toast.success(`Recorded — ${res.volume_remaining_ml} mL remaining`);
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const discardMut = useMutation({
+    mutationFn: (args: { actor_name: string; reason?: string | null }) =>
+      discard({ data: { prep_id: id, ...args } }),
+    onSuccess: () => {
+      toast.success("Preparation discarded");
+      qc.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut };
 }

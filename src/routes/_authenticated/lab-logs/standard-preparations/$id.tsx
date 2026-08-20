@@ -9,6 +9,7 @@ import { PrepDetailHeader } from "@/components/standard-preparations/detail-head
 import { PrepDetailInfoCards } from "@/components/standard-preparations/detail-info-cards";
 import { PrepStepsCard } from "@/components/standard-preparations/steps-card";
 import { PrepReviewCard } from "@/components/standard-preparations/review-card";
+import { PrepLifecycleCard } from "@/components/standard-preparations/prep-lifecycle-card";
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
@@ -21,7 +22,7 @@ function PrepDetail() {
   const { id } = Route.useParams();
   const { user, profile, role } = useAuth();
   const [editing, setEditing] = useState(false);
-  const { query, updateMut, deleteMut, transitionMut } = usePrepDetail(id);
+  const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } = usePrepDetail(id);
   const { data, isLoading, error } = query;
 
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
@@ -66,6 +67,21 @@ function PrepDetail() {
         onDelete={() => deleteMut.mutate()}
       />
       <PrepDetailInfoCards row={r} linked={linked} />
+      {r.final_volume_ml != null && (
+        <PrepLifecycleCard
+          finalVolumeMl={r.final_volume_ml}
+          volumeRemainingMl={r.volume_remaining_ml}
+          lifecycleStatus={r.lifecycle_status}
+          usageLog={data.usageLog}
+          canEdit={canEdit}
+          canReview={canReview}
+          actorName={actorName}
+          onRecordUsage={(args) => recordUsageMut.mutate(args)}
+          onDiscard={(args) => discardMut.mutate(args)}
+          recordUsagePending={recordUsageMut.isPending}
+          discardPending={discardMut.isPending}
+        />
+      )}
       <PrepStepsCard steps={r.preparation_steps ?? []} mixingDetails={r.mixing_details} />
       <PrepReviewCard row={r} />
       <TraceabilitySnapshot row={r} />
