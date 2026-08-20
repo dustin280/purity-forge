@@ -69,8 +69,22 @@ export const previewGeneratedSequences = createServerFn({ method: "POST" })
       methodGroups: ctx.methodGroups,
       trayPositions: ctx.trayPositions,
     });
+    // C6: surface prep coverage at preview time (non-blocking — see the
+    // older run-list detail page's "export allowed" precedent) so an
+    // analyst sees it before generating, not only after.
+    const sampleIds = [...new Set(
+      sequences.flatMap((s) => s.rows.map((r) => r.sample_id)).filter((id): id is string => !!id),
+    )];
+    const { warnings } = await resolvePrepsAndCoverage(context.supabase, sampleIds);
+    const sequencesWithWarnings = sequences.map((seq) => ({
+      ...seq,
+      rows: seq.rows.map((r) => ({
+        ...r,
+        prep_warning: r.sample_id ? warnings.get(r.sample_id) ?? null : null,
+      })),
+    }));
     return {
-      instrument: ctx.instrument, sequences, sample_count: ctx.samples.length,
+      instrument: ctx.instrument, sequences: sequencesWithWarnings, sample_count: ctx.samples.length,
       tray_configured: !!ctx.instrument.tray_config_id,
     };
   });
@@ -138,27 +152,151 @@ function fullMethodPath(v: string | null, folder: string | null, ext: "amx" | "p
   return joinWinPath(folder, v, ext);
 }
 
+/**
+ * Approved (non-expired) prep record for a sample, resolved for the C-track
+ * dilution tie-in. Dilutor1 is a multiplier in OpenLab — confirmed 2026-08-20
+ * by injecting a known standard with Dilutor1=2 and observing the reported
+ * amount double, not halve.
+ */
+interface ResolvedPrep {
+  id: string;
+  total_dilution_factor: number | null;
+}
+
+export type PrepWarning = "no_prep" | "not_approved" | "expired";
+
+/**
+ * One query, two derived views, kept together so they can't drift apart:
+ * `preps` (the approved, non-expired record actually used for Dil. Factor 1 /
+ * LimsId1 / sp_preparation_record_id) and `warnings` (why a sample *isn't* in
+ * that map, for the C6 coverage banner — the newest record's status/expiry
+ * per sample, or "no_prep" if it has none at all).
+ */
+async function resolvePrepsAndCoverage(
+  supabase: any,
+  sampleIds: string[],
+): Promise<{ preps: Map<string, ResolvedPrep>; warnings: Map<string, PrepWarning | null> }> {
+  const preps = new Map<string, ResolvedPrep>();
+  const warnings = new Map<string, PrepWarning | null>();
+  if (!sampleIds.length) return { preps, warnings };
+  const wanted = new Set(sampleIds);
+  // Filtered in application code rather than via a `sample_context->>sample_id`
+  // PostgREST filter: the real sample UUID only lives inside that jsonb blob
+  // (see D2), and no other query in this codebase filters on a JSON path, so
+  // there's no precedent here to trust it round-trips through the client.
+  const { data, error } = await supabase
+    .from("sp_preparation_records")
+    .select("id, status, total_dilution_factor, sample_context, expires_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(2000);
+  if (error) throw error;
+  const now = Date.now();
+  const rows = (data ?? []) as Array<{
+    id: string; status: string; total_dilution_factor: number | null;
+    sample_context: { sample_id?: string } | null; expires_at: string | null; created_at: string;
+  }>;
+  // Pass 1: the newest APPROVED, non-expired record per sample — this is
+  // what generation actually uses. A newer draft/rejected record must not
+  // hide an older-but-still-good approved one.
+  for (const row of rows) {
+    const sid = row.sample_context?.sample_id;
+    if (!sid || !wanted.has(sid) || preps.has(sid)) continue;
+    const expired = !!row.expires_at && new Date(row.expires_at).getTime() < now;
+    if (row.status === "approved" && !expired) {
+      preps.set(sid, { id: row.id, total_dilution_factor: row.total_dilution_factor });
+    }
+  }
+  // Pass 2: for samples with no usable prep, explain why using their single
+  // newest record overall (rows are already sorted newest-first).
+  for (const row of rows) {
+    const sid = row.sample_context?.sample_id;
+    if (!sid || !wanted.has(sid) || preps.has(sid) || warnings.has(sid)) continue;
+    const expired = !!row.expires_at && new Date(row.expires_at).getTime() < now;
+    warnings.set(sid, expired ? "expired" : "not_approved");
+  }
+  for (const sid of sampleIds) if (!preps.has(sid) && !warnings.has(sid)) warnings.set(sid, "no_prep");
+  return { preps, warnings };
+}
+
+interface SampleFields {
+  received_quantity: number | null;
+  batch_id: string;
+  client: string | null;
+  physical_description: string | null;
+  label_content_value: number | null;
+  label_content_unit: string | null;
+}
+
+/**
+ * "Sample Amt" in the analyst's sequence table is the as-received quantity
+ * on the vial (samples.received_quantity) — not anything prep-derived.
+ * Confirmed 2026-08-20. batch_id feeds LimsId1 (D3/C4): a dedicated field
+ * instead of re-parsing it back out of the composed sample name. client,
+ * physical_description, and label_content_* feed the C5 Sample Custom
+ * Parameters (Client, Appearance, NetFContent — confirmed 2026-08-20).
+ */
+async function resolveSampleFields(
+  supabase: any,
+  sampleIds: string[],
+): Promise<Map<string, SampleFields>> {
+  const result = new Map<string, SampleFields>();
+  if (!sampleIds.length) return result;
+  const { data, error } = await supabase
+    .from("samples")
+    .select("id, received_quantity, batch_id, client, physical_description, label_content_value, label_content_unit")
+    .in("id", sampleIds);
+  if (error) throw error;
+  for (const row of (data ?? []) as Array<SampleFields & { id: string }>) {
+    result.set(row.id, {
+      received_quantity: row.received_quantity, batch_id: row.batch_id, client: row.client,
+      physical_description: row.physical_description,
+      label_content_value: row.label_content_value, label_content_unit: row.label_content_unit,
+    });
+  }
+  return result;
+}
+
 function sequenceToCsv(
   seq: OptimizedSequence,
   injectionVolumeUL: number | "method",
   methodFolder: string | null,
+  dilutionBySampleId: Map<string, ResolvedPrep>,
+  sampleFieldsBySampleId: Map<string, SampleFields>,
+  accessionNumberByRowIndex: Map<number, number>,
 ): string {
   const headers = [
     "Sample name", "Sample type", "Vial", "Volume",
     "Acq Method", "Proc Method", "Data file", "Description", "Level",
+    "Sample Amt", "Dil. Factor 1", "LimsId1",
+    "Client", "Appearance", "NetFContent", "Accession Number",
   ];
   const volumeCell = injectionVolumeUL === "method" ? "" : String(injectionVolumeUL);
-  const rows = seq.rows.map((r) => {
+  const rows = seq.rows.map((r, i) => {
     const desc = r.method_group_name ?? "";
+    const fields = r.sample_id ? sampleFieldsBySampleId.get(r.sample_id) : undefined;
     // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
-    // QC rows keep their label as-is.
+    // QC rows keep their label as-is. Still composed even now that LimsId1
+    // carries the real batch_id (D3/C4) — kept until the results watcher is
+    // switched over to key off LimsId1 instead of re-parsing this string.
     const isSample = r.type === "Sample";
+    const batchIdForName = fields?.batch_id ?? r.label.split(" — ")[0].split(" (Lot")[0];
     const baseName = isSample
-      ? (r.lot ? `${r.label.split(" — ")[0].split(" (Lot")[0]}_${r.lot}` : r.label.split(" — ")[0].split(" (Lot")[0])
+      ? (r.lot ? `${batchIdForName}_${r.lot}` : batchIdForName)
       : r.label;
     // OpenLab appends a result timestamp when the sample name carries this
     // literal marker — required by the analyst's instrument workflow.
     const sampleName = `${baseName} <D>`;
+    const prep = r.sample_id ? dilutionBySampleId.get(r.sample_id) : undefined;
+    const dilFactor = prep?.total_dilution_factor ?? 1;
+    const sampleAmt = fields?.received_quantity ?? "";
+    const limsId1 = isSample ? (fields?.batch_id ?? "") : "";
+    // NetFContent: label_content_value is captured in mg or µg at intake
+    // (see components/label_content_* on samples) — normalize to mg since
+    // that's what NetFContent represents. Standard Purity (%) deliberately
+    // left blank on Sample rows per Dustin, 2026-08-20.
+    const netFContent = fields?.label_content_value == null ? "" :
+      fields.label_content_unit === "ug" ? fields.label_content_value / 1000 : fields.label_content_value;
+    const accessionNumber = accessionNumberByRowIndex.get(i) ?? "";
     return [
       sampleName,
       mapSampleType(r.type),
@@ -169,6 +307,13 @@ function sequenceToCsv(
       "", // Data file — let OpenLab auto-generate
       desc,
       r.level ?? "",
+      sampleAmt,
+      dilFactor,
+      limsId1,
+      fields?.client ?? "",
+      fields?.physical_description ?? "",
+      netFContent,
+      accessionNumber,
     ].map(csvEscape).join(",");
   });
   return [headers.join(","), ...rows].join("\r\n");
@@ -230,7 +375,21 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
         vial: r.vial, level: r.level ?? null, why: "",
       })),
     };
-    const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder);
+    const sampleIds = [...new Set(seq.rows.map((r) => r.sample_id).filter((id): id is string => !!id))];
+    const sampleRowIndices = seq.rows.map((r, i) => (r.type === "Sample" ? i : null)).filter((i): i is number => i !== null);
+    const [{ preps }, sampleFields, accessionNumbers] = await Promise.all([
+      resolvePrepsAndCoverage(context.supabase, sampleIds),
+      resolveSampleFields(context.supabase, sampleIds),
+      sampleRowIndices.length
+        ? context.supabase.rpc("next_accession_numbers", { p_count: sampleRowIndices.length })
+          .then(({ data, error }: { data: number[] | null; error: Error | null }) => {
+            if (error) throw error;
+            return data ?? [];
+          })
+        : Promise.resolve([] as number[]),
+    ]);
+    const accessionNumberByRowIndex = new Map(sampleRowIndices.map((rowIdx, n) => [rowIdx, accessionNumbers[n]]));
+    const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder, preps, sampleFields, accessionNumberByRowIndex);
     const csvWithBom = "\uFEFF" + csv;
 
     // Persist as a run_lists + run_list_items record for history/audit
@@ -258,6 +417,8 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       data_file: null,
       comment: r.vial ? `Position ${r.vial}` : null,
       extras: { position_code: r.vial, processing_method: r.processing_method },
+      sp_preparation_record_id: (r.sample_id && preps.get(r.sample_id)?.id) || null,
+      accession_number: accessionNumberByRowIndex.get(i) ?? null,
     }));
     await context.supabase.from("run_list_items").insert(items);
 

@@ -43,6 +43,8 @@ export interface SequenceRow {
   vial: string | null;
   level: string | null;          // calibration level, e.g. CCV rows run at Level 3
   why: string;                   // rationale for review UI
+  /** C6: preview-time prep-coverage warning for this row's sample, null/absent when fine. Attached after optimize() runs — not set here. */
+  prep_warning?: "no_prep" | "not_approved" | "expired" | null;
 }
 
 export interface OptimizedSequence {

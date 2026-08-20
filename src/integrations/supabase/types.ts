@@ -2355,6 +2355,7 @@ export type Database = {
       }
       run_list_items: {
         Row: {
+          accession_number: number | null
           comment: string | null
           created_at: string
           data_file: string | null
@@ -2370,6 +2371,7 @@ export type Database = {
           vial: number | null
         }
         Insert: {
+          accession_number?: number | null
           comment?: string | null
           created_at?: string
           data_file?: string | null
@@ -2385,6 +2387,7 @@ export type Database = {
           vial?: number | null
         }
         Update: {
+          accession_number?: number | null
           comment?: string | null
           created_at?: string
           data_file?: string | null
@@ -3491,6 +3494,7 @@ export type Database = {
           solvent_formulation_id: string | null
           status: string
           submitted_at: string | null
+          total_dilution_factor: number | null
           updated_at: string
         }
         Insert: {
@@ -3516,6 +3520,7 @@ export type Database = {
           solvent_formulation_id?: string | null
           status?: string
           submitted_at?: string | null
+          total_dilution_factor?: number | null
           updated_at?: string
         }
         Update: {
@@ -3541,6 +3546,7 @@ export type Database = {
           solvent_formulation_id?: string | null
           status?: string
           submitted_at?: string | null
+          total_dilution_factor?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -4049,6 +4055,7 @@ export type Database = {
           modifier_percent: number | null
           modifier_type: string | null
           notes: string | null
+          parent_prep_id: string | null
           prep_type: string | null
           preparation_instructions: string | null
           preparation_steps: Json
@@ -4103,6 +4110,7 @@ export type Database = {
           modifier_percent?: number | null
           modifier_type?: string | null
           notes?: string | null
+          parent_prep_id?: string | null
           prep_type?: string | null
           preparation_instructions?: string | null
           preparation_steps?: Json
@@ -4157,6 +4165,7 @@ export type Database = {
           modifier_percent?: number | null
           modifier_type?: string | null
           notes?: string | null
+          parent_prep_id?: string | null
           prep_type?: string | null
           preparation_instructions?: string | null
           preparation_steps?: Json
@@ -4689,6 +4698,7 @@ export type Database = {
           similarity: number
         }[]
       }
+      next_accession_numbers: { Args: { p_count: number }; Returns: number[] }
       next_coc_invoice_number: { Args: never; Returns: string }
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }

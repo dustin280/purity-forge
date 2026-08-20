@@ -275,6 +275,7 @@ function NewPrepWizard() {
             total_dilution_factor: plan.totalDilutionFactor,
             warnings: plan.warnings,
           } as Record<string, unknown>,
+          total_dilution_factor: plan.totalDilutionFactor,
           notes: state.notes || null,
           steps,
         },

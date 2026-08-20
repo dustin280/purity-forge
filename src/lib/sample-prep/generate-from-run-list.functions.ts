@@ -377,6 +377,7 @@ async function persistPlan(
       sample_id: sample.batch_id,
       sample_context: { source: "run_list", sample_id: sample.id, compound: sample.compound },
       plan: { warnings: plan.warnings, totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl },
+      total_dilution_factor: plan.totalDilutionFactor,
       prepared_by: userId,
     })
     .select("id, prep_number")

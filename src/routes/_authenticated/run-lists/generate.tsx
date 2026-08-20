@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Download, ChevronLeft, CloudUpload, Tags } from "lucide-react";
+import { Wand2, Download, ChevronLeft, CloudUpload, Tags, AlertTriangle, FlaskConical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
@@ -153,6 +153,9 @@ function GenerateRunList() {
 
   const visibleSequences = sequences.filter((s) => selected.has(s.index));
 
+  const sampleRows = sequences.flatMap((s) => s.rows.filter((r) => r.type === "Sample"));
+  const warnedRows = sampleRows.filter((r) => r.prep_warning);
+
   const printLabels = (seqs: OptimizedSequence[]) => {
     const lines = seqs.flatMap((s) =>
       s.rows.map((r) => {
@@ -248,6 +251,45 @@ function GenerateRunList() {
           Pick an instrument and click <b>Select Samples</b> to preview optimized sequences.
         </Card>
       )}
+
+      {sampleRows.length > 0 && (() => {
+        if (warnedRows.length === 0) {
+          return (
+            <div className="text-xs rounded-md border border-border bg-muted/40 px-3 py-2 flex items-center gap-2">
+              <FlaskConical className="size-3.5" />
+              All {sampleRows.length} sample rows have an approved, unexpired preparation record.
+            </div>
+          );
+        }
+        const byReason = warnedRows.reduce<Record<string, string[]>>((acc, r) => {
+          const key = r.prep_warning ?? "unknown";
+          const label = r.label.split(" — ")[0] || r.label;
+          (acc[key] ||= []).push(label);
+          return acc;
+        }, {});
+        const labelFor = (k: string) => ({
+          no_prep: "No prep record found",
+          not_approved: "Prep not yet approved",
+          expired: "Prep expired",
+        }[k] ?? k);
+        return (
+          <div className="text-xs rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100 px-3 py-2 space-y-1">
+            <div className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="size-3.5" />
+              {warnedRows.length} of {sampleRows.length} sample rows have preparation warnings (export allowed).
+            </div>
+            <ul className="pl-5 list-disc space-y-0.5">
+              {Object.entries(byReason).map(([k, xs]) => (
+                <li key={k}>
+                  <span className="font-medium">{labelFor(k)}:</span>{" "}
+                  {Array.from(new Set(xs)).slice(0, 8).join(", ")}
+                  {xs.length > 8 ? ` +${xs.length - 8} more` : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })()}
 
       {sequences.length > 0 && (
         <Card className="p-3 flex flex-wrap items-center gap-2">

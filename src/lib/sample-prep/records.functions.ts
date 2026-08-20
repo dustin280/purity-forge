@@ -26,6 +26,7 @@ export interface PrepRecord {
   sample_context: Json;
   solvent_formulation_id: string | null;
   plan: Json;
+  total_dilution_factor: number | null;
   notes: string | null;
   prepared_by: string;
   prepared_at: string | null;
@@ -73,6 +74,7 @@ const CreateSchema = z.object({
   sample_context: z.record(z.string(), z.any()).default({}),
   solvent_formulation_id: z.string().uuid().nullable().optional(),
   plan: z.record(z.string(), z.any()).default({}),
+  total_dilution_factor: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
   /** Steps derived from the plan; will seed sp_preparation_steps. */
   steps: z

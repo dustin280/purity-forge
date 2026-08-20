@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { valuesToBatchPayload } from "@/components/standard-preparations/prep-batch-payload";
 import { SolidFlow } from "@/components/standard-preparations/solid-flow/solid-flow";
+import { WorkingFlow } from "@/components/standard-preparations/working-flow/working-flow";
 
 type PrepType = "solid" | "batch" | "aqueous" | "working" | null;
 
@@ -72,7 +73,7 @@ function NewPrep() {
               icon={<Beaker className="size-6" />}
               title="Working Standard"
               desc="Dilution of an existing primary standard."
-              disabled
+              onClick={() => setType("working")}
             />
           </div>
         </>
@@ -87,6 +88,18 @@ function NewPrep() {
             <div className="text-sm text-muted-foreground">Primary Standard: Solid</div>
           </div>
           <SolidFlow defaultAnalystName={defaultAnalystName} userToken={userToken} />
+        </>
+      )}
+
+      {type === "working" && (
+        <>
+          <div className="flex items-center gap-2 mb-4 print:hidden">
+            <Button variant="ghost" size="sm" onClick={() => setType(null)}>
+              <ArrowLeft className="size-4 mr-1" /> Change type
+            </Button>
+            <div className="text-sm text-muted-foreground">Working Standard</div>
+          </div>
+          <WorkingFlow defaultAnalystName={defaultAnalystName} userToken={userToken} />
         </>
       )}
 
