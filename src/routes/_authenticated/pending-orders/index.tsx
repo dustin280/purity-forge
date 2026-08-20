@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil } from "lucide-react";
+import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, Tags } from "lucide-react";
 import {
-  listPendingOrders, getPendingOrder, cancelPendingOrder,
+  listPendingOrders, getPendingOrder, cancelPendingOrder, reserveSampleIdForOrder,
 } from "@/lib/pending-orders.functions";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
 import { EditPendingOrderDialog } from "@/components/pending-orders/edit-order-dialog";
@@ -53,16 +53,19 @@ function StatusBadge({ status }: { status: string }) {
 
 function PendingOrdersPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { role } = useAuth();
   const list = useServerFn(listPendingOrders);
   const getOne = useServerFn(getPendingOrder);
   const cancel = useServerFn(cancelPendingOrder);
+  const reserveId = useServerFn(reserveSampleIdForOrder);
 
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [payloadId, setPayloadId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [cocOpen, setCocOpen] = useState(false);
   const [resumeDraftId, setResumeDraftId] = useState<string | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["pending_orders", "list", status],
@@ -74,12 +77,13 @@ function PendingOrdersPage() {
 
   async function handleReceive(order: PendingOrder) {
     try {
-      const detail = await getOne({ data: { id: order.id } }) as {
-        order: PendingOrder; samples: PendingOrderSample[];
-      };
+      const [detail, reserved] = await Promise.all([
+        getOne({ data: { id: order.id } }) as Promise<{ order: PendingOrder; samples: PendingOrderSample[] }>,
+        reserveId({ data: { id: order.id } }),
+      ]);
       const s = detail.samples;
       const values: Record<string, string | string[]> = {
-        sample_id: order.external_order_id,
+        sample_id: reserved.reserved_sample_id,
         client_company: order.customer_company ?? "",
         client_contact_name: order.customer_name ?? "",
         client_contact_email: order.customer_email ?? "",
@@ -91,6 +95,7 @@ function PendingOrdersPage() {
       };
       const lineItems = s.map((sm) => ({
         compound: sm.product_name,
+        partner_reported_name: sm.product_name,
         lot: sm.lot_batch ?? "",
         catalog: "",
         manufacturer: "",
@@ -121,6 +126,36 @@ function PendingOrdersPage() {
       setCocOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to open order");
+    }
+  }
+
+  async function handlePrintLabels(order: PendingOrder) {
+    setPrintingId(order.id);
+    try {
+      const [detail, reserved] = await Promise.all([
+        getOne({ data: { id: order.id } }) as Promise<{ order: PendingOrder; samples: PendingOrderSample[] }>,
+        reserveId({ data: { id: order.id } }),
+      ]);
+      let seq = 0;
+      const lines = detail.samples.flatMap((sm) => {
+        const vials = Math.max(1, sm.quantity ?? 1);
+        return Array.from({ length: vials }, () => {
+          seq += 1;
+          const id = `${reserved.reserved_sample_id}-${String(seq).padStart(2, "0")}`;
+          return sm.lot_batch ? `${id} / Lot ${sm.lot_batch}` : id;
+        });
+      });
+      if (lines.length === 0) {
+        toast.info("No sample lines to label on this order.");
+        return;
+      }
+      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
+      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
+      navigate({ to: "/vial-labels" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to prepare labels");
+    } finally {
+      setPrintingId(null);
     }
   }
 
@@ -185,6 +220,11 @@ function PendingOrdersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {o.status === "pending" && (
+                    <Button size="sm" variant="outline" onClick={() => handlePrintLabels(o)} disabled={printingId === o.id}>
+                      <Tags className="size-3.5 mr-1" /> {printingId === o.id ? "Preparing…" : "Print Labels"}
+                    </Button>
+                  )}
                   <Button size="sm" variant="ghost" onClick={() => setPayloadId(o.id)}>
                     <FileJson className="size-3.5 mr-1" /> Payload
                   </Button>

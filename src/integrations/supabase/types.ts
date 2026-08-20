@@ -2068,6 +2068,7 @@ export type Database = {
           raw_payload: Json
           received_at: string | null
           received_by: string | null
+          reserved_sample_id: string | null
           special_instructions: string | null
           status: string
           total_samples: number | null
@@ -2091,6 +2092,7 @@ export type Database = {
           raw_payload: Json
           received_at?: string | null
           received_by?: string | null
+          reserved_sample_id?: string | null
           special_instructions?: string | null
           status?: string
           total_samples?: number | null
@@ -2114,6 +2116,7 @@ export type Database = {
           raw_payload?: Json
           received_at?: string | null
           received_by?: string | null
+          reserved_sample_id?: string | null
           special_instructions?: string | null
           status?: string
           total_samples?: number | null
@@ -2580,6 +2583,7 @@ export type Database = {
           method_group_id: string | null
           notes: string | null
           parameters: string[]
+          partner_reported_compound_name: string | null
           physical_description: string | null
           physical_form: string | null
           physical_form_details: Json | null
@@ -2626,6 +2630,7 @@ export type Database = {
           method_group_id?: string | null
           notes?: string | null
           parameters?: string[]
+          partner_reported_compound_name?: string | null
           physical_description?: string | null
           physical_form?: string | null
           physical_form_details?: Json | null
@@ -2672,6 +2677,7 @@ export type Database = {
           method_group_id?: string | null
           notes?: string | null
           parameters?: string[]
+          partner_reported_compound_name?: string | null
           physical_description?: string | null
           physical_form?: string | null
           physical_form_details?: Json | null

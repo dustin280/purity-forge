@@ -120,6 +120,11 @@ export function LineItemRow({
               onCreateCompound={onCreateCompound}
               disabled={disabled}
             />
+            {li.partner_reported_name && li.partner_reported_name !== li.compound && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                Partner said: &ldquo;{li.partner_reported_name}&rdquo;
+              </p>
+            )}
           </div>
         </div>
         <div>

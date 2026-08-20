@@ -14,6 +14,7 @@ const lineItemComponentSchema = z.object({
 const lineItemSchema = z.object({
   compound: z.string().min(1).max(255),
   compound_id: z.string().uuid().optional().nullable(),
+  partner_reported_name: z.string().max(255).optional().nullable(),
   lot: z.string().max(255).optional().nullable(),
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
@@ -131,6 +132,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       receipt_date: string; parameters: string[]; notes: string | null;
       coc_id: string; coc_line_no: number; compound: string;
       compound_id: string | null;
+      partner_reported_compound_name: string | null;
       lot: string | null; catalog: string | null;
       container_size: string | null; concentration: string | null;
       line_item_index: number;
@@ -182,6 +184,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
           coc_line_no: seq,
           compound: li.compound,
           compound_id: li.compound_id ?? null,
+          partner_reported_compound_name: li.partner_reported_name || null,
           lot: li.lot ?? null,
           catalog: li.catalog ?? null,
           container_size: li.container_size ?? null,

@@ -43,6 +43,33 @@ export const getPendingOrder = createServerFn({ method: "GET" })
     return { order, samples: samples ?? [] };
   });
 
+/**
+ * Reserve a real lab-generated SYX-NNNNNN id for a pending order, once.
+ * Idempotent — safe to call from both "Print Labels" and "Receive" on the
+ * same order, and always returns the same id once one exists, so printed
+ * labels and the eventual receive form never disagree.
+ */
+export const reserveSampleIdForOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { supabase } = context;
+    const { data: order, error } = await supabase
+      .from("pending_orders").select("id, reserved_sample_id").eq("id", data.id).maybeSingle();
+    if (error) throw error;
+    if (!order) throw new Error("Pending order not found");
+    if (order.reserved_sample_id) return { reserved_sample_id: order.reserved_sample_id as string };
+
+    const { data: idRes, error: idErr } = await supabase.rpc("next_coc_invoice_number");
+    if (idErr) throw idErr;
+    const reservedId = idRes as unknown as string;
+
+    const { error: updErr } = await supabase
+      .from("pending_orders").update({ reserved_sample_id: reservedId }).eq("id", data.id);
+    if (updErr) throw updErr;
+    return { reserved_sample_id: reservedId };
+  });
+
 export const cancelPendingOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))

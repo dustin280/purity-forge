@@ -30,7 +30,7 @@ export type LineItemComponent = {
 };
 
 export type CocLineItemView = {
-  compound?: string; lot?: string; catalog?: string; manufacturer?: string;
+  compound?: string; partner_reported_name?: string; lot?: string; catalog?: string; manufacturer?: string;
   container_size?: string;
   vial_count?: number;
   requested_tests?: string[];
@@ -46,6 +46,10 @@ export type CocLineItemView = {
 
 export type LineItem = {
   compound: string; compound_id: string | null; lot: string; catalog: string; manufacturer: string;
+  /** The partner's original, as-submitted product name — preserved independent
+   * of whatever ends up picked via the compound selector, so discrepancies
+   * between what they call it and what we file it as can be reconciled later. */
+  partner_reported_name: string;
   container_size: string;
   vial_count: number;
   requested_tests: string[];
@@ -70,6 +74,7 @@ export const emptyLineComponent = (): LineItemComponent => ({
 
 export const emptyLine = (): LineItem => ({
   compound: "", compound_id: null, lot: "", catalog: "", manufacturer: "",
+  partner_reported_name: "",
   container_size: "",
   vial_count: 1,
   requested_tests: [],
