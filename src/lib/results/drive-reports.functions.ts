@@ -123,14 +123,14 @@ export async function driveDownload(fileId: string): Promise<ArrayBuffer> {
 // This looks that sibling up and inlines it as a data URI for the partner
 // COA payload — best-effort, since a missing/failed conversion should
 // never block parsing or saving the report's actual results.
-function chromatogramSiblingName(reportFileName: string): string {
-  return reportFileName.replace(/\.[^.]+$/, "") + ".chromatogram.png";
+function siblingName(reportFileName: string, suffix: string): string {
+  return reportFileName.replace(/\.[^.]+$/, "") + suffix;
 }
 
-export async function findChromatogramImage(folderId: string, reportFileName: string): Promise<string | null> {
+async function findSiblingImage(folderId: string, reportFileName: string, suffix: string): Promise<string | null> {
   try {
-    const siblingName = chromatogramSiblingName(reportFileName).replace(/'/g, "\\'");
-    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and name = '${siblingName}'`);
+    const name = siblingName(reportFileName, suffix).replace(/'/g, "\\'");
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and name = '${name}'`);
     const fields = encodeURIComponent("files(id,name)");
     const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=1`, { headers: gatewayHeaders() });
     if (!r.ok) return null;
@@ -142,6 +142,19 @@ export async function findChromatogramImage(folderId: string, reportFileName: st
   } catch {
     return null;
   }
+}
+
+export async function findChromatogramImage(folderId: string, reportFileName: string): Promise<string | null> {
+  return findSiblingImage(folderId, reportFileName, ".chromatogram.png");
+}
+
+// Second embedded picture in the report — the calibration curve chart from
+// the "Calibration Update" block, converted by the same lab-PC agent
+// alongside the chromatogram. Absent (returns null) on reports predating
+// that report-template change or older ChromatogramConverter versions that
+// only extracted the first embedded picture — never blocks parsing.
+export async function findCalibrationImage(folderId: string, reportFileName: string): Promise<string | null> {
+  return findSiblingImage(folderId, reportFileName, ".calibration.png");
 }
 
 export async function loadReportsFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string> {
@@ -180,6 +193,26 @@ export type ParsedReportCompound = {
   unparsed_tail?: string;
 };
 
+// The "Calibration Update" block the report template added below the
+// compound table — fit stats for the calibration curve chart embedded as
+// the report's second picture (see findCalibrationImage). Absent (null)
+// on older reports/report templates without this block.
+export type CalibrationData = {
+  calibration_update: string | null;
+  compound: string | null;
+  exp_rt: number | null;
+  residual_std: number | null;
+  r: number | null;
+  r_squared: number | null;
+  formula: string | null;
+  a: number | null;
+  b: number | null;
+  c: number | null;
+  d: number | null;
+  scaled_label: string | null;
+  scaled_type: string | null;
+};
+
 export type ParsedReport = {
   file_id: string;
   file_name: string;
@@ -189,6 +222,8 @@ export type ParsedReport = {
   compounds: ParsedReportCompound[];
   raw_text: string;
   chromatogram_image: string | null;
+  calibration_image: string | null;
+  calibration_data: CalibrationData | null;
   // Report-header label:value pairs that don't belong to any one compound
   // row (data file, operator, instrument, injection volume, location,
   // acquisition/processing method, signal, etc.) — xlsx reports only, null
@@ -259,7 +294,7 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
  *   "Compound:SS-31 (DAD1A)"
  *   "Exp. RT:5.208"
  */
-function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> | null {
+function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> | null {
   if (!/Single Injection Report/.test(text)) return null;
   const sampleIdMatch = text.match(/Sample name:\s*([A-Za-z0-9-]+)/);
   const purityMatch = text.match(/Purity\s*([<>]?\d+\.\d{2})%/);
@@ -286,11 +321,12 @@ function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" 
     analysis_date: injectionDateMatch ? injectionDateMatch[1].trim() : null,
     total_peptide_contents_mg: null,
     compounds: [compound],
+    calibration_data: null,
     report_metadata: null,
   };
 }
 
-export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
+export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
   const sampleIdMatch = text.match(/Sample ID:\s*([^\n]+?)(?:Analyte:|Product:|\n)/);
   const analysisDateMatch = text.match(/Analysis date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*?)(?:Report|\n)/);
   const totalMatch = text.match(/Total Peptide Contents:\s*([\d.]+)\s*mg/i);
@@ -310,6 +346,7 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
     analysis_date: analysisDateMatch ? analysisDateMatch[1].trim() : null,
     total_peptide_contents_mg: totalMatch ? Number(totalMatch[1]) : null,
     compounds,
+    calibration_data: null,
     report_metadata: null,
   };
 }
@@ -362,6 +399,51 @@ const REPORT_METADATA_LABEL_ALIASES: Record<string, string[]> = {
   calib_level: ["calib level"],
   manually_modified: ["manually modified"],
 };
+
+// The "Calibration Update" block the report template added below the
+// compound table — same label:value layout (and same rightward-scan
+// findLabelValue handles) as the report-header fields above, just further
+// down the sheet. "r" alone as a label is unusual enough elsewhere in a
+// chromatography report that an exact-match lookup here is safe.
+const CALIBRATION_LABEL_ALIASES: Record<keyof CalibrationData, string[]> = {
+  calibration_update: ["calibration update"],
+  compound: ["compound"],
+  exp_rt: ["exp. rt", "exp rt"],
+  residual_std: ["residual std"],
+  r: ["r"],
+  r_squared: ["r^2", "r²"],
+  formula: ["formula"],
+  a: ["a"],
+  b: ["b"],
+  c: ["c"],
+  d: ["d"],
+  scaled_label: ["scaled label"],
+  scaled_type: ["scaled type"],
+};
+
+// Returns null (not an error) when the sheet has no calibration block at
+// all — older reports / report templates predating this addition.
+function findCalibrationData(rows: unknown[][]): CalibrationData | null {
+  const calibrationUpdate = findLabelValue(rows, CALIBRATION_LABEL_ALIASES.calibration_update);
+  if (calibrationUpdate == null) return null;
+  const str = (key: keyof typeof CALIBRATION_LABEL_ALIASES) => findLabelValue(rows, CALIBRATION_LABEL_ALIASES[key]);
+  const num = (key: keyof typeof CALIBRATION_LABEL_ALIASES) => numOrNull(str(key));
+  return {
+    calibration_update: calibrationUpdate,
+    compound: str("compound"),
+    exp_rt: num("exp_rt"),
+    residual_std: num("residual_std"),
+    r: num("r"),
+    r_squared: num("r_squared"),
+    formula: str("formula"),
+    a: num("a"),
+    b: num("b"),
+    c: num("c"),
+    d: num("d"),
+    scaled_label: str("scaled_label"),
+    scaled_type: str("scaled_type"),
+  };
+}
 
 function cellText(v: unknown): string {
   return v == null ? "" : String(v).trim();
@@ -445,7 +527,7 @@ function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
   return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
 }
 
-function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
+function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
   const header = findXlsxHeaderRow(rows);
   const compounds: ParsedReportCompound[] = [];
   if (header) {
@@ -478,11 +560,12 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
     analysis_date: findLabelValue(rows, LABEL_ALIASES.analysis_date),
     total_peptide_contents_mg: null,
     compounds,
+    calibration_data: findCalibrationData(rows),
     report_metadata: findReportMetadata(rows),
   };
 }
 
-export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> {
+export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
   return parseXlsxRows(xlsxRowsFromBuffer(buffer));
 }
 
@@ -496,7 +579,7 @@ function isXlsxFile(fileName: string): boolean {
  * pipeline (compoundsToPeaks, result insertion) never needs to know which
  * format a given report came in as.
  */
-export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image"> & { raw_text: string }> {
+export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> & { raw_text: string }> {
   if (isXlsxFile(fileName)) {
     const rows = xlsxRowsFromBuffer(Buffer.from(bytes));
     return { ...parseXlsxRows(rows), raw_text: JSON.stringify(rows) };
@@ -545,9 +628,12 @@ export const parseReportFile = createServerFn({ method: "POST" })
       return isNaN(d.getTime()) ? null : d.toISOString();
     })();
     const folderId = await loadReportsFolderId(context.supabase);
-    const chromatogramImage = await findChromatogramImage(folderId, data.file_name);
+    const [chromatogramImage, calibrationImage] = await Promise.all([
+      findChromatogramImage(folderId, data.file_name),
+      findCalibrationImage(folderId, data.file_name),
+    ]);
     return {
       file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed,
-      analysis_date: analysisDate, chromatogram_image: chromatogramImage,
+      analysis_date: analysisDate, chromatogram_image: chromatogramImage, calibration_image: calibrationImage,
     };
   });

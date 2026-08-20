@@ -211,6 +211,26 @@ export const saveResult = createServerFn({ method: "POST" })
       // in Drive (see findChromatogramImage) — null for manual paste or when
       // no converted chromatogram exists yet.
       chromatogram_image: z.string().max(2_000_000).optional().nullable(),
+      // data: URI sourced from the report's sibling "<report>.calibration.png"
+      // — the calibration curve chart, alongside its fit stats. Null when
+      // the report has no "Calibration Update" block (older report
+      // templates) or the sibling image hasn't been converted yet.
+      calibration_image: z.string().max(2_000_000).optional().nullable(),
+      calibration_data: z.object({
+        calibration_update: z.string().nullable(),
+        compound: z.string().nullable(),
+        exp_rt: z.number().nullable(),
+        residual_std: z.number().nullable(),
+        r: z.number().nullable(),
+        r_squared: z.number().nullable(),
+        formula: z.string().nullable(),
+        a: z.number().nullable(),
+        b: z.number().nullable(),
+        c: z.number().nullable(),
+        d: z.number().nullable(),
+        scaled_label: z.string().nullable(),
+        scaled_type: z.string().nullable(),
+      }).optional().nullable(),
       // Instrument-sourced values — no manual-entry UI supplies these yet,
       // but the schema accepts them the moment a real source (report
       // template or ACAML) is wired in.
@@ -232,6 +252,8 @@ export const saveResult = createServerFn({ method: "POST" })
       analyst_id: userId,
       analysis_date: data.analysis_date ?? undefined,
       chromatogram_image: data.chromatogram_image ?? null,
+      calibration_image: data.calibration_image ?? null,
+      calibration_data: data.calibration_data ?? null,
       uv_conf_match: data.uv_conf_match ?? null,
       wavelength_nm: data.wavelength_nm ?? null,
       report_metadata: data.report_metadata ?? null,

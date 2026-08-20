@@ -8,6 +8,7 @@ import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
 import { CloudDownload, X } from "lucide-react";
 import { DriveReportPickerDialog, type ImportedResult } from "./drive-report-picker-dialog";
 import { parsePeaks } from "@/lib/parse-peaks";
+import type { CalibrationData } from "@/lib/results/drive-reports.functions";
 
 type LatestResult = {
   id: string;
@@ -18,6 +19,8 @@ type LatestResult = {
   reviewed_at: string | null;
   approved_at: string | null;
   chromatogram_image: string | null;
+  calibration_image: string | null;
+  calibration_data: CalibrationData | null;
   raw_data_file_path: string | null;
   uv_conf_match: number | null;
   wavelength_nm: number | null;
@@ -43,7 +46,8 @@ export function ResultsTab({
   setPasted: (v: string) => void;
   onSubmit: (imported?: {
     peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null;
-    chromatogram_image: string | null; uv_conf_match: number | null; wavelength_nm: number | null;
+    chromatogram_image: string | null; calibration_image: string | null; calibration_data: CalibrationData | null;
+    uv_conf_match: number | null; wavelength_nm: number | null;
     report_metadata: Record<string, string> | null;
   }) => void;
   busy: boolean;
@@ -71,6 +75,7 @@ export function ResultsTab({
         peaks: imported.peaks, purity: imported.purity,
         raw_data_file_path: imported.raw_data_file_path, analysis_date: imported.analysis_date,
         chromatogram_image: imported.chromatogram_image,
+        calibration_image: imported.calibration_image, calibration_data: imported.calibration_data,
         uv_conf_match: imported.uv_conf_match, wavelength_nm: imported.wavelength_nm,
         report_metadata: imported.report_metadata,
       });
@@ -138,6 +143,28 @@ export function ResultsTab({
                   <span className="capitalize">{key.replace(/_/g, " ")}:</span> <span className="text-foreground">{value}</span>
                 </div>
               ))}
+            </div>
+          )}
+          {latestResult.calibration_data && (
+            <div className="px-4 py-3 border-t border-border space-y-2">
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Calibration Curve</div>
+              {latestResult.calibration_image && (
+                <img src={latestResult.calibration_image} alt="Calibration curve" className="w-full h-auto max-h-56 object-contain rounded border border-border" />
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <div>Compound: <span className="text-foreground">{latestResult.calibration_data.compound ?? "—"}</span></div>
+                <div>Exp. RT: <span className="text-foreground">{latestResult.calibration_data.exp_rt ?? "—"}</span></div>
+                <div>Residual STD: <span className="text-foreground">{latestResult.calibration_data.residual_std ?? "—"}</span></div>
+                <div>R: <span className="text-foreground">{latestResult.calibration_data.r ?? "—"}</span></div>
+                <div>R²: <span className="text-foreground">{latestResult.calibration_data.r_squared ?? "—"}</span></div>
+                <div>Formula: <span className="text-foreground">{latestResult.calibration_data.formula ?? "—"}</span></div>
+                <div>a: <span className="text-foreground">{latestResult.calibration_data.a ?? "—"}</span></div>
+                <div>b: <span className="text-foreground">{latestResult.calibration_data.b ?? "—"}</span></div>
+                <div>c: <span className="text-foreground">{latestResult.calibration_data.c ?? "—"}</span></div>
+                {latestResult.calibration_data.d != null && <div>d: <span className="text-foreground">{latestResult.calibration_data.d}</span></div>}
+                <div>Scaled: <span className="text-foreground">{latestResult.calibration_data.scaled_label ?? "—"} ({latestResult.calibration_data.scaled_type ?? "—"})</span></div>
+                <div>Updated: <span className="text-foreground">{latestResult.calibration_data.calibration_update ?? "—"}</span></div>
+              </div>
             </div>
           )}
           <div className="overflow-x-auto">

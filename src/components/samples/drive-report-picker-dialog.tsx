@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText, CheckCircle2, AlertTriangle } from "lucide-react";
-import { listReportFiles, parseReportFile, compoundsToPeaks, type ParsedReport } from "@/lib/results/drive-reports.functions";
+import { listReportFiles, parseReportFile, compoundsToPeaks, type ParsedReport, type CalibrationData } from "@/lib/results/drive-reports.functions";
 import type { Peak } from "@/lib/lims-utils";
 
 export type ImportedResult = {
@@ -24,6 +24,8 @@ export type ImportedResult = {
   sample_id_in_report: string | null;
   analysis_date: string | null;
   chromatogram_image: string | null;
+  calibration_image: string | null;
+  calibration_data: CalibrationData | null;
   uv_conf_match: number | null;
   wavelength_nm: number | null;
   report_metadata: Record<string, string> | null;
@@ -77,6 +79,7 @@ export function DriveReportPickerDialog({
       raw_data_file_path: `https://drive.google.com/file/d/${parsed.file_id}/view`,
       file_name: parsed.file_name, sample_id_in_report: parsed.sample_id_in_report,
       analysis_date: parsed.analysis_date, chromatogram_image: parsed.chromatogram_image,
+      calibration_image: parsed.calibration_image, calibration_data: parsed.calibration_data,
       uv_conf_match, wavelength_nm, report_metadata: parsed.report_metadata,
     });
     onOpenChange(false);
@@ -166,6 +169,25 @@ export function DriveReportPickerDialog({
               <p className="text-xs text-muted-foreground">
                 No chromatogram found for this report — check that the lab PC converter has processed it yet.
               </p>
+            )}
+
+            {parsed.calibration_data && (
+              <div className="rounded-md border border-border p-2 space-y-1.5">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  {parsed.calibration_image
+                    ? <><CheckCircle2 className="size-3 text-emerald-500" /> Calibration curve found</>
+                    : "Calibration data found (no curve image)"}
+                </div>
+                {parsed.calibration_image && (
+                  <img src={parsed.calibration_image} alt="Calibration curve preview" className="w-full h-auto rounded border border-border" />
+                )}
+                <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5">
+                  <div>R²: {parsed.calibration_data.r_squared ?? "—"}</div>
+                  <div>Residual STD: {parsed.calibration_data.residual_std ?? "—"}</div>
+                  <div>Exp. RT: {parsed.calibration_data.exp_rt ?? "—"}</div>
+                  <div>Updated: {parsed.calibration_data.calibration_update ?? "—"}</div>
+                </div>
+              </div>
             )}
 
             <table className="w-full text-xs font-mono">

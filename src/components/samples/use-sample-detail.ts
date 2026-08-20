@@ -7,6 +7,7 @@ import { type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
+import type { CalibrationData } from "@/lib/results/drive-reports.functions";
 import type { SterilityData } from "@/components/samples/nonchrom/sterility-fields";
 import type { EndotoxinData } from "@/components/samples/nonchrom/endotoxin-fields";
 import type { HeavyMetalsData } from "@/components/samples/nonchrom/heavy-metals-fields";
@@ -58,29 +59,33 @@ export function useSampleDetail(batchId: string) {
     testId: string | undefined; sampleId: string; pasted: string;
     imported?: {
       peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null;
-      chromatogram_image: string | null; uv_conf_match: number | null; wavelength_nm: number | null;
+      chromatogram_image: string | null; calibration_image: string | null; calibration_data: CalibrationData | null;
+      uv_conf_match: number | null; wavelength_nm: number | null;
       report_metadata: Record<string, string> | null;
     } | null;
     onCleared: () => void;
   }) {
     if (!args.testId) return toast.error("No test assigned");
-    const { peaks, purity, raw_data_file_path, analysis_date, chromatogram_image, uv_conf_match, wavelength_nm, report_metadata } = args.imported
+    const { peaks, purity, raw_data_file_path, analysis_date, chromatogram_image, calibration_image, calibration_data, uv_conf_match, wavelength_nm, report_metadata } = args.imported
       ? {
           peaks: args.imported.peaks, purity: args.imported.purity,
           raw_data_file_path: args.imported.raw_data_file_path, analysis_date: args.imported.analysis_date,
           chromatogram_image: args.imported.chromatogram_image,
+          calibration_image: args.imported.calibration_image, calibration_data: args.imported.calibration_data,
           uv_conf_match: args.imported.uv_conf_match, wavelength_nm: args.imported.wavelength_nm,
           report_metadata: args.imported.report_metadata,
         }
       : {
           ...parsePeaks(args.pasted), raw_data_file_path: null as string | null, analysis_date: null as string | null,
-          chromatogram_image: null as string | null, uv_conf_match: null as number | null,
+          chromatogram_image: null as string | null, calibration_image: null as string | null,
+          calibration_data: null as CalibrationData | null,
+          uv_conf_match: null as number | null,
           wavelength_nm: null as number | null, report_metadata: null as Record<string, string> | null,
         };
     if (peaks.length === 0) return toast.error("Paste at least one peak (rt area area_pct), or import a report");
     setBusy(true);
     try {
-      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path, analysis_date, chromatogram_image, uv_conf_match, wavelength_nm, report_metadata } });
+      await saveResultFn({ data: { testId: args.testId, purity_percentage: purity, peaks, raw_data_file_path, analysis_date, chromatogram_image, calibration_image, calibration_data, uv_conf_match, wavelength_nm, report_metadata } });
       // Only meaningful the first time a sample gets a result ("prep" ->
       // "in_progress") — re-entering a result on a sample that's already
       // moved past that (reviewed, approved, etc.) hits a transition the

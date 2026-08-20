@@ -63,11 +63,20 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           return [p.id, fl || p.full_name || p.email || null] as const;
         }));
 
+        // Newest purity result (by analysis_date) — calibration_data is a
+        // per-injection concept, so extras.calibration_data mirrors
+        // whichever result is currently "the" result for this sample,
+        // same convention as the rest of extras being sample-level
+        // convenience copies of what's already nested under tests[].
+        const latestPurityResult = results
+          .slice()
+          .sort((a, b) => +new Date(b.analysis_date) - +new Date(a.analysis_date))[0] ?? null;
+
         const extras: Record<string, unknown> = {};
         if (cfg.include_lcs) extras.lcs_recovery = null;
         if (cfg.include_ccv) extras.ccv_recovery = null;
         if (cfg.include_method_blank) extras.method_blank_spectra = null;
-        if (cfg.include_calibration) extras.calibration_data = null;
+        if (cfg.include_calibration) extras.calibration_data = latestPurityResult?.calibration_data ?? null;
 
         const payload = {
           batch_id: sample.batch_id,
@@ -99,6 +108,8 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
                   reviewer_name: r.reviewer_id ? nameById.get(r.reviewer_id) ?? null : null,
                   approved_at: r.approved_at,
                   chromatogram_png: r.chromatogram_image,
+                  calibration_png: r.calibration_image,
+                  calibration_data: r.calibration_data ?? null,
                   appearance: sample.physical_description ?? null,
                   uv_conf_match: r.uv_conf_match ?? null,
                   wavelength_nm: r.wavelength_nm ?? null,
