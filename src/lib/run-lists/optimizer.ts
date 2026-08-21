@@ -45,6 +45,9 @@ export interface SequenceRow {
   why: string;                   // rationale for review UI
   /** C6: preview-time prep-coverage warning for this row's sample, null/absent when fine. Attached after optimize() runs — not set here. */
   prep_warning?: "no_prep" | "not_approved" | "expired" | null;
+  /** A5: which standard_preparation_logs row backs this QC row (NIB/ICB/ICV/CCB/CCV) — picked by the analyst on the review screen, not set here. */
+  standard_prep_id?: string | null;
+  standard_label?: string | null;
 }
 
 export interface OptimizedSequence {

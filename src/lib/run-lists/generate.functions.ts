@@ -218,6 +218,33 @@ async function resolvePrepsAndCoverage(
   return { preps, warnings };
 }
 
+interface ResolvedStandard {
+  syn_id: string | null;
+  standard_name: string;
+}
+
+/**
+ * A5: resolve the SYX ID / name for whichever standard_preparation_logs rows
+ * the analyst picked to back QC rows on the review screen — used to append
+ * the standard's identity onto the CSV Sample name.
+ */
+async function resolveStandardPreps(
+  supabase: any,
+  standardPrepIds: string[],
+): Promise<Map<string, ResolvedStandard>> {
+  const result = new Map<string, ResolvedStandard>();
+  if (!standardPrepIds.length) return result;
+  const { data, error } = await supabase
+    .from("standard_preparation_logs")
+    .select("id, syn_id, standard_name")
+    .in("id", standardPrepIds);
+  if (error) throw error;
+  for (const row of (data ?? []) as Array<{ id: string; syn_id: string | null; standard_name: string }>) {
+    result.set(row.id, { syn_id: row.syn_id, standard_name: row.standard_name });
+  }
+  return result;
+}
+
 interface SampleFields {
   received_quantity: number | null;
   batch_id: string;
@@ -263,6 +290,7 @@ function sequenceToCsv(
   dilutionBySampleId: Map<string, ResolvedPrep>,
   sampleFieldsBySampleId: Map<string, SampleFields>,
   accessionNumberByRowIndex: Map<number, number>,
+  standardsById: Map<string, ResolvedStandard>,
 ): string {
   const headers = [
     "Sample name", "Sample type", "Vial", "Volume",
@@ -280,9 +308,10 @@ function sequenceToCsv(
     // switched over to key off LimsId1 instead of re-parsing this string.
     const isSample = r.type === "Sample";
     const batchIdForName = fields?.batch_id ?? r.label.split(" — ")[0].split(" (Lot")[0];
+    const linkedStandard = r.standard_prep_id ? standardsById.get(r.standard_prep_id) : undefined;
     const baseName = isSample
       ? (r.lot ? `${batchIdForName}_${r.lot}` : batchIdForName)
-      : r.label;
+      : (linkedStandard ? `${r.label}_${linkedStandard.syn_id ?? linkedStandard.standard_name}` : r.label);
     // OpenLab appends a result timestamp when the sample name carries this
     // literal marker — required by the analyst's instrument workflow.
     const sampleName = `${baseName} <D>`;
@@ -335,6 +364,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       acquisition_method: z.string().nullable(),
       processing_method: z.string().nullable(),
       level: z.string().nullable().optional(),
+      standard_prep_id: z.string().uuid().nullable().optional(),
     })).min(1),
   }).parse(d))
   .handler(async ({ context, data }) => {
@@ -373,11 +403,13 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
         method_group_id: null, method_group_name: null,
         acquisition_method: r.acquisition_method, processing_method: r.processing_method,
         vial: r.vial, level: r.level ?? null, why: "",
+        standard_prep_id: r.standard_prep_id ?? null,
       })),
     };
     const sampleIds = [...new Set(seq.rows.map((r) => r.sample_id).filter((id): id is string => !!id))];
+    const standardPrepIds = [...new Set(seq.rows.map((r) => r.standard_prep_id).filter((id): id is string => !!id))];
     const sampleRowIndices = seq.rows.map((r, i) => (r.type === "Sample" ? i : null)).filter((i): i is number => i !== null);
-    const [{ preps }, sampleFields, accessionNumbers] = await Promise.all([
+    const [{ preps }, sampleFields, accessionNumbers, standardsById] = await Promise.all([
       resolvePrepsAndCoverage(context.supabase, sampleIds),
       resolveSampleFields(context.supabase, sampleIds),
       sampleRowIndices.length
@@ -387,9 +419,10 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
             return data ?? [];
           })
         : Promise.resolve([] as number[]),
+      resolveStandardPreps(context.supabase, standardPrepIds),
     ]);
     const accessionNumberByRowIndex = new Map(sampleRowIndices.map((rowIdx, n) => [rowIdx, accessionNumbers[n]]));
-    const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder, preps, sampleFields, accessionNumberByRowIndex);
+    const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder, preps, sampleFields, accessionNumberByRowIndex, standardsById);
     const csvWithBom = "\uFEFF" + csv;
 
     // Persist as a run_lists + run_list_items record for history/audit
@@ -419,6 +452,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       extras: { position_code: r.vial, processing_method: r.processing_method },
       sp_preparation_record_id: (r.sample_id && preps.get(r.sample_id)?.id) || null,
       accession_number: accessionNumberByRowIndex.get(i) ?? null,
+      standard_prep_id: r.standard_prep_id ?? null,
     }));
     await context.supabase.from("run_list_items").insert(items);
 

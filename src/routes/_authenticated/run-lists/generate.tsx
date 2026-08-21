@@ -9,11 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Wand2, Download, ChevronLeft, CloudUpload, Tags, AlertTriangle, FlaskConical } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Wand2, Download, ChevronLeft, CloudUpload, Tags, AlertTriangle, FlaskConical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
+import { StandardPicker, type PickedStandard } from "@/components/standard-preparations/standard-picker";
 import { qk } from "@/lib/query-keys";
 import { NoVialsDialog } from "@/components/run-lists/no-vials-dialog";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
@@ -78,7 +80,7 @@ function GenerateRunList() {
         rows: seq.rows.map((r) => ({
           type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
           acquisition_method: r.acquisition_method, processing_method: r.processing_method,
-          level: r.level,
+          level: r.level, standard_prep_id: r.standard_prep_id ?? null,
         })),
       },
     }),
@@ -97,7 +99,7 @@ function GenerateRunList() {
     rows: seq.rows.map((row) => ({
       type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
       acquisition_method: row.acquisition_method, processing_method: row.processing_method,
-      level: row.level,
+      level: row.level, standard_prep_id: row.standard_prep_id ?? null,
     })),
   });
 
@@ -141,6 +143,17 @@ function GenerateRunList() {
     } finally {
       setPushBusy(null);
     }
+  };
+
+  const updateRowStandard = (seqIndex: number, rowIndex: number, picked: PickedStandard | null) => {
+    setSequences((prev) => prev.map((seq) => seq.index !== seqIndex ? seq : {
+      ...seq,
+      rows: seq.rows.map((row, ri) => ri !== rowIndex ? row : {
+        ...row,
+        standard_prep_id: picked?.id ?? null,
+        standard_label: picked ? (picked.syn_id ?? picked.standard_name) : null,
+      }),
+    }));
   };
 
   const toggle = (idx: number) => {
@@ -188,7 +201,7 @@ function GenerateRunList() {
             rows: seq.rows.map((row) => ({
               type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
               acquisition_method: row.acquisition_method, processing_method: row.processing_method,
-              level: row.level,
+              level: row.level, standard_prep_id: row.standard_prep_id ?? null,
             })),
           },
         });
@@ -357,6 +370,7 @@ function GenerateRunList() {
           onPush={() => pushOne(seq)}
           pushing={pushBusy === seq.index}
           onPrintLabels={() => printLabels([seq])}
+          onPickStandard={(rowIndex, picked) => updateRowStandard(seq.index, rowIndex, picked)}
         />
       ))}
 
@@ -375,9 +389,10 @@ function GenerateRunList() {
   );
 }
 
-function SequenceCard({ seq, onSave, saving, onPush, pushing, onPrintLabels }: {
+function SequenceCard({ seq, onSave, saving, onPush, pushing, onPrintLabels, onPickStandard }: {
   seq: OptimizedSequence; onSave: () => void; saving: boolean;
   onPush: () => void; pushing: boolean; onPrintLabels: () => void;
+  onPickStandard: (rowIndex: number, picked: PickedStandard | null) => void;
 }) {
   const sampleCount = useMemo(() => seq.rows.filter((r) => r.type === "Sample").length, [seq.rows]);
   return (
@@ -410,19 +425,23 @@ function SequenceCard({ seq, onSave, saving, onPush, pushing, onPrintLabels }: {
             <th className="text-left px-3 py-2">Method Group</th>
             <th className="text-left px-3 py-2">Vial</th>
             <th className="text-left px-3 py-2">Acq / Proc</th>
+            <th className="text-left px-3 py-2">Standard</th>
             <th className="text-left px-3 py-2">Why</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {seq.rows.map((r, i) => <SeqRow key={i} r={r} i={i + 1} />)}
+          {seq.rows.map((r, i) => (
+            <SeqRow key={i} r={r} i={i + 1} onPickStandard={(picked) => onPickStandard(i, picked)} />
+          ))}
         </tbody>
       </table>
     </Card>
   );
 }
 
-function SeqRow({ r, i }: { r: SequenceRow; i: number }) {
+function SeqRow({ r, i, onPickStandard }: { r: SequenceRow; i: number; onPickStandard: (picked: PickedStandard | null) => void }) {
   const isQc = r.type !== "Sample";
+  const [open, setOpen] = useState(false);
   return (
     <tr className={isQc ? "bg-muted/20" : ""}>
       <td className="px-3 py-2 font-mono">{i}</td>
@@ -434,6 +453,35 @@ function SeqRow({ r, i }: { r: SequenceRow; i: number }) {
       <td className="px-3 py-2 font-mono">{r.vial ?? "—"}</td>
       <td className="px-3 py-2 text-muted-foreground">
         {r.acquisition_method ?? "—"}{r.processing_method ? ` / ${r.processing_method}` : ""}
+      </td>
+      <td className="px-3 py-2">
+        {isQc ? (
+          <div className="flex items-center gap-1">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "text-xs px-2 py-1 rounded border transition-colors",
+                    r.standard_label ? "border-primary/40 text-primary" : "border-dashed border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {r.standard_label ?? "Pick standard"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96" align="start">
+                <StandardPicker onPick={(s) => { onPickStandard(s); setOpen(false); }} />
+              </PopoverContent>
+            </Popover>
+            {r.standard_label && (
+              <button type="button" onClick={() => onPickStandard(null)} className="text-muted-foreground hover:text-destructive">
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </td>
       <td className="px-3 py-2 text-muted-foreground">{r.why}</td>
     </tr>

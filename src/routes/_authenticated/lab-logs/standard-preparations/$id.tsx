@@ -10,6 +10,7 @@ import { PrepDetailInfoCards } from "@/components/standard-preparations/detail-i
 import { PrepStepsCard } from "@/components/standard-preparations/steps-card";
 import { PrepReviewCard } from "@/components/standard-preparations/review-card";
 import { PrepLifecycleCard } from "@/components/standard-preparations/prep-lifecycle-card";
+import { SequenceUsageCard } from "@/components/standard-preparations/sequence-usage-card";
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
@@ -82,6 +83,7 @@ function PrepDetail() {
           discardPending={discardMut.isPending}
         />
       )}
+      <SequenceUsageCard entries={data.sequenceUsage} />
       <PrepStepsCard steps={r.preparation_steps ?? []} mixingDetails={r.mixing_details} />
       <PrepReviewCard row={r} />
       <TraceabilitySnapshot row={r} />
