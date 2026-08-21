@@ -7,21 +7,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface VialPhotoSyncResult {
   ok: boolean;
   reason?: string;
   drive_file_id?: string;
   drive_file_name?: string;
-}
-
-export async function syncVialPhotosForNewSamples(
-  supabase: SupabaseClient,
-  samples: Array<{ batch_id: string; coc_id: string | null; line_item_index: number | null }>,
-): Promise<void> {
-  const impl = await import("@/lib/lims/coc/vial-photo-drive-sync.server");
-  return impl.syncVialPhotosForNewSamples(supabase, samples);
 }
 
 export const syncVialPhotoToReportsDrive = createServerFn({ method: "POST" })
