@@ -79,9 +79,6 @@ export function parseAgilentIT(buf: ArrayBuffer): AgilentTrace {
 }
 
 const CH_OFFSETS = {
-  point_count: 0x116,
-  first_rt: 0x11a,
-  last_rt: 0x11e,
   scaling_factor: 0x127c,
   data_start: 0x1800,
 };
@@ -95,57 +92,35 @@ const CH_OFFSETS = {
  * DAD's housekeeping signals (lamp voltage, optical/board temperature) are
  * `.IT`, same as PMP/THM.
  *
- * Byte layout sourced from the `rainbow` project's documented Agilent
- * ChemStation "other" .ch format (the open-source parser lineage this
- * module's `.IT` header comment already cites via chromConverter):
- * header fields are big-endian; the data body is a sequence of
- * variable-length delta-encoded segments rather than a flat array —
- * `1 byte segment label (0x10) + 1 byte count N + N encoded values`, where
- * each value is either a 2-byte big-endian signed delta, or (when that
- * short equals the -0x8000 sentinel) a 4-byte big-endian signed absolute
- * value that resets the running accumulator. The segment loop ends at the
- * first byte that isn't 0x10. RT has no per-point timestamp (unlike `.IT`)
- * — it's evenly spaced between the header's first/last RT over the point
- * count. Does not hard-reject on the header's version string: this file's
- * OpenLab-produced variant may carry a version tag the classic-ChemStation-
- * focused reference source doesn't document, and rejecting blind would
- * throw away real data this module has no way to double-check locally.
+ * The delta-encoded segment body documented by the `rainbow` project's
+ * "other" .ch format does NOT match this file's real bytes (confirmed live:
+ * the byte at 0x1800 isn't the 0x10 segment label the spec assumes). The
+ * actual body, read directly off a real file, is a flat sequential array of
+ * little-endian float64 values from 0x1800 to EOF — no delta encoding, no
+ * per-point timestamp. Two real channels decoded this way produced
+ * physically plausible small mAU-scale values (one a smooth rising
+ * baseline), while the delta-segment reading produced zero points across
+ * every channel. The scaling factor at 0x127c (float64, big-endian) is
+ * shared with the `.IT` header at the same offset and decoded to a clean
+ * power-of-two (2^-21) — a strong signal that offset is correct.
+ *
+ * RT axis: TEMPORARY — nothing found in this file's own header reliably
+ * encodes the real time bounds yet (the byte layout the `rainbow` spec
+ * documents for that doesn't hold here either, same as the body). `rt` is
+ * currently just the raw point index, not real minutes; a live diagnostic
+ * scan is in flight (dx-link.functions.ts `scanForPlausibleFields`) to find
+ * the real offset before this is wired into any real scoring.
  */
 export function parseAgilentChDelta(buf: ArrayBuffer): AgilentTrace {
   const view = new DataView(buf);
-  const pointCount = view.getUint32(CH_OFFSETS.point_count, false);
-  const firstRtMs = view.getUint32(CH_OFFSETS.first_rt, false);
-  const lastRtMs = view.getUint32(CH_OFFSETS.last_rt, false);
   const scalingFactor = view.getFloat64(CH_OFFSETS.scaling_factor, false);
+  const n = Math.floor((buf.byteLength - CH_OFFSETS.data_start) / 8);
 
-  const raw: number[] = [];
-  let accum = 0;
-  let pos = CH_OFFSETS.data_start;
-  while (pos < buf.byteLength && view.getUint8(pos) === 0x10) {
-    const count = view.getUint8(pos + 1);
-    pos += 2;
-    for (let i = 0; i < count; i++) {
-      if (pos + 2 > buf.byteLength) break;
-      const short = view.getInt16(pos, false);
-      pos += 2;
-      if (short === -0x8000) {
-        if (pos + 4 > buf.byteLength) break;
-        accum = view.getInt32(pos, false);
-        pos += 4;
-      } else {
-        accum += short;
-      }
-      raw.push(accum);
-    }
-  }
-
-  const n = raw.length;
-  const stepMs = pointCount > 1 ? (lastRtMs - firstRtMs) / (pointCount - 1) : 0;
   const rt: number[] = [];
   const vals: number[] = [];
   for (let i = 0; i < n; i++) {
-    rt.push((firstRtMs + i * stepMs) / 60000);
-    vals.push(raw[i] * scalingFactor);
+    rt.push(i);
+    vals.push(view.getFloat64(CH_OFFSETS.data_start + i * 8, true) * scalingFactor);
   }
   return { rt, vals };
 }
