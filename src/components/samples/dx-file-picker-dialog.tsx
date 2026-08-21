@@ -132,7 +132,10 @@ export function DxFilePickerDialog({
                 <button
                   key={f.id}
                   type="button"
-                  onClick={() => setFolder({ id: f.id, name: f.name })}
+                  onClick={() => {
+                    setFolder({ id: f.id, name: f.name });
+                    setQ("");
+                  }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/40"
                 >
                   <Folder className="size-4 text-muted-foreground shrink-0" />
@@ -152,7 +155,10 @@ export function DxFilePickerDialog({
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => setFolder(null)}
+              onClick={() => {
+                setFolder(null);
+                setQ("");
+              }}
               className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground"
             >
               <ChevronLeft className="size-3" /> {folder.name}
