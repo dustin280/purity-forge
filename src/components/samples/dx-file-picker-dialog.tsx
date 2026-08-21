@@ -259,6 +259,19 @@ export function DxFilePickerDialog({
                 ))}
               </div>
             </details>
+
+            <details className="text-xs" open>
+              <summary className="cursor-pointer text-muted-foreground">
+                All {inspected.zip_entries.length} files in this .dx archive
+              </summary>
+              <div className="mt-1 max-h-48 overflow-y-auto rounded border border-border divide-y divide-border font-mono">
+                {inspected.zip_entries.map((name) => (
+                  <div key={name} className="px-2 py-1 truncate">
+                    {name}
+                  </div>
+                ))}
+              </div>
+            </details>
           </div>
         )}
 

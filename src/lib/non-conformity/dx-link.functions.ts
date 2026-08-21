@@ -55,6 +55,8 @@ export interface DxInspection {
   acquisition_method: string | null;
   signals: AgilentSignal[];
   dad_guess: DadSignalProbe[];
+  /** Every file name actually present in the .dx zip archive — the ground truth for whatever naming convention DAD signal files really use, since not every signal's traceId resolves to a `${traceId}.IT` file (see dad_guess). */
+  zip_entries: string[];
 }
 
 /** Filters the manifest's signal list for anything that looks DAD-related — the investigative guess this whole module exists to confirm or refute against real data. */
@@ -88,8 +90,10 @@ async function inspectDxBytes(fileId: string, bytes: ArrayBuffer): Promise<DxIns
   const dadGuess = await Promise.all(
     guessDadSignals(manifest.signals).map((s) => probeSignal(zip, s)),
   );
+  const zipEntries = Object.keys(zip.files).sort();
   return {
     file_id: fileId,
+    zip_entries: zipEntries,
     sample_name: manifest.sampleName,
     run_date_time: manifest.runDateTime,
     run_operator: manifest.runOperator,
