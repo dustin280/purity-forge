@@ -181,7 +181,7 @@ export type DxResolution =
     }
   | { confidence: "none" };
 
-const CANDIDATE_FOLDER_LIMIT = 5;
+const CANDIDATE_FOLDER_LIMIT = 8;
 const CANDIDATE_FILE_LIMIT = 15;
 const DATE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -207,6 +207,16 @@ const DATE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
  * across every candidate folder, and the closest CANDIDATE_FILE_LIMIT of
  * them are actually opened and name-matched, so a same-day sibling sample
  * can no longer hide the right file from the search.
+ *
+ * Second bug found alongside the first (same live re-test): the folder
+ * candidate list was filtered to the date window but never re-sorted by
+ * closeness before `.slice(0, CANDIDATE_FOLDER_LIMIT)` — it stayed in
+ * Drive's own "most recently touched, globally" order, so on a day with
+ * more in-window folders than the limit, the actually-closest folder could
+ * still get cut if some other in-window folder happened to have a more
+ * recent Drive `modifiedTime` for unrelated reasons. Folders are now
+ * sorted by closeness to the target date before the slice, same principle
+ * as the file-level fix above; the limit was also raised 5→8 for margin.
  */
 export const resolveDxFileForSample = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -247,6 +257,11 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
           (f: DriveEntry) =>
             f.modifiedTime &&
             Math.abs(new Date(f.modifiedTime).getTime() - targetMs) <= DATE_WINDOW_MS,
+        )
+        .sort(
+          (a, b) =>
+            Math.abs(new Date(a.modifiedTime!).getTime() - targetMs) -
+            Math.abs(new Date(b.modifiedTime!).getTime() - targetMs),
         )
         .slice(0, CANDIDATE_FOLDER_LIMIT);
       if (candidates.length === 0) return { confidence: "none" };
