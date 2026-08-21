@@ -44,6 +44,21 @@ export type Database = {
         }
         Relationships: []
       }
+      accession_number_counter: {
+        Row: {
+          id: number
+          last_number: number
+        }
+        Insert: {
+          id?: number
+          last_number: number
+        }
+        Update: {
+          id?: number
+          last_number?: number
+        }
+        Relationships: []
+      }
       ai_chat_messages: {
         Row: {
           created_at: string
@@ -1632,6 +1647,616 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      nc_compounds: {
+        Row: {
+          amino_acid_composition: string | null
+          cas_number: string | null
+          class: string | null
+          compound_id: string | null
+          created_at: string
+          dad_guidance: string | null
+          dad_primary: string | null
+          dad_secondary: string | null
+          form_notes: string | null
+          id: string
+          key_chromophores: string | null
+          molecular_formula: string | null
+          monoisotopic_mass: number | null
+          mz_1plus: number | null
+          mz_2plus: number | null
+          name: string
+          review_flag: string | null
+          sequence_composition: string | null
+          source_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          amino_acid_composition?: string | null
+          cas_number?: string | null
+          class?: string | null
+          compound_id?: string | null
+          created_at?: string
+          dad_guidance?: string | null
+          dad_primary?: string | null
+          dad_secondary?: string | null
+          form_notes?: string | null
+          id?: string
+          key_chromophores?: string | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name: string
+          review_flag?: string | null
+          sequence_composition?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amino_acid_composition?: string | null
+          cas_number?: string | null
+          class?: string | null
+          compound_id?: string | null
+          created_at?: string
+          dad_guidance?: string | null
+          dad_primary?: string | null
+          dad_secondary?: string | null
+          form_notes?: string | null
+          id?: string
+          key_chromophores?: string | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name?: string
+          review_flag?: string | null
+          sequence_composition?: string | null
+          source_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_compounds_compound_id_fkey"
+            columns: ["compound_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_detection_rules: {
+        Row: {
+          applies_to: string | null
+          candidate_product: string | null
+          created_at: string
+          dad_behavior: string | null
+          discriminator: string | null
+          evidence_level: string | null
+          formula_delta: string | null
+          guardrail: string | null
+          id: string
+          kind: string
+          mass_delta: number | null
+          notes: string | null
+          rp_hplc_behavior: string | null
+          rule_id: string
+          source_url: string | null
+          trigger_feature: string | null
+        }
+        Insert: {
+          applies_to?: string | null
+          candidate_product?: string | null
+          created_at?: string
+          dad_behavior?: string | null
+          discriminator?: string | null
+          evidence_level?: string | null
+          formula_delta?: string | null
+          guardrail?: string | null
+          id?: string
+          kind: string
+          mass_delta?: number | null
+          notes?: string | null
+          rp_hplc_behavior?: string | null
+          rule_id: string
+          source_url?: string | null
+          trigger_feature?: string | null
+        }
+        Update: {
+          applies_to?: string | null
+          candidate_product?: string | null
+          created_at?: string
+          dad_behavior?: string | null
+          discriminator?: string | null
+          evidence_level?: string | null
+          formula_delta?: string | null
+          guardrail?: string | null
+          id?: string
+          kind?: string
+          mass_delta?: number | null
+          notes?: string | null
+          rp_hplc_behavior?: string | null
+          rule_id?: string
+          source_url?: string | null
+          trigger_feature?: string | null
+        }
+        Relationships: []
+      }
+      nc_evaluation_findings: {
+        Row: {
+          adduct: string | null
+          analyst_note: string | null
+          applied_evidence_rules: Json
+          area_pct: number | null
+          candidate_kind: string | null
+          component_scores: Json
+          created_at: string
+          evaluation_id: string
+          id: string
+          matched_candidate_id: string | null
+          observed_mz: number | null
+          observed_neutral_mass: number | null
+          peak_id: string | null
+          peak_purity: number | null
+          peak_purity_passed: boolean | null
+          rationale: string | null
+          rt: number | null
+          spectral_detail: Json | null
+          tier: string
+          uv_match: number | null
+        }
+        Insert: {
+          adduct?: string | null
+          analyst_note?: string | null
+          applied_evidence_rules?: Json
+          area_pct?: number | null
+          candidate_kind?: string | null
+          component_scores?: Json
+          created_at?: string
+          evaluation_id: string
+          id?: string
+          matched_candidate_id?: string | null
+          observed_mz?: number | null
+          observed_neutral_mass?: number | null
+          peak_id?: string | null
+          peak_purity?: number | null
+          peak_purity_passed?: boolean | null
+          rationale?: string | null
+          rt?: number | null
+          spectral_detail?: Json | null
+          tier: string
+          uv_match?: number | null
+        }
+        Update: {
+          adduct?: string | null
+          analyst_note?: string | null
+          applied_evidence_rules?: Json
+          area_pct?: number | null
+          candidate_kind?: string | null
+          component_scores?: Json
+          created_at?: string
+          evaluation_id?: string
+          id?: string
+          matched_candidate_id?: string | null
+          observed_mz?: number | null
+          observed_neutral_mass?: number | null
+          peak_id?: string | null
+          peak_purity?: number | null
+          peak_purity_passed?: boolean | null
+          rationale?: string | null
+          rt?: number | null
+          spectral_detail?: Json | null
+          tier?: string
+          uv_match?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_evaluation_findings_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "nc_evaluations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_evaluations: {
+        Row: {
+          created_at: string
+          dx_file_id: string | null
+          dx_folder_id: string | null
+          dx_match_confidence: string | null
+          id: string
+          nc_compound_id: string | null
+          overall_tier: string | null
+          result_id: string | null
+          run_at: string
+          run_by: string | null
+          run_by_name: string
+          sample_id: string | null
+          stress_context: string | null
+          summary: string | null
+        }
+        Insert: {
+          created_at?: string
+          dx_file_id?: string | null
+          dx_folder_id?: string | null
+          dx_match_confidence?: string | null
+          id?: string
+          nc_compound_id?: string | null
+          overall_tier?: string | null
+          result_id?: string | null
+          run_at?: string
+          run_by?: string | null
+          run_by_name: string
+          sample_id?: string | null
+          stress_context?: string | null
+          summary?: string | null
+        }
+        Update: {
+          created_at?: string
+          dx_file_id?: string | null
+          dx_folder_id?: string | null
+          dx_match_confidence?: string | null
+          id?: string
+          nc_compound_id?: string | null
+          overall_tier?: string | null
+          result_id?: string | null
+          run_at?: string
+          run_by?: string | null
+          run_by_name?: string
+          sample_id?: string | null
+          stress_context?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_evaluations_nc_compound_id_fkey"
+            columns: ["nc_compound_id"]
+            isOneToOne: false
+            referencedRelation: "nc_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_evidence_rules: {
+        Row: {
+          created_at: string
+          id: string
+          interpretation_guardrail: string | null
+          observation: string
+          rule_id: string
+          suggested_score_effect: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interpretation_guardrail?: string | null
+          observation: string
+          rule_id: string
+          suggested_score_effect?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interpretation_guardrail?: string | null
+          observation?: string
+          rule_id?: string
+          suggested_score_effect?: string | null
+        }
+        Relationships: []
+      }
+      nc_impurity_candidates: {
+        Row: {
+          category: string | null
+          created_at: string
+          dad_discriminator: string | null
+          dad_primary: string | null
+          dad_secondary: string | null
+          evidence_level: string | null
+          formation_pathway: string | null
+          formula_delta: string | null
+          id: string
+          impurity_code: string
+          lc_ms_discriminator: string | null
+          likely_trigger: string | null
+          mass_delta: number | null
+          molecular_formula: string | null
+          monoisotopic_mass: number | null
+          mz_1plus: number | null
+          mz_2plus: number | null
+          name: string
+          nc_compound_id: string
+          notes: string | null
+          rp_hplc_behavior: string | null
+          source_url: string | null
+          structure_change: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          dad_discriminator?: string | null
+          dad_primary?: string | null
+          dad_secondary?: string | null
+          evidence_level?: string | null
+          formation_pathway?: string | null
+          formula_delta?: string | null
+          id?: string
+          impurity_code: string
+          lc_ms_discriminator?: string | null
+          likely_trigger?: string | null
+          mass_delta?: number | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name: string
+          nc_compound_id: string
+          notes?: string | null
+          rp_hplc_behavior?: string | null
+          source_url?: string | null
+          structure_change?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          dad_discriminator?: string | null
+          dad_primary?: string | null
+          dad_secondary?: string | null
+          evidence_level?: string | null
+          formation_pathway?: string | null
+          formula_delta?: string | null
+          id?: string
+          impurity_code?: string
+          lc_ms_discriminator?: string | null
+          likely_trigger?: string | null
+          mass_delta?: number | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name?: string
+          nc_compound_id?: string
+          notes?: string | null
+          rp_hplc_behavior?: string | null
+          source_url?: string | null
+          structure_change?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_impurity_candidates_nc_compound_id_fkey"
+            columns: ["nc_compound_id"]
+            isOneToOne: false
+            referencedRelation: "nc_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_oligomer_candidates: {
+        Row: {
+          best_orthogonal_discriminator: string | null
+          class: string | null
+          created_at: string
+          dad_discriminator: string | null
+          evidence_level: string | null
+          expected_normalized_dad: string | null
+          false_positive_warning: string | null
+          id: string
+          lc_ms_discriminator: string | null
+          mass_delta_vs_n_monomer: number | null
+          mechanism_pathway: string | null
+          molecular_formula: string | null
+          monoisotopic_mass: number | null
+          mz_1plus: number | null
+          mz_2plus: number | null
+          name: string
+          nc_compound_id: string
+          notes: string | null
+          oligomer_code: string
+          other_diagnostic_ions: string | null
+          rp_hplc_behavior: string | null
+          source_url: string | null
+          stoichiometry: string | null
+          trigger_motif: string | null
+        }
+        Insert: {
+          best_orthogonal_discriminator?: string | null
+          class?: string | null
+          created_at?: string
+          dad_discriminator?: string | null
+          evidence_level?: string | null
+          expected_normalized_dad?: string | null
+          false_positive_warning?: string | null
+          id?: string
+          lc_ms_discriminator?: string | null
+          mass_delta_vs_n_monomer?: number | null
+          mechanism_pathway?: string | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name: string
+          nc_compound_id: string
+          notes?: string | null
+          oligomer_code: string
+          other_diagnostic_ions?: string | null
+          rp_hplc_behavior?: string | null
+          source_url?: string | null
+          stoichiometry?: string | null
+          trigger_motif?: string | null
+        }
+        Update: {
+          best_orthogonal_discriminator?: string | null
+          class?: string | null
+          created_at?: string
+          dad_discriminator?: string | null
+          evidence_level?: string | null
+          expected_normalized_dad?: string | null
+          false_positive_warning?: string | null
+          id?: string
+          lc_ms_discriminator?: string | null
+          mass_delta_vs_n_monomer?: number | null
+          mechanism_pathway?: string | null
+          molecular_formula?: string | null
+          monoisotopic_mass?: number | null
+          mz_1plus?: number | null
+          mz_2plus?: number | null
+          name?: string
+          nc_compound_id?: string
+          notes?: string | null
+          oligomer_code?: string
+          other_diagnostic_ions?: string | null
+          rp_hplc_behavior?: string | null
+          source_url?: string | null
+          stoichiometry?: string | null
+          trigger_motif?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_oligomer_candidates_nc_compound_id_fkey"
+            columns: ["nc_compound_id"]
+            isOneToOne: false
+            referencedRelation: "nc_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_spectral_panels: {
+        Row: {
+          created_at: string
+          id: string
+          important_note: string | null
+          nc_compound_id: string
+          panel_rationale: string | null
+          parent_dad_guidance: string | null
+          recommended_features: string | null
+          recommended_range: string | null
+          wavelengths_nm: number[]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          important_note?: string | null
+          nc_compound_id: string
+          panel_rationale?: string | null
+          parent_dad_guidance?: string | null
+          recommended_features?: string | null
+          recommended_range?: string | null
+          wavelengths_nm: number[]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          important_note?: string | null
+          nc_compound_id?: string
+          panel_rationale?: string | null
+          parent_dad_guidance?: string | null
+          recommended_features?: string | null
+          recommended_range?: string | null
+          wavelengths_nm?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_spectral_panels_nc_compound_id_fkey"
+            columns: ["nc_compound_id"]
+            isOneToOne: false
+            referencedRelation: "nc_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nonchrom_results: {
+        Row: {
+          analysis_date: string
+          analyst_id: string | null
+          approved_at: string | null
+          created_at: string
+          data: Json
+          id: string
+          reviewed_at: string | null
+          reviewer_id: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at: string
+        }
+        Insert: {
+          analysis_date?: string
+          analyst_id?: string | null
+          approved_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Update: {
+          analysis_date?: string
+          analyst_id?: string | null
+          approved_at?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string | null
+          test_id?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nonchrom_results_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nonchrom_test_attachments: {
+        Row: {
+          content_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          kind: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes: number | null
+          test_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes?: number | null
+          test_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
+          size_bytes?: number | null
+          test_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nonchrom_test_attachments_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notification_recipients: {
         Row: {
@@ -4235,6 +4860,13 @@ export type Database = {
             referencedRelation: "material_receipts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "standard_preparation_logs_parent_prep_id_fkey"
+            columns: ["parent_prep_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_logs"
+            referencedColumns: ["id"]
+          },
         ]
       }
       standard_preparation_targets: {
@@ -4385,99 +5017,20 @@ export type Database = {
         }
         Relationships: []
       }
-      nonchrom_results: {
+      syx_batch_id_counter: {
         Row: {
-          analysis_date: string
-          analyst_id: string | null
-          approved_at: string | null
-          created_at: string
-          data: Json
-          id: string
-          reviewed_at: string | null
-          reviewer_id: string | null
-          test_id: string
-          test_type: Database["public"]["Enums"]["test_type"]
-          updated_at: string
+          id: number
+          last_number: number
         }
         Insert: {
-          analysis_date?: string
-          analyst_id?: string | null
-          approved_at?: string | null
-          created_at?: string
-          data?: Json
-          id?: string
-          reviewed_at?: string | null
-          reviewer_id?: string | null
-          test_id: string
-          test_type: Database["public"]["Enums"]["test_type"]
-          updated_at?: string
+          id?: number
+          last_number: number
         }
         Update: {
-          analysis_date?: string
-          analyst_id?: string | null
-          approved_at?: string | null
-          created_at?: string
-          data?: Json
-          id?: string
-          reviewed_at?: string | null
-          reviewer_id?: string | null
-          test_id?: string
-          test_type?: Database["public"]["Enums"]["test_type"]
-          updated_at?: string
+          id?: number
+          last_number?: number
         }
-        Relationships: [
-          {
-            foreignKeyName: "nonchrom_results_test_id_fkey"
-            columns: ["test_id"]
-            isOneToOne: false
-            referencedRelation: "tests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      nonchrom_test_attachments: {
-        Row: {
-          content_type: string | null
-          file_name: string
-          file_path: string
-          id: string
-          kind: Database["public"]["Enums"]["nonchrom_attachment_kind"]
-          size_bytes: number | null
-          test_id: string
-          uploaded_at: string
-          uploaded_by: string | null
-        }
-        Insert: {
-          content_type?: string | null
-          file_name: string
-          file_path: string
-          id?: string
-          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
-          size_bytes?: number | null
-          test_id: string
-          uploaded_at?: string
-          uploaded_by?: string | null
-        }
-        Update: {
-          content_type?: string | null
-          file_name?: string
-          file_path?: string
-          id?: string
-          kind?: Database["public"]["Enums"]["nonchrom_attachment_kind"]
-          size_bytes?: number | null
-          test_id?: string
-          uploaded_at?: string
-          uploaded_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "nonchrom_test_attachments_test_id_fkey"
-            columns: ["test_id"]
-            isOneToOne: false
-            referencedRelation: "tests"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       test_parameters: {
         Row: {
@@ -4745,7 +5298,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       discard_standard_prep: {
-        Args: { p_actor_name: string; p_prep_id: string; p_reason: string | null }
+        Args: { p_actor_name: string; p_prep_id: string; p_reason: string }
         Returns: undefined
       }
       has_role: {
@@ -4793,9 +5346,9 @@ export type Database = {
         Args: {
           p_actor_id: string
           p_actor_name: string
-          p_notes: string | null
+          p_notes: string
           p_prep_id: string
-          p_purpose: string | null
+          p_purpose: string
           p_withdrawn_ml: number
         }
         Returns: number
