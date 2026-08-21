@@ -52,7 +52,6 @@ import { Route as AuthenticatedSamplePrepEquipmentRouteImport } from './routes/_
 import { Route as AuthenticatedSamplePrepAnalytesRouteImport } from './routes/_authenticated/sample-prep/analytes'
 import { Route as AuthenticatedRunListsGenerateRouteImport } from './routes/_authenticated/run-lists/generate'
 import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authenticated/run-lists/$id'
-import { Route as AuthenticatedNonConformityLibraryRouteImport } from './routes/_authenticated/non-conformity/library'
 import { Route as AuthenticatedNonConformityEvaluationIdRouteImport } from './routes/_authenticated/non-conformity/$evaluationId'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
@@ -82,6 +81,7 @@ import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
+import { Route as AuthenticatedNonConformityLibraryIndexRouteImport } from './routes/_authenticated/non-conformity/library/index'
 import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
 import { Route as AuthenticatedLabLogsSampleDisposalIndexRouteImport } from './routes/_authenticated/lab-logs/sample-disposal/index'
@@ -96,7 +96,7 @@ import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/pub
 import { Route as AuthenticatedSamplePrepRecordsIdRouteImport } from './routes/_authenticated/sample-prep/records.$id'
 import { Route as AuthenticatedSamplePrepMethodsIdRouteImport } from './routes/_authenticated/sample-prep/methods.$id'
 import { Route as AuthenticatedRunListsIdPrepRouteImport } from './routes/_authenticated/run-lists/$id.prep'
-import { Route as AuthenticatedNonConformityLibraryCompoundIdRouteImport } from './routes/_authenticated/non-conformity/library.$compoundId'
+import { Route as AuthenticatedNonConformityLibraryCompoundIdRouteImport } from './routes/_authenticated/non-conformity/library/$compoundId'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
 import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
 import { Route as AuthenticatedLabLogsTimesheetsDailyRouteImport } from './routes/_authenticated/lab-logs/timesheets/daily'
@@ -346,12 +346,6 @@ const AuthenticatedRunListsIdRoute = AuthenticatedRunListsIdRouteImport.update({
   path: '/run-lists/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedNonConformityLibraryRoute =
-  AuthenticatedNonConformityLibraryRouteImport.update({
-    id: '/non-conformity/library',
-    path: '/non-conformity/library',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 const AuthenticatedNonConformityEvaluationIdRoute =
   AuthenticatedNonConformityEvaluationIdRouteImport.update({
     id: '/non-conformity/$evaluationId',
@@ -524,6 +518,12 @@ const ApiPublicStatusIndexRoute = ApiPublicStatusIndexRouteImport.update({
   path: '/api/public/status/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedNonConformityLibraryIndexRoute =
+  AuthenticatedNonConformityLibraryIndexRouteImport.update({
+    id: '/non-conformity/library/',
+    path: '/non-conformity/library/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsTimesheetsIndexRoute =
   AuthenticatedLabLogsTimesheetsIndexRouteImport.update({
     id: '/lab-logs/timesheets/',
@@ -607,9 +607,9 @@ const AuthenticatedRunListsIdPrepRoute =
   } as any)
 const AuthenticatedNonConformityLibraryCompoundIdRoute =
   AuthenticatedNonConformityLibraryCompoundIdRouteImport.update({
-    id: '/$compoundId',
-    path: '/$compoundId',
-    getParentRoute: () => AuthenticatedNonConformityLibraryRoute,
+    id: '/non-conformity/library/$compoundId',
+    path: '/non-conformity/library/$compoundId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedLabLogsTimesheetsReportsRoute =
   AuthenticatedLabLogsTimesheetsReportsRouteImport.update({
@@ -700,7 +700,6 @@ export interface FileRoutesByFullPath {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
-  '/non-conformity/library': typeof AuthenticatedNonConformityLibraryRouteWithChildren
   '/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -754,6 +753,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/non-conformity/library/': typeof AuthenticatedNonConformityLibraryIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -797,7 +797,6 @@ export interface FileRoutesByTo {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
-  '/non-conformity/library': typeof AuthenticatedNonConformityLibraryRouteWithChildren
   '/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -851,6 +850,7 @@ export interface FileRoutesByTo {
   '/lab-logs/sample-disposal': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/non-conformity/library': typeof AuthenticatedNonConformityLibraryIndexRoute
   '/api/public/status': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -896,7 +896,6 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
-  '/_authenticated/non-conformity/library': typeof AuthenticatedNonConformityLibraryRouteWithChildren
   '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRouteWithChildren
   '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -950,6 +949,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  '/_authenticated/non-conformity/library/': typeof AuthenticatedNonConformityLibraryIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -995,7 +995,6 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/non-conformity/$evaluationId'
-    | '/non-conformity/library'
     | '/run-lists/$id'
     | '/run-lists/generate'
     | '/sample-prep/analytes'
@@ -1049,6 +1048,7 @@ export interface FileRouteTypes {
     | '/lab-logs/sample-disposal/'
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/timesheets/'
+    | '/non-conformity/library/'
     | '/api/public/status/'
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
@@ -1092,7 +1092,6 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/non-conformity/$evaluationId'
-    | '/non-conformity/library'
     | '/run-lists/$id'
     | '/run-lists/generate'
     | '/sample-prep/analytes'
@@ -1146,6 +1145,7 @@ export interface FileRouteTypes {
     | '/lab-logs/sample-disposal'
     | '/lab-logs/standard-preparations'
     | '/lab-logs/timesheets'
+    | '/non-conformity/library'
     | '/api/public/status'
     | '/lab-logs/standard-preparations/batch/$groupId'
   id:
@@ -1190,7 +1190,6 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/non-conformity/$evaluationId'
-    | '/_authenticated/non-conformity/library'
     | '/_authenticated/run-lists/$id'
     | '/_authenticated/run-lists/generate'
     | '/_authenticated/sample-prep/analytes'
@@ -1244,6 +1243,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/sample-disposal/'
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/timesheets/'
+    | '/_authenticated/non-conformity/library/'
     | '/api/public/status/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
@@ -1567,13 +1567,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRunListsIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/non-conformity/library': {
-      id: '/_authenticated/non-conformity/library'
-      path: '/non-conformity/library'
-      fullPath: '/non-conformity/library'
-      preLoaderRoute: typeof AuthenticatedNonConformityLibraryRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/non-conformity/$evaluationId': {
       id: '/_authenticated/non-conformity/$evaluationId'
       path: '/non-conformity/$evaluationId'
@@ -1777,6 +1770,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicStatusIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/non-conformity/library/': {
+      id: '/_authenticated/non-conformity/library/'
+      path: '/non-conformity/library'
+      fullPath: '/non-conformity/library/'
+      preLoaderRoute: typeof AuthenticatedNonConformityLibraryIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/timesheets/': {
       id: '/_authenticated/lab-logs/timesheets/'
       path: '/lab-logs/timesheets'
@@ -1877,10 +1877,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/non-conformity/library/$compoundId': {
       id: '/_authenticated/non-conformity/library/$compoundId'
-      path: '/$compoundId'
+      path: '/non-conformity/library/$compoundId'
       fullPath: '/non-conformity/library/$compoundId'
       preLoaderRoute: typeof AuthenticatedNonConformityLibraryCompoundIdRouteImport
-      parentRoute: typeof AuthenticatedNonConformityLibraryRoute
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/lab-logs/timesheets/reports': {
       id: '/_authenticated/lab-logs/timesheets/reports'
@@ -1940,21 +1940,6 @@ declare module '@tanstack/react-router' {
     }
   }
 }
-
-interface AuthenticatedNonConformityLibraryRouteChildren {
-  AuthenticatedNonConformityLibraryCompoundIdRoute: typeof AuthenticatedNonConformityLibraryCompoundIdRoute
-}
-
-const AuthenticatedNonConformityLibraryRouteChildren: AuthenticatedNonConformityLibraryRouteChildren =
-  {
-    AuthenticatedNonConformityLibraryCompoundIdRoute:
-      AuthenticatedNonConformityLibraryCompoundIdRoute,
-  }
-
-const AuthenticatedNonConformityLibraryRouteWithChildren =
-  AuthenticatedNonConformityLibraryRoute._addFileChildren(
-    AuthenticatedNonConformityLibraryRouteChildren,
-  )
 
 interface AuthenticatedRunListsIdRouteChildren {
   AuthenticatedRunListsIdPrepRoute: typeof AuthenticatedRunListsIdPrepRoute
@@ -2036,7 +2021,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedNonConformityEvaluationIdRoute: typeof AuthenticatedNonConformityEvaluationIdRoute
-  AuthenticatedNonConformityLibraryRoute: typeof AuthenticatedNonConformityLibraryRouteWithChildren
   AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRouteWithChildren
   AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplePrepAnalytesRoute: typeof AuthenticatedSamplePrepAnalytesRoute
@@ -2072,6 +2056,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsTimesheetsDailyRoute: typeof AuthenticatedLabLogsTimesheetsDailyRoute
   AuthenticatedLabLogsTimesheetsHistoryRoute: typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   AuthenticatedLabLogsTimesheetsReportsRoute: typeof AuthenticatedLabLogsTimesheetsReportsRoute
+  AuthenticatedNonConformityLibraryCompoundIdRoute: typeof AuthenticatedNonConformityLibraryCompoundIdRoute
   AuthenticatedLabLogsCalQcTrendIndexRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -2079,6 +2064,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsSampleDisposalIndexRoute: typeof AuthenticatedLabLogsSampleDisposalIndexRoute
   AuthenticatedLabLogsStandardPreparationsIndexRoute: typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   AuthenticatedLabLogsTimesheetsIndexRoute: typeof AuthenticatedLabLogsTimesheetsIndexRoute
+  AuthenticatedNonConformityLibraryIndexRoute: typeof AuthenticatedNonConformityLibraryIndexRoute
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute: typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 
@@ -2130,8 +2116,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedNonConformityEvaluationIdRoute:
     AuthenticatedNonConformityEvaluationIdRoute,
-  AuthenticatedNonConformityLibraryRoute:
-    AuthenticatedNonConformityLibraryRouteWithChildren,
   AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRouteWithChildren,
   AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplePrepAnalytesRoute: AuthenticatedSamplePrepAnalytesRoute,
@@ -2178,6 +2162,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsTimesheetsHistoryRoute,
   AuthenticatedLabLogsTimesheetsReportsRoute:
     AuthenticatedLabLogsTimesheetsReportsRoute,
+  AuthenticatedNonConformityLibraryCompoundIdRoute:
+    AuthenticatedNonConformityLibraryCompoundIdRoute,
   AuthenticatedLabLogsCalQcTrendIndexRoute:
     AuthenticatedLabLogsCalQcTrendIndexRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
@@ -2192,6 +2178,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsStandardPreparationsIndexRoute,
   AuthenticatedLabLogsTimesheetsIndexRoute:
     AuthenticatedLabLogsTimesheetsIndexRoute,
+  AuthenticatedNonConformityLibraryIndexRoute:
+    AuthenticatedNonConformityLibraryIndexRoute,
   AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute:
     AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute,
 }

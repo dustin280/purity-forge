@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Search, Plus, ChevronRight, ShieldAlert } from "lucide-react";
 import { listNcCompounds, addNcCompound } from "@/lib/non-conformity/nc-library.functions";
 
-export const Route = createFileRoute("/_authenticated/non-conformity/library")({
+export const Route = createFileRoute("/_authenticated/non-conformity/library/")({
   component: NcLibraryPage,
 });
 
