@@ -12,12 +12,4 @@ export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
   },
-  // @cf-wasm/photon ships its WASM binary via a conditional export resolved
-  // at the workerd runtime layer (dist/workerd.js) — keeping it external to
-  // Vite/Rollup's SSR bundling avoids the bundler trying to transform the
-  // wasm import itself, matching the pattern used in @cf-wasm's own
-  // official Vite-based framework examples deployed to Cloudflare.
-  vite: {
-    ssr: { external: ["@cf-wasm/photon"] },
-  },
 });

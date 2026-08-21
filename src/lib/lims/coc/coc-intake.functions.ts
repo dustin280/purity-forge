@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
 import { provisionTestsForSample } from "@/lib/lims/test-provisioning";
-import { syncVialPhotosForNewSamples } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -290,6 +289,9 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       ),
     });
 
+    const { syncVialPhotosForNewSamples } = await import(
+      "@/lib/lims/coc/vial-photo-drive-sync.server"
+    );
     await syncVialPhotosForNewSamples(supabase, samples ?? []);
 
     return { coc, samples: samples ?? [] };
