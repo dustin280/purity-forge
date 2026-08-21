@@ -104,22 +104,31 @@ const CH_OFFSETS = {
  * shared with the `.IT` header at the same offset and decoded to a clean
  * power-of-two (2^-21) — a strong signal that offset is correct.
  *
- * RT axis: TEMPORARY — nothing found in this file's own header reliably
- * encodes the real time bounds yet (the byte layout the `rainbow` spec
- * documents for that doesn't hold here either, same as the body). `rt` is
- * currently just the raw point index, not real minutes; a live diagnostic
- * scan is in flight (dx-link.functions.ts `scanForPlausibleFields`) to find
- * the real offset before this is wired into any real scoring.
+ * RT axis: this file's own header does not reliably expose real time
+ * bounds — extensive live probing of the surrounding header bytes (against
+ * a real file) turned up nothing that decodes to a plausible run length,
+ * and the `rainbow` spec's documented offsets for this don't hold either
+ * (same as the body). Since every DAD channel in one `.dx` archive is
+ * acquired over the same run window, `rtBoundsMin` lets the caller supply
+ * that window from a sibling housekeeping channel's real, per-point
+ * timestamped `.IT` trace (see `resolveDadRtBoundsMin` in
+ * dx-link.functions.ts) instead of guessing at more unknown header fields.
+ * Falls back to raw point index (not real minutes) only if no reference is
+ * available.
  */
-export function parseAgilentChDelta(buf: ArrayBuffer): AgilentTrace {
+export function parseAgilentChDelta(
+  buf: ArrayBuffer,
+  rtBoundsMin?: [number, number],
+): AgilentTrace {
   const view = new DataView(buf);
   const scalingFactor = view.getFloat64(CH_OFFSETS.scaling_factor, false);
   const n = Math.floor((buf.byteLength - CH_OFFSETS.data_start) / 8);
+  const stepMin = rtBoundsMin && n > 1 ? (rtBoundsMin[1] - rtBoundsMin[0]) / (n - 1) : 0;
 
   const rt: number[] = [];
   const vals: number[] = [];
   for (let i = 0; i < n; i++) {
-    rt.push(i);
+    rt.push(rtBoundsMin ? rtBoundsMin[0] + i * stepMin : i);
     vals.push(view.getFloat64(CH_OFFSETS.data_start + i * 8, true) * scalingFactor);
   }
   return { rt, vals };

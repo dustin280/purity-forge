@@ -46,21 +46,6 @@ export interface DadSignalProbe {
   rtRange?: [number, number];
   valsSample?: number[];
   error?: string;
-  /** Temporary diagnostic — only populated when a .CH parse yields zero points, to find the real header offsets against production data. Remove once confirmed. */
-  chDebug?: {
-    byteLength: number;
-    headerPointCount: number;
-    headerFirstRtMs: number;
-    headerLastRtMs: number;
-    headerScalingFactor: number;
-    byteAt0x1800: number;
-    hexFrom0x1800: string;
-    hexFrom0x1000: string;
-    hexFrom0x100: string;
-    first0x10After0x1000: number | null;
-    bodyFirst8ValuesLE: (number | null)[];
-    plausibleMinuteFields: { offset: string; be64: number; le64: number }[];
-  };
 }
 
 export interface DxInspection {
@@ -94,7 +79,39 @@ function traceToProbeResult(
   };
 }
 
-async function probeSignal(zip: JSZip, signal: AgilentSignal): Promise<DadSignalProbe> {
+/**
+ * `.CH` channels store no reliable per-point timestamp or RT-bounds header
+ * field of their own (see the parser's comment in agilent-trace.ts — this
+ * was confirmed by direct inspection of a real file's header bytes, not
+ * assumed). Every DAD channel in one `.dx` archive is acquired over the
+ * same run window, so this finds any co-located DAD housekeeping channel
+ * (lamp voltage / optical / board temperature — always `.IT`, always
+ * present, already proven correct against real data) and reuses its real,
+ * per-point timestamped RT range as the shared time base for every `.CH`
+ * channel in the same archive.
+ */
+export async function resolveDadRtBoundsMin(
+  zip: JSZip,
+  signals: AgilentSignal[],
+): Promise<[number, number] | null> {
+  for (const signal of guessDadSignals(signals)) {
+    const itFile = zip.file(`${signal.traceId}.IT`);
+    if (!itFile) continue;
+    try {
+      const trace = parseAgilentIT(await itFile.async("arraybuffer"));
+      if (trace.rt.length > 1) return [trace.rt[0], trace.rt[trace.rt.length - 1]];
+    } catch {
+      // Try the next housekeeping channel.
+    }
+  }
+  return null;
+}
+
+async function probeSignal(
+  zip: JSZip,
+  signal: AgilentSignal,
+  chRtBoundsMin: [number, number] | null,
+): Promise<DadSignalProbe> {
   const itFile = zip.file(`${signal.traceId}.IT`);
   if (itFile) {
     try {
@@ -107,9 +124,7 @@ async function probeSignal(zip: JSZip, signal: AgilentSignal): Promise<DadSignal
   if (chFile) {
     try {
       const buf = await chFile.async("arraybuffer");
-      const result = traceToProbeResult(signal, parseAgilentChDelta(buf));
-      result.chDebug = debugChHeader(buf);
-      return result;
+      return traceToProbeResult(signal, parseAgilentChDelta(buf, chRtBoundsMin ?? undefined));
     } catch (e) {
       return { signal, ok: false, error: (e as Error).message };
     }
@@ -117,71 +132,14 @@ async function probeSignal(zip: JSZip, signal: AgilentSignal): Promise<DadSignal
   return { signal, ok: false, error: `No ${signal.traceId}.IT or .CH file in archive` };
 }
 
-function hexDump(view: DataView, start: number, len: number): string {
-  const bytes: string[] = [];
-  for (let i = 0; i < len && start + i < view.byteLength; i++) {
-    bytes.push(
-      view
-        .getUint8(start + i)
-        .toString(16)
-        .padStart(2, "0"),
-    );
-  }
-  return bytes.join(" ");
-}
-
-/**
- * Body confirmed (live, real data): flat sequential little-endian float64
- * values from 0x1800 to EOF (NOT delta-encoded) — two real channels showed
- * physically plausible small mAU-scale values, one a smooth rising baseline.
- * Remaining unknown: where the real point count / RT bounds live in the
- * header, since 0x116's value (54) doesn't match (byteLength-0x1800)/8.
- * This scans 0x1000-0x1800 for any 8-byte-aligned float64 (BE and LE) whose
- * value plausibly looks like minutes (0-60) or ms (0-3.6M), to find the real
- * offset in one shot instead of guessing across more publish cycles.
- */
-function scanForPlausibleFields(view: DataView): { offset: string; be64: number; le64: number }[] {
-  const hits: { offset: string; be64: number; le64: number }[] = [];
-  for (let off = 0x1000; off + 8 <= 0x1800 && off + 8 <= view.byteLength; off += 8) {
-    const be = view.getFloat64(off, false);
-    const le = view.getFloat64(off, true);
-    const looksLikeMinutes = (v: number) => Number.isFinite(v) && v > 0 && v < 60;
-    if (looksLikeMinutes(be) || looksLikeMinutes(le)) {
-      hits.push({ offset: "0x" + off.toString(16), be64: be, le64: le });
-    }
-  }
-  return hits;
-}
-
-function debugChHeader(buf: ArrayBuffer): NonNullable<DadSignalProbe["chDebug"]> {
-  const view = new DataView(buf);
-  const bodyPointCount = Math.floor((buf.byteLength - 0x1800) / 8);
-  const bodyFirst8 = Array.from({ length: 8 }, (_, i) =>
-    buf.byteLength >= 0x1800 + (i + 1) * 8 ? view.getFloat64(0x1800 + i * 8, true) : null,
-  );
-  return {
-    byteLength: buf.byteLength,
-    headerPointCount: bodyPointCount,
-    headerFirstRtMs: 0,
-    headerLastRtMs: 0,
-    headerScalingFactor: view.getFloat64(0x127c, false),
-    byteAt0x1800: view.getUint8(0x1800),
-    hexFrom0x1800: hexDump(view, 0x1800, 48),
-    hexFrom0x1000: hexDump(view, 0x1000, 48),
-    hexFrom0x100: hexDump(view, 0x100, 64),
-    first0x10After0x1000: null,
-    bodyFirst8ValuesLE: bodyFirst8,
-    plausibleMinuteFields: scanForPlausibleFields(view),
-  };
-}
-
 async function inspectDxBytes(fileId: string, bytes: ArrayBuffer): Promise<DxInspection> {
   const zip = await JSZip.loadAsync(bytes);
   const acmdFile = zip.file("injection.acmd");
   if (!acmdFile) throw new Error("No injection.acmd manifest found in this .dx file.");
   const manifest = parseInjectionManifest(await acmdFile.async("text"));
+  const chRtBoundsMin = await resolveDadRtBoundsMin(zip, manifest.signals);
   const dadGuess = await Promise.all(
-    guessDadSignals(manifest.signals).map((s) => probeSignal(zip, s)),
+    guessDadSignals(manifest.signals).map((s) => probeSignal(zip, s, chRtBoundsMin)),
   );
   const zipEntries = Object.keys(zip.files).sort();
   return {

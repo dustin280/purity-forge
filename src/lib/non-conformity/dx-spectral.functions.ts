@@ -16,6 +16,7 @@ import {
   parseAgilentChDelta,
   type AgilentTrace,
 } from "@/lib/lab-logs/agilent-trace";
+import { resolveDadRtBoundsMin } from "./dx-link.functions";
 import { buildFingerprintAtRt, type SpectralFingerprint } from "./spectral";
 
 const DAD_WAVELENGTH_RE = /Sig=(\d+)/;
@@ -29,6 +30,7 @@ async function loadDadChannels(
   const dadAbsorbanceSignals = manifest.signals.filter(
     (s) => s.device === "DAD" && DAD_WAVELENGTH_RE.test(s.desc),
   );
+  const chRtBoundsMin = await resolveDadRtBoundsMin(zip, manifest.signals);
 
   const channels: { wavelengthNm: number; trace: AgilentTrace }[] = [];
   for (const signal of dadAbsorbanceSignals) {
@@ -37,7 +39,10 @@ async function loadDadChannels(
     const chFile = zip.file(`${signal.traceId}.CH`);
     if (!chFile) continue;
     try {
-      const trace = parseAgilentChDelta(await chFile.async("arraybuffer"));
+      const trace = parseAgilentChDelta(
+        await chFile.async("arraybuffer"),
+        chRtBoundsMin ?? undefined,
+      );
       if (trace.rt.length > 0) channels.push({ wavelengthNm: Number(match[1]), trace });
     } catch {
       // Unparseable channel — skip it, best-effort only.

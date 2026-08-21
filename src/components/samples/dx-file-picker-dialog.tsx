@@ -236,16 +236,15 @@ export function DxFilePickerDialog({
                     </span>
                     <span className="text-muted-foreground truncate flex-1">{p.signal.desc}</span>
                     {p.ok ? (
-                      <span className="text-muted-foreground shrink-0">{p.pointCount} pts</span>
+                      <span className="text-muted-foreground shrink-0">
+                        {p.pointCount} pts
+                        {p.rtRange &&
+                          ` (${p.rtRange[0].toFixed(2)}–${p.rtRange[1].toFixed(2)} min)`}
+                      </span>
                     ) : (
                       <span className="text-destructive shrink-0 truncate max-w-[10rem]">
                         {p.error}
                       </span>
-                    )}
-                    {p.chDebug && (
-                      <pre className="basis-full text-[10px] whitespace-pre-wrap break-all text-amber-500">
-                        {JSON.stringify(p.chDebug, null, 1)}
-                      </pre>
                     )}
                   </div>
                 ))}
