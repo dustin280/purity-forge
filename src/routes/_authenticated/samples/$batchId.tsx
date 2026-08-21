@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_authenticated/samples/$batchId")({ compo
 function SampleDetail() {
   const { batchId } = Route.useParams();
   const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState } = useSampleDetail(batchId);
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data, isLoading } = query;
   const [tab, setTab] = useState<SampleDetailTab>("info");
   const [pasted, setPasted] = useState("");
@@ -37,6 +37,7 @@ function SampleDetail() {
     const p = profiles.find(p => p.id === id);
     return p ? profileDisplayName(p, id) : id;
   };
+  const actorName = profileDisplayName(profile, user?.email) || user?.email || "";
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px]">
@@ -87,6 +88,10 @@ function SampleDetail() {
           waivedByName={nameFor(sample.purity_waived_by)}
           waivedAt={sample.purity_waived_at}
           onWaivePurity={waived => setPurityWaivedState(sample.id, waived)}
+          sampleId={sample.id}
+          compoundId={sample.compound_id}
+          compoundName={sample.compound}
+          actorName={actorName}
         />
       )}
 

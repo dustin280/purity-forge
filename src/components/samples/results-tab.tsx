@@ -9,6 +9,7 @@ import { CloudDownload, X } from "lucide-react";
 import { DriveReportPickerDialog, type ImportedResult } from "./drive-report-picker-dialog";
 import { parsePeaks } from "@/lib/parse-peaks";
 import type { CalibrationData } from "@/lib/results/drive-reports.functions";
+import { NonConformityButton } from "./non-conformity-button";
 
 type LatestResult = {
   id: string;
@@ -43,6 +44,10 @@ export function ResultsTab({
   waivedByName,
   waivedAt,
   onWaivePurity,
+  sampleId,
+  compoundId,
+  compoundName,
+  actorName,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
@@ -64,6 +69,10 @@ export function ResultsTab({
   waivedByName: string | null;
   waivedAt: string | null;
   onWaivePurity: (waived: boolean) => void;
+  sampleId: string;
+  compoundId: string | null;
+  compoundName: string | null;
+  actorName: string;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const verdictColor = verdict === "pass" ? "var(--status-success)" : verdict === "fail" ? "var(--destructive)" : "var(--muted-foreground)";
@@ -94,6 +103,21 @@ export function ResultsTab({
 
   return (
     <div className="space-y-4">
+      {peaks.length > 0 && (
+        <div className="flex justify-end">
+          <NonConformityButton
+            sampleId={sampleId}
+            resultId={latestResult?.id ?? null}
+            compoundId={compoundId}
+            compoundName={compoundName}
+            peaks={peaks.map(p => ({
+              peak_id: p.peak_id, rt: p.rt, area_pct: p.area_pct,
+              peak_purity: p.peak_purity, peak_purity_passed: p.peak_purity_passed, uv_match: p.uv_match,
+            }))}
+            actorName={actorName}
+          />
+        </div>
+      )}
       {latestResult && (
         <Card className="border-border overflow-hidden">
           <div className="p-4 flex items-center justify-between border-b border-border">
