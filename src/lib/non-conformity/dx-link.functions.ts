@@ -182,6 +182,7 @@ export type DxResolution =
   | { confidence: "none" };
 
 const CANDIDATE_FOLDER_LIMIT = 5;
+const CANDIDATE_FILE_LIMIT = 15;
 const DATE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
@@ -191,6 +192,21 @@ const DATE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
  * related. Any failure here (missing Drive config, unreadable folder, no
  * match) resolves to { confidence: "none" } rather than throwing — the
  * Non-Conformity evaluation must never be blocked by this.
+ *
+ * A run folder holds one `.dx` per sample injected that day (confirmed live:
+ * a real "001 ER 6 Samples 8-17-26" folder held 6). This previously only
+ * ever inspected `dxFiles[0]` per candidate folder — since
+ * driveListDxFiles sorts by filename, and filenames are timestamp-prefixed,
+ * that's always the FIRST injection of the day, never the 2nd-6th. Any
+ * sample that wasn't literally the first one run that day was structurally
+ * invisible to the matcher, which then fell back to whatever wrong file it
+ * did check scored best by date — confirmed live: it picked a same-window
+ * but unrelated file instead of the real one sitting un-inspected 4 slots
+ * later in its own correct folder. Now every file's own timestamp (more
+ * precise than the folder's `modifiedTime`) is used to rank ALL files
+ * across every candidate folder, and the closest CANDIDATE_FILE_LIMIT of
+ * them are actually opened and name-matched, so a same-day sibling sample
+ * can no longer hide the right file from the search.
  */
 export const resolveDxFileForSample = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -236,6 +252,26 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
       if (candidates.length === 0) return { confidence: "none" };
 
       const compoundLower = data.compound_name?.trim().toLowerCase() ?? "";
+
+      const filesByFolder = await Promise.all(
+        candidates.map(async (folder) => {
+          try {
+            return { folder, files: await driveListDxFiles(folder.id) };
+          } catch {
+            return { folder, files: [] as DriveEntry[] };
+          }
+        }),
+      );
+      const allFiles = filesByFolder
+        .flatMap(({ folder, files }) => files.map((file) => ({ folder, file })))
+        .filter(({ file }) => file.modifiedTime)
+        .sort(
+          (a, b) =>
+            Math.abs(new Date(a.file.modifiedTime!).getTime() - targetMs) -
+            Math.abs(new Date(b.file.modifiedTime!).getTime() - targetMs),
+        )
+        .slice(0, CANDIDATE_FILE_LIMIT);
+
       let best: {
         file: DriveEntry;
         folder: DriveEntry;
@@ -243,12 +279,9 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
         score: number;
       } | null = null;
 
-      for (const folder of candidates) {
-        const dxFiles = await driveListDxFiles(folder.id);
-        const first = dxFiles[0];
-        if (!first) continue;
+      for (const { folder, file } of allFiles) {
         try {
-          const bytes = await driveDownload(first.id);
+          const bytes = await driveDownload(file.id);
           const zip = await JSZip.loadAsync(bytes);
           const acmdFile = zip.file("injection.acmd");
           if (!acmdFile) continue;
@@ -261,9 +294,9 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
           const runMs = manifest.runDateTime ? new Date(manifest.runDateTime).getTime() : NaN;
           const dateCloseness = Number.isNaN(runMs) ? Infinity : Math.abs(runMs - targetMs);
           const score = (nameMatches ? 0 : 1) + dateCloseness / DATE_WINDOW_MS;
-          if (!best || score < best.score) best = { file: first, folder, manifest, score };
+          if (!best || score < best.score) best = { file, folder, manifest, score };
         } catch {
-          // Unreadable folder — best-effort only, skip and keep searching.
+          // Unreadable file — best-effort only, skip and keep searching.
         }
       }
 
