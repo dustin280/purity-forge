@@ -24,9 +24,11 @@ export const recordStandardUsage = createServerFn({ method: "POST" })
       p_withdrawn_ml: data.withdrawn_ml,
       p_actor_id: context.userId,
       p_actor_name: data.actor_name,
+      // generated RPC arg types are non-nullable, but the SQL function
+      // accepts NULL for these optional fields
       p_purpose: data.purpose ?? null,
       p_notes: data.notes ?? null,
-    });
+    } as never);
     if (error) throw error;
     return { volume_remaining_ml: remaining as number };
   });
@@ -43,7 +45,7 @@ export const discardStandardPrep = createServerFn({ method: "POST" })
       p_prep_id: data.prep_id,
       p_actor_name: data.actor_name,
       p_reason: data.reason ?? null,
-    });
+    } as never);
     if (error) throw error;
     return { ok: true };
   });
