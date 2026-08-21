@@ -46,6 +46,17 @@ export interface DadSignalProbe {
   rtRange?: [number, number];
   valsSample?: number[];
   error?: string;
+  /** Temporary diagnostic — only populated when a `.UV`/`.UVD` full-spectrum
+   * pair is found (DAD1I), to figure out the real format against production
+   * data before writing a parser. Remove once confirmed. */
+  uvDebug?: {
+    contentTypesXml: string | null;
+    relsXml: string | null;
+    uvSize: number;
+    uvdSize: number;
+    uvHexHeader: string;
+    uvdHexHeader: string;
+  };
 }
 
 export interface DxInspection {
@@ -107,6 +118,53 @@ export async function resolveDadRtBoundsMin(
   return null;
 }
 
+function hexDump(view: DataView, start: number, len: number): string {
+  const bytes: string[] = [];
+  for (let i = 0; i < len && start + i < view.byteLength; i++) {
+    bytes.push(
+      view
+        .getUint8(start + i)
+        .toString(16)
+        .padStart(2, "0"),
+    );
+  }
+  return bytes.join(" ");
+}
+
+/**
+ * DAD1I (the full-spectrum channel) resolves to a `.UV`/`.UVD` pair with an
+ * accompanying `_rels/{traceId}.UV.rels` sidecar — confirmed live against a
+ * real .dx file, but the byte format inside `.UV`/`.UVD` is unverified
+ * (unlike `.CH`, no reference source was found describing this OpenLab-
+ * specific variant). The `.rels` file and `[Content_Types].xml` are plain
+ * XML (OPC packaging convention) and may name the real content type of
+ * each part directly — reading them, plus a header hex dump of both binary
+ * parts, is the same "ship a diagnostic, inspect real bytes live" step
+ * that found the real `.CH` format this session, applied to `.UV` next.
+ */
+async function debugUvParts(
+  zip: JSZip,
+  traceId: string,
+): Promise<NonNullable<DadSignalProbe["uvDebug"]> | null> {
+  const uvFile = zip.file(`${traceId}.UV`);
+  const uvdFile = zip.file(`${traceId}.UVD`);
+  if (!uvFile || !uvdFile) return null;
+  const [uvBuf, uvdBuf] = await Promise.all([
+    uvFile.async("arraybuffer"),
+    uvdFile.async("arraybuffer"),
+  ]);
+  const contentTypesFile = zip.file("[Content_Types].xml");
+  const relsFile = zip.file(`_rels/${traceId}.UV.rels`);
+  return {
+    contentTypesXml: contentTypesFile ? await contentTypesFile.async("text") : null,
+    relsXml: relsFile ? await relsFile.async("text") : null,
+    uvSize: uvBuf.byteLength,
+    uvdSize: uvdBuf.byteLength,
+    uvHexHeader: hexDump(new DataView(uvBuf), 0, 96),
+    uvdHexHeader: hexDump(new DataView(uvdBuf), 0, 96),
+  };
+}
+
 async function probeSignal(
   zip: JSZip,
   signal: AgilentSignal,
@@ -128,6 +186,15 @@ async function probeSignal(
     } catch (e) {
       return { signal, ok: false, error: (e as Error).message };
     }
+  }
+  const uvDebug = await debugUvParts(zip, signal.traceId);
+  if (uvDebug) {
+    return {
+      signal,
+      ok: false,
+      error: `Found ${signal.traceId}.UV/.UVD (full-spectrum) — format not yet parsed`,
+      uvDebug,
+    };
   }
   return { signal, ok: false, error: `No ${signal.traceId}.IT or .CH file in archive` };
 }

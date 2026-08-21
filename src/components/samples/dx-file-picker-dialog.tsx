@@ -224,7 +224,7 @@ export function DxFilePickerDialog({
                 {inspected.dad_guess.map((p, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 text-xs rounded border border-border px-2 py-1"
+                    className="flex flex-wrap items-center gap-2 text-xs rounded border border-border px-2 py-1"
                   >
                     {p.ok ? (
                       <CheckCircle2 className="size-3.5 text-emerald-500 shrink-0" />
@@ -245,6 +245,11 @@ export function DxFilePickerDialog({
                       <span className="text-destructive shrink-0 truncate max-w-[10rem]">
                         {p.error}
                       </span>
+                    )}
+                    {p.uvDebug && (
+                      <pre className="basis-full text-[10px] whitespace-pre-wrap break-all text-amber-500">
+                        {JSON.stringify(p.uvDebug, null, 1)}
+                      </pre>
                     )}
                   </div>
                 ))}
