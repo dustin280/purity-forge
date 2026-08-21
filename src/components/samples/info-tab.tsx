@@ -127,8 +127,8 @@ export function SampleInfoTab({
             {syncingPhoto ? "Syncing…" : "Sync Vial Photo to Drive"}
           </Button>
           <p className="text-[11px] text-muted-foreground mt-1.5">
-            Pushes this sample's intake vial photo to the Drive "LM-Reports Complete" folder as a
-            PNG named "{batchId}.png".
+            Pushes this sample's intake vial photo to the Drive "LM-Reports Complete" folder, named
+            "{batchId}.jpg".
           </p>
         </div>
       </Card>

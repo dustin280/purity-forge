@@ -1,43 +1,27 @@
 /**
  * Pushes a sample's vial intake photo (captured at Chain-of-Custody intake,
- * stored as a JPEG in the "coc-attachments" Supabase Storage bucket) into
- * the Drive "LM-Reports Complete" folder as a real PNG, named "${batch_id}.png"
- * so it's associated with its sample. Two callers: a manual per-sample
- * button (src/components/samples/info-tab.tsx) and a best-effort hook fired
- * for every newly-created sample at intake (coc-intake.functions.ts). Never
- * throws — a missing photo, a Drive hiccup, or a conversion failure must
- * never block intake or confuse an analyst clicking the manual button
- * outside a try/catch of their own.
+ * stored in the "coc-attachments" Supabase Storage bucket) into the Drive
+ * "LM-Reports Complete" folder, named "${batch_id}.<ext>" so it's associated
+ * with its sample. Two callers: a manual per-sample button
+ * (src/components/samples/info-tab.tsx) and a best-effort hook fired for
+ * every newly-created sample at intake (coc-intake.functions.ts). Never
+ * throws — a missing photo or a Drive hiccup must never block intake or
+ * confuse an analyst clicking the manual button outside a try/catch of
+ * their own.
+ *
+ * Originally converted to PNG server-side via @cf-wasm/photon, but Cloudflare
+ * Workers blocks dynamically compiling WebAssembly from raw bytes at runtime
+ * ("WebAssembly.instantiate(): Wasm code generation disallowed by embedder"
+ * — confirmed live, after also working around a separate Rollup build
+ * incompatibility with that library's own .wasm import). Confirmed with
+ * Wayne that the original JPEG is fine to receive as-is, so this just
+ * relays the photo's original bytes/content-type through unchanged.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { initPhoton, PhotonImage } from "@cf-wasm/photon/others";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { loadReportsFolderId } from "@/lib/results/drive-reports.functions";
-import { PHOTON_WASM_BASE64 } from "@/lib/lims/coc/photon-wasm-base64.generated";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-// The /workerd entrypoint's built-in `import photonWasmModule from
-// "*.wasm"` broke this app's production build — Rollup (used for the
-// SSR/dev-server build) doesn't support raw ESM .wasm imports ("ESM
-// integration proposal for Wasm is not supported currently", confirmed
-// live). The /others entrypoint takes wasm bytes directly instead, so the
-// binary is embedded as a base64 string (photon-wasm-base64.generated.ts,
-// regenerate via scripts/gen-photon-wasm-b64.mjs) and decoded once here —
-// no .wasm import anywhere in the bundle, so this stays a single plain
-// module (no need for a separate .server.ts + dynamic-import split — that
-// pattern exists to keep a wasm ESM import out of any accidentally
-// client-reachable graph, which is moot once there's no such import).
-let photonReady: Promise<unknown> | null = null;
-function ensurePhotonInit(): Promise<unknown> {
-  if (!photonReady) {
-    const binary = atob(PHOTON_WASM_BASE64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    photonReady = initPhoton(bytes);
-  }
-  return photonReady;
-}
 
 const DRIVE_GATEWAY = "https://connector-gateway.lovable.dev/google_drive";
 
@@ -138,20 +122,14 @@ async function findVialPhotoAttachment(
   return rows.find((r) => r.line_item_index === null) ?? null;
 }
 
-async function convertJpegToPng(bytes: ArrayBuffer): Promise<Uint8Array<ArrayBuffer>> {
-  await ensurePhotonInit();
-  const image = PhotonImage.new_from_byteslice(new Uint8Array(bytes));
-  try {
-    // Copy into a fresh ArrayBuffer-backed Uint8Array — Photon's own return
-    // type is Uint8Array<ArrayBufferLike>, which TS's BlobPart/BodyInit
-    // typings reject (ArrayBufferLike also covers SharedArrayBuffer).
-    // Uint8Array.from always allocates a plain ArrayBuffer, unlike `new
-    // Uint8Array(x)`, which TS infers as preserving x's generic parameter.
-    return Uint8Array.from(image.get_bytes());
-  } finally {
-    image.free();
-  }
-}
+const EXT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/heic": "heic",
+  "image/heif": "heif",
+};
 
 export interface VialPhotoSyncResult {
   ok: boolean;
@@ -179,14 +157,16 @@ export async function pushVialPhotoToReportsDrive(
     if (dlError || !file)
       return { ok: false, reason: `could not download photo: ${dlError?.message ?? "unknown"}` };
 
-    const pngBytes = await convertJpegToPng(await file.arrayBuffer());
+    const mimeType = attachment.content_type ?? "image/jpeg";
+    const ext = EXT_BY_CONTENT_TYPE[mimeType] ?? "jpg";
+    const bytes = new Uint8Array(await file.arrayBuffer());
     const folderId = await loadReportsFolderId(supabase);
-    const name = `${sample.batch_id}.png`;
+    const name = `${sample.batch_id}.${ext}`;
 
     const existingId = await driveFindByName(folderId, name);
     const uploaded = existingId
-      ? await driveUpdateBinary(existingId, pngBytes, "image/png")
-      : await driveUploadBinary(folderId, name, pngBytes, "image/png");
+      ? await driveUpdateBinary(existingId, bytes, mimeType)
+      : await driveUploadBinary(folderId, name, bytes, mimeType);
 
     return { ok: true, drive_file_id: uploaded.id, drive_file_name: uploaded.name };
   } catch (e) {

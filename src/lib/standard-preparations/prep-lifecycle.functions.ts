@@ -11,13 +11,17 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const recordStandardUsage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    prep_id: z.string().uuid(),
-    withdrawn_ml: z.number().positive(),
-    actor_name: z.string().min(1).max(255),
-    purpose: z.string().max(255).nullable().optional(),
-    notes: z.string().max(2000).nullable().optional(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        prep_id: z.string().uuid(),
+        withdrawn_ml: z.number().positive(),
+        actor_name: z.string().min(1).max(255),
+        purpose: z.string().max(255).nullable().optional(),
+        notes: z.string().max(2000).nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { data: remaining, error } = await context.supabase.rpc("record_standard_usage", {
       p_prep_id: data.prep_id,
@@ -35,11 +39,15 @@ export const recordStandardUsage = createServerFn({ method: "POST" })
 
 export const discardStandardPrep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({
-    prep_id: z.string().uuid(),
-    actor_name: z.string().min(1).max(255),
-    reason: z.string().max(2000).nullable().optional(),
-  }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        prep_id: z.string().uuid(),
+        actor_name: z.string().min(1).max(255),
+        reason: z.string().max(2000).nullable().optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ context, data }) => {
     const { error } = await context.supabase.rpc("discard_standard_prep", {
       p_prep_id: data.prep_id,
