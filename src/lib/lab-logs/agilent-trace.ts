@@ -50,11 +50,15 @@ export function parseAgilentIT(buf: ArrayBuffer): AgilentTrace {
   const view = new DataView(buf);
   const version = readCsString(view, 0, 1);
   if (version !== "179") {
-    throw new Error(`Unsupported Agilent trace version "${version}" (only 179/OpenLab is supported)`);
+    throw new Error(
+      `Unsupported Agilent trace version "${version}" (only 179/OpenLab is supported)`,
+    );
   }
   const filetype = readCsString(view, IT_OFFSETS.file_type, 2).slice(0, 2);
   if (filetype !== "OL") {
-    throw new Error(`Unsupported Agilent trace filetype "${filetype}" (only OpenLab "OL" files are supported)`);
+    throw new Error(
+      `Unsupported Agilent trace filetype "${filetype}" (only OpenLab "OL" files are supported)`,
+    );
   }
 
   let intercept = view.getFloat64(IT_OFFSETS.intercept, false);
@@ -70,6 +74,78 @@ export function parseAgilentIT(buf: ArrayBuffer): AgilentTrace {
     const v = view.getFloat64(IT_OFFSETS.data_start + (i + 1) * 8, true);
     rt.push(t / 60000);
     vals.push(v * scalingFactor + intercept);
+  }
+  return { rt, vals };
+}
+
+const CH_OFFSETS = {
+  point_count: 0x116,
+  first_rt: 0x11a,
+  last_rt: 0x11e,
+  scaling_factor: 0x127c,
+  data_start: 0x1800,
+};
+
+/**
+ * Parser for the `.CH` UV/CAD/ELSD single-wavelength variant used for DAD
+ * absorbance channels (e.g. `DAD1A.CH`) — a different binary encoding than
+ * the `.IT` format above, even though both files share the same 6144-byte
+ * header length. Confirmed against a real .dx file: the manifest's DAD1A-H
+ * (absorbance) signals resolve to `${traceId}.CH` files, not `.IT` — only
+ * DAD's housekeeping signals (lamp voltage, optical/board temperature) are
+ * `.IT`, same as PMP/THM.
+ *
+ * Byte layout sourced from the `rainbow` project's documented Agilent
+ * ChemStation "other" .ch format (the open-source parser lineage this
+ * module's `.IT` header comment already cites via chromConverter):
+ * header fields are big-endian; the data body is a sequence of
+ * variable-length delta-encoded segments rather than a flat array —
+ * `1 byte segment label (0x10) + 1 byte count N + N encoded values`, where
+ * each value is either a 2-byte big-endian signed delta, or (when that
+ * short equals the -0x8000 sentinel) a 4-byte big-endian signed absolute
+ * value that resets the running accumulator. The segment loop ends at the
+ * first byte that isn't 0x10. RT has no per-point timestamp (unlike `.IT`)
+ * — it's evenly spaced between the header's first/last RT over the point
+ * count. Does not hard-reject on the header's version string: this file's
+ * OpenLab-produced variant may carry a version tag the classic-ChemStation-
+ * focused reference source doesn't document, and rejecting blind would
+ * throw away real data this module has no way to double-check locally.
+ */
+export function parseAgilentChDelta(buf: ArrayBuffer): AgilentTrace {
+  const view = new DataView(buf);
+  const pointCount = view.getUint32(CH_OFFSETS.point_count, false);
+  const firstRtMs = view.getUint32(CH_OFFSETS.first_rt, false);
+  const lastRtMs = view.getUint32(CH_OFFSETS.last_rt, false);
+  const scalingFactor = view.getFloat64(CH_OFFSETS.scaling_factor, false);
+
+  const raw: number[] = [];
+  let accum = 0;
+  let pos = CH_OFFSETS.data_start;
+  while (pos < buf.byteLength && view.getUint8(pos) === 0x10) {
+    const count = view.getUint8(pos + 1);
+    pos += 2;
+    for (let i = 0; i < count; i++) {
+      if (pos + 2 > buf.byteLength) break;
+      const short = view.getInt16(pos, false);
+      pos += 2;
+      if (short === -0x8000) {
+        if (pos + 4 > buf.byteLength) break;
+        accum = view.getInt32(pos, false);
+        pos += 4;
+      } else {
+        accum += short;
+      }
+      raw.push(accum);
+    }
+  }
+
+  const n = raw.length;
+  const stepMs = pointCount > 1 ? (lastRtMs - firstRtMs) / (pointCount - 1) : 0;
+  const rt: number[] = [];
+  const vals: number[] = [];
+  for (let i = 0; i < n; i++) {
+    rt.push((firstRtMs + i * stepMs) / 60000);
+    vals.push(raw[i] * scalingFactor);
   }
   return { rt, vals };
 }

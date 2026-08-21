@@ -31,12 +31,21 @@ const peakInput = z.object({
   identity: z.string().nullable().optional(),
 });
 
+const spectralFingerprintInput = z.object({
+  wavelengthsNm: z.array(z.number()),
+  absorbance: z.array(z.number()),
+});
+
 const previewInput = z.object({
   sample_id: z.string().uuid(),
   result_id: z.string().uuid().nullable(),
   nc_compound_id: z.string().uuid(),
   peaks: z.array(peakInput).min(1),
   stress_context: z.string().max(1000).nullable().optional(),
+  // Real per-peak DAD fingerprints, keyed by peak_id — from a prior
+  // extractSpectralData() call (see dx-spectral.functions.ts). Optional:
+  // scoring falls back to the existing proxy for any peak without one.
+  spectral: z.record(z.string(), spectralFingerprintInput.nullable()).optional(),
 });
 
 interface FindingPreview {
@@ -89,6 +98,7 @@ export const previewNcEvaluation = createServerFn({ method: "POST" })
           rpHplcBehavior: r.rp_hplc_behavior,
           massDelta: r.mass_delta,
           likelyTrigger: r.likely_trigger,
+          dadDiscriminator: r.dad_discriminator,
         }),
       ),
       ...(oligomers ?? []).map(
@@ -101,6 +111,7 @@ export const previewNcEvaluation = createServerFn({ method: "POST" })
           massDelta: r.mass_delta_vs_n_monomer,
           likelyTrigger: r.trigger_motif,
           falsePositiveWarning: r.false_positive_warning,
+          dadDiscriminator: r.dad_discriminator,
         }),
       ),
     ];
@@ -113,6 +124,14 @@ export const previewNcEvaluation = createServerFn({ method: "POST" })
       (p) => p.peak_id !== parentPeak.peak_id && p.area_pct >= LOW_AREA_PCT_THRESHOLD,
     );
 
+    const spectralPanel = panel
+      ? {
+          wavelengthsNm: panel.wavelengths_nm ?? [],
+          recommendedFeatures: panel.recommended_features,
+        }
+      : null;
+    const parentSpectrum = data.spectral?.[parentPeak.peak_id] ?? null;
+
     const findings: FindingPreview[] = extraPeaks.map((p) => {
       const peak: PeakInput = {
         peakId: p.peak_id,
@@ -121,6 +140,7 @@ export const previewNcEvaluation = createServerFn({ method: "POST" })
         peakPurity: p.peak_purity ?? null,
         peakPurityPassed: p.peak_purity_passed ?? null,
         uvMatch: p.uv_match ?? null,
+        spectrum: data.spectral?.[p.peak_id] ?? null,
       };
       const ranked = rankCandidatesForPeak({
         peak,
@@ -128,16 +148,14 @@ export const previewNcEvaluation = createServerFn({ method: "POST" })
         parentMonoisotopicMass: compound.monoisotopic_mass,
         candidates,
         stressContext: data.stress_context ?? null,
+        parentSpectrum,
+        spectralPanel,
       });
       const nextSteps = generateNextSteps({
         topCandidates: ranked.slice(0, 3),
-        spectralPanel: panel
-          ? {
-              wavelengthsNm: panel.wavelengths_nm ?? [],
-              recommendedFeatures: panel.recommended_features,
-            }
-          : null,
+        spectralPanel,
         hasObservedMass: false,
+        hasRealSpectrum: ranked[0]?.dadDetail != null,
       });
       return {
         peak_id: p.peak_id,
@@ -172,6 +190,9 @@ const saveFindingInput = z.object({
   tier: z.enum(["unflagged", "candidate", "probable_class", "probable_identity"]),
   rationale: z.string().max(4000).nullable().optional(),
   analyst_note: z.string().max(2000).nullable().optional(),
+  // Real spectral scoring detail (cosine-to-parent, ratios) when this
+  // finding's top candidate had one — see DadSpectralDetail in engine.ts.
+  spectral_detail: z.record(z.string(), z.unknown()).nullable().optional(),
 });
 
 const saveEvaluationInput = z.object({
@@ -229,6 +250,7 @@ export const saveNcEvaluation = createServerFn({ method: "POST" })
         tier: f.tier,
         rationale: f.rationale ?? null,
         analyst_note: f.analyst_note ?? null,
+        spectral_detail: f.spectral_detail ?? null,
       }));
       const { error: e2 } = await supabase.from("nc_evaluation_findings").insert(rows);
       if (e2) throw e2;

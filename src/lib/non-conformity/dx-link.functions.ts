@@ -21,6 +21,7 @@ import {
 import {
   parseInjectionManifest,
   parseAgilentIT,
+  parseAgilentChDelta,
   type AgilentSignal,
   type InjectionManifest,
 } from "@/lib/lab-logs/agilent-trace";
@@ -64,22 +65,38 @@ function guessDadSignals(signals: AgilentSignal[]): AgilentSignal[] {
   return signals.filter((s) => /dad/i.test(s.device) || /dad/i.test(s.channel));
 }
 
+function traceToProbeResult(
+  signal: AgilentSignal,
+  trace: { rt: number[]; vals: number[] },
+): DadSignalProbe {
+  const n = trace.rt.length;
+  return {
+    signal,
+    ok: true,
+    pointCount: n,
+    rtRange: n > 0 ? [trace.rt[0], trace.rt[n - 1]] : [0, 0],
+    valsSample: trace.vals.slice(0, 5),
+  };
+}
+
 async function probeSignal(zip: JSZip, signal: AgilentSignal): Promise<DadSignalProbe> {
-  const traceFile = zip.file(`${signal.traceId}.IT`);
-  if (!traceFile) return { signal, ok: false, error: `No ${signal.traceId}.IT file in archive` };
-  try {
-    const trace = parseAgilentIT(await traceFile.async("arraybuffer"));
-    const n = trace.rt.length;
-    return {
-      signal,
-      ok: true,
-      pointCount: n,
-      rtRange: n > 0 ? [trace.rt[0], trace.rt[n - 1]] : [0, 0],
-      valsSample: trace.vals.slice(0, 5),
-    };
-  } catch (e) {
-    return { signal, ok: false, error: (e as Error).message };
+  const itFile = zip.file(`${signal.traceId}.IT`);
+  if (itFile) {
+    try {
+      return traceToProbeResult(signal, parseAgilentIT(await itFile.async("arraybuffer")));
+    } catch (e) {
+      return { signal, ok: false, error: (e as Error).message };
+    }
   }
+  const chFile = zip.file(`${signal.traceId}.CH`);
+  if (chFile) {
+    try {
+      return traceToProbeResult(signal, parseAgilentChDelta(await chFile.async("arraybuffer")));
+    } catch (e) {
+      return { signal, ok: false, error: (e as Error).message };
+    }
+  }
+  return { signal, ok: false, error: `No ${signal.traceId}.IT or .CH file in archive` };
 }
 
 async function inspectDxBytes(fileId: string, bytes: ArrayBuffer): Promise<DxInspection> {

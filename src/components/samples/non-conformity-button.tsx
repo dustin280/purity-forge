@@ -28,6 +28,7 @@ import {
   saveNcEvaluation,
 } from "@/lib/non-conformity/nc-evaluation.functions";
 import { resolveDxFileForSample, type DxResolution } from "@/lib/non-conformity/dx-link.functions";
+import { extractSpectralData } from "@/lib/non-conformity/dx-spectral.functions";
 import { DxFilePickerDialog, type PickedDxFile } from "./dx-file-picker-dialog";
 import type { RankedCandidate } from "@/lib/non-conformity/engine";
 
@@ -89,6 +90,7 @@ export function NonConformityButton({
   const preview_ = useServerFn(previewNcEvaluation);
   const save = useServerFn(saveNcEvaluation);
   const resolveDx = useServerFn(resolveDxFileForSample);
+  const extractSpectral = useServerFn(extractSpectralData);
 
   const resolveMut = useMutation({
     mutationFn: () => resolve({ data: { compoundId, compoundName } }),
@@ -133,8 +135,24 @@ export function NonConformityButton({
     : "none";
 
   const previewMut = useMutation({
-    mutationFn: () =>
-      preview_({
+    mutationFn: async () => {
+      let spectral:
+        | Record<string, { wavelengthsNm: number[]; absorbance: number[] } | null>
+        | undefined;
+      if (dxFileId) {
+        try {
+          const extracted = await extractSpectral({
+            data: {
+              dx_file_id: dxFileId,
+              peaks: peaks.map((p) => ({ peak_id: p.peak_id, rt: p.rt })),
+            },
+          });
+          spectral = extracted.fingerprints;
+        } catch {
+          // Real spectral data is a bonus, never a requirement — fall through to proxy scoring.
+        }
+      }
+      return preview_({
         data: {
           sample_id: sampleId,
           result_id: resultId,
@@ -148,8 +166,10 @@ export function NonConformityButton({
             uv_match: p.uv_match ?? null,
           })),
           stress_context: stressContext.trim() || null,
+          spectral,
         },
-      }),
+      });
+    },
     onSuccess: (r) => setPreview(r),
     onError: (e: Error) => toast.error(e.message),
   });
@@ -174,6 +194,7 @@ export function NonConformityButton({
             ? `${top.candidate.name} — ${top.candidate.rpHplcBehavior ?? "no RT guidance on file"}`
             : null,
           analyst_note: null,
+          spectral_detail: top?.dadDetail ?? null,
         };
       });
       const overallTier = findings.some((f) => f.tier === "probable_identity")
@@ -348,6 +369,22 @@ export function NonConformityButton({
                         <div className="text-muted-foreground">
                           Score {top.scores.total.toFixed(0)} / {top.scores.maxPossible}
                         </div>
+                        {top.dadDetail && (
+                          <div className="text-muted-foreground flex items-center gap-1">
+                            <FlaskConical className="size-3 shrink-0" />
+                            Real DAD spectrum: cosine to parent{" "}
+                            {top.dadDetail.cosineToParent.toFixed(2)}
+                            {top.dadDetail.ratios.filter((r) => r.value != null).length > 0 && (
+                              <>
+                                {" · "}
+                                {top.dadDetail.ratios
+                                  .filter((r) => r.value != null)
+                                  .map((r) => `${r.label}=${r.value!.toFixed(2)}`)
+                                  .join(", ")}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="text-xs text-muted-foreground">
