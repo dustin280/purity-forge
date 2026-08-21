@@ -52,6 +52,7 @@ export const qk = {
     detail: (id: string) => ["standard-preparation", id] as const,
     batch: (groupId: string) => ["prep-batch", groupId] as const,
     suggestions: () => ["standard-suggestions"] as const,
+    alerts: () => ["standard-prep-alerts"] as const,
   },
 
   materialReceipts: {

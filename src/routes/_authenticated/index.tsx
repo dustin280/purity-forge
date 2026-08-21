@@ -9,6 +9,8 @@ import { AuditStreamCard } from "@/components/dashboard/audit-stream-card";
 import { listBackpressureLogs } from "@/lib/daily-backpressure.functions";
 import { BackpressureTrendChart } from "@/components/daily-backpressure/trend-chart";
 import { WorkflowLauncher } from "@/components/dashboard/workflow-launcher";
+import { getStandardPrepAlerts } from "@/lib/standard-preparations/prep-alerts.functions";
+import { StandardsAlertCard } from "@/components/dashboard/standards-alert-card";
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
 
 function Dashboard() {
@@ -18,6 +20,11 @@ function Dashboard() {
   const { data: bpRows, isLoading: bpLoading } = useQuery({
     queryKey: qk.backpressure.list(),
     queryFn: () => bpFn(),
+  });
+  const alertsFn = useServerFn(getStandardPrepAlerts);
+  const { data: alertsData, isLoading: alertsLoading } = useQuery({
+    queryKey: qk.standardPreps.alerts(),
+    queryFn: () => alertsFn(),
   });
 
   return (
@@ -33,6 +40,8 @@ function Dashboard() {
       <BackpressureTrendChart rows={bpRows ?? []} isLoading={bpLoading} showOpenLogLink />
 
       <StatTiles counts={data?.counts} />
+
+      <StandardsAlertCard items={alertsData?.items ?? []} total={alertsData?.total ?? 0} isLoading={alertsLoading} />
 
       <div className="grid lg:grid-cols-2 gap-6">
         <RecentSamplesCard samples={data?.samples ?? []} isLoading={isLoading} />

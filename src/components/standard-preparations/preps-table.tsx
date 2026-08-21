@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, FlaskConical } from "lucide-react";
 import { STATUS_LABEL } from "@/lib/lims-utils";
 import { cn } from "@/lib/utils";
+import { categorizePrepAlert } from "@/lib/standard-preparations/prep-alerts";
 
 export type SortKey =
   | "syn_id"
@@ -27,6 +28,10 @@ type Row = {
   created_at: string;
   target_concentration: string | null;
   manufacturer_lot: string | null;
+  lifecycle_status?: string;
+  expiration_date?: string | null;
+  final_volume_ml?: number | null;
+  volume_remaining_ml?: number | null;
 };
 
 interface Props {
@@ -47,6 +52,7 @@ const COLS: { key: SortKey | null; label: string; className?: string }[] = [
   { key: null, label: "Conc" },
   { key: null, label: "Lot" },
   { key: "status", label: "Status" },
+  { key: null, label: "Alert" },
 ];
 
 function fmt(d: string) {
@@ -56,6 +62,7 @@ function fmt(d: string) {
 
 export function PrepsTable({ rows, isLoading, sortBy, sortDir, onSort }: Props) {
   const navigate = useNavigate();
+  const today = new Date().toISOString().slice(0, 10);
   if (isLoading) return <div className="text-sm text-muted-foreground p-8 text-center">Loading…</div>;
   if (rows.length === 0) {
     return (
@@ -111,6 +118,19 @@ export function PrepsTable({ rows, isLoading, sortBy, sortDir, onSort }: Props) 
                 <Badge variant={r.status === "approved" ? "default" : r.status === "reviewed" ? "secondary" : "outline"}>
                   {STATUS_LABEL[r.status as keyof typeof STATUS_LABEL] ?? r.status}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                {(() => {
+                  const alert = categorizePrepAlert({
+                    lifecycle_status: r.lifecycle_status ?? "in_use",
+                    expiration_date: r.expiration_date ?? null,
+                    final_volume_ml: r.final_volume_ml ?? null,
+                    volume_remaining_ml: r.volume_remaining_ml ?? null,
+                  }, today);
+                  return alert
+                    ? <Badge variant="outline" className={alert.className}>{alert.detail}</Badge>
+                    : <span className="text-muted-foreground">—</span>;
+                })()}
               </TableCell>
               <TableCell><ChevronRight className="size-4 text-muted-foreground" /></TableCell>
             </TableRow>
