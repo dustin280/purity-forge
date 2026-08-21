@@ -54,9 +54,15 @@ export function ResultsTab({
   pasted: string;
   setPasted: (v: string) => void;
   onSubmit: (imported?: {
-    peaks: Peak[]; purity: number; raw_data_file_path: string | null; analysis_date: string | null;
-    chromatogram_image: string | null; calibration_image: string | null; calibration_data: CalibrationData | null;
-    uv_conf_match: number | null; wavelength_nm: number | null;
+    peaks: Peak[];
+    purity: number;
+    raw_data_file_path: string | null;
+    analysis_date: string | null;
+    chromatogram_image: string | null;
+    calibration_image: string | null;
+    calibration_data: CalibrationData | null;
+    uv_conf_match: number | null;
+    wavelength_nm: number | null;
     report_metadata: Record<string, string> | null;
   }) => void;
   busy: boolean;
@@ -75,25 +81,38 @@ export function ResultsTab({
   actorName: string;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
-  const verdictColor = verdict === "pass" ? "var(--status-success)" : verdict === "fail" ? "var(--destructive)" : "var(--muted-foreground)";
-  const canReview = !!latestResult && !latestResult.reviewed_at && latestResult.analyst_id !== currentUserId;
+  const verdictColor =
+    verdict === "pass"
+      ? "var(--status-success)"
+      : verdict === "fail"
+        ? "var(--destructive)"
+        : "var(--muted-foreground)";
+  const canReview =
+    !!latestResult && !latestResult.reviewed_at && latestResult.analyst_id !== currentUserId;
   const canApprove = !!latestResult && !!latestResult.reviewed_at && !latestResult.approved_at;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [imported, setImported] = useState<ImportedResult | null>(null);
 
-  const pastedLineCount = pasted.split(/\r?\n/).map(l => l.trim()).filter(Boolean).length;
+  const pastedLineCount = pasted
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean).length;
   const pastedPeakCount = pasted.trim() ? parsePeaks(pasted).peaks.length : 0;
   const pastedFailedCount = Math.max(0, pastedLineCount - pastedPeakCount);
 
   function handleSubmit() {
     if (imported) {
       onSubmit({
-        peaks: imported.peaks, purity: imported.purity,
-        raw_data_file_path: imported.raw_data_file_path, analysis_date: imported.analysis_date,
+        peaks: imported.peaks,
+        purity: imported.purity,
+        raw_data_file_path: imported.raw_data_file_path,
+        analysis_date: imported.analysis_date,
         chromatogram_image: imported.chromatogram_image,
-        calibration_image: imported.calibration_image, calibration_data: imported.calibration_data,
-        uv_conf_match: imported.uv_conf_match, wavelength_nm: imported.wavelength_nm,
+        calibration_image: imported.calibration_image,
+        calibration_data: imported.calibration_data,
+        uv_conf_match: imported.uv_conf_match,
+        wavelength_nm: imported.wavelength_nm,
         report_metadata: imported.report_metadata,
       });
     } else {
@@ -110,9 +129,14 @@ export function ResultsTab({
             resultId={latestResult?.id ?? null}
             compoundId={compoundId}
             compoundName={compoundName}
-            peaks={peaks.map(p => ({
-              peak_id: p.peak_id, rt: p.rt, area_pct: p.area_pct,
-              peak_purity: p.peak_purity, peak_purity_passed: p.peak_purity_passed, uv_match: p.uv_match,
+            analysisDate={latestResult?.analysis_date ?? null}
+            peaks={peaks.map((p) => ({
+              peak_id: p.peak_id,
+              rt: p.rt,
+              area_pct: p.area_pct,
+              peak_purity: p.peak_purity,
+              peak_purity_passed: p.peak_purity_passed,
+              uv_match: p.uv_match,
             }))}
             actorName={actorName}
           />
@@ -122,7 +146,9 @@ export function ResultsTab({
         <Card className="border-border overflow-hidden">
           <div className="p-4 flex items-center justify-between border-b border-border">
             <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Latest Purity</div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Latest Purity
+              </div>
               <div className="text-3xl font-mono font-bold" style={{ color: verdictColor }}>
                 {fmtPct(latestResult.purity_percentage)}
               </div>
@@ -137,13 +163,21 @@ export function ResultsTab({
               {(latestResult.uv_conf_match != null || latestResult.wavelength_nm != null) && (
                 <div className="text-xs text-muted-foreground font-mono">
                   {latestResult.uv_conf_match != null && `UV match ${latestResult.uv_conf_match}`}
-                  {latestResult.uv_conf_match != null && latestResult.wavelength_nm != null && " · "}
+                  {latestResult.uv_conf_match != null &&
+                    latestResult.wavelength_nm != null &&
+                    " · "}
                   {latestResult.wavelength_nm != null && `λ ${latestResult.wavelength_nm} nm`}
                 </div>
               )}
               {latestResult.raw_data_file_path && (
-                <a href={latestResult.raw_data_file_path} target="_blank" rel="noreferrer"
-                  className="text-xs text-primary hover:underline block">Source report</a>
+                <a
+                  href={latestResult.raw_data_file_path}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs text-primary hover:underline block"
+                >
+                  Source report
+                </a>
               )}
               <div className="flex gap-1.5 justify-end">
                 {canReview && (
@@ -157,20 +191,33 @@ export function ResultsTab({
                   </Button>
                 )}
                 {canApprove && (
-                  <Button size="sm" disabled={busy} onClick={() => onApprove(latestResult.id)} data-guide="results-approve">Approve</Button>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => onApprove(latestResult.id)}
+                    data-guide="results-approve"
+                  >
+                    Approve
+                  </Button>
                 )}
                 {latestResult.approved_at && (
                   <span className="text-xs text-muted-foreground self-center">Approved</span>
                 )}
                 {latestResult.reviewed_at && !latestResult.approved_at && (
-                  <span className="text-xs text-muted-foreground self-center">Reviewed — pending approval</span>
+                  <span className="text-xs text-muted-foreground self-center">
+                    Reviewed — pending approval
+                  </span>
                 )}
               </div>
             </div>
           </div>
           <div className="h-56 bg-card">
             {latestResult.chromatogram_image ? (
-              <img src={latestResult.chromatogram_image} alt="Chromatogram" className="w-full h-full object-contain" />
+              <img
+                src={latestResult.chromatogram_image}
+                alt="Chromatogram"
+                className="w-full h-full object-contain"
+              />
             ) : (
               <Chromatogram peaks={peaks} />
             )}
@@ -179,30 +226,89 @@ export function ResultsTab({
             <div className="px-4 py-3 border-t border-border grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
               {Object.entries(latestResult.report_metadata).map(([key, value]) => (
                 <div key={key} className="truncate">
-                  <span className="capitalize">{key.replace(/_/g, " ")}:</span> <span className="text-foreground">{value}</span>
+                  <span className="capitalize">{key.replace(/_/g, " ")}:</span>{" "}
+                  <span className="text-foreground">{value}</span>
                 </div>
               ))}
             </div>
           )}
           {latestResult.calibration_data && (
             <div className="px-4 py-3 border-t border-border space-y-2">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Calibration Curve</div>
+              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                Calibration Curve
+              </div>
               {latestResult.calibration_image && (
-                <img src={latestResult.calibration_image} alt="Calibration curve" className="w-full h-auto max-h-56 object-contain rounded border border-border" />
+                <img
+                  src={latestResult.calibration_image}
+                  alt="Calibration curve"
+                  className="w-full h-auto max-h-56 object-contain rounded border border-border"
+                />
               )}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <div>Compound: <span className="text-foreground">{latestResult.calibration_data.compound ?? "—"}</span></div>
-                <div>Exp. RT: <span className="text-foreground">{latestResult.calibration_data.exp_rt ?? "—"}</span></div>
-                <div>Residual STD: <span className="text-foreground">{latestResult.calibration_data.residual_std ?? "—"}</span></div>
-                <div>R: <span className="text-foreground">{latestResult.calibration_data.r ?? "—"}</span></div>
-                <div>R²: <span className="text-foreground">{latestResult.calibration_data.r_squared ?? "—"}</span></div>
-                <div>Formula: <span className="text-foreground">{latestResult.calibration_data.formula ?? "—"}</span></div>
-                <div>a: <span className="text-foreground">{latestResult.calibration_data.a ?? "—"}</span></div>
-                <div>b: <span className="text-foreground">{latestResult.calibration_data.b ?? "—"}</span></div>
-                <div>c: <span className="text-foreground">{latestResult.calibration_data.c ?? "—"}</span></div>
-                {latestResult.calibration_data.d != null && <div>d: <span className="text-foreground">{latestResult.calibration_data.d}</span></div>}
-                <div>Scaled: <span className="text-foreground">{latestResult.calibration_data.scaled_label ?? "—"} ({latestResult.calibration_data.scaled_type ?? "—"})</span></div>
-                <div>Updated: <span className="text-foreground">{latestResult.calibration_data.calibration_update ?? "—"}</span></div>
+                <div>
+                  Compound:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.compound ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  Exp. RT:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.exp_rt ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  Residual STD:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.residual_std ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  R:{" "}
+                  <span className="text-foreground">{latestResult.calibration_data.r ?? "—"}</span>
+                </div>
+                <div>
+                  R²:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.r_squared ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  Formula:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.formula ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  a:{" "}
+                  <span className="text-foreground">{latestResult.calibration_data.a ?? "—"}</span>
+                </div>
+                <div>
+                  b:{" "}
+                  <span className="text-foreground">{latestResult.calibration_data.b ?? "—"}</span>
+                </div>
+                <div>
+                  c:{" "}
+                  <span className="text-foreground">{latestResult.calibration_data.c ?? "—"}</span>
+                </div>
+                {latestResult.calibration_data.d != null && (
+                  <div>
+                    d: <span className="text-foreground">{latestResult.calibration_data.d}</span>
+                  </div>
+                )}
+                <div>
+                  Scaled:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.scaled_label ?? "—"} (
+                    {latestResult.calibration_data.scaled_type ?? "—"})
+                  </span>
+                </div>
+                <div>
+                  Updated:{" "}
+                  <span className="text-foreground">
+                    {latestResult.calibration_data.calibration_update ?? "—"}
+                  </span>
+                </div>
               </div>
             </div>
           )}
@@ -227,11 +333,13 @@ export function ResultsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {peaks.map(p => (
+                {peaks.map((p) => (
                   <tr key={p.peak_id}>
                     <td className="px-3 py-1.5">{p.peak_id}</td>
                     <td className="px-3 py-1.5 text-right">{p.rt.toFixed(3)}</td>
-                    <td className="px-3 py-1.5 text-right">{p.area != null ? p.area.toFixed(1) : "—"}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      {p.area != null ? p.area.toFixed(1) : "—"}
+                    </td>
                     <td className="px-3 py-1.5 text-right">{p.area_pct.toFixed(3)}</td>
                     <td className="px-3 py-1.5">{p.identity ?? "—"}</td>
                     <td className="px-3 py-1.5 text-right">{p.amount_per_vial_mg ?? "—"}</td>
@@ -240,7 +348,9 @@ export function ResultsTab({
                     <td className="px-3 py-1.5 text-right">{p.height ?? "—"}</td>
                     <td className="px-3 py-1.5 text-right">{p.concentration_mg ?? "—"}</td>
                     <td className="px-3 py-1.5 text-right">{p.peak_purity ?? "—"}</td>
-                    <td className="px-3 py-1.5 text-center">{p.peak_purity_passed == null ? "—" : p.peak_purity_passed ? "Pass" : "Fail"}</td>
+                    <td className="px-3 py-1.5 text-center">
+                      {p.peak_purity_passed == null ? "—" : p.peak_purity_passed ? "Pass" : "Fail"}
+                    </td>
                     <td className="px-3 py-1.5 text-right">{p.uv_match ?? "—"}</td>
                     <td className="px-3 py-1.5 text-right">{p.wavelength_nm ?? "—"}</td>
                   </tr>
@@ -256,16 +366,33 @@ export function ResultsTab({
           {purityWaived ? (
             <>
               <p className="text-xs text-muted-foreground">
-                Purity requirement waived{waivedByName ? ` by ${waivedByName}` : ""}{waivedAt ? ` on ${new Date(waivedAt).toLocaleDateString()}` : ""} — this sample can be reviewed/completed without a purity result.
+                Purity requirement waived{waivedByName ? ` by ${waivedByName}` : ""}
+                {waivedAt ? ` on ${new Date(waivedAt).toLocaleDateString()}` : ""} — this sample can
+                be reviewed/completed without a purity result.
               </p>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => onWaivePurity(false)}>Undo</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => onWaivePurity(false)}
+              >
+                Undo
+              </Button>
             </>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">
-                No purity data yet. If this sample doesn't require purity (e.g. referee-lab, other-analysis-only), you can skip it instead of entering a result.
+                No purity data yet. If this sample doesn't require purity (e.g. referee-lab,
+                other-analysis-only), you can skip it instead of entering a result.
               </p>
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => onWaivePurity(true)}>No Purity</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onWaivePurity(true)}
+              >
+                No Purity
+              </Button>
             </>
           )}
         </Card>
@@ -277,7 +404,10 @@ export function ResultsTab({
             <h3 className="text-sm font-semibold">Enter Result</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               Import a completed instrument report from Drive, or paste Agilent export rows. Format:{" "}
-              <span className="font-mono">rt &nbsp; area &nbsp; area_pct &nbsp; [identity] &nbsp; [s/n]</span> — one peak per line.
+              <span className="font-mono">
+                rt &nbsp; area &nbsp; area_pct &nbsp; [identity] &nbsp; [s/n]
+              </span>{" "}
+              — one peak per line.
             </p>
           </div>
           {!imported && (
@@ -291,12 +421,17 @@ export function ResultsTab({
           <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-medium truncate">{imported.file_name}</div>
-              <button type="button" onClick={() => setImported(null)} className="text-muted-foreground hover:text-destructive shrink-0">
+              <button
+                type="button"
+                onClick={() => setImported(null)}
+                className="text-muted-foreground hover:text-destructive shrink-0"
+              >
                 <X className="size-4" />
               </button>
             </div>
             <div className="text-xs text-muted-foreground">
-              {imported.peaks.length} compound{imported.peaks.length === 1 ? "" : "s"} imported · purity {imported.purity.toFixed(2)}%
+              {imported.peaks.length} compound{imported.peaks.length === 1 ? "" : "s"} imported ·
+              purity {imported.purity.toFixed(2)}%
             </div>
             <table className="w-full text-xs font-mono">
               <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -308,7 +443,7 @@ export function ResultsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {imported.peaks.map(p => (
+                {imported.peaks.map((p) => (
                   <tr key={p.peak_id}>
                     <td className="py-1">{p.identity}</td>
                     <td className="py-1 text-right">{p.rt.toFixed(3)}</td>
@@ -321,18 +456,25 @@ export function ResultsTab({
           </div>
         ) : (
           <>
-            <Textarea rows={6} value={pasted} onChange={e => setPasted(e.target.value)}
+            <Textarea
+              rows={6}
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
               placeholder="3.142  154823.5  98.421  Main  812.4&#10;4.027  1245.1  0.792  Impurity-A  18.2"
-              className="font-mono text-xs" />
+              className="font-mono text-xs"
+            />
             {pastedFailedCount > 0 && (
               <p className="text-xs text-amber-400">
-                {pastedFailedCount} line{pastedFailedCount === 1 ? "" : "s"} couldn't be parsed as "rt area area_pct" and will be skipped.
+                {pastedFailedCount} line{pastedFailedCount === 1 ? "" : "s"} couldn't be parsed as
+                "rt area area_pct" and will be skipped.
               </p>
             )}
           </>
         )}
 
-        <Button onClick={handleSubmit} disabled={busy} data-guide="results-submit">{busy ? "Saving…" : "Save Result"}</Button>
+        <Button onClick={handleSubmit} disabled={busy} data-guide="results-submit">
+          {busy ? "Saving…" : "Save Result"}
+        </Button>
       </Card>
 
       <DriveReportPickerDialog
