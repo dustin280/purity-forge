@@ -242,6 +242,11 @@ export function DxFilePickerDialog({
                         {p.error}
                       </span>
                     )}
+                    {p.chDebug && (
+                      <pre className="basis-full text-[10px] whitespace-pre-wrap break-all text-amber-500">
+                        {JSON.stringify(p.chDebug, null, 1)}
+                      </pre>
+                    )}
                   </div>
                 ))}
               </div>

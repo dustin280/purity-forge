@@ -46,6 +46,19 @@ export interface DadSignalProbe {
   rtRange?: [number, number];
   valsSample?: number[];
   error?: string;
+  /** Temporary diagnostic — only populated when a .CH parse yields zero points, to find the real header offsets against production data. Remove once confirmed. */
+  chDebug?: {
+    byteLength: number;
+    headerPointCount: number;
+    headerFirstRtMs: number;
+    headerLastRtMs: number;
+    headerScalingFactor: number;
+    byteAt0x1800: number;
+    hexFrom0x1800: string;
+    hexFrom0x1000: string;
+    hexFrom0x100: string;
+    first0x10After0x1000: number | null;
+  };
 }
 
 export interface DxInspection {
@@ -91,12 +104,51 @@ async function probeSignal(zip: JSZip, signal: AgilentSignal): Promise<DadSignal
   const chFile = zip.file(`${signal.traceId}.CH`);
   if (chFile) {
     try {
-      return traceToProbeResult(signal, parseAgilentChDelta(await chFile.async("arraybuffer")));
+      const buf = await chFile.async("arraybuffer");
+      const result = traceToProbeResult(signal, parseAgilentChDelta(buf));
+      if (result.pointCount === 0) result.chDebug = debugChHeader(buf);
+      return result;
     } catch (e) {
       return { signal, ok: false, error: (e as Error).message };
     }
   }
   return { signal, ok: false, error: `No ${signal.traceId}.IT or .CH file in archive` };
+}
+
+function hexDump(view: DataView, start: number, len: number): string {
+  const bytes: string[] = [];
+  for (let i = 0; i < len && start + i < view.byteLength; i++) {
+    bytes.push(
+      view
+        .getUint8(start + i)
+        .toString(16)
+        .padStart(2, "0"),
+    );
+  }
+  return bytes.join(" ");
+}
+
+function debugChHeader(buf: ArrayBuffer): NonNullable<DadSignalProbe["chDebug"]> {
+  const view = new DataView(buf);
+  let first0x10: number | null = null;
+  for (let i = 0x1000; i < Math.min(buf.byteLength, 0x2000); i++) {
+    if (view.getUint8(i) === 0x10) {
+      first0x10 = i;
+      break;
+    }
+  }
+  return {
+    byteLength: buf.byteLength,
+    headerPointCount: view.getUint32(0x116, false),
+    headerFirstRtMs: view.getUint32(0x11a, false),
+    headerLastRtMs: view.getUint32(0x11e, false),
+    headerScalingFactor: view.getFloat64(0x127c, false),
+    byteAt0x1800: view.getUint8(0x1800),
+    hexFrom0x1800: hexDump(view, 0x1800, 48),
+    hexFrom0x1000: hexDump(view, 0x1000, 48),
+    hexFrom0x100: hexDump(view, 0x100, 64),
+    first0x10After0x1000: first0x10,
+  };
 }
 
 async function inspectDxBytes(fileId: string, bytes: ArrayBuffer): Promise<DxInspection> {
