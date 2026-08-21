@@ -55,7 +55,9 @@ export interface DadSignalProbe {
     uvSize: number;
     uvdSize: number;
     uvHexHeader: string;
+    uvHexAt6144: string;
     uvdHexHeader: string;
+    uvdHexTail: string;
   };
 }
 
@@ -155,13 +157,23 @@ async function debugUvParts(
   ]);
   const contentTypesFile = zip.file("[Content_Types].xml");
   const relsFile = zip.file(`_rels/${traceId}.UV.rels`);
+  const uvView = new DataView(uvBuf);
+  const uvdView = new DataView(uvdBuf);
   return {
     contentTypesXml: contentTypesFile ? await contentTypesFile.async("text") : null,
     relsXml: relsFile ? await relsFile.async("text") : null,
     uvSize: uvBuf.byteLength,
     uvdSize: uvdBuf.byteLength,
-    uvHexHeader: hexDump(new DataView(uvBuf), 0, 96),
-    uvdHexHeader: hexDump(new DataView(uvdBuf), 0, 96),
+    // .rels confirms .UVD is a "spectradirectory" (index) into .UV — dump
+    // enough of .UVD to spot a repeating fixed-size record, and .UV both
+    // near the start (where .IT/.CH keep their real header fields, e.g.
+    // .IT's version tag at 0 and scaling factor at 4732) and around the
+    // 6144-byte mark (the header length both .IT and .CH share) to check
+    // whether that convention carries over here too.
+    uvHexHeader: hexDump(uvView, 0, 512),
+    uvHexAt6144: hexDump(uvView, 6144, 256),
+    uvdHexHeader: hexDump(uvdView, 0, 640),
+    uvdHexTail: hexDump(uvdView, Math.max(0, uvdBuf.byteLength - 256), 256),
   };
 }
 
