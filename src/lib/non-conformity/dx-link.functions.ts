@@ -54,10 +54,8 @@ export interface DadSignalProbe {
     relsXml: string | null;
     uvSize: number;
     uvdSize: number;
-    uvHexHeader: string;
-    uvHexAt6144: string;
-    uvdHexHeader: string;
-    uvdHexTail: string;
+    uvHeadBase64: string;
+    uvdFullBase64: string;
   };
 }
 
@@ -120,19 +118,6 @@ export async function resolveDadRtBoundsMin(
   return null;
 }
 
-function hexDump(view: DataView, start: number, len: number): string {
-  const bytes: string[] = [];
-  for (let i = 0; i < len && start + i < view.byteLength; i++) {
-    bytes.push(
-      view
-        .getUint8(start + i)
-        .toString(16)
-        .padStart(2, "0"),
-    );
-  }
-  return bytes.join(" ");
-}
-
 /**
  * DAD1I (the full-spectrum channel) resolves to a `.UV`/`.UVD` pair with an
  * accompanying `_rels/{traceId}.UV.rels` sidecar — confirmed live against a
@@ -157,23 +142,20 @@ async function debugUvParts(
   ]);
   const contentTypesFile = zip.file("[Content_Types].xml");
   const relsFile = zip.file(`_rels/${traceId}.UV.rels`);
-  const uvView = new DataView(uvBuf);
-  const uvdView = new DataView(uvdBuf);
+  // Prior rounds confirmed real structure (the offset-347 Pascal-string tag
+  // from .IT carries over exactly — "OL DATA FILE" here — and a clean
+  // 870-byte linear stride showed up in a tail sample of .UVD's directory)
+  // but picking more small hex windows blindly is hitting diminishing
+  // returns. .UVD is small (~32KB) — dump it whole as base64 for full
+  // offline analysis, plus a solid chunk of .UV covering its header and
+  // the start of the real data body, rather than guessing at more windows.
   return {
     contentTypesXml: contentTypesFile ? await contentTypesFile.async("text") : null,
     relsXml: relsFile ? await relsFile.async("text") : null,
     uvSize: uvBuf.byteLength,
     uvdSize: uvdBuf.byteLength,
-    // .rels confirms .UVD is a "spectradirectory" (index) into .UV — dump
-    // enough of .UVD to spot a repeating fixed-size record, and .UV both
-    // near the start (where .IT/.CH keep their real header fields, e.g.
-    // .IT's version tag at 0 and scaling factor at 4732) and around the
-    // 6144-byte mark (the header length both .IT and .CH share) to check
-    // whether that convention carries over here too.
-    uvHexHeader: hexDump(uvView, 0, 512),
-    uvHexAt6144: hexDump(uvView, 6144, 256),
-    uvdHexHeader: hexDump(uvdView, 0, 640),
-    uvdHexTail: hexDump(uvdView, Math.max(0, uvdBuf.byteLength - 256), 256),
+    uvHeadBase64: Buffer.from(uvBuf.slice(0, 16384)).toString("base64"),
+    uvdFullBase64: Buffer.from(uvdBuf).toString("base64"),
   };
 }
 
