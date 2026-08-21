@@ -183,6 +183,12 @@ export type DxResolution =
 
 const CANDIDATE_FOLDER_LIMIT = 8;
 const CANDIDATE_FILE_LIMIT = 15;
+/** Batch size for the file-inspection loop below — bounded rather than
+ * firing all CANDIDATE_FILE_LIMIT downloads at once, since the
+ * connector-gateway's own concurrency tolerance is unknown; a failed
+ * download in a batch just drops that one candidate (existing per-file
+ * try/catch), never the whole search. */
+const FILE_INSPECT_CONCURRENCY = 5;
 const DATE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 
 /**
@@ -287,19 +293,25 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
         )
         .slice(0, CANDIDATE_FILE_LIMIT);
 
-      let best: {
+      type Candidate = {
         file: DriveEntry;
         folder: DriveEntry;
         manifest: InjectionManifest;
         score: number;
-      } | null = null;
+      };
 
-      for (const { folder, file } of allFiles) {
+      async function inspectCandidate({
+        folder,
+        file,
+      }: {
+        folder: DriveEntry;
+        file: DriveEntry;
+      }): Promise<Candidate | null> {
         try {
           const bytes = await driveDownload(file.id);
           const zip = await JSZip.loadAsync(bytes);
           const acmdFile = zip.file("injection.acmd");
-          if (!acmdFile) continue;
+          if (!acmdFile) return null;
           const manifest = parseInjectionManifest(await acmdFile.async("text"));
           const sampleNameLower = manifest.sampleName?.toLowerCase() ?? "";
           const nameMatches =
@@ -309,9 +321,19 @@ export const resolveDxFileForSample = createServerFn({ method: "GET" })
           const runMs = manifest.runDateTime ? new Date(manifest.runDateTime).getTime() : NaN;
           const dateCloseness = Number.isNaN(runMs) ? Infinity : Math.abs(runMs - targetMs);
           const score = (nameMatches ? 0 : 1) + dateCloseness / DATE_WINDOW_MS;
-          if (!best || score < best.score) best = { file, folder, manifest, score };
+          return { file, folder, manifest, score };
         } catch {
           // Unreadable file — best-effort only, skip and keep searching.
+          return null;
+        }
+      }
+
+      let best: Candidate | null = null;
+      for (let i = 0; i < allFiles.length; i += FILE_INSPECT_CONCURRENCY) {
+        const batch = allFiles.slice(i, i + FILE_INSPECT_CONCURRENCY);
+        const results = await Promise.all(batch.map(inspectCandidate));
+        for (const candidate of results) {
+          if (candidate && (!best || candidate.score < best.score)) best = candidate;
         }
       }
 
