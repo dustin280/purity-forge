@@ -147,13 +147,21 @@ function CompoundExplorer() {
                   </div>
                 )}
                 {structure && structure.atoms.length > 0 && (
-                  <MoleculeViewer
-                    key={selectedId}
-                    atoms={structure.atoms}
-                    bonds={structure.bonds}
-                    highlighted={highlighted}
-                    focusKey={focusKey}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="absolute inset-0 grid place-items-center text-sm text-white/70">
+                        Loading viewer…
+                      </div>
+                    }
+                  >
+                    <MoleculeViewer
+                      key={selectedId}
+                      atoms={structure.atoms}
+                      bonds={structure.bonds}
+                      highlighted={highlighted}
+                      focusKey={focusKey}
+                    />
+                  </Suspense>
                 )}
               </div>
 
