@@ -46,17 +46,6 @@ export interface DadSignalProbe {
   rtRange?: [number, number];
   valsSample?: number[];
   error?: string;
-  /** Temporary diagnostic — only populated when a `.UV`/`.UVD` full-spectrum
-   * pair is found (DAD1I), to figure out the real format against production
-   * data before writing a parser. Remove once confirmed. */
-  uvDebug?: {
-    contentTypesXml: string | null;
-    relsXml: string | null;
-    uvSize: number;
-    uvdSize: number;
-    uvHeadBase64: string;
-    uvdFullBase64: string;
-  };
 }
 
 export interface DxInspection {
@@ -118,47 +107,6 @@ export async function resolveDadRtBoundsMin(
   return null;
 }
 
-/**
- * DAD1I (the full-spectrum channel) resolves to a `.UV`/`.UVD` pair with an
- * accompanying `_rels/{traceId}.UV.rels` sidecar — confirmed live against a
- * real .dx file, but the byte format inside `.UV`/`.UVD` is unverified
- * (unlike `.CH`, no reference source was found describing this OpenLab-
- * specific variant). The `.rels` file and `[Content_Types].xml` are plain
- * XML (OPC packaging convention) and may name the real content type of
- * each part directly — reading them, plus a header hex dump of both binary
- * parts, is the same "ship a diagnostic, inspect real bytes live" step
- * that found the real `.CH` format this session, applied to `.UV` next.
- */
-async function debugUvParts(
-  zip: JSZip,
-  traceId: string,
-): Promise<NonNullable<DadSignalProbe["uvDebug"]> | null> {
-  const uvFile = zip.file(`${traceId}.UV`);
-  const uvdFile = zip.file(`${traceId}.UVD`);
-  if (!uvFile || !uvdFile) return null;
-  const [uvBuf, uvdBuf] = await Promise.all([
-    uvFile.async("arraybuffer"),
-    uvdFile.async("arraybuffer"),
-  ]);
-  const contentTypesFile = zip.file("[Content_Types].xml");
-  const relsFile = zip.file(`_rels/${traceId}.UV.rels`);
-  // Prior rounds confirmed real structure (the offset-347 Pascal-string tag
-  // from .IT carries over exactly — "OL DATA FILE" here — and a clean
-  // 870-byte linear stride showed up in a tail sample of .UVD's directory)
-  // but picking more small hex windows blindly is hitting diminishing
-  // returns. .UVD is small (~32KB) — dump it whole as base64 for full
-  // offline analysis, plus a solid chunk of .UV covering its header and
-  // the start of the real data body, rather than guessing at more windows.
-  return {
-    contentTypesXml: contentTypesFile ? await contentTypesFile.async("text") : null,
-    relsXml: relsFile ? await relsFile.async("text") : null,
-    uvSize: uvBuf.byteLength,
-    uvdSize: uvdBuf.byteLength,
-    uvHeadBase64: Buffer.from(uvBuf.slice(0, 16384)).toString("base64"),
-    uvdFullBase64: Buffer.from(uvdBuf).toString("base64"),
-  };
-}
-
 async function probeSignal(
   zip: JSZip,
   signal: AgilentSignal,
@@ -180,15 +128,6 @@ async function probeSignal(
     } catch (e) {
       return { signal, ok: false, error: (e as Error).message };
     }
-  }
-  const uvDebug = await debugUvParts(zip, signal.traceId);
-  if (uvDebug) {
-    return {
-      signal,
-      ok: false,
-      error: `Found ${signal.traceId}.UV/.UVD (full-spectrum) — format not yet parsed`,
-      uvDebug,
-    };
   }
   return { signal, ok: false, error: `No ${signal.traceId}.IT or .CH file in archive` };
 }

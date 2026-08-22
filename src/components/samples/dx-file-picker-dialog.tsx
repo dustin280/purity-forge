@@ -246,11 +246,6 @@ export function DxFilePickerDialog({
                         {p.error}
                       </span>
                     )}
-                    {p.uvDebug && (
-                      <pre className="basis-full text-[10px] whitespace-pre-wrap break-all text-amber-500">
-                        {JSON.stringify(p.uvDebug, null, 1)}
-                      </pre>
-                    )}
                   </div>
                 ))}
               </div>
