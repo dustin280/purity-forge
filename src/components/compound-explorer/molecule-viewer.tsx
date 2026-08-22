@@ -4,8 +4,8 @@
  * highlighting driven by the parent route.
  */
 import { useMemo, useRef, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { StructureAtom, StructureBond } from "@/lib/nc-structures.functions";
 
