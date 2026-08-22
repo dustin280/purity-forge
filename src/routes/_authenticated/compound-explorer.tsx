@@ -6,7 +6,7 @@ import { useMemo, useState, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Atom, Search } from "lucide-react";
+import { ArrowLeft, Atom, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,8 +70,10 @@ function CompoundExplorer() {
   }, [activeResidue, residues]);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] lg:h-screen">
-      <aside className="w-72 shrink-0 border-r border-border flex flex-col">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-3.5rem)] lg:h-screen">
+      <aside
+        className={`${selectedId ? "hidden lg:flex" : "flex"} w-full lg:w-72 shrink-0 border-r border-border flex-col min-h-0`}
+      >
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center gap-2 font-semibold">
             <Atom className="size-4" /> Compound Explorer
@@ -113,7 +115,7 @@ function CompoundExplorer() {
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 flex flex-col">
+      <main className={`${selectedId ? "flex" : "hidden lg:flex"} flex-1 min-w-0 min-h-0 flex-col`}>
         {!selectedId && (
           <div className="flex-1 grid place-items-center text-muted-foreground text-sm">
             Select a compound to view its 3D structure.
@@ -122,6 +124,17 @@ function CompoundExplorer() {
         {selectedId && (
           <>
             <div className="px-5 py-3 border-b border-border flex items-center gap-3">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="lg:hidden -ml-2 shrink-0"
+                onClick={() => {
+                  setSelectedId(null);
+                  setActiveResidue(null);
+                }}
+              >
+                <ArrowLeft className="size-4" />
+              </Button>
               <h1 className="text-lg font-semibold truncate">{detail?.compound?.name ?? "…"}</h1>
               {detail?.compound?.class && <Badge variant="secondary">{detail.compound.class}</Badge>}
               {detail?.compound?.review_flag && (
