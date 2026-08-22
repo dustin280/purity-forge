@@ -180,9 +180,8 @@ export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
       <directionalLight position={[-8, -4, -6]} intensity={0.4} />
       <Atoms atoms={atoms} positions={positions} highlighted={highlighted} />
       <Bonds atoms={atoms} bonds={bonds} positions={positions} />
+      <Controls controls={controls} />
       <CameraFocus target={focusTarget} controls={controls} />
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <OrbitControls ref={controls as any} enableDamping dampingFactor={0.1} />
     </Canvas>
   );
 }
