@@ -5294,6 +5294,98 @@ export type Database = {
         }
         Relationships: []
       }
+      sterility_preps: {
+        Row: {
+          created_at: string
+          ftm_lot_number: string | null
+          ftm_receipt_id: string | null
+          id: string
+          inoculation_volume_ml: number
+          interim_check_at: string | null
+          interim_check_by: string | null
+          interim_check_notes: string | null
+          interim_check_status: string
+          interim_notified_at: string | null
+          prepared_at: string
+          prepared_by: string | null
+          readout_notified_at: string | null
+          sample_id: string
+          test_id: string
+          tsb_lot_number: string | null
+          tsb_receipt_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ftm_lot_number?: string | null
+          ftm_receipt_id?: string | null
+          id?: string
+          inoculation_volume_ml?: number
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          prepared_at?: string
+          prepared_by?: string | null
+          readout_notified_at?: string | null
+          sample_id: string
+          test_id: string
+          tsb_lot_number?: string | null
+          tsb_receipt_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ftm_lot_number?: string | null
+          ftm_receipt_id?: string | null
+          id?: string
+          inoculation_volume_ml?: number
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          prepared_at?: string
+          prepared_by?: string | null
+          readout_notified_at?: string | null
+          sample_id?: string
+          test_id?: string
+          tsb_lot_number?: string | null
+          tsb_receipt_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sterility_preps_ftm_receipt_id_fkey"
+            columns: ["ftm_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_tsb_receipt_id_fkey"
+            columns: ["tsb_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       storage_slots: {
         Row: {
           created_at: string
