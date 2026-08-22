@@ -1,7 +1,7 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Trash2, KeyRound, Pencil } from "lucide-react";
+import { Trash2, KeyRound, Pencil, UserCheck } from "lucide-react";
 import { setUserRole, deleteUser } from "@/lib/lims.functions";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,7 @@ import type { EditUserSeed } from "./edit-user-dialog";
 type UsersData = {
   profiles: Array<{ id: string; email: string | null; full_name: string | null } & Partial<ProfileExt>>;
   roles: Array<{ user_id: string; role: string }>;
+  authStatus?: Array<{ id: string; email_confirmed: boolean; last_sign_in_at: string | null }>;
 };
 
 /**
@@ -30,12 +31,14 @@ export function UsersTable({
   currentUserId,
   onEdit,
   onResetPassword,
+  onActivate,
 }: {
   data: UsersData | undefined;
   isLoading: boolean;
   currentUserId: string | null;
   onEdit: (seed: EditUserSeed) => void;
   onResetPassword: (userId: string) => void;
+  onActivate: (userId: string) => void;
 }) {
   const qc = useQueryClient();
   const setFn = useServerFn(setUserRole);
@@ -67,14 +70,17 @@ export function UsersTable({
         <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
             <th className="text-left px-4 py-3 font-semibold">User</th>
+            <th className="text-left px-4 py-3 font-semibold">Status</th>
             {ROLES.map(r => <th key={r} className="text-center px-4 py-3 font-semibold">{r}</th>)}
             <th className="text-right px-4 py-3 font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {isLoading && <tr><td colSpan={5} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
+          {isLoading && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">Loading…</td></tr>}
           {data?.profiles.map(p => {
             const px = p as ProfileExt;
+            const status = data.authStatus?.find(a => a.id === p.id);
+            const pending = status ? !status.email_confirmed : false;
             return (
               <tr key={p.id}>
                 <td className="px-4 py-3">
@@ -82,6 +88,25 @@ export function UsersTable({
                   <div className="text-xs text-muted-foreground">
                     {p.email}{px.title ? ` · ${px.title}` : ""}
                   </div>
+                </td>
+                <td className="px-4 py-3">
+                  {status && (
+                    <span
+                      className={
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider " +
+                        (pending
+                          ? "bg-destructive/15 text-destructive"
+                          : "bg-primary/10 text-primary")
+                      }
+                      title={pending
+                        ? "Invite never accepted — sign-in fails with \"Email not confirmed\""
+                        : status.last_sign_in_at
+                          ? `Last sign-in ${new Date(status.last_sign_in_at).toLocaleString()}`
+                          : "Email confirmed"}
+                    >
+                      {pending ? "Pending invite" : "Active"}
+                    </span>
+                  )}
                 </td>
                 {ROLES.map(r => {
                   const has = data.roles.some(x => x.user_id === p.id && x.role === r);
@@ -102,6 +127,11 @@ export function UsersTable({
                     })}>
                       <Pencil className="size-4" />
                     </Button>
+                    {pending && (
+                      <Button size="sm" variant="ghost" onClick={() => onActivate(p.id)} title="Activate account (confirm email + set password)">
+                        <UserCheck className="size-4 text-primary" />
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => onResetPassword(p.id)} title="Reset password">
                       <KeyRound className="size-4" />
                     </Button>

@@ -3,8 +3,9 @@
  * the physical execution of a batch run. Deliberately does NOT re-capture
  * prep data: each row's prep summary is composed from whichever existing
  * record already covers it (sp_preparation_records via run_list_items'
- * existing sp_preparation_record_id link, or sterility_preps for sterility
- * samples with no HPLC prep) — read-only here, never written to.
+ * existing sp_preparation_record_id link, or the sample's sterility test's
+ * analysis_batches entry for sterility samples with no HPLC prep) —
+ * read-only here, never written to.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";

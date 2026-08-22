@@ -8,6 +8,11 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { StructureAtom, StructureBond } from "@/lib/nc-structures.functions";
+import type {
+  MorphModel,
+  MorphAtomState,
+  MorphBondState,
+} from "@/components/compound-explorer/morph";
 
 const CPK: Record<string, string> = {
   C: "#909090",
@@ -51,6 +56,14 @@ type Props = {
    * independent of (and layered under) the residue highlight.
    */
   changed?: Set<number>;
+  /**
+   * When present the viewer animates the native -> non-conformance transition
+   * instead of drawing a single static structure. `progressRef` is read every
+   * frame (0 = native, 1 = impurity); it is a ref rather than state so the
+   * playback loop never re-renders React.
+   */
+  morph?: MorphModel | null;
+  progressRef?: React.MutableRefObject<number>;
 };
 
 function Bonds({ atoms, bonds, positions }: { atoms: StructureAtom[]; bonds: StructureBond[]; positions: Map<number, THREE.Vector3> }) {
@@ -131,6 +144,175 @@ function Atoms({
   );
 }
 
+/* ---------------------------------------------------------------------- */
+/* Animated native -> non-conformance transition                           */
+/* ---------------------------------------------------------------------- */
+
+const BOND_RADIUS = 0.07;
+/** Old atoms/bonds leave first, then new ones arrive — reads as a transformation. */
+const OUT_START = 0.1;
+const OUT_END = 0.5;
+const IN_START = 0.45;
+const IN_END = 0.85;
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
+const window01 = (t: number, a: number, b: number) => clamp01((t - a) / (b - a));
+
+function visibilityFor(state: MorphAtomState | MorphBondState, t: number): number {
+  if (state === "added") return smoothstep(window01(t, IN_START, IN_END));
+  if (state === "removed") return 1 - smoothstep(window01(t, OUT_START, OUT_END));
+  return 1;
+}
+
+/**
+ * Drives the whole transition from a single `useFrame`: one pass computes
+ * every interpolated atom position, then reuses them for the bonds. Doing it
+ * in one place avoids depending on the order separate effects would run in,
+ * and keeps React out of the animation loop entirely — the meshes are mutated
+ * directly, so a 350-atom peptide animates without a single re-render.
+ */
+function MorphScene({
+  model,
+  progressRef,
+  highlighted,
+}: {
+  model: MorphModel;
+  progressRef: React.MutableRefObject<number>;
+  highlighted: Set<number>;
+}) {
+  const atomRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const bondRef = useRef<THREE.InstancedMesh>(null);
+
+  const sphere = useMemo(() => new THREE.SphereGeometry(1, 16, 16), []);
+  const cylinder = useMemo(() => new THREE.CylinderGeometry(1, 1, 1, 8), []);
+
+  const positions = useMemo(() => model.atoms.map(() => new THREE.Vector3()), [model]);
+  const keyIndex = useMemo(
+    () => new Map(model.atoms.map((a, i) => [a.key, i])),
+    [model],
+  );
+  const palette = useMemo(
+    () =>
+      model.atoms.map(a => ({
+        from: new THREE.Color(elementColor(a.fromElement)),
+        to: new THREE.Color(elementColor(a.element)),
+        radius: RADIUS[a.element.toUpperCase()] ?? 0.36,
+      })),
+    [model],
+  );
+
+  // Preallocated scratch: this loop runs every frame over every atom and bond,
+  // so allocating here would hand the GC a few hundred objects per frame.
+  const scratch = useMemo(
+    () => ({
+      dummy: new THREE.Object3D(),
+      up: new THREE.Vector3(0, 1, 0),
+      dir: new THREE.Vector3(),
+      norm: new THREE.Vector3(),
+      black: new THREE.Color("#000000"),
+      changed: new THREE.Color(CHANGED_COLOR),
+      lit: new THREE.Color(),
+    }),
+    [],
+  );
+
+  useFrame(() => {
+    const t = clamp01(progressRef.current);
+    const e = smoothstep(t);
+    const { dummy, up, dir, norm, black, changed: changedColor, lit: litColor } = scratch;
+
+    for (let i = 0; i < model.atoms.length; i++) {
+      const a = model.atoms[i];
+      const p = positions[i];
+      p.set(
+        a.from[0] + (a.to[0] - a.from[0]) * e,
+        a.from[1] + (a.to[1] - a.from[1]) * e,
+        a.from[2] + (a.to[2] - a.from[2]) * e,
+      );
+
+      const mesh = atomRefs.current[i];
+      if (!mesh) continue;
+      const vis = visibilityFor(a.state, t);
+      const lit = a.id !== null && highlighted.has(a.id);
+      const changed = a.state !== "persist";
+
+      mesh.position.copy(p);
+      // Scale carries both the element radius and the appear/disappear, so a
+      // vanishing atom shrinks away instead of popping out at full size.
+      mesh.scale.setScalar(palette[i].radius * (0.25 + 0.75 * vis) * (lit ? 1.35 : 1));
+      mesh.visible = vis > 0.01;
+
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      mat.opacity = vis;
+      mat.transparent = vis < 0.999;
+      if (a.state === "substituted") {
+        mat.color.lerpColors(palette[i].from, palette[i].to, e);
+      }
+      if (lit) {
+        mat.emissive.copy(litColor.copy(palette[i].to));
+      } else if (changed) {
+        mat.emissive.copy(changedColor);
+      } else {
+        mat.emissive.copy(black);
+      }
+      mat.emissiveIntensity = lit ? 0.75 : changed ? 0.9 * Math.max(vis, 0.35) : 0;
+    }
+
+    const mesh = bondRef.current;
+    if (!mesh) return;
+    let n = 0;
+    for (const b of model.bonds) {
+      const ia = keyIndex.get(b.aKey);
+      const ib = keyIndex.get(b.bKey);
+      if (ia === undefined || ib === undefined) continue;
+      const vis = visibilityFor(b.state, t);
+      if (vis <= 0.01) continue;
+      const pa = positions[ia];
+      const pb = positions[ib];
+      dir.subVectors(pb, pa);
+      const len = dir.length();
+      if (len === 0) continue;
+      dummy.position.copy(pa).addScaledVector(dir, 0.5);
+      dummy.quaternion.setFromUnitVectors(up, norm.copy(dir).normalize());
+      // Radius, not opacity: instanced meshes share one material, so a bond
+      // thins out of existence rather than fading.
+      dummy.scale.set(BOND_RADIUS * vis, len, BOND_RADIUS * vis);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(n, dummy.matrix);
+      n++;
+    }
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <group>
+      {model.atoms.map((a, i) => (
+        <mesh
+          key={a.key}
+          ref={el => {
+            atomRefs.current[i] = el;
+          }}
+          geometry={sphere}
+        >
+          <meshStandardMaterial
+            color={elementColor(a.fromElement)}
+            roughness={0.35}
+            metalness={0.05}
+          />
+        </mesh>
+      ))}
+      <instancedMesh
+        ref={bondRef}
+        args={[cylinder, undefined, Math.max(model.bonds.length, 1)]}
+      >
+        <meshStandardMaterial color="#8a8a8a" roughness={0.5} metalness={0.1} />
+      </instancedMesh>
+    </group>
+  );
+}
+
 function Controls({ controls }: { controls: React.RefObject<OrbitControls | null> }) {
   const camera = useThree(s => s.camera);
   const gl = useThree(s => s.gl);
@@ -163,8 +345,18 @@ function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; contr
   return null;
 }
 
-export function MoleculeViewer({ atoms, bonds, highlighted, focusKey, changed }: Props) {
+export function MoleculeViewer({
+  atoms,
+  bonds,
+  highlighted,
+  focusKey,
+  changed,
+  morph,
+  progressRef,
+}: Props) {
   const changedSet = useMemo(() => changed ?? new Set<number>(), [changed]);
+  const fallbackProgress = useRef(1);
+  const animating = !!morph && !!progressRef;
   const controls = useRef<OrbitControls | null>(null);
 
   const { positions, center, radius } = useMemo(() => {
@@ -198,14 +390,40 @@ export function MoleculeViewer({ atoms, bonds, highlighted, focusKey, changed }:
 
   void center;
 
+  // Frame the whole transition, not just one end of it: a variant can be
+  // larger or smaller than its parent (a cleaved lipid, an added ring).
+  const morphRadius = useMemo(() => {
+    if (!morph) return 0;
+    let maxD = 1;
+    for (const a of morph.atoms) {
+      for (const p of [a.from, a.to]) {
+        const d = Math.hypot(p[0], p[1], p[2]);
+        if (d > maxD) maxD = d;
+      }
+    }
+    return maxD;
+  }, [morph]);
+
+  const viewRadius = animating ? Math.max(radius, morphRadius) : radius;
+
   return (
-    <Canvas camera={{ position: [0, 0, radius * 3 + 6], fov: 45 }} dpr={[1, 2]}>
+    <Canvas camera={{ position: [0, 0, viewRadius * 3 + 6], fov: 45 }} dpr={[1, 2]}>
       <color attach="background" args={["#0b0f14"]} />
       <ambientLight intensity={0.7} />
       <directionalLight position={[6, 8, 10]} intensity={1.1} />
       <directionalLight position={[-8, -4, -6]} intensity={0.4} />
-      <Atoms atoms={atoms} positions={positions} highlighted={highlighted} changed={changedSet} />
-      <Bonds atoms={atoms} bonds={bonds} positions={positions} />
+      {animating ? (
+        <MorphScene
+          model={morph!}
+          progressRef={progressRef ?? fallbackProgress}
+          highlighted={highlighted}
+        />
+      ) : (
+        <>
+          <Atoms atoms={atoms} positions={positions} highlighted={highlighted} changed={changedSet} />
+          <Bonds atoms={atoms} bonds={bonds} positions={positions} />
+        </>
+      )}
       <Controls controls={controls} />
       <CameraFocus target={focusTarget} controls={controls} />
     </Canvas>

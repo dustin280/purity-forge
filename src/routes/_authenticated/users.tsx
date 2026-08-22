@@ -9,6 +9,7 @@ import { InviteUserDialog } from "@/components/users/invite-user-dialog";
 import { AddUserDialog } from "@/components/users/add-user-dialog";
 import { EditUserDialog, type EditUserSeed } from "@/components/users/edit-user-dialog";
 import { ResetPasswordDialog } from "@/components/users/reset-password-dialog";
+import { ActivateUserDialog } from "@/components/users/activate-user-dialog";
 import { UsersTable } from "@/components/users/users-table";
 
 export const Route = createFileRoute("/_authenticated/users")({ component: Users });
@@ -24,6 +25,7 @@ function Users() {
 
   const [editSeed, setEditSeed] = useState<EditUserSeed | null>(null);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [activateUserId, setActivateUserId] = useState<string | null>(null);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl">
@@ -45,8 +47,10 @@ function Users() {
         currentUserId={currentUserId}
         onEdit={setEditSeed}
         onResetPassword={setResetUserId}
+        onActivate={setActivateUserId}
       />
 
+      <ActivateUserDialog userId={activateUserId} onClose={() => setActivateUserId(null)} />
       <ResetPasswordDialog userId={resetUserId} onClose={() => setResetUserId(null)} />
       <EditUserDialog seed={editSeed} onClose={() => setEditSeed(null)} />
     </div>
