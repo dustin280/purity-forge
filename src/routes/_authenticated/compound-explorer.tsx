@@ -1,22 +1,26 @@
 /**
- * Compound Explorer: browse the nc_compounds reference library and inspect
- * pre-computed 3D structures with residue highlighting and chemical properties.
+ * Compound Explorer: browse the nc_compounds reference library, inspect
+ * pre-computed 3D structures with residue highlighting, and load a
+ * non-conformance scenario to see what changes structurally.
  */
 import { useMemo, useState, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Atom, Search } from "lucide-react";
+import { ArrowLeft, Atom, Search, ShieldAlert, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { diffStructures, describeDiff } from "@/components/compound-explorer/structure-diff";
 const MoleculeViewer = lazy(() =>
   import("@/components/compound-explorer/molecule-viewer").then(m => ({ default: m.MoleculeViewer })),
 );
 import {
   listExplorerCompounds,
   getExplorerCompound,
+  listCompoundScenarios,
+  getVariantStructure,
 } from "@/lib/nc-structures.functions";
 
 export const Route = createFileRoute("/_authenticated/compound-explorer")({
@@ -33,13 +37,29 @@ function Prop({ label, value }: { label: string; value: string | number | null |
   );
 }
 
+/**
+ * Postgres `numeric` can arrive as a string over the wire, so coerce before
+ * formatting. Trimmed to 4 dp for the compact scenario list — the full-precision
+ * value is still shown in the detail panel below.
+ */
+function formatMassDelta(v: number | string | null | undefined): string {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "";
+  return ` · ${n > 0 ? "+" : ""}${n.toFixed(4)} Da`;
+}
+
 function CompoundExplorer() {
   const list = useServerFn(listExplorerCompounds);
   const getOne = useServerFn(getExplorerCompound);
+  const getScenarios = useServerFn(listCompoundScenarios);
+  const getVariant = useServerFn(getVariantStructure);
+
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeResidue, setActiveResidue] = useState<number | null>(null);
   const [focusKey, setFocusKey] = useState("none");
+  const [scenarioId, setScenarioId] = useState<string | null>(null);
 
   const { data: compounds = [], isLoading } = useQuery({
     queryKey: ["nc-explorer", "list"],
@@ -60,14 +80,61 @@ function CompoundExplorer() {
     enabled: !!selectedId,
   });
 
-  const structure = detail?.structure ?? null;
-  const residues = structure?.residues ?? [];
+  const { data: scenarios = [] } = useQuery({
+    queryKey: ["nc-explorer", "scenarios", selectedId],
+    queryFn: () => getScenarios({ data: { compoundId: selectedId! } }),
+    enabled: !!selectedId,
+  });
+
+  const { data: variant, isFetching: variantLoading } = useQuery({
+    queryKey: ["nc-explorer", "variant", scenarioId],
+    queryFn: () => getVariant({ data: { variantId: scenarioId! } }),
+    enabled: !!scenarioId,
+  });
+
+  const nativeStructure = detail?.structure ?? null;
+  const activeScenario = useMemo(
+    () => scenarios.find(s => s.id === scenarioId) ?? null,
+    [scenarios, scenarioId],
+  );
+
+  // The impurity structure supersedes the native one in the viewer once a
+  // scenario is picked, but only after it has actually loaded — otherwise the
+  // viewer would flash empty between the click and the fetch resolving.
+  const shown = scenarioId && variant ? variant : nativeStructure;
+  const residues = shown?.residues ?? [];
+
+  const diff = useMemo(
+    () => (scenarioId && variant ? diffStructures(nativeStructure, variant) : null),
+    [scenarioId, variant, nativeStructure],
+  );
+
+  const changeLines = useMemo(() => {
+    if (!diff || !variant) return [];
+    const byId = new Map(variant.atoms.map(a => [a.id, a.element]));
+    return describeDiff(diff, id => byId.get(id));
+  }, [diff, variant]);
 
   const highlighted = useMemo(() => {
     if (activeResidue === null) return new Set<number>();
     const r = residues.find(x => x.index === activeResidue);
     return new Set<number>(r?.atom_ids ?? []);
   }, [activeResidue, residues]);
+
+  const resetToNative = () => {
+    setScenarioId(null);
+    setActiveResidue(null);
+  };
+
+  const selectCompound = (id: string) => {
+    setSelectedId(id);
+    setActiveResidue(null);
+    setFocusKey("none");
+    setScenarioId(null);
+  };
+
+  const withStructure = scenarios.filter(s => s.has_structure);
+  const withoutStructure = scenarios.filter(s => !s.has_structure);
 
   return (
     <div className="flex flex-col lg:flex-row h-[calc(100vh-3.5rem)] lg:h-screen">
@@ -96,11 +163,7 @@ function CompoundExplorer() {
           {filtered.map(c => (
             <button
               key={c.id}
-              onClick={() => {
-                setSelectedId(c.id);
-                setActiveResidue(null);
-                setFocusKey("none");
-              }}
+              onClick={() => selectCompound(c.id)}
               className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
                 selectedId === c.id ? "bg-accent text-accent-foreground" : "hover:bg-muted"
               }`}
@@ -123,43 +186,50 @@ function CompoundExplorer() {
         )}
         {selectedId && (
           <>
-            <div className="px-5 py-3 border-b border-border flex items-center gap-3">
+            <div className="px-5 py-3 border-b border-border flex items-center gap-3 flex-wrap">
               <Button
                 size="icon"
                 variant="ghost"
                 className="lg:hidden -ml-2 shrink-0"
                 onClick={() => {
                   setSelectedId(null);
-                  setActiveResidue(null);
+                  resetToNative();
                 }}
               >
                 <ArrowLeft className="size-4" />
               </Button>
               <h1 className="text-lg font-semibold truncate">{detail?.compound?.name ?? "…"}</h1>
-              {detail?.compound?.class && <Badge variant="secondary">{detail.compound.class}</Badge>}
-              {detail?.compound?.review_flag && (
+              {activeScenario ? (
+                <Badge className="bg-[#ff2d55] hover:bg-[#ff2d55] text-white gap-1">
+                  <ShieldAlert className="size-3" />
+                  {activeScenario.impurity_code ?? "Impurity"}
+                </Badge>
+              ) : (
+                <Badge variant="secondary">Native</Badge>
+              )}
+              {detail?.compound?.review_flag && !activeScenario && (
                 <Badge variant="outline">{detail.compound.review_flag}</Badge>
               )}
-              {structure && (
+              {shown && (
                 <span className="text-xs text-muted-foreground ml-auto">
-                  {structure.atoms.length} atoms · {structure.bonds.length} bonds
+                  {shown.atoms.length} atoms · {shown.bonds.length} bonds
                 </span>
               )}
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
               <div className="flex-1 min-h-[320px] relative bg-[#0b0f14]">
-                {isFetching && !structure && (
+                {isFetching && !nativeStructure && (
                   <div className="absolute inset-0 grid place-items-center text-sm text-white/70">
                     Loading structure…
                   </div>
                 )}
-                {!isFetching && !structure && (
+                {!isFetching && !nativeStructure && (
                   <div className="absolute inset-0 grid place-items-center text-sm text-white/70">
                     No 3D structure available for this compound.
                   </div>
                 )}
-                {structure && structure.atoms.length > 0 && (
+                {shown && shown.atoms.length > 0 && (
                   <Suspense
                     fallback={
                       <div className="absolute inset-0 grid place-items-center text-sm text-white/70">
@@ -169,16 +239,120 @@ function CompoundExplorer() {
                   >
                     <MoleculeViewer
                       key={selectedId}
-                      atoms={structure.atoms}
-                      bonds={structure.bonds}
+                      atoms={shown.atoms}
+                      bonds={shown.bonds}
                       highlighted={highlighted}
                       focusKey={focusKey}
+                      changed={diff?.highlight}
                     />
                   </Suspense>
+                )}
+                {activeScenario && (
+                  <div className="absolute left-3 bottom-3 flex items-center gap-2">
+                    <Button size="sm" variant="secondary" onClick={resetToNative} className="gap-1.5">
+                      <RotateCcw className="size-3.5" /> Back to native
+                    </Button>
+                    {variantLoading && <span className="text-xs text-white/70">Loading variant…</span>}
+                  </div>
                 )}
               </div>
 
               <div className="w-full xl:w-96 shrink-0 border-t xl:border-t-0 xl:border-l border-border overflow-y-auto p-4 space-y-4">
+                {scenarios.length > 0 && (
+                  <Card className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-semibold flex items-center gap-1.5">
+                        <ShieldAlert className="size-4" /> Non-conformance
+                      </div>
+                      {activeScenario && (
+                        <Button size="sm" variant="ghost" onClick={resetToNative}>
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {withStructure.map(s => (
+                        <button
+                          key={s.id}
+                          onClick={() => {
+                            setScenarioId(s.id);
+                            setActiveResidue(null);
+                          }}
+                          className={`w-full text-left px-2.5 py-2 rounded-md text-xs border transition-colors ${
+                            scenarioId === s.id
+                              ? "border-[#ff2d55] bg-[#ff2d55]/10"
+                              : "border-border hover:bg-muted"
+                          }`}
+                        >
+                          <div className="font-medium">{s.name}</div>
+                          <div className="text-muted-foreground mt-0.5">
+                            {s.impurity_code}
+                            {s.formula_delta ? ` · ${s.formula_delta}` : ""}
+                            {formatMassDelta(s.mass_delta)}
+                          </div>
+                        </button>
+                      ))}
+                      {withoutStructure.length > 0 && (
+                        <div className="pt-2 mt-1 border-t border-border/50">
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
+                            No 3D model — reference only
+                          </div>
+                          {withoutStructure.map(s => (
+                            <div
+                              key={s.id}
+                              className="px-2.5 py-1.5 text-xs text-muted-foreground"
+                              title={s.structure_change ?? undefined}
+                            >
+                              <span className="font-medium">{s.name}</span>
+                              {s.impurity_code ? ` · ${s.impurity_code}` : ""}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                )}
+
+                {activeScenario && (
+                  <Card className="p-3 border-[#ff2d55]/40">
+                    <div className="text-sm font-semibold mb-2">Structural change</div>
+                    {diff ? (
+                      <ul className="space-y-1 mb-3">
+                        {changeLines.map((line, i) => (
+                          <li key={i} className="text-xs flex items-start gap-1.5">
+                            <span className="mt-1 size-1.5 rounded-full bg-[#ff2d55] shrink-0" />
+                            <span>{line}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <div className="text-xs text-muted-foreground mb-3">
+                        {variantLoading ? "Loading…" : "Comparison unavailable."}
+                      </div>
+                    )}
+                    {diff && diff.highlight.size > 0 && (
+                      <div className="text-[11px] text-muted-foreground mb-3">
+                        Highlighted in the viewer: {diff.highlight.size} affected atom
+                        {diff.highlight.size > 1 ? "s" : ""}.
+                      </div>
+                    )}
+                    <Prop label="Category" value={activeScenario.category} />
+                    <Prop label="Evidence" value={activeScenario.evidence_level} />
+                    <Prop label="Change" value={activeScenario.structure_change} />
+                    <Prop label="Pathway" value={activeScenario.formation_pathway} />
+                    <Prop label="Formula" value={activeScenario.molecular_formula} />
+                    <Prop label="Formula Δ" value={activeScenario.formula_delta} />
+                    <Prop label="Mass Δ" value={activeScenario.mass_delta} />
+                    <Prop label="m/z (1+)" value={activeScenario.mz_1plus} />
+                    <Prop label="m/z (2+)" value={activeScenario.mz_2plus} />
+                    <Prop label="RP-HPLC" value={activeScenario.rp_hplc_behavior} />
+                    <Prop label="DAD discriminator" value={activeScenario.dad_discriminator} />
+                    <Prop label="LC-MS discriminator" value={activeScenario.lc_ms_discriminator} />
+                    <Prop label="Likely trigger" value={activeScenario.likely_trigger} />
+                    <Prop label="Notes" value={activeScenario.notes} />
+                  </Card>
+                )}
+
                 {residues.length > 0 && (
                   <Card className="p-3">
                     <div className="flex items-center justify-between mb-2">
@@ -212,7 +386,12 @@ function CompoundExplorer() {
                 )}
 
                 <Card className="p-3">
-                  <div className="text-sm font-semibold mb-2">Chemical properties</div>
+                  <div className="text-sm font-semibold mb-2">
+                    Chemical properties
+                    {activeScenario && (
+                      <span className="font-normal text-muted-foreground"> · native form</span>
+                    )}
+                  </div>
                   <Prop label="Molecular formula" value={detail?.compound?.molecular_formula} />
                   <Prop label="Monoisotopic mass" value={detail?.compound?.monoisotopic_mass} />
                   <Prop label="m/z (1+)" value={detail?.compound?.mz_1plus} />
