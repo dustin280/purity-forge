@@ -2,7 +2,7 @@
  * Compound Explorer: browse the nc_compounds reference library and inspect
  * pre-computed 3D structures with residue highlighting and chemical properties.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MoleculeViewer } from "@/components/compound-explorer/molecule-viewer";
+const MoleculeViewer = lazy(() =>
+  import("@/components/compound-explorer/molecule-viewer").then(m => ({ default: m.MoleculeViewer })),
+);
 import {
   listExplorerCompounds,
   getExplorerCompound,
@@ -145,13 +147,21 @@ function CompoundExplorer() {
                   </div>
                 )}
                 {structure && structure.atoms.length > 0 && (
-                  <MoleculeViewer
-                    key={selectedId}
-                    atoms={structure.atoms}
-                    bonds={structure.bonds}
-                    highlighted={highlighted}
-                    focusKey={focusKey}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="absolute inset-0 grid place-items-center text-sm text-white/70">
+                        Loading viewer…
+                      </div>
+                    }
+                  >
+                    <MoleculeViewer
+                      key={selectedId}
+                      atoms={structure.atoms}
+                      bonds={structure.bonds}
+                      highlighted={highlighted}
+                      focusKey={focusKey}
+                    />
+                  </Suspense>
                 )}
               </div>
 

@@ -4,8 +4,8 @@
  * highlighting driven by the parent route.
  */
 import { useMemo, useRef, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { StructureAtom, StructureBond } from "@/lib/nc-structures.functions";
 
@@ -106,6 +106,23 @@ function Atoms({ atoms, positions, highlighted }: { atoms: StructureAtom[]; posi
   );
 }
 
+function Controls({ controls }: { controls: React.RefObject<OrbitControls | null> }) {
+  const camera = useThree(s => s.camera);
+  const gl = useThree(s => s.gl);
+  useEffect(() => {
+    const c = new OrbitControls(camera, gl.domElement);
+    c.enableDamping = true;
+    c.dampingFactor = 0.1;
+    controls.current = c;
+    return () => {
+      c.dispose();
+      controls.current = null;
+    };
+  }, [camera, gl, controls]);
+  useFrame(() => controls.current?.update());
+  return null;
+}
+
 function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; controls: React.RefObject<{ target: THREE.Vector3; update: () => void } | null> }) {
   const goal = useRef<THREE.Vector3 | null>(null);
   useEffect(() => {
@@ -122,7 +139,7 @@ function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; contr
 }
 
 export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
-  const controls = useRef<{ target: THREE.Vector3; update: () => void } | null>(null);
+  const controls = useRef<OrbitControls | null>(null);
 
   const { positions, center, radius } = useMemo(() => {
     const c = new THREE.Vector3();
@@ -163,9 +180,8 @@ export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
       <directionalLight position={[-8, -4, -6]} intensity={0.4} />
       <Atoms atoms={atoms} positions={positions} highlighted={highlighted} />
       <Bonds atoms={atoms} bonds={bonds} positions={positions} />
+      <Controls controls={controls} />
       <CameraFocus target={focusTarget} controls={controls} />
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <OrbitControls ref={controls as any} enableDamping dampingFactor={0.1} />
     </Canvas>
   );
 }
