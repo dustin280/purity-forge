@@ -2,7 +2,7 @@
  * Compound Explorer: browse the nc_compounds reference library and inspect
  * pre-computed 3D structures with residue highlighting and chemical properties.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useState, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
