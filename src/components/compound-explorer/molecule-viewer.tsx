@@ -139,7 +139,7 @@ function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; contr
 }
 
 export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
-  const controls = useRef<{ target: THREE.Vector3; update: () => void } | null>(null);
+  const controls = useRef<OrbitControls | null>(null);
 
   const { positions, center, radius } = useMemo(() => {
     const c = new THREE.Vector3();
