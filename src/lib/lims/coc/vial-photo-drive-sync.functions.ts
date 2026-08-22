@@ -211,6 +211,58 @@ export async function syncVialPhotosForNewSamples(
   }
 }
 
+const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
+  Object.entries(EXT_BY_CONTENT_TYPE).map(([mime, ext]) => [ext, mime]),
+);
+
+/**
+ * Live Drive lookup for the partner export API (src/routes/api/public/exports/$batchId.ts)
+ * — Wayne's system asked for a "photo key" on the export payload. Rather than
+ * add a persisted samples column + migration (the sync above never recorded
+ * where it landed in Drive), this just re-finds "${batchId}.<ext>" in the
+ * reports folder at request time and inlines it as a base64 data URI, same
+ * convention as chromatogram_png/calibration_png (which are pre-computed at
+ * report-import time — this one is computed live per request instead, since
+ * there's nowhere it's been cached; this export route already does several
+ * live Supabase queries per request, so one more external lookup fits the
+ * existing shape rather than requiring a schema change). Returns null on any
+ * miss or Drive hiccup — never throws, must not break the export response.
+ */
+export async function findVialPhotoDataUri(
+  supabase: SupabaseClient,
+  batchId: string,
+): Promise<string | null> {
+  try {
+    const folderId = await loadReportsFolderId(supabase);
+    const escaped = batchId.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const q = encodeURIComponent(
+      `'${folderId}' in parents and trashed = false and name contains '${escaped}'`,
+    );
+    const r = await fetch(
+      `${DRIVE_GATEWAY}/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=10`,
+      { headers: driveHeaders() },
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as { files?: Array<{ id: string; name: string }> };
+    const namePattern = new RegExp(
+      `^${batchId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.(${Object.values(EXT_BY_CONTENT_TYPE).join("|")})$`,
+      "i",
+    );
+    const match = j.files?.find((f) => namePattern.test(f.name));
+    if (!match) return null;
+    const ext = match.name.split(".").pop()!.toLowerCase();
+    const mime = MIME_BY_EXT[ext] ?? "image/jpeg";
+    const dl = await fetch(`${DRIVE_GATEWAY}/drive/v3/files/${match.id}?alt=media`, {
+      headers: driveHeaders(),
+    });
+    if (!dl.ok) return null;
+    const bytes = await dl.arrayBuffer();
+    return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 export const syncVialPhotoToReportsDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ sample_id: z.string().uuid() }).parse(d))

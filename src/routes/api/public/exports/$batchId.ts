@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { findVialPhotoDataUri } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 
 export const Route = createFileRoute("/api/public/exports/$batchId")({
   server: {
@@ -78,6 +79,13 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
         if (cfg.include_method_blank) extras.method_blank_spectra = null;
         if (cfg.include_calibration) extras.calibration_data = latestPurityResult?.calibration_data ?? null;
 
+        // Vial intake photo — captured at Chain-of-Custody, synced to the
+        // reports Drive folder as "${batch_id}.<ext>" (see
+        // vial-photo-drive-sync.functions.ts). Looked up live rather than
+        // stored on the sample row; a miss (no photo, or Drive hiccup)
+        // returns null and must never fail the export.
+        const vialPhoto = await findVialPhotoDataUri(supabaseAdmin, sample.batch_id);
+
         const payload = {
           batch_id: sample.batch_id,
           client: sample.client,
@@ -85,6 +93,7 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           receipt_date: sample.receipt_date,
           status: sample.status,
           notes: sample.notes,
+          vial_photo: vialPhoto,
           // test_type is the stable field to key off of (purity/sterility/
           // endotoxin/heavy_metals, never renamed once shipped) —
           // method_name stays free text and can be renamed anytime.
