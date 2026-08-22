@@ -9,8 +9,45 @@ export const listUsers = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data: profiles } = await context.supabase.from("profiles").select("*");
     const { data: roles } = await context.supabase.from("user_roles").select("*");
-    return { profiles: profiles ?? [], roles: roles ?? [] };
+
+    // Auth state (confirmed / never signed in) lives in auth.users, not profiles.
+    let authStatus: Array<{ id: string; email_confirmed: boolean; last_sign_in_at: string | null }> = [];
+    try {
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      authStatus = (list?.users ?? []).map(u => ({
+        id: u.id,
+        email_confirmed: Boolean(u.email_confirmed_at ?? u.confirmed_at),
+        last_sign_in_at: u.last_sign_in_at ?? null,
+      }));
+    } catch {
+      authStatus = [];
+    }
+
+    return { profiles: profiles ?? [], roles: roles ?? [], authStatus };
   });
+
+/**
+ * Turns a stuck invite into a working login: confirms the email address and
+ * sets a password immediately, so the user no longer needs the invite email.
+ */
+export const activateUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      userId: z.string().uuid(),
+      password: z.string().min(8).max(128),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.supabase, context.userId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: data.password,
+      email_confirm: true,
+    });
+    if (error) throw error;
+    return { ok: true };
+  });
+
 
 export const setUserRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -99,7 +136,9 @@ export const resetUserPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: data.password });
+    // email_confirm ensures a reset also activates a never-confirmed invite,
+    // otherwise sign-in still fails with "Email not confirmed".
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: data.password, email_confirm: true });
     if (error) throw error;
     return { ok: true };
   });
