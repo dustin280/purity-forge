@@ -1344,6 +1344,7 @@ export type Database = {
           received_by: string | null
           receiver_name: string
           sds_attached: boolean
+          serial_number: string | null
           shelf_life_months: number | null
           shipping_cost: number | null
           storage_location: string | null
@@ -1394,6 +1395,7 @@ export type Database = {
           received_by?: string | null
           receiver_name: string
           sds_attached?: boolean
+          serial_number?: string | null
           shelf_life_months?: number | null
           shipping_cost?: number | null
           storage_location?: string | null
@@ -1444,6 +1446,7 @@ export type Database = {
           received_by?: string | null
           receiver_name?: string
           sds_attached?: boolean
+          serial_number?: string | null
           shelf_life_months?: number | null
           shipping_cost?: number | null
           storage_location?: string | null
@@ -1645,6 +1648,27 @@ export type Database = {
           created_by?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      nc_candidate_residues: {
+        Row: {
+          candidate_id: string
+          candidate_kind: string
+          id: string
+          residue_index: number
+        }
+        Insert: {
+          candidate_id: string
+          candidate_kind: string
+          id?: string
+          residue_index: number
+        }
+        Update: {
+          candidate_id?: string
+          candidate_kind?: string
+          id?: string
+          residue_index?: number
         }
         Relationships: []
       }
@@ -2157,6 +2181,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "nc_spectral_panels_nc_compound_id_fkey"
+            columns: ["nc_compound_id"]
+            isOneToOne: false
+            referencedRelation: "nc_compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nc_structures: {
+        Row: {
+          atom_count: number | null
+          atoms: Json
+          bonds: Json
+          created_at: string
+          generation_source: string | null
+          id: string
+          nc_compound_id: string
+          notes: string | null
+          residues: Json
+          variant_id: string | null
+          variant_kind: string
+        }
+        Insert: {
+          atom_count?: number | null
+          atoms: Json
+          bonds?: Json
+          created_at?: string
+          generation_source?: string | null
+          id?: string
+          nc_compound_id: string
+          notes?: string | null
+          residues?: Json
+          variant_id?: string | null
+          variant_kind: string
+        }
+        Update: {
+          atom_count?: number | null
+          atoms?: Json
+          bonds?: Json
+          created_at?: string
+          generation_source?: string | null
+          id?: string
+          nc_compound_id?: string
+          notes?: string | null
+          residues?: Json
+          variant_id?: string | null
+          variant_kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nc_structures_nc_compound_id_fkey"
             columns: ["nc_compound_id"]
             isOneToOne: false
             referencedRelation: "nc_compounds"

@@ -40,14 +40,18 @@ const COLUMNS: { key: SamplesSortKey; label: string }[] = [
  * component only renders the clickable headers and current rows.
  */
 export function SamplesTable({
-  rows, isLoading, sortKey, sortDir, onSort,
+  rows, isLoading, sortKey, sortDir, onSort, selectedIds, onToggleSelect, onToggleAll,
 }: {
   rows: SampleRow[];
   isLoading: boolean;
   sortKey: SamplesSortKey;
   sortDir: SortDir;
   onSort: (key: SamplesSortKey) => void;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string, checked: boolean) => void;
+  onToggleAll: (checked: boolean) => void;
 }) {
+  const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
   const qc = useQueryClient();
   const setFlag = useServerFn(setSamplePrepFlag);
   const toggle = useMutation({
@@ -73,6 +77,13 @@ export function SamplesTable({
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
+            <th className="text-left px-3 py-3 font-semibold w-10">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={(v) => onToggleAll(!!v)}
+                aria-label="Select all samples"
+              />
+            </th>
             <th className="text-left px-3 py-3 font-semibold w-10">Prep</th>
             {COLUMNS.map((col) => (
               <th key={col.key} className="text-left px-4 py-3 font-semibold">
@@ -93,12 +104,19 @@ export function SamplesTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
+          {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
           {!isLoading && rows.length === 0 && (
-            <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No samples match.</td></tr>
+            <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No samples match.</td></tr>
           )}
           {rows.map(s => (
             <tr key={s.id} className="hover:bg-muted/30 cursor-pointer">
+              <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                <Checkbox
+                  checked={selectedIds.has(s.id)}
+                  onCheckedChange={(v) => onToggleSelect(s.id, !!v)}
+                  aria-label={`Select ${s.batch_id}`}
+                />
+              </td>
               <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                 <Checkbox
                   checked={!!s.prep_flag}

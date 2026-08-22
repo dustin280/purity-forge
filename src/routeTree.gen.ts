@@ -20,6 +20,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
+import { Route as AuthenticatedCompoundExplorerRouteImport } from './routes/_authenticated/compound-explorer'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
@@ -80,6 +81,7 @@ import { Route as AuthenticatedAdminHplcColumnsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
+import { Route as AuthenticatedAdminApiTesterRouteImport } from './routes/_authenticated/admin/api-tester'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
 import { Route as AuthenticatedNonConformityLibraryIndexRouteImport } from './routes/_authenticated/non-conformity/library/index'
@@ -162,6 +164,12 @@ const AuthenticatedIntakeRoute = AuthenticatedIntakeRouteImport.update({
   path: '/intake',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCompoundExplorerRoute =
+  AuthenticatedCompoundExplorerRouteImport.update({
+    id: '/compound-explorer',
+    path: '/compound-explorer',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
@@ -514,6 +522,12 @@ const AuthenticatedAdminAuditLogRoute =
     path: '/admin/audit-log',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminApiTesterRoute =
+  AuthenticatedAdminApiTesterRouteImport.update({
+    id: '/admin/api-tester',
+    path: '/admin/api-tester',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminAccessLogsRoute =
   AuthenticatedAdminAccessLogsRouteImport.update({
     id: '/admin/access-logs',
@@ -672,6 +686,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/library': typeof AuthenticatedLibraryRoute
@@ -680,6 +695,7 @@ export interface FileRoutesByFullPath {
   '/api/chat-column-advisor': typeof ApiChatColumnAdvisorRoute
   '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
+  '/admin/api-tester': typeof AuthenticatedAdminApiTesterRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
@@ -769,6 +785,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/library': typeof AuthenticatedLibraryRoute
@@ -778,6 +795,7 @@ export interface FileRoutesByTo {
   '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
+  '/admin/api-tester': typeof AuthenticatedAdminApiTesterRoute
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
@@ -869,6 +887,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/_authenticated/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/_authenticated/intake': typeof AuthenticatedIntakeRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
@@ -878,6 +897,7 @@ export interface FileRoutesById {
   '/api/chat-troubleshooting': typeof ApiChatTroubleshootingRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/access-logs': typeof AuthenticatedAdminAccessLogsRoute
+  '/_authenticated/admin/api-tester': typeof AuthenticatedAdminApiTesterRoute
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
@@ -970,6 +990,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
+    | '/compound-explorer'
     | '/intake'
     | '/integrations'
     | '/library'
@@ -978,6 +999,7 @@ export interface FileRouteTypes {
     | '/api/chat-column-advisor'
     | '/api/chat-troubleshooting'
     | '/admin/access-logs'
+    | '/admin/api-tester'
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
@@ -1067,6 +1089,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
+    | '/compound-explorer'
     | '/intake'
     | '/integrations'
     | '/library'
@@ -1076,6 +1099,7 @@ export interface FileRouteTypes {
     | '/api/chat-troubleshooting'
     | '/'
     | '/admin/access-logs'
+    | '/admin/api-tester'
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
@@ -1166,6 +1190,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/_authenticated/chain-of-custody'
+    | '/_authenticated/compound-explorer'
     | '/_authenticated/intake'
     | '/_authenticated/integrations'
     | '/_authenticated/library'
@@ -1175,6 +1200,7 @@ export interface FileRouteTypes {
     | '/api/chat-troubleshooting'
     | '/_authenticated/'
     | '/_authenticated/admin/access-logs'
+    | '/_authenticated/admin/api-tester'
     | '/_authenticated/admin/audit-log'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
@@ -1354,6 +1380,13 @@ declare module '@tanstack/react-router' {
       path: '/intake'
       fullPath: '/intake'
       preLoaderRoute: typeof AuthenticatedIntakeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/compound-explorer': {
+      id: '/_authenticated/compound-explorer'
+      path: '/compound-explorer'
+      fullPath: '/compound-explorer'
+      preLoaderRoute: typeof AuthenticatedCompoundExplorerRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/chain-of-custody': {
@@ -1776,6 +1809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAuditLogRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/api-tester': {
+      id: '/_authenticated/admin/api-tester'
+      path: '/admin/api-tester'
+      fullPath: '/admin/api-tester'
+      preLoaderRoute: typeof AuthenticatedAdminApiTesterRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/access-logs': {
       id: '/_authenticated/admin/access-logs'
       path: '/admin/access-logs'
@@ -2007,6 +2047,7 @@ const AuthenticatedSamplePrepRecordsRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedChainOfCustodyRoute: typeof AuthenticatedChainOfCustodyRoute
+  AuthenticatedCompoundExplorerRoute: typeof AuthenticatedCompoundExplorerRoute
   AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
@@ -2014,6 +2055,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedVialLabelsRoute: typeof AuthenticatedVialLabelsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAdminAccessLogsRoute: typeof AuthenticatedAdminAccessLogsRoute
+  AuthenticatedAdminApiTesterRoute: typeof AuthenticatedAdminApiTesterRoute
   AuthenticatedAdminAuditLogRoute: typeof AuthenticatedAdminAuditLogRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
@@ -2091,6 +2133,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChainOfCustodyRoute: AuthenticatedChainOfCustodyRoute,
+  AuthenticatedCompoundExplorerRoute: AuthenticatedCompoundExplorerRoute,
   AuthenticatedIntakeRoute: AuthenticatedIntakeRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
@@ -2098,6 +2141,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedVialLabelsRoute: AuthenticatedVialLabelsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAdminAccessLogsRoute: AuthenticatedAdminAccessLogsRoute,
+  AuthenticatedAdminApiTesterRoute: AuthenticatedAdminApiTesterRoute,
   AuthenticatedAdminAuditLogRoute: AuthenticatedAdminAuditLogRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,

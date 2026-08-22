@@ -1,0 +1,1 @@
+ALTER TABLE public.material_receipts ADD COLUMN IF NOT EXISTS serial_number text;

@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { listMaterialReceipts } from "@/lib/material-receipts.functions";
 import { Button } from "@/components/ui/button";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Camera } from "lucide-react";
 import { qk } from "@/lib/query-keys";
 import { ReceiptsFiltersCard, type MaterialTypeFilter } from "@/components/material-receipts/filters-card";
 import { ReceiptsList } from "@/components/material-receipts/receipts-list";
+import { ScanNewItemDialog } from "@/components/material-receipts/scan-dialog";
 export const Route = createFileRoute("/_authenticated/material-receipts/")({
   component: ReceiptsIndex,
 });
@@ -18,6 +19,7 @@ function ReceiptsIndex() {
   const [materialType, setMaterialType] = useState<MaterialTypeFilter>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
 
   const filters = useMemo(
     () => ({
@@ -45,11 +47,12 @@ function ReceiptsIndex() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setScanOpen(true)}><Camera className="size-4 mr-1" /> Scan New Item</Button>
           <Link to="/material-receipts/accounting-report">
             <Button variant="outline"><FileText className="size-4 mr-1" /> Accounting Report</Button>
           </Link>
           <Link to="/material-receipts/new">
-            <Button><Plus className="size-4 mr-1" /> New Receipt</Button>
+            <Button variant="outline"><Plus className="size-4 mr-1" /> New Receipt</Button>
           </Link>
         </div>
       </div>
@@ -62,6 +65,8 @@ function ReceiptsIndex() {
       />
 
       <ReceiptsList rows={rows} isLoading={isLoading} />
+
+      <ScanNewItemDialog open={scanOpen} onOpenChange={setScanOpen} />
     </div>
   );
 }

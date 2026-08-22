@@ -18,6 +18,7 @@ export interface ReceiptFormValues {
   manufacturer: string;
   manufacturer_lot: string;
   catalog_number: string;
+  serial_number: string;
   expiry_date: string;
   container_details: string;
   coa_attached: boolean;
@@ -76,6 +77,7 @@ export function emptyValues(receiverName: string): ReceiptFormValues {
     manufacturer: "",
     manufacturer_lot: "",
     catalog_number: "",
+    serial_number: "",
     expiry_date: "",
     container_details: "",
     coa_attached: false,
@@ -121,6 +123,7 @@ export function valuesToPayload(v: ReceiptFormValues) {
     manufacturer: v.material_type === "controlled" ? v.manufacturer : null,
     manufacturer_lot: v.material_type === "controlled" ? v.manufacturer_lot : null,
     catalog_number: v.material_type === "controlled" ? v.catalog_number : null,
+    serial_number: v.serial_number || null,
     expiry_date: v.material_type === "controlled" && v.expiry_date ? v.expiry_date : null,
     container_details: v.material_type === "controlled" ? v.container_details : null,
     coa_attached: v.coa_attached,

@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { listSamples } from "@/lib/lims.functions";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Tags } from "lucide-react";
+import { PrintLabelsDialog } from "@/components/samples/print-labels-dialog";
 import { qk } from "@/lib/query-keys";
 import { toDisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 import { SamplesFiltersCard, type SampleStatusFilter } from "@/components/samples/filters-card";
@@ -38,6 +39,8 @@ function SamplesList() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [pageSize, setPageSize] = useState<number>(20);
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [labelsOpen, setLabelsOpen] = useState(false);
 
   function handleSort(key: SamplesSortKey) {
     if (key === sortKey) {
@@ -74,6 +77,24 @@ function SamplesList() {
   const currentPage = Math.min(page, totalPages);
   const paged = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  const selectedSamples = sorted.filter((s) => selectedIds.has(s.id));
+
+  function toggleSelect(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAll(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const r of paged) { if (checked) next.add(r.id); else next.delete(r.id); }
+      return next;
+    });
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px]">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -81,7 +102,12 @@ function SamplesList() {
           <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Specimen Registry</div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Samples</h1>
         </div>
-        <Button asChild><Link to="/samples/new"><Plus className="size-4 mr-1" />New Sample</Link></Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" disabled={selectedIds.size === 0} onClick={() => setLabelsOpen(true)}>
+            <Tags className="size-4 mr-1" />Print Labels{selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}
+          </Button>
+          <Button asChild><Link to="/samples/new"><Plus className="size-4 mr-1" />New Sample</Link></Button>
+        </div>
       </div>
 
       <SamplesFiltersCard q={q} setQ={(v) => { setQ(v); setPage(1); }} filter={filter} setFilter={(v) => { setFilter(v); setPage(1); }} prepOnly={prepOnly} setPrepOnly={(v) => { setPrepOnly(v); setPage(1); }} />
@@ -101,7 +127,9 @@ function SamplesList() {
         </div>
       </div>
 
-      <SamplesTable rows={paged} isLoading={isLoading} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+      <SamplesTable rows={paged} isLoading={isLoading} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} selectedIds={selectedIds} onToggleSelect={toggleSelect} onToggleAll={toggleAll} />
+
+      <PrintLabelsDialog open={labelsOpen} onOpenChange={setLabelsOpen} samples={selectedSamples} />
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between gap-3">
