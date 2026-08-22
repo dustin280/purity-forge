@@ -106,6 +106,23 @@ function Atoms({ atoms, positions, highlighted }: { atoms: StructureAtom[]; posi
   );
 }
 
+function Controls({ controls }: { controls: React.RefObject<OrbitControls | null> }) {
+  const camera = useThree(s => s.camera);
+  const gl = useThree(s => s.gl);
+  useEffect(() => {
+    const c = new OrbitControls(camera, gl.domElement);
+    c.enableDamping = true;
+    c.dampingFactor = 0.1;
+    controls.current = c;
+    return () => {
+      c.dispose();
+      controls.current = null;
+    };
+  }, [camera, gl, controls]);
+  useFrame(() => controls.current?.update());
+  return null;
+}
+
 function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; controls: React.RefObject<{ target: THREE.Vector3; update: () => void } | null> }) {
   const goal = useRef<THREE.Vector3 | null>(null);
   useEffect(() => {
