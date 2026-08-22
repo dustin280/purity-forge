@@ -1344,6 +1344,7 @@ export type Database = {
           received_by: string | null
           receiver_name: string
           sds_attached: boolean
+          serial_number: string | null
           shelf_life_months: number | null
           shipping_cost: number | null
           storage_location: string | null
@@ -1394,6 +1395,7 @@ export type Database = {
           received_by?: string | null
           receiver_name: string
           sds_attached?: boolean
+          serial_number?: string | null
           shelf_life_months?: number | null
           shipping_cost?: number | null
           storage_location?: string | null
@@ -1444,6 +1446,7 @@ export type Database = {
           received_by?: string | null
           receiver_name?: string
           sds_attached?: boolean
+          serial_number?: string | null
           shelf_life_months?: number | null
           shipping_cost?: number | null
           storage_location?: string | null

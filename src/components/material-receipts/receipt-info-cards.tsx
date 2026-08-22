@@ -21,6 +21,7 @@ type ReceiptDetail = {
   manufacturer: string | null;
   manufacturer_lot: string | null;
   catalog_number: string | null;
+  serial_number: string | null;
   expiry_date: string | null;
   container_details: string | null;
   internal_lot: string | null;
@@ -81,6 +82,7 @@ export function ReceiptInfoCards({ r }: { r: ReceiptDetail }) {
             <InfoRow label="Manufacturer" value={r.manufacturer} />
             <InfoRow label="Mfr. lot" value={r.manufacturer_lot} />
             <InfoRow label="Catalog #" value={r.catalog_number} />
+            <InfoRow label="Serial #" value={r.serial_number} />
             <InfoRow label="Expiry" value={r.expiry_date} />
             <InfoRow label="Container" value={r.container_details} />
             <InfoRow label="Internal lot" value={r.internal_lot} />
