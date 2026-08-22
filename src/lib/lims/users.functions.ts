@@ -136,7 +136,9 @@ export const resetUserPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     await assertAdmin(context.supabase, context.userId);
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: data.password });
+    // email_confirm ensures a reset also activates a never-confirmed invite,
+    // otherwise sign-in still fails with "Email not confirmed".
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, { password: data.password, email_confirm: true });
     if (error) throw error;
     return { ok: true };
   });
