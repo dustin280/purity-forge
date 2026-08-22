@@ -37,11 +37,20 @@ function elementColor(el: string) {
   return CPK[el.toUpperCase()] ?? DEFAULT_COLOR;
 }
 
+/** Emissive ring colour for atoms altered by a non-conformance transform. */
+const CHANGED_COLOR = "#ff2d55";
+
 type Props = {
   atoms: StructureAtom[];
   bonds: StructureBond[];
   highlighted: Set<number>;
   focusKey: string;
+  /**
+   * Atoms added or transformed relative to the native structure. Rendered
+   * with a distinct emissive tint so the structural change reads at a glance,
+   * independent of (and layered under) the residue highlight.
+   */
+  changed?: Set<number>;
 };
 
 function Bonds({ atoms, bonds, positions }: { atoms: StructureAtom[]; bonds: StructureBond[]; positions: Map<number, THREE.Vector3> }) {
@@ -79,23 +88,39 @@ function Bonds({ atoms, bonds, positions }: { atoms: StructureAtom[]; bonds: Str
   );
 }
 
-function Atoms({ atoms, positions, highlighted }: { atoms: StructureAtom[]; positions: Map<number, THREE.Vector3>; highlighted: Set<number> }) {
+function Atoms({
+  atoms,
+  positions,
+  highlighted,
+  changed,
+}: {
+  atoms: StructureAtom[];
+  positions: Map<number, THREE.Vector3>;
+  highlighted: Set<number>;
+  changed: Set<number>;
+}) {
   return (
     <group>
       {atoms.map(a => {
         const p = positions.get(a.id)!;
         const on = highlighted.size > 0 && highlighted.has(a.id);
         const dim = highlighted.size > 0 && !on;
-        const r = (RADIUS[a.element.toUpperCase()] ?? 0.36) * (on ? 1.35 : 1);
+        const isChanged = changed.has(a.id);
+        // A residue click still wins the emissive slot; otherwise a changed
+        // atom glows in the non-conformance colour so the edit site is obvious.
+        const emissive = on ? elementColor(a.element) : isChanged ? CHANGED_COLOR : "#000000";
+        const emissiveIntensity = on ? 0.75 : isChanged ? 0.9 : 0;
+        const scale = on ? 1.35 : isChanged ? 1.25 : 1;
+        const r = (RADIUS[a.element.toUpperCase()] ?? 0.36) * scale;
         return (
           <mesh key={a.id} position={p}>
             <sphereGeometry args={[r, 20, 20]} />
             <meshStandardMaterial
               color={elementColor(a.element)}
-              emissive={on ? elementColor(a.element) : "#000000"}
-              emissiveIntensity={on ? 0.75 : 0}
-              transparent={dim}
-              opacity={dim ? 0.25 : 1}
+              emissive={emissive}
+              emissiveIntensity={emissiveIntensity}
+              transparent={dim && !isChanged}
+              opacity={dim && !isChanged ? 0.25 : 1}
               roughness={0.35}
               metalness={0.05}
             />
@@ -138,7 +163,8 @@ function CameraFocus({ target, controls }: { target: THREE.Vector3 | null; contr
   return null;
 }
 
-export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
+export function MoleculeViewer({ atoms, bonds, highlighted, focusKey, changed }: Props) {
+  const changedSet = useMemo(() => changed ?? new Set<number>(), [changed]);
   const controls = useRef<OrbitControls | null>(null);
 
   const { positions, center, radius } = useMemo(() => {
@@ -178,7 +204,7 @@ export function MoleculeViewer({ atoms, bonds, highlighted, focusKey }: Props) {
       <ambientLight intensity={0.7} />
       <directionalLight position={[6, 8, 10]} intensity={1.1} />
       <directionalLight position={[-8, -4, -6]} intensity={0.4} />
-      <Atoms atoms={atoms} positions={positions} highlighted={highlighted} />
+      <Atoms atoms={atoms} positions={positions} highlighted={highlighted} changed={changedSet} />
       <Bonds atoms={atoms} bonds={bonds} positions={positions} />
       <Controls controls={controls} />
       <CameraFocus target={focusTarget} controls={controls} />
