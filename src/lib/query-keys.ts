@@ -235,6 +235,12 @@ export const qk = {
     incubator: (testId: string) => ["sample-storage", "incubator", testId] as const,
   },
 
+  sterilityPrep: {
+    all: ["sterility-prep"] as const,
+    status: (testId: string) => ["sterility-prep", testId] as const,
+    mediaLots: (mediaName: "FTM" | "TSB") => ["sterility-prep", "media-lots", mediaName] as const,
+  },
+
   instrumentInventory: {
     all: ["instrument-inventory"] as const,
     list: (activeOnly: boolean) => ["instrument-inventory", activeOnly] as const,

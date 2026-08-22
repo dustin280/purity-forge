@@ -11,10 +11,14 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { releaseSlotForSample } from "@/lib/lims/storage-assignment.functions";
 
+// FTM and TSB are read independently (USP <71> direct inoculation) —
+// verdict is derived server-side below (fail if either tube shows growth),
+// same spirit as endotoxin's derived pass/fail, rather than trusted from
+// the client.
 const sterilityData = z.object({
-  verdict: z.enum(["pass", "fail", "inconclusive"]),
+  ftm_result: z.enum(["clear", "turbid"]),
+  tsb_result: z.enum(["clear", "turbid"]),
   method: z.string().min(1).max(255),
-  media: z.string().max(255).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
 });
 
@@ -48,11 +52,14 @@ export const saveNonchromResult = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Endotoxin's pass/fail is derived server-side rather than trusted from
-    // the client, same spirit as purityVerdict being computed, not stored.
+    // Endotoxin's and sterility's pass/fail are derived server-side rather
+    // than trusted from the client, same spirit as purityVerdict being
+    // computed, not stored. Sterility fails if either tube shows growth.
     const payload = data.test_type === "endotoxin"
       ? { ...data.data, verdict: data.data.result_value <= data.data.limit ? "pass" : "fail" }
-      : data.data;
+      : data.test_type === "sterility"
+        ? { ...data.data, verdict: data.data.ftm_result === "turbid" || data.data.tsb_result === "turbid" ? "fail" : "pass" }
+        : data.data;
     const { data: row, error } = await supabase.from("nonchrom_results").insert({
       test_id: data.testId, test_type: data.test_type, data: payload, analyst_id: userId,
     }).select().single();

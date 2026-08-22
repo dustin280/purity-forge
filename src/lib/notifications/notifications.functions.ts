@@ -179,3 +179,49 @@ export async function notifyNewIntake(
     console.error("notifyNewIntake failed", e);
   }
 }
+
+export type IncubationAlertSummary = {
+  kind: "interim_check" | "readout";
+  batchId: string;
+  dayCount: number;
+};
+
+/**
+ * Fired by the incubation watcher (src/lib/lims/incubation-watcher.functions.ts)
+ * when a sterility prep crosses its interim-check or readout threshold.
+ * Same send shape as notifyNewIntake — never throws, logs failures only.
+ */
+export async function notifyIncubationReady(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  summary: IncubationAlertSummary,
+): Promise<void> {
+  try {
+    const { data: recipients, error } = await supabase
+      .from("notification_recipients")
+      .select("name, email, phone, notify_email, notify_sms")
+      .eq("is_active", true);
+    if (error) throw error;
+    if (!recipients || recipients.length === 0) return;
+
+    const label = summary.kind === "interim_check" ? "mid-incubation check" : "day-14 readout";
+    const subject = `Sterility ${label} ready — ${summary.batchId}`;
+    const emailBody = [
+      `Sample ${summary.batchId} is ready for its ${label} (day ${summary.dayCount} of incubation).`,
+      `View: https://syxlab.org/samples/${summary.batchId}`,
+    ].join("\n");
+    const smsBody = `Sterility ${label} ready: ${summary.batchId} (day ${summary.dayCount}). syxlab.org`;
+
+    const sends = recipients.flatMap((r) => {
+      const jobs: Promise<void>[] = [];
+      if (r.notify_email && r.email) jobs.push(sendEmail(r.email, subject, emailBody));
+      if (r.notify_sms && r.phone) jobs.push(sendSms(r.phone, smsBody));
+      return jobs;
+    });
+    const results = await Promise.allSettled(sends);
+    for (const res of results) {
+      if (res.status === "rejected") console.error("notifyIncubationReady: send failed", res.reason);
+    }
+  } catch (e) {
+    console.error("notifyIncubationReady failed", e);
+  }
+}

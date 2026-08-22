@@ -39,6 +39,7 @@ import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
 import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
+import { Route as ApiCronIncubationWatcherRouteImport } from './routes/api/cron/incubation-watcher'
 import { Route as ApiCronCalQcWatcherRouteImport } from './routes/api/cron/cal-qc-watcher'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
@@ -274,6 +275,12 @@ const ApiCronPressureLogRoute = ApiCronPressureLogRouteImport.update({
   path: '/api/cron/pressure-log',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronIncubationWatcherRoute =
+  ApiCronIncubationWatcherRouteImport.update({
+    id: '/api/cron/incubation-watcher',
+    path: '/api/cron/incubation-watcher',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiCronCalQcWatcherRoute = ApiCronCalQcWatcherRouteImport.update({
   id: '/api/cron/cal-qc-watcher',
   path: '/api/cron/cal-qc-watcher',
@@ -738,6 +745,7 @@ export interface FileRoutesByFullPath {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -838,6 +846,7 @@ export interface FileRoutesByTo {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -940,6 +949,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -1042,6 +1052,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin/'
@@ -1142,6 +1153,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/admin'
@@ -1243,6 +1255,7 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/_authenticated/admin/'
@@ -1294,6 +1307,7 @@ export interface RootRouteChildren {
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
   ApiCronCalQcWatcherRoute: typeof ApiCronCalQcWatcherRoute
+  ApiCronIncubationWatcherRoute: typeof ApiCronIncubationWatcherRoute
   ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
@@ -1513,6 +1527,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/pressure-log'
       fullPath: '/api/cron/pressure-log'
       preLoaderRoute: typeof ApiCronPressureLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/incubation-watcher': {
+      id: '/api/cron/incubation-watcher'
+      path: '/api/cron/incubation-watcher'
+      fullPath: '/api/cron/incubation-watcher'
+      preLoaderRoute: typeof ApiCronIncubationWatcherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/cal-qc-watcher': {
@@ -2261,6 +2282,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
   ApiCronCalQcWatcherRoute: ApiCronCalQcWatcherRoute,
+  ApiCronIncubationWatcherRoute: ApiCronIncubationWatcherRoute,
   ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
