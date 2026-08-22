@@ -23,6 +23,9 @@ export function ReceiptManufacturerCard({
         <ReceiptField label="Catalog / part number">
           <Input value={v.catalog_number} onChange={e => up("catalog_number", e.target.value)} maxLength={100} />
         </ReceiptField>
+        <ReceiptField label="Serial number">
+          <Input value={v.serial_number} onChange={e => up("serial_number", e.target.value)} maxLength={100} />
+        </ReceiptField>
         <ReceiptField label="Expiry / retest date">
           <Input type="date" value={v.expiry_date} onChange={e => up("expiry_date", e.target.value)} />
         </ReceiptField>

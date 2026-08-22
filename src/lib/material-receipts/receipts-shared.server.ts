@@ -26,6 +26,7 @@ export interface MaterialReceiptRow {
   manufacturer: string | null;
   manufacturer_lot: string | null;
   catalog_number: string | null;
+  serial_number: string | null;
   expiry_date: string | null;
   container_details: string | null;
   coa_attached: boolean;
@@ -86,6 +87,7 @@ export const receiptPayloadSchema = z.object({
   manufacturer: z.string().max(255).nullable().optional(),
   manufacturer_lot: z.string().max(100).nullable().optional(),
   catalog_number: z.string().max(100).nullable().optional(),
+  serial_number: z.string().max(100).nullable().optional(),
   expiry_date: z.string().nullable().optional(),
   container_details: z.string().max(500).nullable().optional(),
   coa_attached: z.boolean().optional(),
