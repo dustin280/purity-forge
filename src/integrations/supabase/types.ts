@@ -3139,6 +3139,7 @@ export type Database = {
           removed_at: string | null
           sample_id: string
           status: string
+          storage_slot_id: string | null
           tray_position_id: string | null
           updated_at: string
         }
@@ -3154,6 +3155,7 @@ export type Database = {
           removed_at?: string | null
           sample_id: string
           status?: string
+          storage_slot_id?: string | null
           tray_position_id?: string | null
           updated_at?: string
         }
@@ -3169,6 +3171,7 @@ export type Database = {
           removed_at?: string | null
           sample_id?: string
           status?: string
+          storage_slot_id?: string | null
           tray_position_id?: string | null
           updated_at?: string
         }
@@ -3178,6 +3181,13 @@ export type Database = {
             columns: ["sample_id"]
             isOneToOne: false
             referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sample_locations_storage_slot_id_fkey"
+            columns: ["storage_slot_id"]
+            isOneToOne: false
+            referencedRelation: "storage_slots"
             referencedColumns: ["id"]
           },
           {
@@ -5002,6 +5012,86 @@ export type Database = {
         }
         Relationships: []
       }
+      storage_slots: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          status: Database["public"]["Enums"]["storage_slot_status"]
+          storage_unit_id: string
+          tray_number: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          status?: Database["public"]["Enums"]["storage_slot_status"]
+          storage_unit_id: string
+          tray_number: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          status?: Database["public"]["Enums"]["storage_slot_status"]
+          storage_unit_id?: string
+          tray_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_slots_storage_unit_id_fkey"
+            columns: ["storage_unit_id"]
+            isOneToOne: false
+            referencedRelation: "storage_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      storage_units: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          manufacturer: string | null
+          model: string | null
+          name: string
+          notes: string | null
+          serial_number: string | null
+          tray_count: number | null
+          unit_type: Database["public"]["Enums"]["storage_unit_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manufacturer?: string | null
+          model?: string | null
+          name: string
+          notes?: string | null
+          serial_number?: string | null
+          tray_count?: number | null
+          unit_type: Database["public"]["Enums"]["storage_unit_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manufacturer?: string | null
+          model?: string | null
+          name?: string
+          notes?: string | null
+          serial_number?: string | null
+          tray_count?: number | null
+          unit_type?: Database["public"]["Enums"]["storage_unit_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       syn_id_counters: {
         Row: {
           day: string
@@ -5419,6 +5509,8 @@ export type Database = {
         | "coa"
         | "other"
       standard_prep_status: "draft" | "reviewed" | "approved"
+      storage_slot_status: "available" | "occupied" | "out_of_service"
+      storage_unit_type: "fridge" | "freezer" | "incubator" | "autoclave"
       test_status: "pending" | "running" | "completed" | "failed"
       test_type: "purity" | "sterility" | "endotoxin" | "heavy_metals"
       tray_position_status: "available" | "reserved" | "out_of_service"
@@ -5616,6 +5708,8 @@ export const Constants = {
         "other",
       ],
       standard_prep_status: ["draft", "reviewed", "approved"],
+      storage_slot_status: ["available", "occupied", "out_of_service"],
+      storage_unit_type: ["fridge", "freezer", "incubator", "autoclave"],
       test_status: ["pending", "running", "completed", "failed"],
       test_type: ["purity", "sterility", "endotoxin", "heavy_metals"],
       tray_position_status: ["available", "reserved", "out_of_service"],

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack, Refrigerator } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
@@ -13,6 +13,7 @@ const TILES = [
   { to: "/admin/run-list-columns", title: "Run List Columns", desc: "Manage the columns exported in the OpenLab CDS sequence CSV.", icon: ListChecks },
   { to: "/admin/method-groups", title: "Method Groups", desc: "Priority classes used by the Run List Generator (Polar/Early, General, Hydrophobes, GLP).", icon: Layers },
   { to: "/admin/trays", title: "Multisampler Trays", desc: "Vial layouts and per-position availability used by the Run List Generator.", icon: Grid3x3 },
+  { to: "/admin/storage", title: "Storage & Equipment", desc: "Fridges, freezers, incubators, and autoclaves — manage units and trays, see what's occupied.", icon: Refrigerator },
   { to: "/admin/timesheet-projects", title: "Timesheet Projects", desc: "Project options shown in the Timesheets dropdown.", icon: Clock },
   { to: "/admin/coc-fields", title: "Sample Receipt Fields", desc: "Add, edit, reorder, or remove fields on the Sample Receipt form.", icon: ClipboardList },
   { to: "/admin/access-logs", title: "Access Logs", desc: "View user sign-in and sign-out activity. Filter by date and export to PDF.", icon: ShieldCheck },

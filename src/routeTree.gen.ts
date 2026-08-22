@@ -66,6 +66,7 @@ import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedInstrumentCommOpenlabRouteImport } from './routes/_authenticated/instrument-comm/openlab'
 import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authenticated/admin/trays'
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
+import { Route as AuthenticatedAdminStorageRouteImport } from './routes/_authenticated/admin/storage'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
 import { Route as AuthenticatedAdminReportReconciliationRouteImport } from './routes/_authenticated/admin/report-reconciliation'
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
@@ -429,6 +430,12 @@ const AuthenticatedAdminTimesheetProjectsRoute =
     path: '/admin/timesheet-projects',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminStorageRoute =
+  AuthenticatedAdminStorageRouteImport.update({
+    id: '/admin/storage',
+    path: '/admin/storage',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminRunListColumnsRoute =
   AuthenticatedAdminRunListColumnsRouteImport.update({
     id: '/admin/run-list-columns',
@@ -686,6 +693,7 @@ export interface FileRoutesByFullPath {
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
+  '/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -783,6 +791,7 @@ export interface FileRoutesByTo {
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
+  '/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -882,6 +891,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/_authenticated/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
+  '/_authenticated/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
   '/_authenticated/admin/trays': typeof AuthenticatedAdminTraysRoute
   '/_authenticated/instrument-comm/openlab': typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -981,6 +991,7 @@ export interface FileRouteTypes {
     | '/admin/queue-config'
     | '/admin/report-reconciliation'
     | '/admin/run-list-columns'
+    | '/admin/storage'
     | '/admin/timesheet-projects'
     | '/admin/trays'
     | '/instrument-comm/openlab'
@@ -1078,6 +1089,7 @@ export interface FileRouteTypes {
     | '/admin/queue-config'
     | '/admin/report-reconciliation'
     | '/admin/run-list-columns'
+    | '/admin/storage'
     | '/admin/timesheet-projects'
     | '/admin/trays'
     | '/instrument-comm/openlab'
@@ -1176,6 +1188,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/queue-config'
     | '/_authenticated/admin/report-reconciliation'
     | '/_authenticated/admin/run-list-columns'
+    | '/_authenticated/admin/storage'
     | '/_authenticated/admin/timesheet-projects'
     | '/_authenticated/admin/trays'
     | '/_authenticated/instrument-comm/openlab'
@@ -1665,6 +1678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTimesheetProjectsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/storage': {
+      id: '/_authenticated/admin/storage'
+      path: '/admin/storage'
+      fullPath: '/admin/storage'
+      preLoaderRoute: typeof AuthenticatedAdminStorageRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/run-list-columns': {
       id: '/_authenticated/admin/run-list-columns'
       path: '/admin/run-list-columns'
@@ -2007,6 +2027,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
   AuthenticatedAdminReportReconciliationRoute: typeof AuthenticatedAdminReportReconciliationRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
+  AuthenticatedAdminStorageRoute: typeof AuthenticatedAdminStorageRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
   AuthenticatedAdminTraysRoute: typeof AuthenticatedAdminTraysRoute
   AuthenticatedInstrumentCommOpenlabRoute: typeof AuthenticatedInstrumentCommOpenlabRoute
@@ -2093,6 +2114,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminReportReconciliationRoute:
     AuthenticatedAdminReportReconciliationRoute,
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
+  AuthenticatedAdminStorageRoute: AuthenticatedAdminStorageRoute,
   AuthenticatedAdminTimesheetProjectsRoute:
     AuthenticatedAdminTimesheetProjectsRoute,
   AuthenticatedAdminTraysRoute: AuthenticatedAdminTraysRoute,

@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
 import { provisionTestsForSample } from "@/lib/lims/test-provisioning";
 import { syncVialPhotosForNewSamples } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
+import { assignStorageForNewSamples } from "@/lib/lims/storage-assignment.functions";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -291,6 +292,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
     });
 
     await syncVialPhotosForNewSamples(supabase, samples ?? []);
+    await assignStorageForNewSamples(supabase, samples ?? []);
 
     return { coc, samples: samples ?? [] };
   });

@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InfoRow } from "@/components/samples/info-row";
 import { updateTestSpec } from "@/lib/lims.functions";
 import { syncVialPhotoToReportsDrive } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
+import {
+  listSampleStorageLocations, assignSampleStorage, moveSampleStorage, releaseSampleStorage,
+} from "@/lib/lims/storage-assignment.functions";
+import { listAvailableSlotsByType } from "@/lib/storage-units.functions";
 import { qk } from "@/lib/query-keys";
 
 type Sample = {
@@ -28,6 +33,7 @@ type Sample = {
   received_quantity?: number | null;
   received_quantity_unit?: string | null;
   received_purity_percent?: number | null;
+  physical_form?: string | null;
 };
 
 type Test =
@@ -132,6 +138,7 @@ export function SampleInfoTab({
           </p>
         </div>
       </Card>
+      <StorageLocationCard sampleId={sample.id} physicalForm={sample.physical_form ?? null} />
       <Card className="p-5 border-border space-y-4">
         <div>
           <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
@@ -184,5 +191,100 @@ export function SampleInfoTab({
         )}
       </Card>
     </div>
+  );
+}
+
+function StorageLocationCard({ sampleId, physicalForm }: { sampleId: string; physicalForm: string | null }) {
+  const qc = useQueryClient();
+  const listFn = useServerFn(listSampleStorageLocations);
+  const assignFn = useServerFn(assignSampleStorage);
+  const moveFn = useServerFn(moveSampleStorage);
+  const releaseFn = useServerFn(releaseSampleStorage);
+  const listSlotsFn = useServerFn(listAvailableSlotsByType);
+
+  const { data: locations } = useQuery({
+    queryKey: qk.sampleStorage.list(sampleId),
+    queryFn: () => listFn({ data: { sampleId } }),
+  });
+  const active = locations?.find((l) => l.status === "active") ?? null;
+  // Solid/capsule -> freezer, liquid -> fridge (see assignStorageForNewSamples).
+  // Once a location exists, offer trays of that same unit type for "Move".
+  const targetType = (active?.location_type as "fridge" | "freezer" | undefined)
+    ?? (physicalForm === "liquid" ? "fridge" : "freezer");
+
+  const [picking, setPicking] = useState(false);
+  const { data: openSlots } = useQuery({
+    queryKey: ["available-slots", targetType],
+    queryFn: () => listSlotsFn({ data: { unitType: targetType } }),
+    enabled: picking,
+  });
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: qk.sampleStorage.list(sampleId) });
+  }
+
+  const assignMut = useMutation({
+    mutationFn: () => assignFn({ data: { sampleId, unitType: targetType } }),
+    onSuccess: (res) => {
+      if (res.ok) { toast.success(`Assigned to ${res.location}`); invalidate(); }
+      else toast.error(res.reason ?? "No available tray");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const moveMut = useMutation({
+    mutationFn: (newSlotId: string) => moveFn({ data: { sampleId, newSlotId } }),
+    onSuccess: (res) => { toast.success(`Moved to ${res.location}`); setPicking(false); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const releaseMut = useMutation({
+    mutationFn: () => releaseFn({ data: { sampleId, unitType: targetType } }),
+    onSuccess: () => { toast.success("Released"); invalidate(); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <Card className="p-5 border-border">
+      <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Storage Location</h3>
+      {active ? (
+        <div className="space-y-2">
+          <div className="text-sm font-mono">{active.location}</div>
+          <div className="text-[11px] text-muted-foreground">
+            Since {new Date(active.assigned_at).toLocaleString()}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" variant="outline" onClick={() => setPicking((v) => !v)}>Move</Button>
+            <Button size="sm" variant="outline" disabled={releaseMut.isPending} onClick={() => releaseMut.mutate()}>
+              Release
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Not currently assigned to a {targetType}.{!physicalForm && " (No physical form recorded — defaulting to freezer.)"}
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={assignMut.isPending} onClick={() => assignMut.mutate()}>
+              Assign next available
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPicking((v) => !v)}>Pick tray…</Button>
+          </div>
+        </div>
+      )}
+      {picking && (
+        <div className="pt-3 mt-3 border-t border-border">
+          <Select onValueChange={(v) => moveMut.mutate(v)}>
+            <SelectTrigger className="h-8"><SelectValue placeholder={`Open ${targetType} trays…`} /></SelectTrigger>
+            <SelectContent>
+              {(openSlots ?? []).length === 0 ? (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground">No open trays</div>
+              ) : (
+                openSlots!.map((s) => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </Card>
   );
 }

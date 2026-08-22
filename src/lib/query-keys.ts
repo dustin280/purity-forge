@@ -223,6 +223,18 @@ export const qk = {
     detail: (id: string) => ["tray", id] as const,
   },
 
+  storageUnits: {
+    all: ["storage-units"] as const,
+    list: () => ["storage-units"] as const,
+    detail: (id: string) => ["storage-unit", id] as const,
+  },
+
+  sampleStorage: {
+    all: ["sample-storage"] as const,
+    list: (sampleId: string) => ["sample-storage", sampleId] as const,
+    incubator: (testId: string) => ["sample-storage", "incubator", testId] as const,
+  },
+
   instrumentInventory: {
     all: ["instrument-inventory"] as const,
     list: (activeOnly: boolean) => ["instrument-inventory", activeOnly] as const,

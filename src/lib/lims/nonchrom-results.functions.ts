@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { releaseSlotForSample } from "@/lib/lims/storage-assignment.functions";
 
 const sterilityData = z.object({
   verdict: z.enum(["pass", "fail", "inconclusive"]),
@@ -56,6 +57,18 @@ export const saveNonchromResult = createServerFn({ method: "POST" })
       test_id: data.testId, test_type: data.test_type, data: payload, analyst_id: userId,
     }).select().single();
     if (error) throw error;
+
+    // The vial/plate physically comes out of the incubator the moment its
+    // result is read out — auto-release rather than a separate manual
+    // "remove" click. Best-effort: a release hiccup must never fail an
+    // already-saved result.
+    try {
+      const { data: test } = await supabase.from("tests").select("sample_id").eq("id", data.testId).maybeSingle();
+      if (test) await releaseSlotForSample(supabase, test.sample_id, "incubator", data.testId);
+    } catch (e) {
+      console.error(`saveNonchromResult: incubator release failed for test ${data.testId}`, e);
+    }
+
     return row;
   });
 

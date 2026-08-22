@@ -1,9 +1,15 @@
+import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import type { Json } from "@/integrations/supabase/types";
 import { SterilityFields, type SterilityData } from "./sterility-fields";
 import { EndotoxinFields, type EndotoxinData } from "./endotoxin-fields";
 import { HeavyMetalsFields, type HeavyMetalsData } from "./heavy-metals-fields";
 import { NonchromAttachmentsPanel } from "./nonchrom-attachments-panel";
+import { placeSampleInIncubator, getTestIncubatorLocation } from "@/lib/lims/storage-assignment.functions";
+import { qk } from "@/lib/query-keys";
 
 type NonPurityType = "sterility" | "endotoxin" | "heavy_metals";
 
@@ -94,6 +100,10 @@ export function NonchromResultCard({
         </div>
       </div>
 
+      {!latest && (testType === "sterility" || testType === "endotoxin") && (
+        <IncubatorStatus testId={test.id} />
+      )}
+
       {latest ? (
         <SavedSummary testType={testType} data={latest.data} analystName={analystName} date={latest.analysis_date} />
       ) : testType === "sterility" ? (
@@ -106,5 +116,46 @@ export function NonchromResultCard({
 
       {testType === "heavy_metals" && <NonchromAttachmentsPanel testId={test.id} canEdit />}
     </Card>
+  );
+}
+
+/** Incubator placement for a sterility/endotoxin test that hasn't been
+ * resulted yet. Placement is manual (a physical event happening at the
+ * bench); release is automatic the moment a result is saved (see
+ * saveNonchromResult in nonchrom-results.functions.ts) — no separate
+ * "remove from incubator" click needed. */
+function IncubatorStatus({ testId }: { testId: string }) {
+  const qc = useQueryClient();
+  const getFn = useServerFn(getTestIncubatorLocation);
+  const placeFn = useServerFn(placeSampleInIncubator);
+
+  const { data: loc } = useQuery({
+    queryKey: qk.sampleStorage.incubator(testId),
+    queryFn: () => getFn({ data: { testId } }),
+  });
+
+  const placeMut = useMutation({
+    mutationFn: () => placeFn({ data: { testId } }),
+    onSuccess: (res) => {
+      if (res.ok) { toast.success(`Placed in ${res.location}`); qc.invalidateQueries({ queryKey: qk.sampleStorage.incubator(testId) }); }
+      else toast.error(res.reason ?? "No available incubator tray");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (loc) {
+    return (
+      <div className="text-xs rounded border border-border bg-muted/40 px-3 py-2">
+        Incubating in <span className="font-mono">{loc.location}</span> since{" "}
+        {new Date(loc.assigned_at).toLocaleString()}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <Button size="sm" variant="outline" disabled={placeMut.isPending} onClick={() => placeMut.mutate()}>
+        {placeMut.isPending ? "Placing…" : "Place in Incubator"}
+      </Button>
+    </div>
   );
 }
