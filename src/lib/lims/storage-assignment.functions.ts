@@ -29,17 +29,30 @@ export interface StorageAssignResult {
   location?: string;
 }
 
+type FoundSlot = { unitId: string; unitName: string; slotId: string; slotLabel: string };
+
 async function findAvailableSlot(
   supabase: SupabaseClient,
   unitType: StorageUnitType,
-): Promise<{ unitId: string; unitName: string; slotId: string; slotLabel: string } | null> {
+): Promise<FoundSlot | null> {
   const { data: units } = await supabase
     .from("storage_units")
     .select("id, name")
     .eq("unit_type", unitType)
     .eq("is_active", true)
     .order("name");
-  for (const unit of units ?? []) {
+  return findAvailableSlotInUnits(supabase, (units ?? []).map((u) => ({ id: u.id, name: u.name })));
+}
+
+/** Same lookup as findAvailableSlot, but restricted to a caller-provided
+ * list of units (in the given order) rather than "every active unit of a
+ * type" — used when the analyst has explicitly chosen which physical
+ * incubator(s) they're using (see assignSlotFromUnitList). */
+async function findAvailableSlotInUnits(
+  supabase: SupabaseClient,
+  units: Array<{ id: string; name: string }>,
+): Promise<FoundSlot | null> {
+  for (const unit of units) {
     const { data: slot } = await supabase
       .from("storage_slots")
       .select("id, label")
@@ -51,6 +64,28 @@ async function findAvailableSlot(
     if (slot) return { unitId: unit.id, unitName: unit.name, slotId: slot.id, slotLabel: slot.label };
   }
   return null;
+}
+
+/** Marks a found slot occupied and records the sample_locations row —
+ * shared tail for both assignSlotForSample and assignSlotFromUnitList. */
+async function occupySlot(
+  supabase: SupabaseClient,
+  sampleId: string,
+  unitType: StorageUnitType,
+  found: FoundSlot,
+  tag?: string,
+): Promise<StorageAssignResult> {
+  const { error: slotErr } = await supabase
+    .from("storage_slots").update({ status: "occupied" }).eq("id", found.slotId);
+  if (slotErr) return { ok: false, reason: slotErr.message };
+
+  const location = `${found.unitName} / ${found.slotLabel}`;
+  const { error: locErr } = await supabase.from("sample_locations").insert({
+    sample_id: sampleId, location_type: unitType, location,
+    storage_slot_id: found.slotId, status: "active", notes: tag ?? null,
+  });
+  if (locErr) return { ok: false, reason: locErr.message };
+  return { ok: true, storage_slot_id: found.slotId, location };
 }
 
 /** Core assignment primitive — finds the next open tray of the given unit
@@ -83,17 +118,41 @@ export async function assignSlotForSample(
     const { data: prior } = await dupQuery.maybeSingle();
     if (prior) return { ok: false, reason: `sample already has an active ${unitType} location` };
 
-    const { error: slotErr } = await supabase
-      .from("storage_slots").update({ status: "occupied" }).eq("id", found.slotId);
-    if (slotErr) return { ok: false, reason: slotErr.message };
+    return await occupySlot(supabase, sampleId, unitType, found, tag);
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message };
+  }
+}
 
-    const location = `${found.unitName} / ${found.slotLabel}`;
-    const { error: locErr } = await supabase.from("sample_locations").insert({
-      sample_id: sampleId, location_type: unitType, location,
-      storage_slot_id: found.slotId, status: "active", notes: tag ?? null,
-    });
-    if (locErr) return { ok: false, reason: locErr.message };
-    return { ok: true, storage_slot_id: found.slotId, location };
+/** Same as assignSlotForSample, but only considers the caller-specified
+ * incubator units (in the given order) instead of every active unit of the
+ * type — used by createAnalysisBatch, where the analyst picks which
+ * physical incubator(s) they're actually using rather than having the
+ * software silently choose. Always tagged (a batch's incubator placement is
+ * always per-test, same reasoning as assignSlotForSample's tag param). */
+export async function assignSlotFromUnitList(
+  supabase: SupabaseClient,
+  sampleId: string,
+  unitType: StorageUnitType,
+  unitIds: string[],
+  tag: string,
+): Promise<StorageAssignResult> {
+  try {
+    const { data: units } = await supabase
+      .from("storage_units").select("id, name").in("id", unitIds).eq("is_active", true);
+    const ordered = unitIds
+      .map((id) => (units ?? []).find((u) => u.id === id))
+      .filter((u): u is { id: string; name: string } => !!u);
+    const found = await findAvailableSlotInUnits(supabase, ordered);
+    if (!found) return { ok: false, reason: `no available ${unitType} slot in the selected unit(s)` };
+
+    const { data: prior } = await supabase
+      .from("sample_locations").select("id")
+      .eq("sample_id", sampleId).eq("location_type", unitType).eq("status", "active").eq("notes", tag)
+      .maybeSingle();
+    if (prior) return { ok: false, reason: `sample already has an active ${unitType} location` };
+
+    return await occupySlot(supabase, sampleId, unitType, found, tag);
   } catch (e) {
     return { ok: false, reason: (e as Error).message };
   }

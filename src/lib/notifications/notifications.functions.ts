@@ -182,13 +182,15 @@ export async function notifyNewIntake(
 
 export type IncubationAlertSummary = {
   kind: "interim_check" | "readout";
-  batchId: string;
+  testType: string;
+  batchNumber: string;
+  sampleCount: number;
   dayCount: number;
 };
 
 /**
  * Fired by the incubation watcher (src/lib/lims/incubation-watcher.functions.ts)
- * when a sterility prep crosses its interim-check or readout threshold.
+ * when an analysis batch crosses its interim-check or readout threshold.
  * Same send shape as notifyNewIntake — never throws, logs failures only.
  */
 export async function notifyIncubationReady(
@@ -203,13 +205,13 @@ export async function notifyIncubationReady(
     if (error) throw error;
     if (!recipients || recipients.length === 0) return;
 
-    const label = summary.kind === "interim_check" ? "mid-incubation check" : "day-14 readout";
-    const subject = `Sterility ${label} ready — ${summary.batchId}`;
+    const label = summary.kind === "interim_check" ? "mid-incubation check" : "readout";
+    const subject = `${summary.testType} ${label} ready — ${summary.batchNumber}`;
     const emailBody = [
-      `Sample ${summary.batchId} is ready for its ${label} (day ${summary.dayCount} of incubation).`,
-      `View: https://syxlab.org/samples/${summary.batchId}`,
+      `Batch ${summary.batchNumber} (${summary.sampleCount} sample${summary.sampleCount === 1 ? "" : "s"}) is ready for its ${label} (day ${summary.dayCount} of incubation).`,
+      `View: https://syxlab.org/lab-logs/analysis-batches`,
     ].join("\n");
-    const smsBody = `Sterility ${label} ready: ${summary.batchId} (day ${summary.dayCount}). syxlab.org`;
+    const smsBody = `${summary.testType} ${label} ready: ${summary.batchNumber}, ${summary.sampleCount} sample${summary.sampleCount === 1 ? "" : "s"} (day ${summary.dayCount}). syxlab.org`;
 
     const sends = recipients.flatMap((r) => {
       const jobs: Promise<void>[] = [];

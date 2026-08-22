@@ -5154,103 +5154,145 @@ export type Database = {
         }
         Relationships: []
       }
-      sterility_preps: {
+      analysis_batch_counters: {
         Row: {
-          created_at: string
-          ftm_lot_number: string | null
-          ftm_receipt_id: string | null
-          id: string
-          inoculation_volume_ml: number
-          interim_check_at: string | null
-          interim_check_by: string | null
-          interim_check_notes: string | null
-          interim_check_status: string
-          interim_notified_at: string | null
-          media_volume_ml: number
-          notes: string | null
-          prepared_at: string
-          prepared_by: string | null
-          readout_notified_at: string | null
-          sample_id: string
-          test_id: string
-          tsb_lot_number: string | null
-          tsb_receipt_id: string | null
-          updated_at: string
+          last_seq: number
+          test_type: string
         }
         Insert: {
-          created_at?: string
-          ftm_lot_number?: string | null
-          ftm_receipt_id?: string | null
-          id?: string
-          inoculation_volume_ml?: number
-          interim_check_at?: string | null
-          interim_check_by?: string | null
-          interim_check_notes?: string | null
-          interim_check_status?: string
-          interim_notified_at?: string | null
-          media_volume_ml?: number
-          notes?: string | null
-          prepared_at?: string
-          prepared_by?: string | null
-          readout_notified_at?: string | null
-          sample_id: string
-          test_id: string
-          tsb_lot_number?: string | null
-          tsb_receipt_id?: string | null
-          updated_at?: string
+          last_seq?: number
+          test_type: string
         }
         Update: {
+          last_seq?: number
+          test_type?: string
+        }
+        Relationships: []
+      }
+      analysis_batch_items: {
+        Row: {
+          batch_id: string
+          created_at: string
+          id: string
+          sample_id: string
+          storage_slot_id: string | null
+          test_id: string
+        }
+        Insert: {
+          batch_id: string
           created_at?: string
-          ftm_lot_number?: string | null
-          ftm_receipt_id?: string | null
           id?: string
-          inoculation_volume_ml?: number
-          interim_check_at?: string | null
-          interim_check_by?: string | null
-          interim_check_notes?: string | null
-          interim_check_status?: string
-          interim_notified_at?: string | null
-          media_volume_ml?: number
-          notes?: string | null
-          prepared_at?: string
-          prepared_by?: string | null
-          readout_notified_at?: string | null
+          sample_id: string
+          storage_slot_id?: string | null
+          test_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          id?: string
           sample_id?: string
+          storage_slot_id?: string | null
           test_id?: string
-          tsb_lot_number?: string | null
-          tsb_receipt_id?: string | null
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "sterility_preps_ftm_receipt_id_fkey"
-            columns: ["ftm_receipt_id"]
+            foreignKeyName: "analysis_batch_items_batch_id_fkey"
+            columns: ["batch_id"]
             isOneToOne: false
-            referencedRelation: "material_receipts"
+            referencedRelation: "analysis_batches"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sterility_preps_tsb_receipt_id_fkey"
-            columns: ["tsb_receipt_id"]
-            isOneToOne: false
-            referencedRelation: "material_receipts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sterility_preps_sample_id_fkey"
+            foreignKeyName: "analysis_batch_items_sample_id_fkey"
             columns: ["sample_id"]
             isOneToOne: false
             referencedRelation: "samples"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "sterility_preps_test_id_fkey"
-            columns: ["test_id"]
+            foreignKeyName: "analysis_batch_items_storage_slot_id_fkey"
+            columns: ["storage_slot_id"]
             isOneToOne: false
+            referencedRelation: "storage_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_batch_items_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: true
             referencedRelation: "tests"
             referencedColumns: ["id"]
           },
         ]
+      }
+      analysis_batches: {
+        Row: {
+          batch_number: string
+          created_at: string
+          details: Json
+          id: string
+          incubation_started_at: string | null
+          interim_check_at: string | null
+          interim_check_by: string | null
+          interim_check_notes: string | null
+          interim_check_status: string
+          interim_notified_at: string | null
+          method: string | null
+          performed_at: string
+          performed_by: string | null
+          readout_notified_at: string | null
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          test_type: string
+          updated_at: string
+        }
+        Insert: {
+          batch_number: string
+          created_at?: string
+          details?: Json
+          id?: string
+          incubation_started_at?: string | null
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          method?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          readout_notified_at?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          test_type: string
+          updated_at?: string
+        }
+        Update: {
+          batch_number?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          incubation_started_at?: string | null
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          method?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          readout_notified_at?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          test_type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       storage_slots: {
         Row: {
@@ -5658,6 +5700,7 @@ export type Database = {
         }[]
       }
       next_accession_numbers: { Args: { p_count: number }; Returns: number[] }
+      next_analysis_batch_seq: { Args: { p_test_type: string }; Returns: number }
       next_coc_invoice_number: { Args: never; Returns: string }
       next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }

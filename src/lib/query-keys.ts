@@ -247,6 +247,13 @@ export const qk = {
     mediaLots: (mediaName: "FTM" | "TSB") => ["sterility-prep", "media-lots", mediaName] as const,
   },
 
+  analysisBatches: {
+    all: ["analysis-batches"] as const,
+    list: (testType?: string) => (testType ? (["analysis-batches", testType] as const) : (["analysis-batches"] as const)),
+    detail: (id: string) => ["analysis-batch", id] as const,
+    queue: (testType: string) => ["analysis-batch-queue", testType] as const,
+  },
+
   instrumentInventory: {
     all: ["instrument-inventory"] as const,
     list: (activeOnly: boolean) => ["instrument-inventory", activeOnly] as const,

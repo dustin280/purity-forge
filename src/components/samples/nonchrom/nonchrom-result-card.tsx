@@ -1,20 +1,16 @@
-import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Json } from "@/integrations/supabase/types";
 import { SterilityFields, type SterilityData } from "./sterility-fields";
 import { EndotoxinFields, type EndotoxinData } from "./endotoxin-fields";
 import { HeavyMetalsFields, type HeavyMetalsData } from "./heavy-metals-fields";
 import { NonchromAttachmentsPanel } from "./nonchrom-attachments-panel";
 import { placeSampleInIncubator, getTestIncubatorLocation } from "@/lib/lims/storage-assignment.functions";
-import {
-  listMediaLots, prepAndInoculateSterility, recordInterimCheck, getSterilityPrep,
-} from "@/lib/lims/sterility-prep.functions";
+import { getBatchForTest } from "@/lib/lims/analysis-batches.functions";
 import { qk } from "@/lib/query-keys";
 
 type NonPurityType = "sterility" | "endotoxin" | "heavy_metals";
@@ -110,7 +106,7 @@ export function NonchromResultCard({
         </div>
       </div>
 
-      {!latest && testType === "sterility" && <SterilityIncubationPanel testId={test.id} />}
+      {!latest && testType === "sterility" && <SterilityBatchStatus testId={test.id} />}
       {!latest && testType === "endotoxin" && <IncubatorStatus testId={test.id} />}
 
       {latest ? (
@@ -169,157 +165,36 @@ function IncubatorStatus({ testId }: { testId: string }) {
   );
 }
 
-/** USP <71> direct-inoculation prep + 14-day incubation tracking for a
- * sterility test that hasn't been resulted yet. Prep & Inoculate is one
- * combined action: pick the FTM/TSB lots used, submit, and the sample is
- * both recorded (sterility_preps) and placed in an incubator in the same
- * step (see prepAndInoculateSterility). */
-function SterilityIncubationPanel({ testId }: { testId: string }) {
-  const qc = useQueryClient();
-  const statusFn = useServerFn(getSterilityPrep);
-  const mediaLotsFn = useServerFn(listMediaLots);
-  const prepFn = useServerFn(prepAndInoculateSterility);
-  const checkFn = useServerFn(recordInterimCheck);
-
-  const { data: status } = useQuery({
+/** Read-only status for a sterility test that hasn't been resulted yet —
+ * prep/inoculation now happens as a batch action (Lab Records → Analysis
+ * Batches), not per-sample here. This just shows which batch (if any) the
+ * sample belongs to and links out to it; the readout form below is
+ * unchanged. */
+function SterilityBatchStatus({ testId }: { testId: string }) {
+  const getFn = useServerFn(getBatchForTest);
+  const { data: batch } = useQuery({
     queryKey: qk.sterilityPrep.status(testId),
-    queryFn: () => statusFn({ data: { testId } }),
+    queryFn: () => getFn({ data: { testId } }),
   });
 
-  const [showPrepForm, setShowPrepForm] = useState(false);
-  const [ftmReceiptId, setFtmReceiptId] = useState<string>("");
-  const [tsbReceiptId, setTsbReceiptId] = useState<string>("");
-  const [volumeMl, setVolumeMl] = useState("1.0");
-
-  const { data: ftmLots } = useQuery({
-    queryKey: qk.sterilityPrep.mediaLots("FTM"),
-    queryFn: () => mediaLotsFn({ data: { mediaName: "FTM" } }),
-    enabled: showPrepForm,
-  });
-  const { data: tsbLots } = useQuery({
-    queryKey: qk.sterilityPrep.mediaLots("TSB"),
-    queryFn: () => mediaLotsFn({ data: { mediaName: "TSB" } }),
-    enabled: showPrepForm,
-  });
-
-  function invalidate() {
-    qc.invalidateQueries({ queryKey: qk.sterilityPrep.status(testId) });
-  }
-
-  const prepMut = useMutation({
-    mutationFn: () => prepFn({
-      data: {
-        testId, ftmReceiptId, tsbReceiptId,
-        inoculationVolumeMl: Number(volumeMl) || 1.0,
-      },
-    }),
-    onSuccess: (res) => {
-      toast.success(res.placement.ok ? `Inoculated and placed in ${res.placement.location}` : `Inoculated — ${res.placement.reason ?? "no incubator tray available yet"}`);
-      setShowPrepForm(false);
-      invalidate();
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const [checkNotes, setCheckNotes] = useState("");
-  const checkMut = useMutation({
-    mutationFn: (result: "clear" | "turbid") => checkFn({ data: { testId, result, notes: checkNotes.trim() || null } }),
-    onSuccess: () => { toast.success("Interim check recorded"); setCheckNotes(""); invalidate(); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  if (!status?.prep) {
-    if (!showPrepForm) {
-      return (
-        <Button size="sm" variant="outline" onClick={() => setShowPrepForm(true)}>
-          Prep & Inoculate
-        </Button>
-      );
-    }
+  if (!batch) {
     return (
-      <div className="rounded border border-border p-3 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="text-xs text-muted-foreground">FTM lot</label>
-            <Select value={ftmReceiptId} onValueChange={setFtmReceiptId}>
-              <SelectTrigger className="h-8"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {(ftmLots ?? []).length === 0
-                  ? <div className="px-2 py-1.5 text-xs text-muted-foreground">No released FTM lots found</div>
-                  : ftmLots!.map((l) => (
-                      <SelectItem key={l.receiptId} value={l.receiptId}>
-                        {l.lotNumber}{l.expiryDate ? ` (exp ${l.expiryDate})` : ""}
-                      </SelectItem>
-                    ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">TSB lot</label>
-            <Select value={tsbReceiptId} onValueChange={setTsbReceiptId}>
-              <SelectTrigger className="h-8"><SelectValue placeholder="Select…" /></SelectTrigger>
-              <SelectContent>
-                {(tsbLots ?? []).length === 0
-                  ? <div className="px-2 py-1.5 text-xs text-muted-foreground">No released TSB lots found</div>
-                  : tsbLots!.map((l) => (
-                      <SelectItem key={l.receiptId} value={l.receiptId}>
-                        {l.lotNumber}{l.expiryDate ? ` (exp ${l.expiryDate})` : ""}
-                      </SelectItem>
-                    ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="w-28">
-          <label className="text-xs text-muted-foreground">Volume (mL)</label>
-          <input
-            type="number" step="0.1" min="0.1" value={volumeMl} onChange={(e) => setVolumeMl(e.target.value)}
-            className="h-8 w-full rounded border border-input bg-background px-2 text-sm"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button
-            size="sm" disabled={!ftmReceiptId || !tsbReceiptId || prepMut.isPending}
-            onClick={() => prepMut.mutate()}
-          >
-            {prepMut.isPending ? "Saving…" : "Confirm Prep & Inoculate"}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setShowPrepForm(false)}>Cancel</Button>
-        </div>
+      <div className="text-xs rounded border border-border bg-muted/40 px-3 py-2 flex items-center justify-between gap-2">
+        <span>Not yet part of an analysis batch.</span>
+        <Button asChild size="sm" variant="outline">
+          <Link to="/lab-logs/analysis-batches/new">Start a Batch</Link>
+        </Button>
       </div>
     );
   }
-
-  const { prep, dayOfIncubation, interimCheckDue, readoutDue } = status;
   return (
-    <div className="rounded border border-border p-3 space-y-2 text-xs">
-      <div className="flex items-center justify-between">
-        <div className="font-semibold text-sm">Day {dayOfIncubation} of incubation</div>
-        {readoutDue && (
-          <span className="rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-[10px] uppercase font-semibold">
-            Ready for readout
-          </span>
-        )}
-      </div>
-      <div className="text-muted-foreground">
-        Prepared {new Date(prep.prepared_at).toLocaleString()} · FTM lot {prep.ftm_lot_number ?? "—"} · TSB lot {prep.tsb_lot_number ?? "—"} · {prep.inoculation_volume_ml}mL each
-      </div>
-      {prep.interim_check_status !== "pending" ? (
-        <div className="text-muted-foreground">
-          Interim check: <span className="font-semibold uppercase">{prep.interim_check_status}</span>
-          {prep.interim_check_at ? ` on ${new Date(prep.interim_check_at).toLocaleString()}` : ""}
-          {prep.interim_check_notes ? ` — ${prep.interim_check_notes}` : ""}
-        </div>
-      ) : interimCheckDue ? (
-        <div className="space-y-1.5 pt-1 border-t border-border">
-          <div className="font-semibold">Mid-incubation check due</div>
-          <Textarea rows={1} placeholder="Notes (optional)" value={checkNotes} onChange={(e) => setCheckNotes(e.target.value)} className="text-xs" />
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled={checkMut.isPending} onClick={() => checkMut.mutate("clear")}>Clear</Button>
-            <Button size="sm" variant="outline" disabled={checkMut.isPending} onClick={() => checkMut.mutate("turbid")}>Turbid</Button>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    <Link
+      to="/lab-logs/analysis-batches/$id"
+      params={{ id: batch.batchId }}
+      className="block text-xs rounded border border-border bg-muted/40 px-3 py-2 hover:bg-muted/70"
+    >
+      Batch <span className="font-mono">{batch.batchNumber}</span> · Day {batch.dayOfIncubation} of incubation
+      {batch.slotLabel ? ` · ${batch.slotLabel}` : ""}
+    </Link>
   );
 }

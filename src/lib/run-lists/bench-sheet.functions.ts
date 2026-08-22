@@ -84,7 +84,10 @@ export const getBenchSheet = createServerFn({ method: "GET" })
     const sampleIds = (items ?? []).map((i) => i.sample_id).filter((v): v is string => !!v);
     const prepRecordIds = (items ?? []).map((i) => i.sp_preparation_record_id).filter((v): v is string => !!v);
 
-    const [samplesRes, prepsRes, sterilityRes] = await Promise.all([
+    // Sterility rows have no sp_preparation_record_id (that's HPLC-specific)
+    // — their prep summary instead comes from whichever analysis_batch
+    // their sterility test belongs to (see analysis-batches.functions.ts).
+    const [samplesRes, prepsRes, sterilityTestsRes] = await Promise.all([
       sampleIds.length
         ? context.supabase.from("samples").select("id, batch_id, compound, client").in("id", sampleIds)
         : Promise.resolve({ data: [] as Array<{ id: string; batch_id: string; compound: string | null; client: string }> }),
@@ -93,22 +96,35 @@ export const getBenchSheet = createServerFn({ method: "GET" })
         .in("id", prepRecordIds)
         : Promise.resolve({ data: [] as Array<{ id: string; prep_number: string; status: string; total_dilution_factor: number | null }> }),
       sampleIds.length
-        ? context.supabase.from("sterility_preps").select("sample_id, ftm_lot_number, tsb_lot_number, prepared_at").in("sample_id", sampleIds)
-        : Promise.resolve({ data: [] as Array<{ sample_id: string; ftm_lot_number: string | null; tsb_lot_number: string | null; prepared_at: string }> }),
+        ? context.supabase.from("tests").select("id, sample_id").eq("test_type", "sterility").in("sample_id", sampleIds)
+        : Promise.resolve({ data: [] as Array<{ id: string; sample_id: string }> }),
     ]);
+
+    const sterilityTestIds = (sterilityTestsRes.data ?? []).map((t) => t.id);
+    const { data: batchItems } = sterilityTestIds.length
+      ? await context.supabase.from("analysis_batch_items").select("test_id, batch_id").in("test_id", sterilityTestIds)
+      : { data: [] as Array<{ test_id: string; batch_id: string }> };
+    const batchIds = (batchItems ?? []).map((b) => b.batch_id);
+    const { data: batches } = batchIds.length
+      ? await context.supabase.from("analysis_batches").select("id, batch_number, details, incubation_started_at").in("id", batchIds)
+      : { data: [] as Array<{ id: string; batch_number: string; details: { ftm_lot_number?: string | null; tsb_lot_number?: string | null }; incubation_started_at: string | null }> };
+    const batchById = new Map((batches ?? []).map((b) => [b.id, b]));
+    const batchIdBySterilityTest = new Map((batchItems ?? []).map((b) => [b.test_id, b.batch_id]));
+    const sterilityTestBySample = new Map((sterilityTestsRes.data ?? []).map((t) => [t.sample_id, t.id]));
 
     const sampleById = new Map((samplesRes.data ?? []).map((s) => [s.id, s]));
     const prepById = new Map((prepsRes.data ?? []).map((p) => [p.id, p]));
-    const sterilityBySample = new Map((sterilityRes.data ?? []).map((s) => [s.sample_id, s]));
 
     const rows: BenchSheetRow[] = (items ?? []).map((it) => {
       const sample = it.sample_id ? sampleById.get(it.sample_id) : null;
       const prep = it.sp_preparation_record_id ? prepById.get(it.sp_preparation_record_id) : null;
-      const sterility = it.sample_id ? sterilityBySample.get(it.sample_id) : null;
+      const sterilityTestId = it.sample_id ? sterilityTestBySample.get(it.sample_id) : undefined;
+      const sterilityBatch = sterilityTestId ? batchById.get(batchIdBySterilityTest.get(sterilityTestId) ?? "") : null;
+      const sterilityDetails = sterilityBatch?.details as { ftm_lot_number?: string | null; tsb_lot_number?: string | null } | undefined;
       const prepSummary = prep
         ? `Prep ${prep.prep_number} (${prep.status})${prep.total_dilution_factor ? ` · DF ${prep.total_dilution_factor}x` : ""}`
-        : sterility
-          ? `FTM lot ${sterility.ftm_lot_number ?? "—"} / TSB lot ${sterility.tsb_lot_number ?? "—"} · prepped ${new Date(sterility.prepared_at).toLocaleDateString()}`
+        : sterilityBatch
+          ? `Batch ${sterilityBatch.batch_number} — FTM lot ${sterilityDetails?.ftm_lot_number ?? "—"} / TSB lot ${sterilityDetails?.tsb_lot_number ?? "—"}`
           : null;
       return {
         itemId: it.id,

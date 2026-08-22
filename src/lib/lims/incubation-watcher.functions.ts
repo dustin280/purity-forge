@@ -1,9 +1,11 @@
 /**
  * Hourly watcher (see src/routes/api/cron/incubation-watcher.ts, scheduled
- * via pg_cron in the sterility_preps migration) that notifies the lab when
- * a sterility prep crosses its interim-check or readout threshold.
- * Dedups via interim_notified_at/readout_notified_at so a threshold only
- * ever fires one notification, not one every hour it stays crossed.
+ * via pg_cron in the sterility_preps migration — the trigger function and
+ * cron schedule are unchanged, only what this scans is new) that notifies
+ * the lab when an analysis batch crosses its interim-check or readout
+ * threshold. Dedups via interim_notified_at/readout_notified_at so a
+ * threshold only ever fires one notification, not one every hour it stays
+ * crossed.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyIncubationReady } from "@/lib/notifications/notifications.functions";
@@ -21,41 +23,52 @@ export async function runIncubationWatcher(
   let interimNotified = 0;
   let readoutNotified = 0;
 
+  async function sampleCount(batchId: string): Promise<number> {
+    const { count } = await supabase
+      .from("analysis_batch_items").select("id", { count: "exact", head: true }).eq("batch_id", batchId);
+    return count ?? 0;
+  }
+
   // --- Interim check due ---
   const { data: interimDue } = await supabase
-    .from("sterility_preps")
-    .select("id, test_id, prepared_at, samples(batch_id)")
+    .from("analysis_batches")
+    .select("id, test_type, batch_number, incubation_started_at")
     .eq("interim_check_status", "pending")
     .is("interim_notified_at", null)
-    .lte("prepared_at", interimCutoff);
+    .not("incubation_started_at", "is", null)
+    .lte("incubation_started_at", interimCutoff);
   for (const row of interimDue ?? []) {
-    const batchId = (row.samples as unknown as { batch_id: string } | null)?.batch_id ?? row.test_id;
-    const dayCount = Math.floor((Date.now() - new Date(row.prepared_at).getTime()) / 86_400_000);
-    await notifyIncubationReady(supabase, { kind: "interim_check", batchId, dayCount });
-    await supabase.from("sterility_preps").update({ interim_notified_at: new Date().toISOString() }).eq("id", row.id);
+    const dayCount = Math.floor((Date.now() - new Date(row.incubation_started_at!).getTime()) / 86_400_000);
+    await notifyIncubationReady(supabase, {
+      kind: "interim_check", testType: row.test_type, batchNumber: row.batch_number,
+      sampleCount: await sampleCount(row.id), dayCount,
+    });
+    await supabase.from("analysis_batches").update({ interim_notified_at: new Date().toISOString() }).eq("id", row.id);
     interimNotified++;
   }
 
-  // --- Readout due (no nonchrom_results row for the test yet) ---
+  // --- Readout due (at least one item's test still has no nonchrom_results row) ---
   const { data: readoutCandidates } = await supabase
-    .from("sterility_preps")
-    .select("id, test_id, prepared_at, samples(batch_id)")
+    .from("analysis_batches")
+    .select("id, test_type, batch_number, incubation_started_at")
     .is("readout_notified_at", null)
-    .lte("prepared_at", readoutCutoff);
-  const candidateTestIds = (readoutCandidates ?? []).map((r) => r.test_id);
-  const resultedTestIds = candidateTestIds.length
-    ? new Set(
-        (
-          await supabase.from("nonchrom_results").select("test_id").in("test_id", candidateTestIds)
-        ).data?.map((r) => r.test_id) ?? [],
-      )
-    : new Set<string>();
+    .not("incubation_started_at", "is", null)
+    .lte("incubation_started_at", readoutCutoff);
   for (const row of readoutCandidates ?? []) {
-    if (resultedTestIds.has(row.test_id)) continue;
-    const batchId = (row.samples as unknown as { batch_id: string } | null)?.batch_id ?? row.test_id;
-    const dayCount = Math.floor((Date.now() - new Date(row.prepared_at).getTime()) / 86_400_000);
-    await notifyIncubationReady(supabase, { kind: "readout", batchId, dayCount });
-    await supabase.from("sterility_preps").update({ readout_notified_at: new Date().toISOString() }).eq("id", row.id);
+    const { data: items } = await supabase.from("analysis_batch_items").select("test_id").eq("batch_id", row.id);
+    const testIds = (items ?? []).map((i) => i.test_id);
+    if (!testIds.length) continue;
+    const { data: results } = await supabase.from("nonchrom_results").select("test_id").in("test_id", testIds);
+    const resultedIds = new Set((results ?? []).map((r) => r.test_id));
+    const stillPending = testIds.some((id) => !resultedIds.has(id));
+    if (!stillPending) continue;
+
+    const dayCount = Math.floor((Date.now() - new Date(row.incubation_started_at!).getTime()) / 86_400_000);
+    await notifyIncubationReady(supabase, {
+      kind: "readout", testType: row.test_type, batchNumber: row.batch_number,
+      sampleCount: testIds.length, dayCount,
+    });
+    await supabase.from("analysis_batches").update({ readout_notified_at: new Date().toISOString() }).eq("id", row.id);
     readoutNotified++;
   }
 
