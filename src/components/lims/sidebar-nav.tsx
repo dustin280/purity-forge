@@ -48,6 +48,7 @@ const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; 
       { to: "/lab-journal", label: "Lab Journal", icon: BookOpen },
       { to: "/issues", label: "Issues", icon: MessageSquareWarning },
       { to: "/library", label: "Library", icon: Library },
+      { to: "/compound-explorer", label: "Compound Explorer", icon: Atom },
       { to: "/non-conformity/library", label: "Non-Conformity", icon: ShieldAlert },
       { to: "/maintenance", label: "Maintenance", icon: Wrench },
     ],
