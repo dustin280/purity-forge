@@ -180,22 +180,30 @@ export async function pushVialPhotoToReportsDrive(
  * Mirrors notifyNewIntake's shape (src/lib/notifications/notifications.functions.ts):
  * never throws, failures are logged server-side only, never blocks intake.
  */
+// Photos run several MB each — firing all of a large intake's uploads at
+// the connector gateway simultaneously risks rate-limiting/timeouts there
+// (same class of issue as the .dx auto-match's file-inspection batching).
+const SYNC_CONCURRENCY = 3;
+
 export async function syncVialPhotosForNewSamples(
   supabase: SupabaseClient,
   samples: Array<{ batch_id: string; coc_id: string | null; line_item_index: number | null }>,
 ): Promise<void> {
   try {
-    const results = await Promise.allSettled(
-      samples.map((s) => pushVialPhotoToReportsDrive(supabase, s)),
-    );
-    for (let i = 0; i < results.length; i++) {
-      const res = results[i];
-      if (res.status === "rejected") {
-        console.error(`syncVialPhotosForNewSamples: ${samples[i].batch_id} threw`, res.reason);
-      } else if (!res.value.ok) {
-        console.error(
-          `syncVialPhotosForNewSamples: ${samples[i].batch_id} skipped — ${res.value.reason}`,
-        );
+    for (let i = 0; i < samples.length; i += SYNC_CONCURRENCY) {
+      const batch = samples.slice(i, i + SYNC_CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map((s) => pushVialPhotoToReportsDrive(supabase, s)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const res = results[j];
+        if (res.status === "rejected") {
+          console.error(`syncVialPhotosForNewSamples: ${batch[j].batch_id} threw`, res.reason);
+        } else if (!res.value.ok) {
+          console.error(
+            `syncVialPhotosForNewSamples: ${batch[j].batch_id} skipped — ${res.value.reason}`,
+          );
+        }
       }
     }
   } catch (e) {
