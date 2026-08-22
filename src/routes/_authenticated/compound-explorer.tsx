@@ -3,16 +3,17 @@
  * pre-computed 3D structures with residue highlighting, and load a
  * non-conformance scenario to see what changes structurally.
  */
-import { useMemo, useState, lazy, Suspense } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Atom, Search, ShieldAlert, RotateCcw } from "lucide-react";
+import { ArrowLeft, Atom, Search, ShieldAlert, RotateCcw, Play, Pause } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { diffStructures, describeDiff } from "@/components/compound-explorer/structure-diff";
+import { buildMorph } from "@/components/compound-explorer/morph";
 const MoleculeViewer = lazy(() =>
   import("@/components/compound-explorer/molecule-viewer").then(m => ({ default: m.MoleculeViewer })),
 );
@@ -109,6 +110,11 @@ function CompoundExplorer() {
     [scenarioId, variant, nativeStructure],
   );
 
+  const morph = useMemo(
+    () => (scenarioId && variant ? buildMorph(nativeStructure, variant) : null),
+    [scenarioId, variant, nativeStructure],
+  );
+
   const changeLines = useMemo(() => {
     if (!diff || !variant) return [];
     const byId = new Map(variant.atoms.map(a => [a.id, a.element]));
@@ -121,7 +127,61 @@ function CompoundExplorer() {
     return new Set<number>(r?.atom_ids ?? []);
   }, [activeResidue, residues]);
 
+  /* ---- transition playback -------------------------------------------- */
+  /**
+   * Progress lives in a ref, not state: the viewer samples it every frame, so
+   * routing it through React would re-render a few hundred meshes per frame
+   * for no reason. The slider is likewise driven by writing to its DOM node.
+   */
+  const progressRef = useRef(1);
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const TRANSITION_MS = 2600;
+
+  const setProgress = useCallback((p: number) => {
+    progressRef.current = p;
+    if (sliderRef.current) sliderRef.current.value = String(p);
+  }, []);
+
+  useEffect(() => {
+    if (!playing) return;
+    let cancelled = false;
+    let last = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      if (cancelled) return;
+      const next = progressRef.current + (now - last) / TRANSITION_MS;
+      last = now;
+      if (next >= 1) {
+        setProgress(1);
+        setPlaying(false);
+        return;
+      }
+      setProgress(next);
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
+  }, [playing, setProgress]);
+
+  // Autoplay once a newly picked scenario's geometry has actually arrived.
+  useEffect(() => {
+    if (!morph) return;
+    setProgress(0);
+    setPlaying(true);
+  }, [morph, setProgress]);
+
+  const replay = () => {
+    setProgress(0);
+    setPlaying(true);
+  };
+
   const resetToNative = () => {
+    setPlaying(false);
+    setProgress(1);
     setScenarioId(null);
     setActiveResidue(null);
   };
@@ -244,15 +304,61 @@ function CompoundExplorer() {
                       highlighted={highlighted}
                       focusKey={focusKey}
                       changed={diff?.highlight}
+                      morph={morph}
+                      progressRef={progressRef}
                     />
                   </Suspense>
                 )}
                 {activeScenario && (
-                  <div className="absolute left-3 bottom-3 flex items-center gap-2">
-                    <Button size="sm" variant="secondary" onClick={resetToNative} className="gap-1.5">
-                      <RotateCcw className="size-3.5" /> Back to native
-                    </Button>
-                    {variantLoading && <span className="text-xs text-white/70">Loading variant…</span>}
+                  <div className="absolute inset-x-3 bottom-3 flex flex-col gap-2">
+                    {morph && (
+                      <div className="rounded-md bg-black/55 backdrop-blur px-3 py-2 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="size-7 shrink-0"
+                            onClick={() => (playing ? setPlaying(false) : replay())}
+                            title={playing ? "Pause" : "Replay transition"}
+                          >
+                            {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+                          </Button>
+                          <span className="text-[10px] uppercase tracking-wider text-white/60 w-11">
+                            Native
+                          </span>
+                          <input
+                            ref={sliderRef}
+                            type="range"
+                            min={0}
+                            max={1}
+                            step={0.001}
+                            defaultValue={1}
+                            onChange={e => {
+                              setPlaying(false);
+                              setProgress(Number(e.target.value));
+                            }}
+                            className="flex-1 h-1 accent-[#ff2d55] cursor-pointer"
+                            aria-label="Transition progress from native to impurity"
+                          />
+                          <span className="text-[10px] uppercase tracking-wider text-white/60 w-12 text-right">
+                            Impurity
+                          </span>
+                        </div>
+                        {morph.mode === "crossfade" && (
+                          <div className="text-[10px] text-amber-300/90 leading-snug">
+                            Geometry was re-optimised for this variant, so the two forms share no
+                            common frame — showing a dissolve between them rather than inventing
+                            atom motion.
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="secondary" onClick={resetToNative} className="gap-1.5">
+                        <RotateCcw className="size-3.5" /> Back to native
+                      </Button>
+                      {variantLoading && <span className="text-xs text-white/70">Loading variant…</span>}
+                    </div>
                   </div>
                 )}
               </div>
