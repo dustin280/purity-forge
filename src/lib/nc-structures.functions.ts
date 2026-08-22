@@ -83,11 +83,11 @@ export const getExplorerCompound = createServerFn({ method: "GET" })
     if (error) throw error;
 
     let structure: ExplorerDetail["structure"] = null;
-    if (compound?.compound_id) {
+    if (compound?.id) {
       const { data: row, error: sErr } = await supabase
         .from("nc_structures")
         .select("atoms, bonds, residues, atom_count")
-        .eq("nc_compound_id", compound.compound_id)
+        .eq("nc_compound_id", compound.id)
         .eq("variant_kind", "native")
         .maybeSingle();
       if (sErr) throw sErr;
