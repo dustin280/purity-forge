@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags, FlaskConical, AlertTriangle } from "lucide-react";
+import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags, FlaskConical, AlertTriangle, ClipboardCheck } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
   generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
@@ -18,10 +18,15 @@ import {
 import {
   getRunListPrepCoverage,
 } from "@/lib/sample-prep/run-list-integration.functions";
+import { listBenchSheetStatuses } from "@/lib/run-lists/bench-sheet.functions";
 import { useOpenLabMethods, useOpenLabSettings } from "@/components/instrument-comm/use-openlab";
 import { pushRunListToDrive } from "@/lib/openlab-drive.functions";
 import { listInstruments } from "@/lib/instruments.functions";
 import { qk } from "@/lib/query-keys";
+
+const BENCH_SHEET_STATUS_LABEL: Record<string, string> = {
+  in_progress: "In Progress", completed: "Completed", reviewed: "Reviewed",
+};
 
 export const Route = createFileRoute("/_authenticated/run-lists/$id")({
   component: RunListDetail,
@@ -40,6 +45,7 @@ function RunListDetail() {
   const listInstr = useServerFn(listInstruments);
   const pushDrive = useServerFn(pushRunListToDrive);
   const prepCoverageFn = useServerFn(getRunListPrepCoverage);
+  const benchStatusesFn = useServerFn(listBenchSheetStatuses);
   const navigate = useNavigate();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
@@ -53,6 +59,8 @@ function RunListDetail() {
     queryFn: () => prepCoverageFn({ data: { run_list_id: id } }),
     enabled: !!id,
   });
+  const { data: benchStatuses } = useQuery({ queryKey: qk.benchSheets.list(), queryFn: () => benchStatusesFn() });
+  const benchStatus = benchStatuses?.find((b) => b.run_list_id === id)?.status ?? null;
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -203,6 +211,12 @@ function RunListDetail() {
               <Link to="/run-lists/$id/prep" params={{ id }}>
                 <FlaskConical className="size-4 mr-1" />
                 Generate Sample Prep
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/run-lists/$id/bench-sheet" params={{ id }}>
+                <ClipboardCheck className="size-4 mr-1" />
+                Bench Sheet{benchStatus ? ` (${BENCH_SHEET_STATUS_LABEL[benchStatus] ?? benchStatus})` : ""}
               </Link>
             </Button>
             <Button

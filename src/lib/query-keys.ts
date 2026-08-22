@@ -194,6 +194,12 @@ export const qk = {
     instrumentOccupants: () => ["run-lists", "instrument-occupants"] as const,
   },
 
+  benchSheets: {
+    all: ["bench-sheets"] as const,
+    list: () => ["bench-sheets"] as const,
+    detail: (runListId: string) => ["bench-sheet", runListId] as const,
+  },
+
   inventory: {
     all: ["inventory"] as const,
     list: () => ["inventory"] as const,

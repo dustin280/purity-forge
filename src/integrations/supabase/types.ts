@@ -2998,6 +2998,68 @@ export type Database = {
           },
         ]
       }
+      run_list_bench_sheets: {
+        Row: {
+          created_at: string
+          deviation_flag: boolean
+          deviation_notes: string | null
+          id: string
+          narrative: string | null
+          performed_at: string | null
+          performed_by: string | null
+          review_comment: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          run_completed_at: string | null
+          run_list_id: string
+          run_started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deviation_flag?: boolean
+          deviation_notes?: string | null
+          id?: string
+          narrative?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_completed_at?: string | null
+          run_list_id: string
+          run_started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deviation_flag?: boolean
+          deviation_notes?: string | null
+          id?: string
+          narrative?: string | null
+          performed_at?: string | null
+          performed_by?: string | null
+          review_comment?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_completed_at?: string | null
+          run_list_id?: string
+          run_started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "run_list_bench_sheets_run_list_id_fkey"
+            columns: ["run_list_id"]
+            isOneToOne: true
+            referencedRelation: "run_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       run_list_columns: {
         Row: {
           created_at: string

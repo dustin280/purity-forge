@@ -93,6 +93,7 @@ import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from '
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as AuthenticatedLabLogsCalQcTrendIndexRouteImport } from './routes/_authenticated/lab-logs/cal-qc-trend/index'
+import { Route as AuthenticatedLabLogsBenchSheetsIndexRouteImport } from './routes/_authenticated/lab-logs/bench-sheets/index'
 import { Route as ApiPublicStatusBatchIdRouteImport } from './routes/api/public/status/$batchId'
 import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
@@ -100,6 +101,7 @@ import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/pub
 import { Route as AuthenticatedSamplePrepRecordsIdRouteImport } from './routes/_authenticated/sample-prep/records.$id'
 import { Route as AuthenticatedSamplePrepMethodsIdRouteImport } from './routes/_authenticated/sample-prep/methods.$id'
 import { Route as AuthenticatedRunListsIdPrepRouteImport } from './routes/_authenticated/run-lists/$id.prep'
+import { Route as AuthenticatedRunListsIdBenchSheetRouteImport } from './routes/_authenticated/run-lists/$id.bench-sheet'
 import { Route as AuthenticatedNonConformityLibraryCompoundIdRouteImport } from './routes/_authenticated/non-conformity/library/$compoundId'
 import { Route as AuthenticatedLabLogsTimesheetsReportsRouteImport } from './routes/_authenticated/lab-logs/timesheets/reports'
 import { Route as AuthenticatedLabLogsTimesheetsHistoryRouteImport } from './routes/_authenticated/lab-logs/timesheets/history'
@@ -594,6 +596,12 @@ const AuthenticatedLabLogsCalQcTrendIndexRoute =
     path: '/lab-logs/cal-qc-trend/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsBenchSheetsIndexRoute =
+  AuthenticatedLabLogsBenchSheetsIndexRouteImport.update({
+    id: '/lab-logs/bench-sheets/',
+    path: '/lab-logs/bench-sheets/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const ApiPublicStatusBatchIdRoute = ApiPublicStatusBatchIdRouteImport.update({
   id: '/api/public/status/$batchId',
   path: '/api/public/status/$batchId',
@@ -631,6 +639,12 @@ const AuthenticatedRunListsIdPrepRoute =
   AuthenticatedRunListsIdPrepRouteImport.update({
     id: '/prep',
     path: '/prep',
+    getParentRoute: () => AuthenticatedRunListsIdRoute,
+  } as any)
+const AuthenticatedRunListsIdBenchSheetRoute =
+  AuthenticatedRunListsIdBenchSheetRouteImport.update({
+    id: '/bench-sheet',
+    path: '/bench-sheet',
     getParentRoute: () => AuthenticatedRunListsIdRoute,
   } as any)
 const AuthenticatedNonConformityLibraryCompoundIdRoute =
@@ -771,6 +785,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/non-conformity/library/$compoundId': typeof AuthenticatedNonConformityLibraryCompoundIdRoute
+  '/run-lists/$id/bench-sheet': typeof AuthenticatedRunListsIdBenchSheetRoute
   '/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
@@ -778,6 +793,7 @@ export interface FileRoutesByFullPath {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/lab-logs/bench-sheets/': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -872,6 +888,7 @@ export interface FileRoutesByTo {
   '/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/non-conformity/library/$compoundId': typeof AuthenticatedNonConformityLibraryCompoundIdRoute
+  '/run-lists/$id/bench-sheet': typeof AuthenticatedRunListsIdBenchSheetRoute
   '/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
@@ -879,6 +896,7 @@ export interface FileRoutesByTo {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/lab-logs/bench-sheets': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/lab-logs/cal-qc-trend': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -975,6 +993,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/timesheets/history': typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   '/_authenticated/lab-logs/timesheets/reports': typeof AuthenticatedLabLogsTimesheetsReportsRoute
   '/_authenticated/non-conformity/library/$compoundId': typeof AuthenticatedNonConformityLibraryCompoundIdRoute
+  '/_authenticated/run-lists/$id/bench-sheet': typeof AuthenticatedRunListsIdBenchSheetRoute
   '/_authenticated/run-lists/$id/prep': typeof AuthenticatedRunListsIdPrepRoute
   '/_authenticated/sample-prep/methods/$id': typeof AuthenticatedSamplePrepMethodsIdRoute
   '/_authenticated/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
@@ -982,6 +1001,7 @@ export interface FileRoutesById {
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
+  '/_authenticated/lab-logs/bench-sheets/': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/_authenticated/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -1078,6 +1098,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
     | '/non-conformity/library/$compoundId'
+    | '/run-lists/$id/bench-sheet'
     | '/run-lists/$id/prep'
     | '/sample-prep/methods/$id'
     | '/sample-prep/records/$id'
@@ -1085,6 +1106,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/lab-logs/bench-sheets/'
     | '/lab-logs/cal-qc-trend/'
     | '/lab-logs/daily-backpressure/'
     | '/lab-logs/mobile-phase/'
@@ -1179,6 +1201,7 @@ export interface FileRouteTypes {
     | '/lab-logs/timesheets/history'
     | '/lab-logs/timesheets/reports'
     | '/non-conformity/library/$compoundId'
+    | '/run-lists/$id/bench-sheet'
     | '/run-lists/$id/prep'
     | '/sample-prep/methods/$id'
     | '/sample-prep/records/$id'
@@ -1186,6 +1209,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/lab-logs/bench-sheets'
     | '/lab-logs/cal-qc-trend'
     | '/lab-logs/daily-backpressure'
     | '/lab-logs/mobile-phase'
@@ -1281,6 +1305,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/timesheets/history'
     | '/_authenticated/lab-logs/timesheets/reports'
     | '/_authenticated/non-conformity/library/$compoundId'
+    | '/_authenticated/run-lists/$id/bench-sheet'
     | '/_authenticated/run-lists/$id/prep'
     | '/_authenticated/sample-prep/methods/$id'
     | '/_authenticated/sample-prep/records/$id'
@@ -1288,6 +1313,7 @@ export interface FileRouteTypes {
     | '/api/public/exports/$batchId'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
+    | '/_authenticated/lab-logs/bench-sheets/'
     | '/_authenticated/lab-logs/cal-qc-trend/'
     | '/_authenticated/lab-logs/daily-backpressure/'
     | '/_authenticated/lab-logs/mobile-phase/'
@@ -1907,6 +1933,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/bench-sheets/': {
+      id: '/_authenticated/lab-logs/bench-sheets/'
+      path: '/lab-logs/bench-sheets'
+      fullPath: '/lab-logs/bench-sheets/'
+      preLoaderRoute: typeof AuthenticatedLabLogsBenchSheetsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/api/public/status/$batchId': {
       id: '/api/public/status/$batchId'
       path: '/api/public/status/$batchId'
@@ -1954,6 +1987,13 @@ declare module '@tanstack/react-router' {
       path: '/prep'
       fullPath: '/run-lists/$id/prep'
       preLoaderRoute: typeof AuthenticatedRunListsIdPrepRouteImport
+      parentRoute: typeof AuthenticatedRunListsIdRoute
+    }
+    '/_authenticated/run-lists/$id/bench-sheet': {
+      id: '/_authenticated/run-lists/$id/bench-sheet'
+      path: '/bench-sheet'
+      fullPath: '/run-lists/$id/bench-sheet'
+      preLoaderRoute: typeof AuthenticatedRunListsIdBenchSheetRouteImport
       parentRoute: typeof AuthenticatedRunListsIdRoute
     }
     '/_authenticated/non-conformity/library/$compoundId': {
@@ -2023,11 +2063,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRunListsIdRouteChildren {
+  AuthenticatedRunListsIdBenchSheetRoute: typeof AuthenticatedRunListsIdBenchSheetRoute
   AuthenticatedRunListsIdPrepRoute: typeof AuthenticatedRunListsIdPrepRoute
 }
 
 const AuthenticatedRunListsIdRouteChildren: AuthenticatedRunListsIdRouteChildren =
   {
+    AuthenticatedRunListsIdBenchSheetRoute:
+      AuthenticatedRunListsIdBenchSheetRoute,
     AuthenticatedRunListsIdPrepRoute: AuthenticatedRunListsIdPrepRoute,
   }
 
@@ -2141,6 +2184,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsTimesheetsHistoryRoute: typeof AuthenticatedLabLogsTimesheetsHistoryRoute
   AuthenticatedLabLogsTimesheetsReportsRoute: typeof AuthenticatedLabLogsTimesheetsReportsRoute
   AuthenticatedNonConformityLibraryCompoundIdRoute: typeof AuthenticatedNonConformityLibraryCompoundIdRoute
+  AuthenticatedLabLogsBenchSheetsIndexRoute: typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   AuthenticatedLabLogsCalQcTrendIndexRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
@@ -2251,6 +2295,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsTimesheetsReportsRoute,
   AuthenticatedNonConformityLibraryCompoundIdRoute:
     AuthenticatedNonConformityLibraryCompoundIdRoute,
+  AuthenticatedLabLogsBenchSheetsIndexRoute:
+    AuthenticatedLabLogsBenchSheetsIndexRoute,
   AuthenticatedLabLogsCalQcTrendIndexRoute:
     AuthenticatedLabLogsCalQcTrendIndexRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker, Droplets, Clock, Trash2, LineChart } from "lucide-react";
+import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker, Droplets, Clock, Trash2, LineChart, ClipboardCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/")({ component: LogsIndex });
 
@@ -13,6 +13,7 @@ const ITEMS = [
   { to: "/lab-logs/mobile-phase", title: "Mobile Phase Prep Log", description: "Document mobile phase A/B preparations with auto-generated step-by-step instructions.", icon: Droplets },
   { to: "/lab-logs/timesheets", title: "Timesheets", description: "Daily time tracking with project, task, duration, and CSV/PDF export.", icon: Clock },
   { to: "/lab-logs/sample-disposal", title: "Sample Disposal Log", description: "Every tracked sample location (received/instrument/dilution) and its disposal status, gated by the retention window.", icon: Trash2 },
+  { to: "/lab-logs/bench-sheets", title: "Bench Sheets", description: "Record of Analysis for each run list — who ran it, prep summary per sample, observations, deviations, and review sign-off.", icon: ClipboardCheck },
 ] as const;
 
 function LogsIndex() {
