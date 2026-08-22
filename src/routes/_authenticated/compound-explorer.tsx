@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { MoleculeViewer } from "@/components/compound-explorer/molecule-viewer";
+const MoleculeViewer = lazy(() =>
+  import("@/components/compound-explorer/molecule-viewer").then(m => ({ default: m.MoleculeViewer })),
+);
 import {
   listExplorerCompounds,
   getExplorerCompound,
