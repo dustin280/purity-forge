@@ -93,11 +93,14 @@ function StorageAdmin() {
   });
 
   const [notesDraft, setNotesDraft] = useState<string | null>(null);
+  const [tempDraft, setTempDraft] = useState<string | null>(null);
   const updUnitMut = useMutation({
-    mutationFn: (notes: string) => update({ data: { id: activeId!, notes } }),
+    mutationFn: (patch: { notes?: string; target_temperature_c?: number | null }) =>
+      update({ data: { id: activeId!, ...patch } }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.storageUnits.detail(activeId ?? "") });
       setNotesDraft(null);
+      setTempDraft(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -182,15 +185,34 @@ function StorageAdmin() {
               </div>
             )}
           </div>
-          <div>
-            <Label className="text-xs">Notes</Label>
-            <Textarea
-              rows={2}
-              defaultValue={unit.notes ?? ""}
-              key={unit.id}
-              onChange={(e) => setNotesDraft(e.target.value)}
-              onBlur={() => { if (notesDraft !== null && notesDraft !== unit.notes) updUnitMut.mutate(notesDraft); }}
-            />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Textarea
+                rows={2}
+                defaultValue={unit.notes ?? ""}
+                key={unit.id + "-notes"}
+                onChange={(e) => setNotesDraft(e.target.value)}
+                onBlur={() => { if (notesDraft !== null && notesDraft !== unit.notes) updUnitMut.mutate({ notes: notesDraft }); }}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Target Temp (°C)</Label>
+              <Input
+                type="number" step="0.1"
+                defaultValue={unit.target_temperature_c ?? ""}
+                key={unit.id + "-temp"}
+                onChange={(e) => setTempDraft(e.target.value)}
+                onBlur={() => {
+                  if (tempDraft === null) return;
+                  const n = tempDraft.trim() === "" ? null : Number(tempDraft);
+                  if (n !== unit.target_temperature_c) updUnitMut.mutate({ target_temperature_c: n });
+                }}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Used as the default reading wherever this unit is selected (e.g. Analysis Batches).
+              </p>
+            </div>
           </div>
         </Card>
       )}

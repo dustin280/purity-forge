@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import {
-  getAnalysisBatch, recordBatchInterimCheck, completeAnalysisBatch, reviewAnalysisBatch,
+  getAnalysisBatch, recordItemCheck, completeAnalysisBatch, reviewAnalysisBatch,
+  type AnalysisBatchRow,
 } from "@/lib/lims/analysis-batches.functions";
 import { exportAnalysisBatchPdf } from "@/lib/analysis-batch-pdf";
 import { qk } from "@/lib/query-keys";
@@ -38,7 +39,6 @@ function AnalysisBatchDetail() {
   const { role } = useAuth();
   const qc = useQueryClient();
   const getFn = useServerFn(getAnalysisBatch);
-  const checkFn = useServerFn(recordBatchInterimCheck);
   const completeFn = useServerFn(completeAnalysisBatch);
   const reviewFn = useServerFn(reviewAnalysisBatch);
 
@@ -46,12 +46,6 @@ function AnalysisBatchDetail() {
 
   function invalidate() { qc.invalidateQueries({ queryKey: qk.analysisBatches.detail(id) }); }
 
-  const [checkNotes, setCheckNotes] = useState("");
-  const checkMut = useMutation({
-    mutationFn: (result: "clear" | "turbid") => checkFn({ data: { batchId: id, result, notes: checkNotes.trim() || null } }),
-    onSuccess: () => { toast.success("Interim check recorded"); setCheckNotes(""); invalidate(); },
-    onError: (e: Error) => toast.error(e.message),
-  });
   const completeMut = useMutation({
     mutationFn: () => completeFn({ data: { batchId: id } }),
     onSuccess: () => { toast.success("Batch completed"); invalidate(); },
@@ -65,7 +59,7 @@ function AnalysisBatchDetail() {
   });
 
   if (isLoading || !data) return <div className="p-8 text-muted-foreground">Loading…</div>;
-  const { batch, rows, profiles, dayOfIncubation, interimCheckDue, readoutDue } = data;
+  const { batch, rows, profiles, readoutDueDate, readoutDue } = data;
   const details = batch.details as unknown as SterilityDetails;
   const nameFor = (uid: string | null) => {
     if (!uid) return null;
@@ -73,9 +67,10 @@ function AnalysisBatchDetail() {
     return p ? profileDisplayName(p, uid) : uid;
   };
   const canReview = role === "reviewer" || role === "admin";
+  const allChecked = rows.every((r) => r.day3Status !== "pending") && rows.every((r) => r.day7Status !== "pending");
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl space-y-6">
       <div className="flex items-center justify-between">
         <Link to="/lab-logs/analysis-batches" className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground">
           <ChevronLeft className="size-3" /> Analysis Batches
@@ -92,7 +87,14 @@ function AnalysisBatchDetail() {
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Record of Analysis</div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1 font-mono">{batch.batch_number}</h1>
         <p className="text-sm text-muted-foreground mt-1">{batch.test_type} · {batch.method ?? "—"}</p>
-        <Badge className={`mt-2 ${STATUS_COLOR[batch.status]}`} variant="secondary">{STATUS_LABEL[batch.status]}</Badge>
+        <div className="flex items-center gap-2 mt-2">
+          <Badge className={STATUS_COLOR[batch.status]} variant="secondary">{STATUS_LABEL[batch.status]}</Badge>
+          {readoutDueDate && (
+            <span className={`text-xs ${readoutDue ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}`}>
+              {readoutDue ? "Ready for readout" : "Readout due"} {new Date(readoutDueDate).toLocaleDateString()}
+            </span>
+          )}
+        </div>
       </div>
 
       <Card className="p-5 border-border text-sm space-y-2">
@@ -116,7 +118,13 @@ function AnalysisBatchDetail() {
       <Card className="p-0 overflow-hidden overflow-x-auto border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
-            <tr><th className="text-left px-3 py-2">Sample</th><th className="text-left px-3 py-2">Compound</th><th className="text-left px-3 py-2">Tray</th></tr>
+            <tr>
+              <th className="text-left px-3 py-2">Sample</th>
+              <th className="text-left px-3 py-2">Compound</th>
+              <th className="text-left px-3 py-2">Tray</th>
+              <th className="text-left px-3 py-2">Day 3</th>
+              <th className="text-left px-3 py-2">Day 7</th>
+            </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {rows.map((r) => (
@@ -124,41 +132,22 @@ function AnalysisBatchDetail() {
                 <td className="px-3 py-2 font-mono">{r.batchId ?? "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.compound ?? "—"}</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{r.slotLabel ?? "—"}</td>
+                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day3" onChanged={invalidate} readOnly={batch.status === "reviewed"} /></td>
+                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day7" onChanged={invalidate} readOnly={batch.status === "reviewed"} /></td>
               </tr>
             ))}
           </tbody>
         </table>
       </Card>
 
-      <Card className="p-5 border-border space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs uppercase tracking-wider text-muted-foreground">Incubation Status</h3>
-          <div className="text-sm font-semibold">Day {dayOfIncubation}{readoutDue && <span className="ml-2 text-amber-600 dark:text-amber-400">Ready for readout</span>}</div>
-        </div>
-        {batch.interim_check_status !== "pending" ? (
-          <div className="text-sm text-muted-foreground">
-            Interim check: <span className="font-semibold uppercase">{batch.interim_check_status}</span>
-            {batch.interim_check_at ? ` on ${new Date(batch.interim_check_at).toLocaleString()}` : ""}
-            {batch.interim_check_notes ? ` — ${batch.interim_check_notes}` : ""}
-          </div>
-        ) : interimCheckDue ? (
-          <div className="space-y-1.5 pt-1 border-t border-border">
-            <div className="text-sm font-semibold">Mid-incubation check due</div>
-            <Textarea rows={1} placeholder="Notes (optional)" value={checkNotes} onChange={(e) => setCheckNotes(e.target.value)} />
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={checkMut.isPending} onClick={() => checkMut.mutate("clear")}>Clear</Button>
-              <Button size="sm" variant="outline" disabled={checkMut.isPending} onClick={() => checkMut.mutate("turbid")}>Turbid</Button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground">Not due yet.</div>
-        )}
-        {batch.status === "in_progress" && (
+      {batch.status === "in_progress" && (
+        <div className="flex items-center gap-3">
           <Button disabled={completeMut.isPending} onClick={() => completeMut.mutate()}>
             {completeMut.isPending ? "Completing…" : "Complete Batch"}
           </Button>
-        )}
-      </Card>
+          {!allChecked && <span className="text-xs text-muted-foreground">Day 3/7 checks can still be recorded after completing.</span>}
+        </div>
+      )}
 
       {batch.status === "completed" && canReview && (
         <Card className="p-5 border-border space-y-3">
@@ -175,6 +164,40 @@ function AnalysisBatchDetail() {
           {batch.review_comment ? ` — ${batch.review_comment}` : ""}
         </Card>
       )}
+    </div>
+  );
+}
+
+function CheckCell({ row, checkpoint, onChanged, readOnly }: {
+  row: AnalysisBatchRow; checkpoint: "day3" | "day7"; onChanged: () => void; readOnly: boolean;
+}) {
+  const checkFn = useServerFn(recordItemCheck);
+  const status = checkpoint === "day3" ? row.day3Status : row.day7Status;
+  const due = checkpoint === "day3" ? row.day3Due : row.day7Due;
+  const checkedAt = checkpoint === "day3" ? row.day3CheckedAt : row.day7CheckedAt;
+
+  const mut = useMutation({
+    mutationFn: (result: "clear" | "turbid") => checkFn({ data: { itemId: row.itemId, checkpoint, result } }),
+    onSuccess: () => onChanged(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (status !== "pending") {
+    return (
+      <span className="text-xs">
+        <span className={`font-semibold uppercase ${status === "turbid" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+          {status}
+        </span>
+        {checkedAt && <span className="text-muted-foreground"> · {new Date(checkedAt).toLocaleDateString()}</span>}
+      </span>
+    );
+  }
+  if (readOnly) return <span className="text-xs text-muted-foreground">—</span>;
+  if (!due) return <span className="text-xs text-muted-foreground">Not due</span>;
+  return (
+    <div className="flex gap-1.5">
+      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={mut.isPending} onClick={() => mut.mutate("clear")}>Clear</Button>
+      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={mut.isPending} onClick={() => mut.mutate("turbid")}>Turbid</Button>
     </div>
   );
 }

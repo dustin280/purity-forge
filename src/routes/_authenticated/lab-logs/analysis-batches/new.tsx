@@ -47,7 +47,21 @@ function NewAnalysisBatch() {
     const n = new Set(selected); if (n.has(testId)) n.delete(testId); else n.add(testId); setSelected(n);
   }
   function toggleIncubator(unitId: string) {
-    const n = new Set(chosenIncubators); if (n.has(unitId)) n.delete(unitId); else n.add(unitId); setChosenIncubators(n);
+    const n = new Set(chosenIncubators);
+    if (n.has(unitId)) {
+      n.delete(unitId);
+    } else {
+      n.add(unitId);
+      // Pre-fill from the unit's configured setpoint — analyst still
+      // confirms/adjusts to the actual reading at time of use.
+      if (temps[unitId] === undefined) {
+        const unit = incubators.find((u) => u.id === unitId);
+        if (unit?.target_temperature_c != null) {
+          setTemps((t) => ({ ...t, [unitId]: String(unit.target_temperature_c) }));
+        }
+      }
+    }
+    setChosenIncubators(n);
   }
 
   const createMut = useMutation({

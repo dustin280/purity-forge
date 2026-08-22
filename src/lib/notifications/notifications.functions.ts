@@ -181,7 +181,7 @@ export async function notifyNewIntake(
 }
 
 export type IncubationAlertSummary = {
-  kind: "interim_check" | "readout";
+  kind: "day3_check" | "day7_check" | "readout";
   testType: string;
   batchNumber: string;
   sampleCount: number;
@@ -205,7 +205,7 @@ export async function notifyIncubationReady(
     if (error) throw error;
     if (!recipients || recipients.length === 0) return;
 
-    const label = summary.kind === "interim_check" ? "mid-incubation check" : "readout";
+    const label = summary.kind === "day3_check" ? "Day 3 check" : summary.kind === "day7_check" ? "Day 7 check" : "readout";
     const subject = `${summary.testType} ${label} ready — ${summary.batchNumber}`;
     const emailBody = [
       `Batch ${summary.batchNumber} (${summary.sampleCount} sample${summary.sampleCount === 1 ? "" : "s"}) is ready for its ${label} (day ${summary.dayCount} of incubation).`,

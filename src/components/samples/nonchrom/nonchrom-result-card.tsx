@@ -193,8 +193,10 @@ function SterilityBatchStatus({ testId }: { testId: string }) {
       params={{ id: batch.batchId }}
       className="block text-xs rounded border border-border bg-muted/40 px-3 py-2 hover:bg-muted/70"
     >
-      Batch <span className="font-mono">{batch.batchNumber}</span> · Day {batch.dayOfIncubation} of incubation
+      Batch <span className="font-mono">{batch.batchNumber}</span>
+      {batch.readoutDueDate ? ` · Readout due ${new Date(batch.readoutDueDate).toLocaleDateString()}` : ""}
       {batch.slotLabel ? ` · ${batch.slotLabel}` : ""}
+      {" · "}Day 3: <span className="uppercase">{batch.day3Status}</span> · Day 7: <span className="uppercase">{batch.day7Status}</span>
     </Link>
   );
 }

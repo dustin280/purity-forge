@@ -22,6 +22,7 @@ export interface StorageUnit {
   serial_number: string | null;
   is_active: boolean;
   notes: string | null;
+  target_temperature_c: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +73,7 @@ export const createStorageUnit = createServerFn({ method: "POST" })
     model: z.string().max(120).nullable().optional(),
     serial_number: z.string().max(120).nullable().optional(),
     notes: z.string().max(500).nullable().optional(),
+    target_temperature_c: z.number().min(-100).max(200).nullable().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const trayCount = data.unit_type === "autoclave" ? null : (data.tray_count ?? null);
@@ -85,6 +87,7 @@ export const createStorageUnit = createServerFn({ method: "POST" })
         model: data.model ?? null,
         serial_number: data.serial_number ?? null,
         notes: data.notes ?? null,
+        target_temperature_c: data.target_temperature_c ?? null,
       })
       .select().single();
     if (error) throw error;
@@ -110,6 +113,7 @@ export const updateStorageUnit = createServerFn({ method: "POST" })
     serial_number: z.string().max(120).nullable().optional(),
     is_active: z.boolean().optional(),
     notes: z.string().max(500).nullable().optional(),
+    target_temperature_c: z.number().min(-100).max(200).nullable().optional(),
   }).parse(d))
   .handler(async ({ context, data }) => {
     const { id, ...rest } = data;

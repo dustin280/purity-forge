@@ -38,6 +38,20 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
         const results = testIds.length
           ? (await supabaseAdmin.from("results").select("*").in("test_id", testIds)).data ?? []
           : [];
+        // Day 3 / Day 7 sterility preliminary checks — independent of and
+        // prior to the final day-14 readout (which stays driven by
+        // nonchrom_results below). "pending" until checked, then whichever
+        // of no_growth/positive was recorded (see analysis-batches.functions.ts).
+        const sterilityTestIds = (tests ?? []).filter(t => t.test_type === "sterility").map(t => t.id);
+        const batchItemsByTestId = sterilityTestIds.length
+          ? new Map(
+              (await supabaseAdmin.from("analysis_batch_items")
+                .select("test_id, day3_status, day7_status").in("test_id", sterilityTestIds)
+              ).data?.map(r => [r.test_id, r]) ?? [],
+            )
+          : new Map<string, { day3_status: string; day7_status: string }>();
+        const mapPreliminaryStatus = (s: string | undefined) =>
+          s === "clear" ? "no_growth" : s === "turbid" ? "positive" : "pending";
         // Sterility/endotoxin/heavy-metals results — unlike purity, these
         // have no in-app review/approve step (Micro reviews sterility/
         // endotoxin independently before it reaches here; heavy metals is
@@ -130,6 +144,7 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
             // for this test, if any. Attachments (e.g. a heavy-metals
             // sub-report) are intentionally not included here — deferred.
             const latest = nonchromResults.find(r => r.test_id === t.id) ?? null;
+            const batchItem = t.test_type === "sterility" ? batchItemsByTestId.get(t.id) : undefined;
             return {
               id: t.id,
               test_type: t.test_type,
@@ -138,6 +153,10 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
               instrument: t.instrument,
               parameters: t.parameters,
               status: latest ? "available" : "pending",
+              ...(t.test_type === "sterility" ? {
+                day3_result: mapPreliminaryStatus(batchItem?.day3_status),
+                day7_result: mapPreliminaryStatus(batchItem?.day7_status),
+              } : {}),
               results: latest ? [{
                 data: latest.data,
                 analysis_date: latest.analysis_date,

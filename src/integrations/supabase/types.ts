@@ -214,6 +214,16 @@ export type Database = {
         Row: {
           batch_id: string
           created_at: string
+          day3_checked_at: string | null
+          day3_checked_by: string | null
+          day3_notes: string | null
+          day3_notified_at: string | null
+          day3_status: string
+          day7_checked_at: string | null
+          day7_checked_by: string | null
+          day7_notes: string | null
+          day7_notified_at: string | null
+          day7_status: string
           id: string
           sample_id: string
           storage_slot_id: string | null
@@ -222,6 +232,16 @@ export type Database = {
         Insert: {
           batch_id: string
           created_at?: string
+          day3_checked_at?: string | null
+          day3_checked_by?: string | null
+          day3_notes?: string | null
+          day3_notified_at?: string | null
+          day3_status?: string
+          day7_checked_at?: string | null
+          day7_checked_by?: string | null
+          day7_notes?: string | null
+          day7_notified_at?: string | null
+          day7_status?: string
           id?: string
           sample_id: string
           storage_slot_id?: string | null
@@ -230,6 +250,16 @@ export type Database = {
         Update: {
           batch_id?: string
           created_at?: string
+          day3_checked_at?: string | null
+          day3_checked_by?: string | null
+          day3_notes?: string | null
+          day3_notified_at?: string | null
+          day3_status?: string
+          day7_checked_at?: string | null
+          day7_checked_by?: string | null
+          day7_notes?: string | null
+          day7_notified_at?: string | null
+          day7_status?: string
           id?: string
           sample_id?: string
           storage_slot_id?: string | null
@@ -273,11 +303,6 @@ export type Database = {
           details: Json
           id: string
           incubation_started_at: string | null
-          interim_check_at: string | null
-          interim_check_by: string | null
-          interim_check_notes: string | null
-          interim_check_status: string
-          interim_notified_at: string | null
           method: string | null
           performed_at: string
           performed_by: string | null
@@ -295,11 +320,6 @@ export type Database = {
           details?: Json
           id?: string
           incubation_started_at?: string | null
-          interim_check_at?: string | null
-          interim_check_by?: string | null
-          interim_check_notes?: string | null
-          interim_check_status?: string
-          interim_notified_at?: string | null
           method?: string | null
           performed_at?: string
           performed_by?: string | null
@@ -317,11 +337,6 @@ export type Database = {
           details?: Json
           id?: string
           incubation_started_at?: string | null
-          interim_check_at?: string | null
-          interim_check_by?: string | null
-          interim_check_notes?: string | null
-          interim_check_status?: string
-          interim_notified_at?: string | null
           method?: string | null
           performed_at?: string
           performed_by?: string | null
@@ -4732,7 +4747,8 @@ export type Database = {
           id: boolean
           max_dilution_steps: number
           preferred_min_pipette_ul: number
-          sterility_interim_check_day: number
+          sterility_day3_check_day: number
+          sterility_day7_check_day: number
           sterility_readout_day: number
           updated_at: string
           updated_by: string | null
@@ -4750,7 +4766,8 @@ export type Database = {
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
-          sterility_interim_check_day?: number
+          sterility_day3_check_day?: number
+          sterility_day7_check_day?: number
           sterility_readout_day?: number
           updated_at?: string
           updated_by?: string | null
@@ -4768,7 +4785,8 @@ export type Database = {
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
-          sterility_interim_check_day?: number
+          sterility_day3_check_day?: number
+          sterility_day7_check_day?: number
           sterility_readout_day?: number
           updated_at?: string
           updated_by?: string | null
@@ -5342,6 +5360,7 @@ export type Database = {
           name: string
           notes: string | null
           serial_number: string | null
+          target_temperature_c: number | null
           tray_count: number | null
           unit_type: Database["public"]["Enums"]["storage_unit_type"]
           updated_at: string
@@ -5355,6 +5374,7 @@ export type Database = {
           name: string
           notes?: string | null
           serial_number?: string | null
+          target_temperature_c?: number | null
           tray_count?: number | null
           unit_type: Database["public"]["Enums"]["storage_unit_type"]
           updated_at?: string
@@ -5368,6 +5388,7 @@ export type Database = {
           name?: string
           notes?: string | null
           serial_number?: string | null
+          target_temperature_c?: number | null
           tray_count?: number | null
           unit_type?: Database["public"]["Enums"]["storage_unit_type"]
           updated_at?: string

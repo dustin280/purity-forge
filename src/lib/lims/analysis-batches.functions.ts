@@ -69,6 +69,24 @@ export const listMediaLots = createServerFn({ method: "GET" })
       }));
   });
 
+export interface AnalysisBatchRow {
+  itemId: string;
+  testId: string;
+  sampleId: string;
+  batchId: string | null;
+  compound: string | null;
+  client: string | null;
+  slotLabel: string | null;
+  day3Status: string;
+  day3CheckedAt: string | null;
+  day3Notes: string | null;
+  day3Due: boolean;
+  day7Status: string;
+  day7CheckedAt: string | null;
+  day7Notes: string | null;
+  day7Due: boolean;
+}
+
 export interface QueueItem {
   testId: string;
   sampleId: string;
@@ -200,7 +218,9 @@ export const getAnalysisBatch = createServerFn({ method: "GET" })
     if (!batch) throw new Error("Batch not found");
 
     const { data: items, error: itemsErr } = await context.supabase
-      .from("analysis_batch_items").select("id, test_id, sample_id, storage_slot_id").eq("batch_id", data.batchId);
+      .from("analysis_batch_items")
+      .select("id, test_id, sample_id, storage_slot_id, day3_status, day3_checked_at, day3_notes, day7_status, day7_checked_at, day7_notes")
+      .eq("batch_id", data.batchId);
     if (itemsErr) throw itemsErr;
 
     const sampleIds = (items ?? []).map((i) => i.sample_id);
@@ -212,7 +232,7 @@ export const getAnalysisBatch = createServerFn({ method: "GET" })
       slotIds.length
         ? context.supabase.from("storage_slots").select("id, label, storage_units(name)").in("id", slotIds)
         : Promise.resolve({ data: [] as Array<{ id: string; label: string; storage_units: { name: string } | null }> }),
-      context.supabase.from("sp_settings").select("sterility_interim_check_day, sterility_readout_day").eq("id", true).maybeSingle(),
+      context.supabase.from("sp_settings").select("sterility_day3_check_day, sterility_day7_check_day, sterility_readout_day").eq("id", true).maybeSingle(),
       (async () => {
         const ids = [batch.performed_by, batch.reviewed_by].filter((v): v is string => !!v);
         if (!ids.length) return { data: [] as Array<{ id: string; full_name: string | null; first_name: string | null; last_name: string | null; email: string | null; title: string | null }> };
@@ -222,6 +242,16 @@ export const getAnalysisBatch = createServerFn({ method: "GET" })
     const sampleById = new Map((samplesRes.data ?? []).map((s) => [s.id, s]));
     const slotById = new Map((slotsRes.data ?? []).map((s) => [s.id, s]));
 
+    const day3Day = settingsRes.data?.sterility_day3_check_day ?? 3;
+    const day7Day = settingsRes.data?.sterility_day7_check_day ?? 7;
+    const readoutDay = settingsRes.data?.sterility_readout_day ?? 14;
+    const dayOfIncubation = batch.incubation_started_at
+      ? Math.floor((Date.now() - new Date(batch.incubation_started_at).getTime()) / 86_400_000)
+      : 0;
+    const readoutDueDate = batch.incubation_started_at
+      ? new Date(new Date(batch.incubation_started_at).getTime() + readoutDay * 86_400_000).toISOString()
+      : null;
+
     const rows = (items ?? []).map((it) => {
       const sample = sampleById.get(it.sample_id);
       const slot = it.storage_slot_id ? slotById.get(it.storage_slot_id) : null;
@@ -230,21 +260,19 @@ export const getAnalysisBatch = createServerFn({ method: "GET" })
         itemId: it.id, testId: it.test_id, sampleId: it.sample_id,
         batchId: sample?.batch_id ?? null, compound: sample?.compound ?? null, client: sample?.client ?? null,
         slotLabel: slot ? `${unit?.name ?? "—"} / ${slot.label}` : null,
+        day3Status: it.day3_status, day3CheckedAt: it.day3_checked_at, day3Notes: it.day3_notes,
+        day3Due: it.day3_status === "pending" && dayOfIncubation >= day3Day,
+        day7Status: it.day7_status, day7CheckedAt: it.day7_checked_at, day7Notes: it.day7_notes,
+        day7Due: it.day7_status === "pending" && dayOfIncubation >= day7Day,
       };
     });
-
-    const interimDay = settingsRes.data?.sterility_interim_check_day ?? 4;
-    const readoutDay = settingsRes.data?.sterility_readout_day ?? 14;
-    const dayOfIncubation = batch.incubation_started_at
-      ? Math.floor((Date.now() - new Date(batch.incubation_started_at).getTime()) / 86_400_000)
-      : 0;
 
     return {
       batch,
       rows,
       profiles: profilesRes.data ?? [],
       dayOfIncubation,
-      interimCheckDue: batch.interim_check_status === "pending" && dayOfIncubation >= interimDay,
+      readoutDueDate,
       readoutDue: dayOfIncubation >= readoutDay,
     };
   });
@@ -256,7 +284,9 @@ export const getBatchForTest = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ testId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { data: item } = await context.supabase
-      .from("analysis_batch_items").select("batch_id, storage_slot_id").eq("test_id", data.testId).maybeSingle();
+      .from("analysis_batch_items")
+      .select("id, batch_id, storage_slot_id, day3_status, day7_status")
+      .eq("test_id", data.testId).maybeSingle();
     if (!item) return null;
     const { data: batch } = await context.supabase
       .from("analysis_batches").select("id, batch_number, incubation_started_at, status").eq("id", item.batch_id).maybeSingle();
@@ -267,29 +297,39 @@ export const getBatchForTest = createServerFn({ method: "GET" })
         .from("storage_slots").select("label, storage_units(name)").eq("id", item.storage_slot_id).maybeSingle();
       if (slot) slotLabel = `${(slot.storage_units as unknown as { name: string } | null)?.name ?? "—"} / ${slot.label}`;
     }
+    const { data: settings } = await context.supabase
+      .from("sp_settings").select("sterility_readout_day").eq("id", true).maybeSingle();
+    const readoutDay = settings?.sterility_readout_day ?? 14;
     const dayOfIncubation = batch.incubation_started_at
       ? Math.floor((Date.now() - new Date(batch.incubation_started_at).getTime()) / 86_400_000)
       : 0;
-    return { batchId: batch.id, batchNumber: batch.batch_number, status: batch.status, dayOfIncubation, slotLabel };
+    const readoutDueDate = batch.incubation_started_at
+      ? new Date(new Date(batch.incubation_started_at).getTime() + readoutDay * 86_400_000).toISOString()
+      : null;
+    return {
+      batchId: batch.id, batchNumber: batch.batch_number, status: batch.status,
+      dayOfIncubation, readoutDueDate, slotLabel,
+      day3Status: item.day3_status, day7Status: item.day7_status,
+    };
   });
 
-export const recordBatchInterimCheck = createServerFn({ method: "POST" })
+export const recordItemCheck = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({
-    batchId: z.string().uuid(),
+    itemId: z.string().uuid(),
+    checkpoint: z.enum(["day3", "day7"]),
     result: z.enum(["clear", "turbid"]),
     notes: z.string().max(2000).optional().nullable(),
   }).parse(d))
   .handler(async ({ context, data }) => {
+    const now = new Date().toISOString();
+    const patch = data.checkpoint === "day3"
+      ? { day3_status: data.result, day3_checked_at: now, day3_checked_by: context.userId, day3_notes: data.notes ?? null }
+      : { day7_status: data.result, day7_checked_at: now, day7_checked_by: context.userId, day7_notes: data.notes ?? null };
     const { error } = await context.supabase
-      .from("analysis_batches")
-      .update({
-        interim_check_status: data.result,
-        interim_check_at: new Date().toISOString(),
-        interim_check_by: context.userId,
-        interim_check_notes: data.notes ?? null,
-      })
-      .eq("id", data.batchId);
+      .from("analysis_batch_items")
+      .update(patch)
+      .eq("id", data.itemId);
     if (error) throw error;
     return { ok: true };
   });
