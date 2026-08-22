@@ -18,6 +18,7 @@ const TILES = [
   { to: "/admin/access-logs", title: "Access Logs", desc: "View user sign-in and sign-out activity. Filter by date and export to PDF.", icon: ShieldCheck },
   { to: "/admin/audit-log", title: "Audit Trail", desc: "Review all database changes — who changed what, when, with before/after diffs.", icon: History },
   { to: "/admin/partner-webhook-secret", title: "Partner Webhook Secret", desc: "View status and rotate the shared secret partners use to sign order intake webhooks.", icon: KeyRound },
+  { to: "/admin/api-tester", title: "Syn API Tester", desc: "Send signed test requests to the partner order intake, status, and exports endpoints.", icon: TerminalSquare },
   { to: "/admin/queue-config", title: "Analysis Queue Config", desc: "Daily capacity, TAT days, business-days-only, and the amber warning threshold.", icon: GaugeCircle },
   { to: "/admin/notifications", title: "Notifications", desc: "Who gets emailed/texted when a new Sample Receipt is submitted.", icon: BellRing },
   { to: "/admin/report-reconciliation", title: "Report Reconciliation", desc: "Auto-matches completed reports to samples hourly. Review low-confidence and ambiguous matches here.", icon: FileStack },
