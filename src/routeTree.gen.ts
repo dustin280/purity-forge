@@ -20,6 +20,7 @@ import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
+import { Route as AuthenticatedCompoundExplorerRouteImport } from './routes/_authenticated/compound-explorer'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
 import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
@@ -161,6 +162,12 @@ const AuthenticatedIntakeRoute = AuthenticatedIntakeRouteImport.update({
   path: '/intake',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedCompoundExplorerRoute =
+  AuthenticatedCompoundExplorerRouteImport.update({
+    id: '/compound-explorer',
+    path: '/compound-explorer',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
@@ -665,6 +672,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/library': typeof AuthenticatedLibraryRoute
@@ -761,6 +769,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/intake': typeof AuthenticatedIntakeRoute
   '/integrations': typeof AuthenticatedIntegrationsRoute
   '/library': typeof AuthenticatedLibraryRoute
@@ -860,6 +869,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
+  '/_authenticated/compound-explorer': typeof AuthenticatedCompoundExplorerRoute
   '/_authenticated/intake': typeof AuthenticatedIntakeRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
@@ -960,6 +970,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
+    | '/compound-explorer'
     | '/intake'
     | '/integrations'
     | '/library'
@@ -1056,6 +1067,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
+    | '/compound-explorer'
     | '/intake'
     | '/integrations'
     | '/library'
@@ -1154,6 +1166,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/_authenticated/chain-of-custody'
+    | '/_authenticated/compound-explorer'
     | '/_authenticated/intake'
     | '/_authenticated/integrations'
     | '/_authenticated/library'
@@ -1341,6 +1354,13 @@ declare module '@tanstack/react-router' {
       path: '/intake'
       fullPath: '/intake'
       preLoaderRoute: typeof AuthenticatedIntakeRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/compound-explorer': {
+      id: '/_authenticated/compound-explorer'
+      path: '/compound-explorer'
+      fullPath: '/compound-explorer'
+      preLoaderRoute: typeof AuthenticatedCompoundExplorerRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/chain-of-custody': {
@@ -1987,6 +2007,7 @@ const AuthenticatedSamplePrepRecordsRouteWithChildren =
 
 interface AuthenticatedRouteChildren {
   AuthenticatedChainOfCustodyRoute: typeof AuthenticatedChainOfCustodyRoute
+  AuthenticatedCompoundExplorerRoute: typeof AuthenticatedCompoundExplorerRoute
   AuthenticatedIntakeRoute: typeof AuthenticatedIntakeRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
@@ -2070,6 +2091,7 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedChainOfCustodyRoute: AuthenticatedChainOfCustodyRoute,
+  AuthenticatedCompoundExplorerRoute: AuthenticatedCompoundExplorerRoute,
   AuthenticatedIntakeRoute: AuthenticatedIntakeRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
