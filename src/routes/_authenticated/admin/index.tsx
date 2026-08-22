@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack, TerminalSquare } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
