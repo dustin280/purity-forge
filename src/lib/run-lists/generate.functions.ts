@@ -134,6 +134,38 @@ export const releaseInstrumentPositions = createServerFn({ method: "POST" })
     return { ok: true, released: data.sample_ids.length };
   });
 
+/**
+ * "SYX6_1-12_8-22-26": leading zeros stripped from both the SYX prefix
+ * number and the sample suffix numbers, suffixes collapsed to a min-max
+ * range (gaps from excluded rows aren't enumerated), one SYXn_range
+ * segment per distinct SYX prefix present, then the generation date
+ * (M-D-YY, no leading zeros). Nobody reads the instrument name or a
+ * sequence counter off the run list name -- the samples on it are what
+ * matters. Falls back to a date-only name if nothing parses as a Syx ID
+ * (e.g. all QC rows, or a non-standard batch_id format).
+ */
+function buildRunListName(batchIds: string[], date: Date): string {
+  const groups = new Map<number, number[]>();
+  for (const batchId of batchIds) {
+    const m = batchId.match(/^SYX-(\d+)-(\d+)/i);
+    if (!m) continue;
+    const prefix = parseInt(m[1], 10);
+    const suffix = parseInt(m[2], 10);
+    const arr = groups.get(prefix) ?? [];
+    arr.push(suffix);
+    groups.set(prefix, arr);
+  }
+  const dateStr = `${date.getUTCMonth() + 1}-${date.getUTCDate()}-${String(date.getUTCFullYear()).slice(-2)}`;
+  if (!groups.size) return `RunList_${dateStr}`;
+  const parts = Array.from(groups.keys()).sort((a, b) => a - b).map(prefix => {
+    const suffixes = groups.get(prefix) as number[];
+    const min = Math.min(...suffixes);
+    const max = Math.max(...suffixes);
+    return `SYX${prefix}_${min === max ? String(min) : `${min}-${max}`}`;
+  });
+  return `${parts.join("_")}_${dateStr}`;
+}
+
 function csvEscape(v: unknown): string {
   const s = v == null ? "" : String(v);
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -400,20 +432,10 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       ?? [instRow.make, instRow.model].filter(Boolean).join(" ")
       ?? "Instrument";
     const today = new Date();
-    const yyyy = today.getUTCFullYear();
-    const mm = String(today.getUTCMonth() + 1).padStart(2, "0");
-    const dd = String(today.getUTCDate()).padStart(2, "0");
-    const dayStr = `${yyyy}-${mm}-${dd}`;
-    const instrumentKey = instName.replace(/\s+/g, "_");
-    const { data: seqNum, error: seqErr } = await context.supabase
-      .rpc("next_run_list_seq", { p_instrument_key: instrumentKey, p_day: dayStr });
-    if (seqErr) throw seqErr;
-    const runNum = String(seqNum as number).padStart(2, "0");
-    const filename = `${dayStr}_${instrumentKey}_Run${runNum}.csv`;
 
     const seq: OptimizedSequence = {
       index: data.sequence_index,
-      name: filename,
+      name: "",
       primary_group_id: null,
       temperature_c: null,
       rows: data.rows.map((r) => ({
@@ -440,12 +462,17 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       resolveStandardPreps(context.supabase, standardPrepIds),
     ]);
     const accessionNumberByRowIndex = new Map(sampleRowIndices.map((rowIdx, n) => [rowIdx, accessionNumbers[n]]));
+    const batchIds = sampleRowIndices.map(i => seq.rows[i].sample_id).filter((id): id is string => !!id)
+      .map(sid => sampleFields.get(sid)?.batch_id).filter((b): b is string => !!b);
+    const runListName = buildRunListName(batchIds, today);
+    seq.name = runListName;
+    const filename = `${runListName}.csv`;
     const csv = sequenceToCsv(seq, data.injection_volume_ul, instRow.default_method_folder, preps, sampleFields, accessionNumberByRowIndex, standardsById);
     const csvWithBom = "\uFEFF" + csv;
 
     // Persist as a run_lists + run_list_items record for history/audit
     const { data: rl, error: rlErr } = await context.supabase.from("run_lists").insert({
-      name: filename,
+      name: runListName,
       status: "exported",
       instrument_id: null,       // legacy scheduler-instrument fk; not used here
       method_name: null,
