@@ -23,11 +23,8 @@ export const Route = createFileRoute("/_authenticated/run-lists/$id/prep")({
 
 const NEEDS_INPUT_LABEL: Record<string, string> = {
   no_compound: "No compound recorded",
-  no_analyte_link: "Compound not linked to a Sample Prep analyte",
-  no_active_method: "No active method for this analyte",
-  no_approved_revision: "No approved method revision",
-  no_calibration_level: "No usable calibration level",
-  no_diluent: "No default diluent set on the method",
+  no_calibration_data: "No calibration data available",
+  no_diluent: "No diluent configured",
   missing_as_received_data: "As-received data missing or unusable",
   plan_error: "Could not compute a plan",
 };

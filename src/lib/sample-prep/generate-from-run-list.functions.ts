@@ -1,16 +1,20 @@
 /**
  * Run list -> per-sample preparation plan generation.
  *
- * Replaces the old generatePrepDraftsForRunList (one empty-plan record per
- * unique compound) with one fully-computed sp_preparation_records row per
- * physical sample: resolves compound -> linked sp_analyte -> approved
- * method revision -> calibration range + prep rules, pulls the sample's
+ * One fully-computed sp_preparation_records row per physical sample:
+ * resolves the sample's raw compound text against the `compounds`
+ * registry (fuzzy, same matcher cal-qc-matching.ts uses), pulls that
+ * compound's real 6-point calibration set (or the sp_settings global
+ * fallback range for anything not yet calibrated), pulls the sample's
  * as-received data, and calls the existing planPreparation() engine
- * (src/lib/sample-prep/prep-engine.ts) unmodified. Rows that can't be
- * planned (missing link, missing as-received data, no default diluent,
- * etc.) are reported as needs-input instead of failing the whole batch —
- * recomputeSamplePrepForItem lets the review screen fill gaps and retry
- * one row at a time.
+ * (src/lib/sample-prep/prep-engine.ts) unmodified. Deliberately does NOT
+ * go through sp_analytes/sp_methods/sp_method_revisions -- that approval
+ * chain governs acquisition methods, which is a separate concern from
+ * dilution instructions and was never actually populated (see the
+ * 2026-08-24 migration). Rows that can't be planned (missing as-received
+ * data, no calibration data anywhere, etc.) are reported as needs-input
+ * instead of failing the whole batch -- recomputeSamplePrepForItem lets
+ * the review screen fill gaps and retry one row at a time.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -22,10 +26,7 @@ type SB = any;
 
 export type NeedsInputReason =
   | "no_compound"
-  | "no_analyte_link"
-  | "no_active_method"
-  | "no_approved_revision"
-  | "no_calibration_level"
+  | "no_calibration_data"
   | "no_diluent"
   | "missing_as_received_data"
   | "plan_error";
@@ -79,21 +80,6 @@ function resolutionKeyFor(sample: Pick<SampleCtx, "compound_id" | "compound">): 
 const MASS_TO_MG: Record<string, number> = { g: 1000, mg: 1, ug: 0.001, µg: 0.001 };
 const VOL_TO_UL: Record<string, number> = { ml: 1000, mL: 1000, ul: 1, uL: 1, µl: 1, µL: 1 };
 
-/** Mirrors new.tsx's local normalizeToMgPerMl — small enough to duplicate rather than touch that route. */
-function normalizeToMgPerMl(value: number | null | undefined, unit: string | null | undefined): number | null {
-  if (value == null) return null;
-  const u = (unit ?? "mg/mL").toLowerCase().replace(/\s+/g, "");
-  switch (u) {
-    case "mg/ml": return value;
-    case "µg/ml":
-    case "ug/ml": return value / 1000;
-    case "ng/ml": return value / 1_000_000;
-    case "g/l": return value;
-    case "mg/l": return value / 1000;
-    default: return value;
-  }
-}
-
 /** Mirrors optimizer.ts's private parseConcentrationMgPerMl — kept local since that one isn't exported. */
 function parseConcentrationMgPerMl(v: string | null | undefined): number | null {
   if (!v) return null;
@@ -109,36 +95,65 @@ function parseConcentrationMgPerMl(v: string | null | undefined): number | null 
 }
 
 interface ResolvedRevisionCtx {
-  analyteId: string;
   analyteName: string;
-  revisionId: string;
-  ruleId: string | null;
   rules: {
     absoluteMinPipetteUl: number;
     preferredMinPipetteUl: number;
-    maxPipetteUl: number | null;
     maxDilutionSteps: number;
-    preferredFinalVolumeUl: number | null;
-    minInitialReconstitutionUl: number | null;
-    maxInitialReconstitutionUl: number | null;
-    preferredInitialReconstitutionUl: number | null;
-    defaultTargetLevel: number;
+    preferredFinalVolumeUl: number;
+    preferredInitialReconstitutionUl: number;
   };
-  diluentName: string | null;
-  targetConcMgPerMl: number | null;
+  diluentName: string;
+  targetConcMgPerMl: number;
   calibrationLevel: number | null;
   calMinMgPerMl: number | null;
   calMaxMgPerMl: number | null;
 }
 
-/** Resolves compound -> sp_analyte -> approved revision -> calibration + prep rules + diluent for every unique compound on the run list, in one batch. */
-async function resolveRevisionContexts(supabase: SB, samples: SampleCtx[]): Promise<{
+interface GlobalPrepSettings {
+  absoluteMinPipetteUl: number;
+  preferredMinPipetteUl: number;
+  maxDilutionSteps: number;
+  finalVolumeUl: number;
+  reconstitutionVolumeUl: number;
+  diluentName: string;
+  defaultCalMinMgPerMl: number;
+  defaultCalMaxMgPerMl: number;
+  defaultTargetLevel: number;
+}
+
+async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSettings> {
+  const { data } = await supabase.from("sp_settings").select("*").eq("id", true).maybeSingle();
+  const s = (data ?? {}) as Record<string, unknown>;
+  return {
+    absoluteMinPipetteUl: Number(s.absolute_min_pipette_ul ?? 10),
+    preferredMinPipetteUl: Number(s.preferred_min_pipette_ul ?? 20),
+    maxDilutionSteps: Number(s.max_dilution_steps ?? 5),
+    finalVolumeUl: Number(s.default_final_volume_ul ?? 1000),
+    reconstitutionVolumeUl: Number(s.default_reconstitution_volume_ul ?? 1000),
+    diluentName: (s.default_diluent_name as string | null) ?? "Mobile Phase A",
+    defaultCalMinMgPerMl: Number(s.default_cal_min_mg_per_ml ?? 0.1),
+    defaultCalMaxMgPerMl: Number(s.default_cal_max_mg_per_ml ?? 0.2),
+    defaultTargetLevel: Number(s.default_target_level ?? 3),
+  };
+}
+
+/**
+ * Resolves each unique compound on the run list against the `compounds`
+ * registry (exact case-insensitive match, then a substring-either-direction
+ * fuzzy fallback -- same tiering as matchCompound() in
+ * lab-logs/cal-qc-matching.ts, inlined here since we already have the full
+ * compounds list loaded and matching against it in-memory avoids an N+1
+ * query per unique compound). A registry match is optional, purely for
+ * picking up a calibration override -- everything falls back to the
+ * sp_settings global default, so no compound is ever gated on being linked
+ * to anything.
+ */
+async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[], settings: GlobalPrepSettings): Promise<{
   byCompoundLower: Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>;
 }> {
   const byCompoundLower = new Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>();
 
-  // One "unit" per unique resolution key needed (id-based when the intake
-  // picker set compound_id, name-based as a fallback for older rows).
   const units = new Map<string, string>(); // key -> display label
   for (const s of samples) {
     const key = resolutionKeyFor(s);
@@ -147,115 +162,95 @@ async function resolveRevisionContexts(supabase: SB, samples: SampleCtx[]): Prom
   }
   if (!units.size) return { byCompoundLower };
 
-  const compoundIds = Array.from(units.keys()).filter(k => k.startsWith("id:")).map(k => k.slice(3));
-  const compoundNames = Array.from(units.keys()).filter(k => k.startsWith("name:")).map(k => units.get(k) as string);
-
-  type CompoundRow = { id: string; name: string; sp_analyte_id: string | null };
-  const [{ data: byIdRows }, { data: byNameRows }] = await Promise.all([
-    compoundIds.length
-      ? supabase.from("compounds").select("id, name, sp_analyte_id").in("id", compoundIds)
-      : Promise.resolve({ data: [] }),
-    compoundNames.length
-      ? supabase.from("compounds").select("id, name, sp_analyte_id").in("name", compoundNames)
-      : Promise.resolve({ data: [] }),
-  ]);
-  const analyteIdByKey = new Map<string, string | null>();
-  for (const c of (byIdRows ?? []) as CompoundRow[]) analyteIdByKey.set(`id:${c.id}`, c.sp_analyte_id);
-  for (const c of (byNameRows ?? []) as CompoundRow[]) analyteIdByKey.set(`name:${c.name.trim().toLowerCase()}`, c.sp_analyte_id);
-
-  const analyteIds = Array.from(new Set(Array.from(analyteIdByKey.values()).filter(Boolean))) as string[];
-  const { data: analyteRows } = analyteIds.length
-    ? await supabase.from("sp_analytes").select("id, canonical_name").in("id", analyteIds)
-    : { data: [] };
-  const analyteNameById = new Map(
-    ((analyteRows ?? []) as Array<{ id: string; canonical_name: string }>).map(a => [a.id, a.canonical_name] as const),
-  );
-
-  const { data: methodRows } = analyteIds.length
-    ? await supabase.from("sp_methods").select("id, analyte_id").in("analyte_id", analyteIds).eq("is_active", true)
-    : { data: [] };
-  const methods = (methodRows ?? []) as Array<{ id: string; analyte_id: string }>;
-  const methodToAnalyte = new Map(methods.map(m => [m.id, m.analyte_id] as const));
-  const methodIds = methods.map(m => m.id);
-
-  const { data: revRows } = methodIds.length
-    ? await supabase.from("sp_method_revisions").select("id, method_id, revision")
-      .in("method_id", methodIds).eq("status", "approved").order("revision", { ascending: false })
-    : { data: [] };
-  const revisionByAnalyte = new Map<string, string>();
-  for (const r of (revRows ?? []) as Array<{ id: string; method_id: string }>) {
-    const analyte = methodToAnalyte.get(r.method_id);
-    if (analyte && !revisionByAnalyte.has(analyte)) revisionByAnalyte.set(analyte, r.id);
-  }
-
-  const revisionIds = Array.from(new Set(Array.from(revisionByAnalyte.values())));
-  const [{ data: levelRows }, { data: ruleRows }] = await Promise.all([
-    revisionIds.length
-      ? supabase.from("sp_method_calibration_levels").select("*").in("revision_id", revisionIds)
-      : Promise.resolve({ data: [] }),
-    revisionIds.length
-      ? supabase.from("sp_method_prep_rules").select("*").in("revision_id", revisionIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-  const levelsByRevision = new Map<string, Array<{ level_number: number; target_concentration: number | null; concentration_unit: string | null; is_active: boolean; include_in_calibration: boolean }>>();
-  for (const l of (levelRows ?? []) as Array<{ revision_id: string; level_number: number; target_concentration: number | null; concentration_unit: string | null; is_active: boolean; include_in_calibration: boolean }>) {
-    const arr = levelsByRevision.get(l.revision_id) ?? [];
-    arr.push(l);
-    levelsByRevision.set(l.revision_id, arr);
-  }
-  type RuleRow = {
-    revision_id: string; default_target_level: number; default_sample_solvent_id: string | null;
-    min_pipette_volume_ul: number | null; preferred_min_pipette_volume_ul: number | null; max_pipette_volume_ul: number | null;
-    max_dilution_steps: number | null; preferred_final_volume_ul: number | null;
-    min_initial_reconstitution_volume_ul: number | null; max_initial_reconstitution_volume_ul: number | null;
-    preferred_initial_reconstitution_volume_ul: number | null; id: string;
+  const { data: compoundRows } = await supabase
+    .from("compounds")
+    .select("id, name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, default_diluent_name");
+  type CompoundRow = {
+    id: string; name: string; default_diluent_name: string | null;
+    cal_l1_mg_per_ml: number | null; cal_l2_mg_per_ml: number | null; cal_l3_mg_per_ml: number | null;
+    cal_l4_mg_per_ml: number | null; cal_l5_mg_per_ml: number | null; cal_l6_mg_per_ml: number | null;
   };
-  const rulesByRevision = new Map(((ruleRows ?? []) as RuleRow[]).map(r => [r.revision_id, r] as const));
+  const compounds = (compoundRows ?? []) as CompoundRow[];
+  const byId = new Map(compounds.map(c => [c.id, c] as const));
 
-  const solventIds = Array.from(new Set(((ruleRows ?? []) as RuleRow[]).map(r => r.default_sample_solvent_id).filter(Boolean))) as string[];
-  const { data: solventRows } = solventIds.length
-    ? await supabase.from("sp_solvent_formulations").select("id, name").in("id", solventIds)
-    : { data: [] };
-  const solventNameById = new Map(((solventRows ?? []) as Array<{ id: string; name: string }>).map(s => [s.id, s.name] as const));
+  // Strip a "[... vial]" tag (see the non-chrom exclusion rule) and a
+  // trailing dose like " 50mg" — samples record compound as free text
+  // ("BPC-157 50mg"), not the clean registry name, and neither salt-form
+  // variant in the registry ("BPC-157 Acetate", "BPC-157 (free)") is a
+  // clean substring/superset match against just "BPC-157" alone.
+  const cleanForMatch = (name: string): string =>
+    name.replace(/\s*\[[^\]]*\]\s*$/, "").replace(/\s+\d+(\.\d+)?\s*(mg|mcg|µg|ug|g)\s*$/i, "").trim();
 
-  for (const [key, compound] of units) {
-    const analyteId = analyteIdByKey.get(key);
-    if (!analyteId) { byCompoundLower.set(key, { reason: "no_analyte_link", message: `"${compound}" isn't linked to a Sample Prep analyte (Admin → Compounds).` }); continue; }
-    const revisionId = revisionByAnalyte.get(analyteId);
-    if (!revisionId) {
-      const hasMethod = methods.some(m => m.analyte_id === analyteId);
-      byCompoundLower.set(key, hasMethod
-        ? { reason: "no_approved_revision", message: `No approved method revision for ${analyteNameById.get(analyteId) ?? compound}.` }
-        : { reason: "no_active_method", message: `No active method for ${analyteNameById.get(analyteId) ?? compound}.` });
-      continue;
+  // Bare compound names that are genuinely ambiguous between multiple
+  // registry variants (different salt forms, different calibration
+  // ranges) -- confirmed defaults, not a guess. Extend as new ambiguities
+  // turn up rather than letting length/substring heuristics pick one.
+  const BARE_NAME_DEFAULT: Record<string, string> = {
+    "bpc-157": "BPC-157 Acetate",
+  };
+
+  const findByName = (rawName: string): CompoundRow | null => {
+    const lower = cleanForMatch(rawName).toLowerCase();
+    if (!lower) return null;
+    const exact = compounds.find(c => c.name.trim().toLowerCase() === lower);
+    if (exact) return exact;
+    const aliased = BARE_NAME_DEFAULT[lower];
+    if (aliased) {
+      const found = compounds.find(c => c.name === aliased);
+      if (found) return found;
     }
-    const rule = rulesByRevision.get(revisionId);
-    if (!rule) { byCompoundLower.set(key, { reason: "no_calibration_level", message: `Method revision has no prep rules configured.` }); continue; }
-    const levels = (levelsByRevision.get(revisionId) ?? []).filter(l => l.is_active !== false && l.include_in_calibration !== false && l.target_concentration != null);
-    if (!levels.length) { byCompoundLower.set(key, { reason: "no_calibration_level", message: `Method revision has no active calibration levels.` }); continue; }
-    const calMgPerMl = levels.map(l => normalizeToMgPerMl(l.target_concentration, l.concentration_unit)).filter((n): n is number => n != null);
-    const targetLevel = levels.find(l => l.level_number === rule.default_target_level) ?? levels[Math.floor(levels.length / 2)];
-    const diluentName = rule.default_sample_solvent_id ? solventNameById.get(rule.default_sample_solvent_id) ?? null : null;
-    if (!diluentName) { byCompoundLower.set(key, { reason: "no_diluent", message: `No default diluent set on the method's Prep Rules tab.` }); continue; }
+    // A blend name (e.g. "SUMMIT (Cartalax + ... + BPC-157 + KPV)") lists
+    // its own component compounds inside its name -- letting a short query
+    // like "BPC-157" match it just because the blend's name *contains*
+    // "BPC-157" would swallow every single-compound sample that happens to
+    // share an ingredient with any blend. Blends may only match when the
+    // sample's own text fully contains the blend's name, never the reverse.
+    const candidates = compounds.filter(c => {
+      const n = c.name.trim().toLowerCase();
+      if (lower.includes(n)) return true;
+      const isBlend = n.includes(" + ");
+      return !isBlend && n.includes(lower) && n.length <= lower.length + 20;
+    });
+    if (!candidates.length) return null;
+    // Multiple rows can substring-match the same raw name (e.g. a blend
+    // like "SUMMIT (...KPV 10mg)" also contains "KPV" itself). Longest
+    // name wins first -- that's the more specific/complete match, and
+    // picking the short one just because it happens to have calibration
+    // data would silently mis-resolve a blend to one of its components.
+    // Calibration-data presence only breaks a genuine tie in specificity.
+    candidates.sort((a, b) => b.name.length - a.name.length || (b.cal_l1_mg_per_ml != null ? 1 : 0) - (a.cal_l1_mg_per_ml != null ? 1 : 0));
+    return candidates[0];
+  };
+
+  for (const [key, label] of units) {
+    const match = key.startsWith("id:") ? byId.get(key.slice(3)) ?? null : findByName(label);
+    const levels = match
+      ? [match.cal_l1_mg_per_ml, match.cal_l2_mg_per_ml, match.cal_l3_mg_per_ml, match.cal_l4_mg_per_ml, match.cal_l5_mg_per_ml, match.cal_l6_mg_per_ml]
+      : [];
+    const numericLevels = levels.map((v, i) => ({ level: i + 1, v })).filter((l): l is { level: number; v: number } => l.v != null);
+
+    const target = numericLevels.find(l => l.level === settings.defaultTargetLevel)
+      ?? numericLevels[Math.floor(numericLevels.length / 2)]
+      ?? null;
+    const targetConcMgPerMl = target?.v ?? (settings.defaultCalMinMgPerMl + settings.defaultCalMaxMgPerMl) / 2;
+    const calVals = numericLevels.map(l => l.v);
+    const calMin = calVals.length ? Math.min(...calVals) : settings.defaultCalMinMgPerMl;
+    const calMax = calVals.length ? Math.max(...calVals) : settings.defaultCalMaxMgPerMl;
 
     byCompoundLower.set(key, {
-      analyteId, analyteName: analyteNameById.get(analyteId) ?? compound, revisionId, ruleId: rule.id,
+      analyteName: match?.name ?? label,
       rules: {
-        absoluteMinPipetteUl: rule.min_pipette_volume_ul ?? 10,
-        preferredMinPipetteUl: rule.preferred_min_pipette_volume_ul ?? 20,
-        maxPipetteUl: rule.max_pipette_volume_ul,
-        maxDilutionSteps: rule.max_dilution_steps ?? 5,
-        preferredFinalVolumeUl: rule.preferred_final_volume_ul,
-        minInitialReconstitutionUl: rule.min_initial_reconstitution_volume_ul,
-        maxInitialReconstitutionUl: rule.max_initial_reconstitution_volume_ul,
-        preferredInitialReconstitutionUl: rule.preferred_initial_reconstitution_volume_ul,
-        defaultTargetLevel: rule.default_target_level,
+        absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
+        preferredMinPipetteUl: settings.preferredMinPipetteUl,
+        maxDilutionSteps: settings.maxDilutionSteps,
+        preferredFinalVolumeUl: settings.finalVolumeUl,
+        preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
       },
-      diluentName,
-      targetConcMgPerMl: normalizeToMgPerMl(targetLevel.target_concentration, targetLevel.concentration_unit),
-      calibrationLevel: targetLevel.level_number,
-      calMinMgPerMl: calMgPerMl.length ? Math.min(...calMgPerMl) : null,
-      calMaxMgPerMl: calMgPerMl.length ? Math.max(...calMgPerMl) : null,
+      diluentName: match?.default_diluent_name ?? settings.diluentName,
+      targetConcMgPerMl,
+      calibrationLevel: target?.level ?? null,
+      calMinMgPerMl: calMin,
+      calMaxMgPerMl: calMax,
     });
   }
   return { byCompoundLower };
@@ -303,10 +298,6 @@ function buildPlanInput(
   const qtyUnit = (overrides?.received_quantity_unit ?? sample.received_quantity_unit ?? "").toLowerCase();
   const purityPct = overrides?.received_purity_percent ?? sample.received_purity_percent;
 
-  if (ctx.targetConcMgPerMl == null || !ctx.rules.preferredFinalVolumeUl) {
-    return { ok: false, reason: "no_calibration_level", message: "Target concentration or preferred final volume is not configured." };
-  }
-
   const source: PrepPlanInput["source"] = form === "lyophilized"
     ? {
       form: "lyophilized",
@@ -333,21 +324,18 @@ function buildPlanInput(
       source,
       reconstitution: {
         volumeUl: ctx.rules.preferredInitialReconstitutionUl,
-        solventName: ctx.diluentName as string,
+        solventName: ctx.diluentName,
       },
       target: {
         concentrationMgPerMl: ctx.targetConcMgPerMl,
-        finalVolumeUl: ctx.rules.preferredFinalVolumeUl as number,
+        finalVolumeUl: ctx.rules.preferredFinalVolumeUl,
         calibrationLevel: ctx.calibrationLevel,
       },
       rules: {
         absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl,
         preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl,
-        maxPipetteUl: ctx.rules.maxPipetteUl,
         maxDilutionSteps: ctx.rules.maxDilutionSteps,
         preferredFinalVolumeUl: ctx.rules.preferredFinalVolumeUl,
-        minInitialReconstitutionUl: ctx.rules.minInitialReconstitutionUl,
-        maxInitialReconstitutionUl: ctx.rules.maxInitialReconstitutionUl,
         preferredInitialReconstitutionUl: ctx.rules.preferredInitialReconstitutionUl,
       },
       calibration: { minMgPerMl: ctx.calMinMgPerMl, maxMgPerMl: ctx.calMaxMgPerMl },
@@ -368,14 +356,14 @@ async function persistPlan(
     .from("sp_preparation_records")
     .insert({
       prep_number,
-      method_revision_id: ctx.revisionId,
-      analyte_id: ctx.analyteId,
+      method_revision_id: null,
+      analyte_id: null,
       status: "draft",
       planned_target_concentration_mg_per_ml: plan.targetConcentrationMgPerMl,
       planned_target_volume_ul: plan.finalVolumeUl,
       planned_calibration_level: ctx.calibrationLevel,
       sample_id: sample.batch_id,
-      sample_context: { source: "run_list", sample_id: sample.id, compound: sample.compound },
+      sample_context: { source: "run_list", sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.analyteName },
       plan: { warnings: plan.warnings, totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl },
       total_dilution_factor: plan.totalDilutionFactor,
       prepared_by: userId,
@@ -435,8 +423,9 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
     const created: GeneratedRow[] = [];
     const needsInput: NeedsInputRow[] = [];
 
+    const settings = await loadGlobalPrepSettings(context.supabase);
     const [{ byCompoundLower }, assets] = await Promise.all([
-      resolveRevisionContexts(context.supabase, Array.from(samples.values())),
+      resolveCompoundContexts(context.supabase, Array.from(samples.values()), settings),
       loadLabAssets(context.supabase),
     ]);
 
@@ -450,7 +439,7 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
       }
       const resolved = byCompoundLower.get(resolutionKey);
       if (!resolved || "reason" in resolved) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_analyte_link", message: resolved?.message ?? "Could not resolve method." });
+        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target." });
         continue;
       }
       const built = buildPlanInput(sample, resolved, undefined, assets);
@@ -500,12 +489,13 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
     const resolutionKey = resolutionKeyFor(sample);
     if (!resolutionKey) throw new Error("Sample has no compound recorded.");
 
+    const settings = await loadGlobalPrepSettings(context.supabase);
     const [{ byCompoundLower }, assets] = await Promise.all([
-      resolveRevisionContexts(context.supabase, [sample]),
+      resolveCompoundContexts(context.supabase, [sample], settings),
       loadLabAssets(context.supabase),
     ]);
     const resolved = byCompoundLower.get(resolutionKey);
-    if (!resolved || "reason" in resolved) throw new Error(resolved?.message ?? "Could not resolve method.");
+    if (!resolved || "reason" in resolved) throw new Error(resolved?.message ?? "Could not resolve a calibration target.");
 
     const built = buildPlanInput(sample, resolved, data.overrides, assets);
     if (!built.ok) throw new Error(built.message);
