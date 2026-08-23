@@ -294,6 +294,19 @@ export async function buildRunListCsv(
     (items ?? []).forEach((it: Record<string, unknown>, idx: number) => {
       const sample = it.sample_id ? sampleMap.get(it.sample_id as string) : undefined;
       const sampleName = (sample?.batch_id as string) ?? `Row${idx + 1}`;
+      // Instrument-facing sample name: Syx ID-Lot-Compound-Amount, tagged
+      // with the literal <D> marker OpenLab uses to append a result
+      // timestamp. QC rows (no linked sample) keep their row type instead.
+      const composedSampleName = sample
+        ? [
+            sample.batch_id as string,
+            sample.lot as string | null,
+            sample.compound as string | null,
+            sample.label_content_value != null
+              ? `${sample.label_content_value}${(sample.label_content_unit as string | null) ?? ""}`
+              : null,
+          ].filter(Boolean).join("-") + " <D>"
+        : ((it.sample_type as string | null) ?? "");
       // Tray-style position codes (e.g. "A1") don't fit the legacy integer
       // `vial` column, so the generator stores them in extras.position_code
       // instead — fall back to that so the CSV's Vial column still populates.
@@ -316,8 +329,9 @@ export async function buildRunListCsv(
           default: return csvEscape("");
         }
       });
-      // Per-row override for Sample Type and Comment columns when keys match
+      // Per-row override for Sample Name, Sample Type, and Comment columns when keys match
       columns.forEach((c, ci) => {
+        if (c.key === "Sample Name") row[ci] = csvEscape(composedSampleName);
         if (c.key === "Sample Type" && it.sample_type) row[ci] = csvEscape(it.sample_type);
         if (c.key === "Comment" && it.comment) row[ci] = csvEscape(it.comment);
       });

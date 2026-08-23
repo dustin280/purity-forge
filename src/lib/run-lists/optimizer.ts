@@ -67,6 +67,25 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 /**
+ * Parse a free-text concentration into mg/mL — used only as the final
+ * tie-breaker within a compound's Syx ID ordering. Unparseable / missing
+ * values sort to the end (Infinity).
+ */
+function parseConcentrationMgPerMl(v: string | null | undefined): number {
+  if (!v) return Number.POSITIVE_INFINITY;
+  const s = String(v).trim();
+  const m = s.match(/([-+]?\d*\.?\d+)\s*([a-zµμ%/]*)/i);
+  if (!m) return Number.POSITIVE_INFINITY;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return Number.POSITIVE_INFINITY;
+  const unit = (m[2] || "").toLowerCase();
+  if (/^(µg|ug|mcg)\/?(ml|ml\.)?$/.test(unit) || unit === "µg/ml" || unit === "ug/ml") return n / 1000;
+  if (/^ng\/?(ml)?$/.test(unit)) return n / 1_000_000;
+  if (/^g\/?(ml|l)?$/.test(unit)) return unit.includes("l") && !unit.includes("ml") ? n / 1000 : n * 1000;
+  return n;
+}
+
+/**
  * Build the fixed QC pattern around up to 30 samples. Every QC/blank row
  * carries the same acquisition/processing method as the samples it's
  * bracketing — a run never mixes method groups (see the packing logic in
@@ -175,10 +194,16 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
     }
     b.samples.push(s);
   }
-  // Syx ID order inside each compound bucket — numeric-aware so e.g.
-  // SYX-000006-02 sorts before -10, not after it lexically.
+  // Buckets are already one per compound (see the bucket key above), so
+  // "group by compound" is structural. Within a compound: Syx ID order
+  // (numeric-aware, so -02 sorts before -10), concentration only as a
+  // tie-break for the rare case two rows share an ID.
   for (const b of buckets.values()) {
-    b.samples.sort((a, z) => a.batch_id.localeCompare(z.batch_id, undefined, { numeric: true, sensitivity: "base" }));
+    b.samples.sort((a, z) => {
+      const byId = a.batch_id.localeCompare(z.batch_id, undefined, { numeric: true, sensitivity: "base" });
+      if (byId !== 0) return byId;
+      return parseConcentrationMgPerMl(a.concentration) - parseConcentrationMgPerMl(z.concentration);
+    });
   }
 
   // Order buckets: by method-group priority/temperature, then compound name.
