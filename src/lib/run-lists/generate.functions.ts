@@ -446,9 +446,9 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
       row_no: i + 1,
       sample_type: r.type,
       method_override: r.acquisition_method,
-      vial: null,                 // tray-style codes don't fit the legacy int column
-      data_file: null,
-      comment: r.vial ? `Position ${r.vial}` : null,
+      vial: null,                 // tray-style codes don't fit the legacy int column —
+      data_file: null,            // the real code lives in extras.position_code instead,
+      comment: null,              // which the CSV builder reads (see buildRunListCsv).
       extras: { position_code: r.vial, processing_method: r.processing_method },
       sp_preparation_record_id: (r.sample_id && preps.get(r.sample_id)?.id) || null,
       accession_number: accessionNumberByRowIndex.get(i) ?? null,

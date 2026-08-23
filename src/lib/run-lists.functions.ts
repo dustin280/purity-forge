@@ -240,7 +240,7 @@ function csvEscape(v: unknown): string {
   return s;
 }
 
-function renderPattern(pattern: string, ctx: { sample: string; seq: number; vial: number | null; date: Date }): string {
+function renderPattern(pattern: string, ctx: { sample: string; seq: number; vial: number | string | null; date: Date }): string {
   const yyyy = ctx.date.getUTCFullYear().toString();
   const MM = String(ctx.date.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(ctx.date.getUTCDate()).padStart(2, "0");
@@ -294,7 +294,11 @@ export async function buildRunListCsv(
     (items ?? []).forEach((it: Record<string, unknown>, idx: number) => {
       const sample = it.sample_id ? sampleMap.get(it.sample_id as string) : undefined;
       const sampleName = (sample?.batch_id as string) ?? `Row${idx + 1}`;
-      const vial = (it.vial as number | null) ?? null;
+      // Tray-style position codes (e.g. "A1") don't fit the legacy integer
+      // `vial` column, so the generator stores them in extras.position_code
+      // instead — fall back to that so the CSV's Vial column still populates.
+      const extras = (it.extras ?? null) as { position_code?: string | null } | null;
+      const vial = (it.vial as number | null) ?? extras?.position_code ?? null;
       const dataFile = (it.data_file as string | null) ?? renderPattern(listRow.data_file_pattern, {
         sample: sampleName, seq: idx + 1, vial, date,
       });
@@ -320,8 +324,14 @@ export async function buildRunListCsv(
       lines.push(row.join(","));
     });
     const csv = lines.join("\r\n") + "\r\n";
-    const safeName = ((list as { name: string }).name || "run-list").replace(/[^a-z0-9_\-]+/gi, "_");
-    const filename = `${safeName}_${date.toISOString().slice(0, 10)}.csv`;
+    // The Name field already carries the analyst's own date/run convention
+    // (e.g. "2026-08-21_Bobbie_Run01") and sometimes an accidental trailing
+    // ".csv" — strip that before sanitizing so the exported/pushed filename
+    // actually matches what's shown on screen, instead of a mangled name
+    // plus a second, today's-date suffix nobody would recognize.
+    const rawName = ((list as { name: string }).name || "run-list").replace(/\.csv$/i, "");
+    const safeName = rawName.replace(/[^a-z0-9_\-]+/gi, "_") || "run-list";
+    const filename = `${safeName}.csv`;
 
     let storagePath: string | null = null;
     if (persist) {
