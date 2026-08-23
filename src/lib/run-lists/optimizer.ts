@@ -67,26 +67,6 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 /**
- * Parse a free-text concentration into mg/mL for ordering purposes only.
- * Unparseable / missing values sort to the end (Infinity).
- */
-function parseConcentrationMgPerMl(v: string | null | undefined): number {
-  if (!v) return Number.POSITIVE_INFINITY;
-  const s = String(v).trim();
-  const m = s.match(/([-+]?\d*\.?\d+)\s*([a-zµμ%/]*)/i);
-  if (!m) return Number.POSITIVE_INFINITY;
-  const n = parseFloat(m[1]);
-  if (!Number.isFinite(n)) return Number.POSITIVE_INFINITY;
-  const unit = (m[2] || "").toLowerCase();
-  // Normalize a few common units to mg/mL. Everything else is left as-is —
-  // ordering only needs a consistent numeric key per compound.
-  if (/^(µg|ug|mcg)\/?(ml|ml\.)?$/.test(unit) || unit === "µg/ml" || unit === "ug/ml") return n / 1000;
-  if (/^ng\/?(ml)?$/.test(unit)) return n / 1_000_000;
-  if (/^g\/?(ml|l)?$/.test(unit)) return unit.includes("l") && !unit.includes("ml") ? n / 1000 : n * 1000;
-  return n;
-}
-
-/**
  * Build the fixed QC pattern around up to 30 samples. Every QC/blank row
  * carries the same acquisition/processing method as the samples it's
  * bracketing — a run never mixes method groups (see the packing logic in
@@ -195,14 +175,10 @@ export function optimize(input: OptimizerInput): OptimizedSequence[] {
     }
     b.samples.push(s);
   }
-  // Ascending concentration inside each compound bucket.
+  // Syx ID order inside each compound bucket — numeric-aware so e.g.
+  // SYX-000006-02 sorts before -10, not after it lexically.
   for (const b of buckets.values()) {
-    b.samples.sort((a, z) => {
-      const ca = parseConcentrationMgPerMl(a.concentration);
-      const cz = parseConcentrationMgPerMl(z.concentration);
-      if (ca !== cz) return ca - cz;
-      return a.batch_id.localeCompare(z.batch_id);
-    });
+    b.samples.sort((a, z) => a.batch_id.localeCompare(z.batch_id, undefined, { numeric: true, sensitivity: "base" }));
   }
 
   // Order buckets: by method-group priority/temperature, then compound name.
