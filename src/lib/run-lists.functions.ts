@@ -1,6 +1,30 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { releaseSampleFromInstrument } from "@/lib/run-lists/vial-release.functions";
+
+/**
+ * Deleting a run list cascades run_list_items away, but sample_locations /
+ * tray_positions aren't FK'd to run_lists at all -- a raw delete left
+ * occupied vial positions permanently "reserved" with nothing pointing at
+ * them, silently blocking every future generation from offering those
+ * samples again. Release every sample on the list from its instrument
+ * position first so a delete is actually safe to regenerate after.
+ */
+async function releaseRunListVials(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  runListIds: string[],
+): Promise<void> {
+  const { data: items, error } = await supabase
+    .from("run_list_items")
+    .select("sample_id")
+    .in("run_list_id", runListIds)
+    .not("sample_id", "is", null);
+  if (error) throw error;
+  const sampleIds = [...new Set((items ?? []).map((r: { sample_id: string }) => r.sample_id))] as string[];
+  await Promise.all(sampleIds.map((id) => releaseSampleFromInstrument(supabase, id)));
+}
 
 const WHITELIST_SAMPLE_FIELDS = new Set([
   "batch_id","client","project","compound","lot","catalog","concentration",
@@ -122,6 +146,7 @@ export const deleteRunList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
+    await releaseRunListVials(context.supabase, [data.id]);
     const { error } = await context.supabase.from("run_lists").delete().eq("id", data.id);
     if (error) throw error;
     return { ok: true };
@@ -133,6 +158,7 @@ export const deleteRunLists = createServerFn({ method: "POST" })
     z.object({ ids: z.array(z.string().uuid()).min(1).max(200) }).parse(d)
   )
   .handler(async ({ context, data }) => {
+    await releaseRunListVials(context.supabase, data.ids);
     const { error } = await context.supabase.from("run_lists").delete().in("id", data.ids);
     if (error) throw error;
     return { ok: true, deleted: data.ids.length };

@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Download, Plus, Trash2, ArrowLeft, FileText, Send, Tags, FlaskConical, AlertTriangle, ClipboardCheck } from "lucide-react";
 import {
   getRunList, updateRunList, addSamplesToRunList, removeRunListItem,
-  generateRunListCsv, listPrepFlaggedSamples, markRunListSent,
+  generateRunListCsv, listPrepFlaggedSamples, markRunListSent, deleteRunList,
 } from "@/lib/run-lists.functions";
 import {
   getRunListPrepCoverage,
@@ -46,6 +46,7 @@ function RunListDetail() {
   const pushDrive = useServerFn(pushRunListToDrive);
   const prepCoverageFn = useServerFn(getRunListPrepCoverage);
   const benchStatusesFn = useServerFn(listBenchSheetStatuses);
+  const deleteFn = useServerFn(deleteRunList);
   const navigate = useNavigate();
   const instruments = useQuery({ queryKey: qk.instruments.list(), queryFn: () => listInstr() });
   const methods = useOpenLabMethods();
@@ -110,6 +111,16 @@ function RunListDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Releases every sample's instrument position before deleting so the
+  // list can be safely regenerated afterward — a raw delete would leave
+  // vial positions permanently marked reserved with nothing pointing at
+  // them (see run-lists.functions.ts's releaseRunListVials).
+  const deleteMut = useMutation({
+    mutationFn: () => deleteFn({ data: { id } }),
+    onSuccess: () => { toast.success("Run list deleted — vial positions released"); navigate({ to: "/run-lists" }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   async function downloadCsv(persist: boolean) {
     try {
       const r = await genCsv({ data: { run_list_id: id, persist } });
@@ -152,8 +163,17 @@ function RunListDetail() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1200px]">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
         <Button asChild variant="ghost" size="sm"><Link to="/run-lists"><ArrowLeft className="size-4 mr-1" />Back</Link></Button>
+        <Button
+          variant="outline" size="sm" className="text-destructive hover:text-destructive"
+          disabled={deleteMut.isPending}
+          onClick={() => {
+            if (confirm(`Delete "${l.name}"? This releases every sample's vial position so the list can be regenerated. Sample Prep records made from it stay on record but lose the link back to this list.`)) deleteMut.mutate();
+          }}
+        >
+          <Trash2 className="size-4 mr-1" />Delete run list
+        </Button>
       </div>
 
       <Card className="p-5 space-y-4 border-border">
