@@ -175,7 +175,10 @@ function RunListDetail() {
             <Select value={current.method_name} onValueChange={(v) => setForm({ ...current, method_name: v })}>
               <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
-                {(methods.data ?? []).map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
+                {/* Acquisition methods only — the synced Methods folder also
+                    holds .pmx processing methods and .smx method sets, which
+                    don't belong in a run's acquisition method slot. */}
+                {(methods.data ?? []).filter(m => /\.amx$/i.test(m.name)).map(m => <SelectItem key={m.id} value={m.name}>{m.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
