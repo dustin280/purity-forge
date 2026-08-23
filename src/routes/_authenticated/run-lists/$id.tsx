@@ -149,9 +149,11 @@ function RunListDetail() {
     const lines = items.map((it) => {
       const s = it.sample_id ? samplesMap.get(it.sample_id) : null;
       const idPart = s?.batch_id ?? it.sample_type ?? "—";
+      const compoundPart = s?.compound ? ` / ${s.compound}` : "";
+      const amountPart = s?.label_content_value != null ? ` / ${s.label_content_value}${s.label_content_unit ?? ""}` : "";
       const lotPart = s?.lot ? ` / Lot ${s.lot}` : "";
       const vialPart = it.vial ? ` / ${it.vial}` : "";
-      return `${idPart}${lotPart}${vialPart}`;
+      return `${idPart}${compoundPart}${amountPart}${lotPart}${vialPart}`;
     });
     if (lines.length === 0) { toast.info("No rows to label."); return; }
     try {

@@ -176,10 +176,10 @@ export const getRunList = createServerFn({ method: "GET" })
       .from("run_list_items").select("*").eq("run_list_id", data.id).order("row_no", { ascending: true });
     if (e2) throw e2;
     const sampleIds = (items ?? []).map(i => (i as { sample_id: string | null }).sample_id).filter(Boolean) as string[];
-    let samples: Array<{ id: string; batch_id: string; client: string; project: string | null; compound: string | null; lot: string | null }> = [];
+    let samples: Array<{ id: string; batch_id: string; client: string; project: string | null; compound: string | null; lot: string | null; label_content_value: number | null; label_content_unit: string | null }> = [];
     if (sampleIds.length) {
       const { data: s } = await context.supabase
-        .from("samples").select("id,batch_id,client,project,compound,lot").in("id", sampleIds);
+        .from("samples").select("id,batch_id,client,project,compound,lot,label_content_value,label_content_unit").in("id", sampleIds);
       samples = (s ?? []) as typeof samples;
     }
     return {

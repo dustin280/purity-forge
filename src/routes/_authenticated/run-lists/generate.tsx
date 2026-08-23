@@ -13,7 +13,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Wand2, Download, ChevronLeft, CloudUpload, Tags, AlertTriangle, FlaskConical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
-import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive } from "@/lib/run-lists/generate.functions";
+import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive, getSampleLabelFields } from "@/lib/run-lists/generate.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
 import { StandardPicker, type PickedStandard } from "@/components/standard-preparations/standard-picker";
 import { qk } from "@/lib/query-keys";
@@ -29,6 +29,7 @@ function GenerateRunList() {
   const preview = useServerFn(previewGeneratedSequences);
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
+  const labelFields = useServerFn(getSampleLabelFields);
   const navigate = useNavigate();
   const signalWorkflowEvent = useWorkflowSignal();
   const { data: instruments } = useQuery({
@@ -169,19 +170,30 @@ function GenerateRunList() {
   const sampleRows = sequences.flatMap((s) => s.rows.filter((r) => r.type === "Sample"));
   const warnedRows = sampleRows.filter((r) => r.prep_warning);
 
-  const printLabels = (seqs: OptimizedSequence[]) => {
-    const lines = seqs.flatMap((s) =>
-      s.rows.map((r) => {
-        const idPart = r.label.split("—")[0].trim() || r.label;
-        const lotPart = r.lot ? ` / Lot ${r.lot}` : "";
-        const vialPart = r.vial ? ` / ${r.vial}` : "";
-        return `${idPart}${lotPart}${vialPart}`;
-      }),
-    );
-    if (lines.length === 0) {
+  const printLabels = async (seqs: OptimizedSequence[]) => {
+    const rows = seqs.flatMap((s) => s.rows);
+    if (rows.length === 0) {
       toast.info("No rows to label in the selected sequence(s).");
       return;
     }
+    const sampleIds = [...new Set(rows.map((r) => r.sample_id).filter((id): id is string => !!id))];
+    let fieldsById = new Map<string, { compound: string | null; label_content_value: number | null; label_content_unit: string | null }>();
+    try {
+      const fields = sampleIds.length ? await labelFields({ data: { sample_ids: sampleIds } }) : [];
+      fieldsById = new Map(fields.map((f) => [f.id, f] as const));
+    } catch (e) {
+      toast.error((e as Error).message);
+      return;
+    }
+    const lines = rows.map((r) => {
+      const idPart = r.label.split("—")[0].trim() || r.label;
+      const f = r.sample_id ? fieldsById.get(r.sample_id) : undefined;
+      const compoundPart = f?.compound ? ` / ${f.compound}` : "";
+      const amountPart = f?.label_content_value != null ? ` / ${f.label_content_value}${f.label_content_unit ?? ""}` : "";
+      const lotPart = r.lot ? ` / Lot ${r.lot}` : "";
+      const vialPart = r.vial ? ` / ${r.vial}` : "";
+      return `${idPart}${compoundPart}${amountPart}${lotPart}${vialPart}`;
+    });
     try {
       sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
       sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);

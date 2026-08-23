@@ -101,6 +101,22 @@ export const previewGeneratedSequences = createServerFn({ method: "POST" })
     };
   });
 
+// Vial labels need compound + as-received amount, but SequenceRow (the
+// preview screen's in-memory row shape) doesn't carry either -- fetched
+// fresh at print time rather than threading two more fields through the
+// whole optimizer pipeline for a feature only "Print Labels" needs.
+export const getSampleLabelFields = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ sample_ids: z.array(z.string().uuid()) }).parse(d))
+  .handler(async ({ context, data }) => {
+    if (!data.sample_ids.length) return [];
+    const { data: rows, error } = await context.supabase
+      .from("samples").select("id, compound, label_content_value, label_content_unit")
+      .in("id", data.sample_ids);
+    if (error) throw error;
+    return (rows ?? []) as Array<{ id: string; compound: string | null; label_content_value: number | null; label_content_unit: string | null }>;
+  });
+
 /**
  * Samples currently occupying an instrument vial position, oldest first —
  * feeds the "no positions left" warning dialog so an analyst can free up
