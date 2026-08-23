@@ -9,14 +9,44 @@ export type Compound = {
   method_group_id: string | null;
   injection_volume_ul: number | null;
   sp_analyte_id: string | null;
+  acquisition_method: string | null;
+  processing_method: string | null;
+  column_temperature_c: number | null;
+  is_blend: boolean;
+  default_diluent_name: string | null;
+  cal_l1_mg_per_ml: number | null;
+  cal_l2_mg_per_ml: number | null;
+  cal_l3_mg_per_ml: number | null;
+  cal_l4_mg_per_ml: number | null;
+  cal_l5_mg_per_ml: number | null;
+  cal_l6_mg_per_ml: number | null;
 };
+
+export type BlendComponent = {
+  id: string;
+  blend_id: string;
+  component_id: string;
+  component_name: string;
+  nominal_amount_value: number | null;
+  nominal_amount_unit: string | null;
+  cal_l1_mg_per_ml: number | null;
+  cal_l2_mg_per_ml: number | null;
+  cal_l3_mg_per_ml: number | null;
+  cal_l4_mg_per_ml: number | null;
+  cal_l5_mg_per_ml: number | null;
+  cal_l6_mg_per_ml: number | null;
+  sort_order: number;
+};
+
+const COMPOUND_COLUMNS =
+  "id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id, acquisition_method, processing_method, column_temperature_c, is_blend, default_diluent_name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml";
 
 export const listCompounds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("compounds")
-      .select("id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id")
+      .select(COMPOUND_COLUMNS)
       .order("name", { ascending: true });
     if (error) throw error;
     return (data ?? []) as Compound[];
@@ -25,14 +55,14 @@ export const listCompounds = createServerFn({ method: "GET" })
 export const createCompound = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ name: z.string().min(1).max(160).trim() }).parse(d),
+    z.object({ name: z.string().min(1).max(160).trim(), is_blend: z.boolean().default(false) }).parse(d),
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     // Case-insensitive duplicate check (unique index also enforces it).
     const { data: existing, error: lookupErr } = await supabase
       .from("compounds")
-      .select("id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id")
+      .select(COMPOUND_COLUMNS)
       .ilike("name", data.name)
       .maybeSingle();
     if (lookupErr) throw lookupErr;
@@ -40,12 +70,14 @@ export const createCompound = createServerFn({ method: "POST" })
 
     const { data: row, error } = await supabase
       .from("compounds")
-      .insert({ name: data.name, created_by: userId })
-      .select("id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id")
+      .insert({ name: data.name, is_blend: data.is_blend, created_by: userId })
+      .select(COMPOUND_COLUMNS)
       .single();
     if (error) throw error;
     return row as Compound;
   });
+
+const numOrNull = z.number().nullable().optional();
 
 export const updateCompound = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -58,6 +90,17 @@ export const updateCompound = createServerFn({ method: "POST" })
         method_group_id: z.string().uuid().nullable().optional(),
         injection_volume_ul: z.number().min(0).max(100000).nullable().optional(),
         sp_analyte_id: z.string().uuid().nullable().optional(),
+        acquisition_method: z.string().max(255).nullable().optional(),
+        processing_method: z.string().max(255).nullable().optional(),
+        column_temperature_c: numOrNull,
+        is_blend: z.boolean().optional(),
+        default_diluent_name: z.string().max(160).nullable().optional(),
+        cal_l1_mg_per_ml: numOrNull,
+        cal_l2_mg_per_ml: numOrNull,
+        cal_l3_mg_per_ml: numOrNull,
+        cal_l4_mg_per_ml: numOrNull,
+        cal_l5_mg_per_ml: numOrNull,
+        cal_l6_mg_per_ml: numOrNull,
       })
       .parse(d),
   )
@@ -81,6 +124,72 @@ export const deleteCompound = createServerFn({ method: "POST" })
       .from("compounds")
       .delete()
       .eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
+// ---------- Blend components ----------
+
+export const listBlendComponents = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ blend_id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: rows, error } = await context.supabase
+      .from("compound_blend_components")
+      .select("id, blend_id, component_id, nominal_amount_value, nominal_amount_unit, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, sort_order, compound:compounds!compound_blend_components_component_id_fkey(name)")
+      .eq("blend_id", data.blend_id)
+      .order("sort_order", { ascending: true });
+    if (error) throw error;
+    type RawRow = Omit<BlendComponent, "component_name"> & { compound: { name: string } | null };
+    return ((rows ?? []) as unknown as RawRow[]).map((r) => ({
+      id: r.id, blend_id: r.blend_id, component_id: r.component_id,
+      nominal_amount_value: r.nominal_amount_value, nominal_amount_unit: r.nominal_amount_unit,
+      cal_l1_mg_per_ml: r.cal_l1_mg_per_ml, cal_l2_mg_per_ml: r.cal_l2_mg_per_ml, cal_l3_mg_per_ml: r.cal_l3_mg_per_ml,
+      cal_l4_mg_per_ml: r.cal_l4_mg_per_ml, cal_l5_mg_per_ml: r.cal_l5_mg_per_ml, cal_l6_mg_per_ml: r.cal_l6_mg_per_ml,
+      sort_order: r.sort_order,
+      component_name: r.compound?.name ?? "",
+    }));
+  });
+
+export const upsertBlendComponent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      id: z.string().uuid().nullish(),
+      blend_id: z.string().uuid(),
+      component_id: z.string().uuid(),
+      nominal_amount_value: numOrNull,
+      nominal_amount_unit: z.string().max(20).nullable().optional(),
+      cal_l1_mg_per_ml: numOrNull,
+      cal_l2_mg_per_ml: numOrNull,
+      cal_l3_mg_per_ml: numOrNull,
+      cal_l4_mg_per_ml: numOrNull,
+      cal_l5_mg_per_ml: numOrNull,
+      cal_l6_mg_per_ml: numOrNull,
+      sort_order: z.number().int().default(0),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { id, ...values } = data;
+    if (id) {
+      const { error } = await context.supabase.from("compound_blend_components").update(values).eq("id", id);
+      if (error) throw error;
+      return { id };
+    }
+    const { data: row, error } = await context.supabase
+      .from("compound_blend_components")
+      .insert(values)
+      .select("id")
+      .single();
+    if (error) throw error;
+    return { id: row.id as string };
+  });
+
+export const deleteBlendComponent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("compound_blend_components").delete().eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });

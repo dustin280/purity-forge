@@ -10,9 +10,8 @@ import {
   createCompound,
   updateCompound,
   deleteCompound,
+  type Compound,
 } from "@/lib/compounds.functions";
-import { listMethodGroups } from "@/lib/method-groups.functions";
-import { listAnalytes } from "@/lib/sample-prep/master-data.functions";
 import { AddCompoundForm } from "@/components/admin/compounds/add-form";
 import { CompoundsList } from "@/components/admin/compounds/compounds-list";
 
@@ -27,27 +26,17 @@ function CompoundsAdmin() {
   const create = useServerFn(createCompound);
   const update = useServerFn(updateCompound);
   const del = useServerFn(deleteCompound);
-  const listGroups = useServerFn(listMethodGroups);
-  const listAnalytesFn = useServerFn(listAnalytes);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: qk.compounds.list(),
     queryFn: () => list(),
-  });
-  const { data: methodGroups = [] } = useQuery({
-    queryKey: qk.methodGroups.list(),
-    queryFn: () => listGroups(),
-  });
-  const { data: analytes = [] } = useQuery({
-    queryKey: ["sp-analytes"],
-    queryFn: () => listAnalytesFn(),
   });
 
   const invalidate = () =>
     qc.invalidateQueries({ queryKey: qk.compounds.all });
 
   const addMut = useMutation({
-    mutationFn: (name: string) => create({ data: { name } }),
+    mutationFn: (v: { name: string; is_blend: boolean }) => create({ data: v }),
     onSuccess: () => {
       toast.success("Compound added");
       invalidate();
@@ -56,14 +45,7 @@ function CompoundsAdmin() {
       toast.error(e instanceof Error ? e.message : "Failed to add"),
   });
   const updateMut = useMutation({
-    mutationFn: (v: {
-      id: string;
-      name?: string;
-      is_active?: boolean;
-      method_group_id?: string | null;
-      injection_volume_ul?: number | null;
-      sp_analyte_id?: string | null;
-    }) => update({ data: v }),
+    mutationFn: (v: { id: string } & Partial<Compound>) => update({ data: v }),
     onSuccess: invalidate,
     onError: (e) =>
       toast.error(e instanceof Error ? e.message : "Failed to update"),
@@ -87,7 +69,7 @@ function CompoundsAdmin() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
       <Link
         to="/admin"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-4"
@@ -100,35 +82,24 @@ function CompoundsAdmin() {
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Compounds</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          The compound list used by the Parameter Scouting Run List picker
-          (and any future module that picks compounds). Deactivate to hide
-          from pickers without losing history.
+          Every compound (and blend) carries its own acquisition/processing method, column
+          temperature, injection volume, diluent, and calibration levels — click a row to
+          configure it. Blends reference their component compounds directly, each with its
+          own per-level target, instead of a free-text recipe.
         </p>
       </div>
 
       <AddCompoundForm
         busy={addMut.isPending}
-        onAdd={(name, reset) => addMut.mutate(name, { onSuccess: reset })}
+        onAdd={(name, isBlend, reset) => addMut.mutate({ name, is_blend: isBlend }, { onSuccess: reset })}
       />
       <CompoundsList
         rows={rows}
-        methodGroups={methodGroups}
-        analytes={analytes}
         isLoading={isLoading}
-        onToggleActive={(id, is_active) =>
-          updateMut.mutate({ id, is_active })
-        }
+        onToggleActive={(id, is_active) => updateMut.mutate({ id, is_active })}
         onRename={(id, name) => updateMut.mutate({ id, name })}
         onDelete={(id) => delMut.mutate(id)}
-        onMethodGroupChange={(id, method_group_id) =>
-          updateMut.mutate({ id, method_group_id })
-        }
-        onVolumeChange={(id, injection_volume_ul) =>
-          updateMut.mutate({ id, injection_volume_ul })
-        }
-        onAnalyteChange={(id, sp_analyte_id) =>
-          updateMut.mutate({ id, sp_analyte_id })
-        }
+        onPatch={(id, patch) => updateMut.mutate({ id, ...patch })}
       />
     </div>
   );

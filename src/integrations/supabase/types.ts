@@ -665,37 +665,142 @@ export type Database = {
         }
         Relationships: []
       }
+      compound_blend_components: {
+        Row: {
+          blend_id: string
+          cal_l1_mg_per_ml: number | null
+          cal_l2_mg_per_ml: number | null
+          cal_l3_mg_per_ml: number | null
+          cal_l4_mg_per_ml: number | null
+          cal_l5_mg_per_ml: number | null
+          cal_l6_mg_per_ml: number | null
+          component_id: string
+          created_at: string
+          id: string
+          nominal_amount_unit: string | null
+          nominal_amount_value: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          blend_id: string
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
+          component_id: string
+          created_at?: string
+          id?: string
+          nominal_amount_unit?: string | null
+          nominal_amount_value?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          blend_id?: string
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
+          component_id?: string
+          created_at?: string
+          id?: string
+          nominal_amount_unit?: string | null
+          nominal_amount_value?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compound_blend_components_blend_id_fkey"
+            columns: ["blend_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compound_blend_components_component_id_fkey"
+            columns: ["component_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compounds: {
         Row: {
+          acquisition_method: string | null
+          column_temperature_c: number | null
+          combined_net_content_unit: string | null
+          combined_net_content_value: number | null
           created_at: string
           created_by: string | null
+          default_diluent_name: string | null
+          cal_l1_mg_per_ml: number | null
+          cal_l2_mg_per_ml: number | null
+          cal_l3_mg_per_ml: number | null
+          cal_l4_mg_per_ml: number | null
+          cal_l5_mg_per_ml: number | null
+          cal_l6_mg_per_ml: number | null
           id: string
           injection_volume_ul: number | null
           is_active: boolean
+          is_blend: boolean
           method_group_id: string | null
           name: string
+          processing_method: string | null
           sp_analyte_id: string | null
           updated_at: string
         }
         Insert: {
+          acquisition_method?: string | null
+          column_temperature_c?: number | null
+          combined_net_content_unit?: string | null
+          combined_net_content_value?: number | null
           created_at?: string
           created_by?: string | null
+          default_diluent_name?: string | null
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
           id?: string
           injection_volume_ul?: number | null
           is_active?: boolean
+          is_blend?: boolean
           method_group_id?: string | null
           name: string
+          processing_method?: string | null
           sp_analyte_id?: string | null
           updated_at?: string
         }
         Update: {
+          acquisition_method?: string | null
+          column_temperature_c?: number | null
+          combined_net_content_unit?: string | null
+          combined_net_content_value?: number | null
           created_at?: string
           created_by?: string | null
+          default_diluent_name?: string | null
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
           id?: string
           injection_volume_ul?: number | null
           is_active?: boolean
+          is_blend?: boolean
           method_group_id?: string | null
           name?: string
+          processing_method?: string | null
           sp_analyte_id?: string | null
           updated_at?: string
         }
