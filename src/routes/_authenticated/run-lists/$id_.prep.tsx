@@ -17,7 +17,7 @@ import {
 import { acceptSamplePrep } from "@/lib/sample-prep/accept.functions";
 import { qk } from "@/lib/query-keys";
 
-export const Route = createFileRoute("/_authenticated/run-lists/$id/prep")({
+export const Route = createFileRoute("/_authenticated/run-lists/$id_/prep")({
   component: RunListPrepPage,
 });
 

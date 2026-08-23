@@ -17,7 +17,7 @@ import {
 import { exportBenchSheetPdf } from "@/lib/run-list-bench-sheet-pdf";
 import { qk } from "@/lib/query-keys";
 
-export const Route = createFileRoute("/_authenticated/run-lists/$id/bench-sheet")({
+export const Route = createFileRoute("/_authenticated/run-lists/$id_/bench-sheet")({
   component: BenchSheetPage,
 });
 
