@@ -248,6 +248,8 @@ async function resolveStandardPreps(
 interface SampleFields {
   received_quantity: number | null;
   batch_id: string;
+  lot: string | null;
+  compound: string | null;
   client: string | null;
   physical_description: string | null;
   label_content_value: number | null;
@@ -270,12 +272,13 @@ async function resolveSampleFields(
   if (!sampleIds.length) return result;
   const { data, error } = await supabase
     .from("samples")
-    .select("id, received_quantity, batch_id, client, physical_description, label_content_value, label_content_unit")
+    .select("id, received_quantity, batch_id, lot, compound, client, physical_description, label_content_value, label_content_unit")
     .in("id", sampleIds);
   if (error) throw error;
   for (const row of (data ?? []) as Array<SampleFields & { id: string }>) {
     result.set(row.id, {
-      received_quantity: row.received_quantity, batch_id: row.batch_id, client: row.client,
+      received_quantity: row.received_quantity, batch_id: row.batch_id, lot: row.lot, compound: row.compound,
+      client: row.client,
       physical_description: row.physical_description,
       label_content_value: row.label_content_value, label_content_unit: row.label_content_unit,
     });
@@ -302,15 +305,18 @@ function sequenceToCsv(
   const rows = seq.rows.map((r, i) => {
     const desc = r.method_group_name ?? "";
     const fields = r.sample_id ? sampleFieldsBySampleId.get(r.sample_id) : undefined;
-    // Instrument-facing sample name: SYX ID + "_" + Lot (Lot omitted if missing).
-    // QC rows keep their label as-is. Still composed even now that LimsId1
-    // carries the real batch_id (D3/C4) — kept until the results watcher is
-    // switched over to key off LimsId1 instead of re-parsing this string.
+    // Instrument-facing sample name: Syx ID-Lot-Compound-Amount. QC rows
+    // keep their label as-is. LimsId1 (D3/C4) carries the real batch_id as
+    // its own dedicated field, so nothing downstream needs to re-parse this
+    // string for identity — it's purely for the analyst reading the sequence.
     const isSample = r.type === "Sample";
     const batchIdForName = fields?.batch_id ?? r.label.split(" — ")[0].split(" (Lot")[0];
     const linkedStandard = r.standard_prep_id ? standardsById.get(r.standard_prep_id) : undefined;
+    const amt = fields?.label_content_value != null
+      ? `${fields.label_content_value}${fields.label_content_unit ?? ""}`
+      : null;
     const baseName = isSample
-      ? (r.lot ? `${batchIdForName}_${r.lot}` : batchIdForName)
+      ? [batchIdForName, r.lot, fields?.compound, amt].filter(Boolean).join("-")
       : (linkedStandard ? `${r.label}_${linkedStandard.syn_id ?? linkedStandard.standard_name}` : r.label);
     // OpenLab appends a result timestamp when the sample name carries this
     // literal marker — required by the analyst's instrument workflow.
