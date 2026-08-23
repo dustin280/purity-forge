@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -14,6 +14,7 @@ import { Wand2, Download, ChevronLeft, CloudUpload, Tags, AlertTriangle, FlaskCo
 import { cn } from "@/lib/utils";
 import { listInstrumentInventory } from "@/lib/instruments-inventory.functions";
 import { previewGeneratedSequences, generateAndSaveRunList, pushGeneratedRunListToDrive, getSampleLabelFields } from "@/lib/run-lists/generate.functions";
+import { generateRunListCsv } from "@/lib/run-lists.functions";
 import type { OptimizedSequence, SequenceRow } from "@/lib/run-lists/optimizer";
 import { StandardPicker, type PickedStandard } from "@/components/standard-preparations/standard-picker";
 import { qk } from "@/lib/query-keys";
@@ -30,6 +31,7 @@ function GenerateRunList() {
   const save = useServerFn(generateAndSaveRunList);
   const push = useServerFn(pushGeneratedRunListToDrive);
   const labelFields = useServerFn(getSampleLabelFields);
+  const rebuildCsv = useServerFn(generateRunListCsv);
   const navigate = useNavigate();
   const signalWorkflowEvent = useWorkflowSignal();
   const { data: instruments } = useQuery({
@@ -42,11 +44,22 @@ function GenerateRunList() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [pushBusy, setPushBusy] = useState<number | "bulk" | null>(null);
   const [noVialsOpen, setNoVialsOpen] = useState(false);
+  // Multiple buttons (Download, Push, per-card Save) can all trigger a
+  // "save" for the same sequence -- clicking more than one of them used to
+  // create a brand new run_lists row (and a fresh, duplicate vial
+  // reservation for every sample on it) each time. Once a sequence index
+  // has been saved once, every subsequent action reuses that run_list_id
+  // instead of creating another. Ref alongside state so a rapid second
+  // click sees the just-saved id synchronously, before React re-renders.
+  const savedRunListIdsRef = useRef<Record<number, string>>({});
+  const [savedRunListIds, setSavedRunListIds] = useState<Record<number, string>>({});
 
   const previewMut = useMutation({
     mutationFn: () => preview({ data: { instrument_id: instrumentId } }),
     onSuccess: (r) => {
       setSequences(r.sequences);
+      savedRunListIdsRef.current = {};
+      setSavedRunListIds({});
       setSelected(new Set(r.sequences.length ? [r.sequences[0].index] : []));
       if (r.sequences.length === 0) toast.info(`No sequences generated (${r.sample_count} pre-analysis samples).`);
       const outOfVials = r.sequences.some((seq) =>
@@ -72,27 +85,6 @@ function GenerateRunList() {
 
   const injectionVolumeForServer = "method" as const;
 
-  const saveMut = useMutation({
-    mutationFn: (seq: OptimizedSequence) => save({
-      data: {
-        instrument_id: instrumentId,
-        sequence_index: seq.index,
-        injection_volume_ul: injectionVolumeForServer,
-        rows: seq.rows.map((r) => ({
-          type: r.type, label: r.label, sample_id: r.sample_id, lot: r.lot, vial: r.vial,
-          acquisition_method: r.acquisition_method, processing_method: r.processing_method,
-          level: r.level, standard_prep_id: r.standard_prep_id ?? null,
-        })),
-      },
-    }),
-    onSuccess: (r) => {
-      downloadCsv(r.filename, r.csv);
-      toast.success(`Saved ${r.filename}`);
-      signalWorkflowEvent("run-list-saved");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
   const buildSaveArgs = (seq: OptimizedSequence) => ({
     instrument_id: instrumentId,
     sequence_index: seq.index,
@@ -104,10 +96,35 @@ function GenerateRunList() {
     })),
   });
 
+  /** Creates the run list on first call for a given sequence index; every
+   *  later call (from any button) reuses that run_list_id and just rebuilds
+   *  the CSV from current DB state instead of inserting a duplicate. */
+  async function saveOnce(seq: OptimizedSequence): Promise<{ run_list_id: string; filename: string; csv: string }> {
+    const existingId = savedRunListIdsRef.current[seq.index];
+    if (existingId) {
+      const r = await rebuildCsv({ data: { run_list_id: existingId, persist: false } });
+      return { run_list_id: existingId, filename: r.filename, csv: r.csv };
+    }
+    const r = await save({ data: buildSaveArgs(seq) });
+    savedRunListIdsRef.current = { ...savedRunListIdsRef.current, [seq.index]: r.run_list_id };
+    setSavedRunListIds(savedRunListIdsRef.current);
+    return r;
+  }
+
+  const saveMut = useMutation({
+    mutationFn: (seq: OptimizedSequence) => saveOnce(seq),
+    onSuccess: (r) => {
+      downloadCsv(r.filename, r.csv);
+      toast.success(`Saved ${r.filename}`);
+      signalWorkflowEvent("run-list-saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const pushOne = async (seq: OptimizedSequence) => {
     setPushBusy(seq.index);
     try {
-      const r = await save({ data: buildSaveArgs(seq) });
+      const r = await saveOnce(seq);
       const p = await push({
         data: {
           run_list_id: r.run_list_id,
@@ -128,7 +145,7 @@ function GenerateRunList() {
     setPushBusy("bulk");
     try {
       for (const seq of visibleSequences) {
-        const r = await save({ data: buildSaveArgs(seq) });
+        const r = await saveOnce(seq);
         await push({
           data: {
             run_list_id: r.run_list_id,
@@ -205,18 +222,7 @@ function GenerateRunList() {
     setBulkBusy(true);
     try {
       for (const seq of visibleSequences) {
-        const r = await save({
-          data: {
-            instrument_id: instrumentId,
-            sequence_index: seq.index,
-            injection_volume_ul: injectionVolumeForServer,
-            rows: seq.rows.map((row) => ({
-              type: row.type, label: row.label, sample_id: row.sample_id, lot: row.lot, vial: row.vial,
-              acquisition_method: row.acquisition_method, processing_method: row.processing_method,
-              level: row.level, standard_prep_id: row.standard_prep_id ?? null,
-            })),
-          },
-        });
+        const r = await saveOnce(seq);
         downloadCsv(r.filename, r.csv);
       }
       toast.success(`Saved ${visibleSequences.length} sequence${visibleSequences.length === 1 ? "" : "s"}`);
@@ -367,6 +373,19 @@ function GenerateRunList() {
             {visibleSequences.length >= 1 && (
               <Button size="sm" variant="secondary" onClick={() => printLabels(visibleSequences)}>
                 <Tags className="size-4 mr-1" /> Print Labels
+              </Button>
+            )}
+            {Object.keys(savedRunListIds).length > 0 && (
+              <Button asChild size="sm" variant="default">
+                {Object.keys(savedRunListIds).length === 1 ? (
+                  <Link to="/run-lists/$id" params={{ id: Object.values(savedRunListIds)[0] }}>
+                    <FlaskConical className="size-4 mr-1" /> Open run list →
+                  </Link>
+                ) : (
+                  <Link to="/run-lists">
+                    <FlaskConical className="size-4 mr-1" /> Open saved run lists ({Object.keys(savedRunListIds).length}) →
+                  </Link>
+                )}
               </Button>
             )}
           </div>
