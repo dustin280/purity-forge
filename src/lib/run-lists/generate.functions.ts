@@ -22,6 +22,18 @@ async function loadContext(supabase: any, instrumentId: string) {
     .eq("status", "active");
   const occupiedSampleIds = [...new Set((occupiedRows ?? []).map((r: { sample_id: string }) => r.sample_id))];
 
+  // Samples flagged for a non-chromatographic test (dedicated vials pulled
+  // aside for manual/outsourced testing — see test-provisioning.ts) never
+  // run on this instrument, even though intake also gives every sample a
+  // baseline "purity" test row. Exclude them from the HPLC candidate pool.
+  const NON_CHROM_TEST_TYPES = ["sterility", "endotoxin", "heavy_metals"];
+  const { data: nonChromRows } = await supabase
+    .from("tests")
+    .select("sample_id")
+    .in("test_type", NON_CHROM_TEST_TYPES);
+  const nonChromSampleIds = [...new Set((nonChromRows ?? []).map((r: { sample_id: string }) => r.sample_id))];
+  const excludedSampleIds = [...new Set([...occupiedSampleIds, ...nonChromSampleIds])];
+
   const [{ data: instrument }, { data: methodGroups }, { data: samples }] = await Promise.all([
     supabase.from("inventory_items")
       .select("id,instrument_name,make,model,default_method_folder,tray_config_id,instrument_status,drive_sequences_folder_id")
@@ -31,7 +43,7 @@ async function loadContext(supabase: any, instrumentId: string) {
       let q = supabase.from("samples")
         .select("id,batch_id,compound,method_group_id,status,lot,concentration")
         .in("status", ACTIVE_SAMPLE_STATUSES as unknown as string[]);
-      if (occupiedSampleIds.length) q = q.not("id", "in", `(${occupiedSampleIds.join(",")})`);
+      if (excludedSampleIds.length) q = q.not("id", "in", `(${excludedSampleIds.join(",")})`);
       return q;
     })(),
   ]);
