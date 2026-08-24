@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { PrepForm, prepValuesToPayload } from "@/components/standard-preparations/prep-form";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { TraceabilitySnapshot } from "@/components/standard-preparations/traceability-snapshot";
@@ -14,6 +16,8 @@ import { SequenceUsageCard } from "@/components/standard-preparations/sequence-u
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
+import { getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
+import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
   component: PrepDetail,
@@ -25,6 +29,42 @@ function PrepDetail() {
   const [editing, setEditing] = useState(false);
   const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } = usePrepDetail(id);
   const { data, isLoading, error } = query;
+  const getSetFn = useServerFn(getStandardSet);
+
+  async function exportPdf(row: NonNullable<typeof data>["log"], linkedReceipt: LinkedReceipt, attachmentCount: number) {
+    if (row.prep_type !== "standard_set") {
+      exportPrepPdf(row, linkedReceipt, attachmentCount);
+      return;
+    }
+    try {
+      const detail = await getSetFn({ data: { id: row.id } });
+      const doc = generateStandardSetCutSheetPdf({
+        standardName: detail.standard_name,
+        logNumber: detail.log_number,
+        synId: detail.syn_id,
+        preparedAt: detail.prepared_at,
+        analystName: detail.analyst_name,
+        diluentName: detail.final_diluent ?? "—",
+        batchVolumeMl: detail.final_volume_ml ?? 0,
+        levels: detail.levels.map(l => ({
+          label: l.label,
+          components: l.components.map(c => ({
+            abbrev: c.compound_name.slice(0, 3).toUpperCase(),
+            concMgPerMl: c.concentration_mg_per_ml,
+            stockUl: c.stock_volume_ul,
+          })),
+          diluentUl: l.diluent_volume_ul,
+          expectedNote: l.expected_note,
+        })),
+        rangeReasoning: detail.notes ?? "—",
+        reviewerName: detail.reviewer_name,
+        approvedAt: detail.approved_at,
+      });
+      doc.save(`${detail.log_number}_cutsheet.pdf`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate cut sheet");
+    }
+  }
 
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   if (error || !data) return <div className="p-8 text-sm text-destructive">Preparation not found.</div>;
@@ -63,7 +103,7 @@ function PrepDetail() {
         actorName={actorName}
         transitionLoading={transitionMut.isPending}
         onEdit={() => setEditing(true)}
-        onExportPdf={() => exportPrepPdf(r, linked, data.attachments.length)}
+        onExportPdf={() => exportPdf(r, linked, data.attachments.length)}
         onTransition={(target, name) => transitionMut.mutate({ target, actor_name: name })}
         onDelete={() => deleteMut.mutate()}
       />

@@ -57,6 +57,7 @@ export interface StandardPrepRow {
   storage_condition: string | null;
   storage_location: string | null;
   container_label: string | null;
+  prep_type: string | null;
   status: PrepStatus;
   reviewer_id: string | null;
   reviewer_name: string | null;

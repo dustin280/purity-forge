@@ -5284,6 +5284,54 @@ export type Database = {
           },
         ]
       }
+      standard_preparation_target_components: {
+        Row: {
+          compound_id: string | null
+          compound_name: string
+          concentration_mg_per_ml: number | null
+          created_at: string
+          id: string
+          sort_order: number
+          stock_volume_ul: number | null
+          target_id: string
+        }
+        Insert: {
+          compound_id?: string | null
+          compound_name: string
+          concentration_mg_per_ml?: number | null
+          created_at?: string
+          id?: string
+          sort_order?: number
+          stock_volume_ul?: number | null
+          target_id: string
+        }
+        Update: {
+          compound_id?: string | null
+          compound_name?: string
+          concentration_mg_per_ml?: number | null
+          created_at?: string
+          id?: string
+          sort_order?: number
+          stock_volume_ul?: number | null
+          target_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "standard_preparation_target_components_compound_id_fkey"
+            columns: ["compound_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standard_preparation_target_components_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_targets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       standard_preparation_targets: {
         Row: {
           calculated_mass_mg: number | null

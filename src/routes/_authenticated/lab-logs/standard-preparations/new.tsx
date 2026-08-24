@@ -14,8 +14,10 @@ import { valuesToBatchPayload } from "@/components/standard-preparations/prep-ba
 import { SolidFlow } from "@/components/standard-preparations/solid-flow/solid-flow";
 import { WorkingFlow } from "@/components/standard-preparations/working-flow/working-flow";
 import { AqueousFlow } from "@/components/standard-preparations/aqueous-flow/aqueous-flow";
+import { StandardSetFlow } from "@/components/standard-preparations/standard-set-flow";
+import { Layers } from "lucide-react";
 
-type PrepType = "solid" | "batch" | "aqueous" | "working" | null;
+type PrepType = "solid" | "batch" | "aqueous" | "working" | "set" | null;
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/new")({
   component: NewPrep,
@@ -76,7 +78,25 @@ function NewPrep() {
               desc="Dilution of an existing primary standard."
               onClick={() => setType("working")}
             />
+            <PickCard
+              icon={<Layers className="size-6" />}
+              title="Standard Set (multi-level)"
+              desc="Calibration series or multi-compound blend set — one prep, N levels, prints as a label + recipe cut sheet."
+              onClick={() => setType("set")}
+            />
           </div>
+        </>
+      )}
+
+      {type === "set" && (
+        <>
+          <div className="flex items-center gap-2 mb-4 print:hidden">
+            <Button variant="ghost" size="sm" onClick={() => setType(null)}>
+              <ArrowLeft className="size-4 mr-1" /> Change type
+            </Button>
+            <div className="text-sm text-muted-foreground">Standard Set (multi-level)</div>
+          </div>
+          <StandardSetFlow defaultAnalystName={defaultAnalystName} userToken={userToken} />
         </>
       )}
 

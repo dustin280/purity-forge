@@ -143,6 +143,7 @@ export function SolidFlow({ defaultAnalystName, userToken }: Props) {
       storage_condition: state.concentration.storage_condition,
       storage_location: state.concentration.storage_location,
       container_label: savedSyn,
+      prep_type: "primary_solid",
       status: "approved" as const,
       reviewer_id: null, reviewer_name: defaultAnalystName, reviewed_at: new Date().toISOString(),
       approver_id: null, approver_name: defaultAnalystName, approved_at: new Date().toISOString(),
