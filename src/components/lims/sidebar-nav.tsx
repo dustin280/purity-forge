@@ -6,6 +6,7 @@ import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shi
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
 import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 
@@ -13,32 +14,36 @@ import synthesyxLogo from "@/assets/synthesyx-logo.svg";
  * Grouped by where each item sits in the lab's actual workflow, not
  * alphabetically or by when it was added — see the sidebar-menu review
  * for the reasoning (nav previously was one flat 18-item list).
+ *
+ * `tooltip` is only set on sections above "Records & Reference" (Dashboard,
+ * Sample Pipeline, Prep & Instruments) — the busiest day-to-day menus,
+ * where a quick hover reminder is worth the UI weight.
  */
-const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; icon: typeof LayoutDashboard }[] }[] = [
+const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; icon: typeof LayoutDashboard; tooltip?: string }[] }[] = [
   {
     label: null,
     items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/", label: "Dashboard", icon: LayoutDashboard, tooltip: "Activity overview and guided workflow walkthroughs." },
     ],
   },
   {
     label: "Sample Pipeline",
     items: [
-      { to: "/pending-orders", label: "Pending Orders", icon: PackageOpen },
-      { to: "/chain-of-custody", label: "Sample Receipt", icon: ClipboardList },
-      { to: "/intake", label: "Intake Queue", icon: Inbox },
-      { to: "/samples", label: "Samples", icon: FlaskConical },
-      { to: "/queue", label: "Analysis Queue", icon: GaugeCircle },
-      { to: "/run-lists", label: "Run Lists", icon: ListChecks },
-      { to: "/vial-labels", label: "Vial Labels", icon: Tags },
+      { to: "/pending-orders", label: "Pending Orders", icon: PackageOpen, tooltip: "Partner shipments awaiting arrival — open one to pre-fill a Sample Receipt." },
+      { to: "/chain-of-custody", label: "Sample Receipt", icon: ClipboardList, tooltip: "Log a new Chain of Custody intake for incoming samples." },
+      { to: "/intake", label: "Intake Queue", icon: Inbox, tooltip: "Samples staged from Sample Receipt, waiting to be verified and released to prep." },
+      { to: "/samples", label: "Samples", icon: FlaskConical, tooltip: "Search, view, and manage every sample record and its results." },
+      { to: "/queue", label: "Analysis Queue", icon: GaugeCircle, tooltip: "Rolling 5-day workload with automatic TAT enforcement." },
+      { to: "/run-lists", label: "Run Lists", icon: ListChecks, tooltip: "Assemble prep-flagged samples into an OpenLab CDS sequence CSV." },
+      { to: "/vial-labels", label: "Vial Labels", icon: Tags, tooltip: "Print vial labels for samples and standards." },
     ],
   },
   {
     label: "Prep & Instruments",
     items: [
-      { to: "/sample-prep", label: "Sample Prep", icon: Beaker },
-      { to: "/instrument-comm", label: "Instrument Comm", icon: Cable },
-      { to: "/scheduler", label: "Scheduler", icon: CalendarDays },
+      { to: "/sample-prep", label: "Sample Prep", icon: Beaker, tooltip: "Formulations, methods, equipment, and preparation records for sample and standard prep." },
+      { to: "/instrument-comm", label: "Instrument Comm", icon: Cable, tooltip: "Synced method/sequence libraries and connection status for linked instruments." },
+      { to: "/scheduler", label: "Scheduler", icon: CalendarDays, tooltip: "Calendar for booking and viewing instrument time by day, week, or month." },
     ],
   },
   {
@@ -90,13 +95,20 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
             )}
             {section.items.map(item => {
               const active = pathname === item.to || (item.to !== "/" && pathname.startsWith(item.to));
-              return (
-                <Link key={item.to} to={item.to} onClick={onNavigate}
+              const link = (
+                <Link key={item.tooltip ? undefined : item.to} to={item.to} onClick={onNavigate}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
                     active ? "bg-sidebar-accent text-white" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-white"
                   }`}>
                   <item.icon className="size-4" /> {item.label}
                 </Link>
+              );
+              if (!item.tooltip) return link;
+              return (
+                <Tooltip key={item.to}>
+                  <TooltipTrigger asChild>{link}</TooltipTrigger>
+                  <TooltipContent side="right">{item.tooltip}</TooltipContent>
+                </Tooltip>
               );
             })}
           </div>

@@ -11,7 +11,8 @@ export type WorkflowGuideId =
   | "receive-and-schedule"
   | "generate-runlist"
   | "complete-results"
-  | "lookup-status";
+  | "lookup-status"
+  | "sample-standard-prep";
 
 export interface WorkflowGuideStep {
   title: string;
@@ -101,6 +102,37 @@ const COMPLETE_RESULTS_STEPS: WorkflowGuideStep[] = [
   },
 ];
 
+const SAMPLE_STANDARD_PREP_STEPS: WorkflowGuideStep[] = [
+  {
+    title: "Start a Standard Set",
+    description: "On Standard Preparations, click “New Preparation” then choose “Standard Set (multi-level).”",
+    route: "/lab-logs/standard-preparations/new",
+    targetSelector: '[data-guide="prep-new-set"]',
+    completionEvent: "standard-set-picked",
+  },
+  {
+    title: "Build the grid and save",
+    description: "Add each compound, fill in the concentration grid, then click “Save & Download Cut Sheet” — it downloads a printable label + recipe sheet and saves the permanent record.",
+    route: "/lab-logs/standard-preparations/new",
+    targetSelector: '[data-guide="standard-set-submit"]',
+    completionEvent: "standard-set-created",
+  },
+  {
+    title: "Generate Sample Prep for a run list",
+    description: "Open a run list and click “Generate Sample Prep” to compute a dilution plan for every sample on it.",
+    route: "/run-lists",
+    targetSelector: '[data-guide="runlist-generate-prep"]',
+    completionEvent: "runlist-prep-opened",
+  },
+  {
+    title: "Review and accept",
+    description: "Fill in any gaps flagged, then click “Accept all ready” to save the prep records and push them to Drive.",
+    route: "/run-lists",
+    targetSelector: '[data-guide="prep-accept-all"]',
+    completionEvent: "sample-prep-accepted",
+  },
+];
+
 const LOOKUP_STATUS_STEPS: WorkflowGuideStep[] = [
   {
     title: "Search for the sample",
@@ -157,6 +189,15 @@ export const WORKFLOW_GUIDES: Record<WorkflowGuideId, WorkflowGuide> = {
     steps: [
       ...LOOKUP_STATUS_STEPS,
       DONE_STEP("/samples", "Click the row to open it — the status pill shows where it stands, and the CoA tab has the download once approved."),
+    ],
+  },
+  "sample-standard-prep": {
+    id: "sample-standard-prep",
+    label: "Sample & Standard Prep",
+    description: "Prepare a calibration standard, then generate and accept the dilution plan for a run list's samples.",
+    steps: [
+      ...SAMPLE_STANDARD_PREP_STEPS,
+      DONE_STEP("/run-lists", "Standard and sample preps are ready. Open the run list's Bench Sheet to execute at the bench — the cut sheet and prep records are your permanent documentation."),
     ],
   },
 };

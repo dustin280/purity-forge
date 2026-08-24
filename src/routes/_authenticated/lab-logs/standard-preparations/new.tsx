@@ -16,6 +16,7 @@ import { WorkingFlow } from "@/components/standard-preparations/working-flow/wor
 import { AqueousFlow } from "@/components/standard-preparations/aqueous-flow/aqueous-flow";
 import { StandardSetFlow } from "@/components/standard-preparations/standard-set-flow";
 import { Layers } from "lucide-react";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 type PrepType = "solid" | "batch" | "aqueous" | "working" | "set" | null;
 
@@ -31,6 +32,7 @@ function NewPrep() {
   const synPreviewPrefix = `SYX_${synDatePart(new Date())}_${userToken}_`;
   const createBatch = useServerFn(createStandardPreparationBatch);
   const [type, setType] = useState<PrepType>(null);
+  const signalWorkflowEvent = useWorkflowSignal();
 
   const DRAFT_KEY = "sop-draft:new";
   const mut = useMutation({
@@ -82,7 +84,8 @@ function NewPrep() {
               icon={<Layers className="size-6" />}
               title="Standard Set (multi-level)"
               desc="Calibration series or multi-compound blend set — one prep, N levels, prints as a label + recipe cut sheet."
-              onClick={() => setType("set")}
+              onClick={() => { signalWorkflowEvent("standard-set-picked"); setType("set"); }}
+              guideId="prep-new-set"
             />
           </div>
         </>
@@ -163,11 +166,12 @@ function NewPrep() {
   );
 }
 
-function PickCard({ icon, title, desc, onClick, disabled }: { icon: React.ReactNode; title: string; desc: string; onClick?: () => void; disabled?: boolean }) {
+function PickCard({ icon, title, desc, onClick, disabled, guideId }: { icon: React.ReactNode; title: string; desc: string; onClick?: () => void; disabled?: boolean; guideId?: string }) {
   return (
     <Card
       className={`p-5 space-y-2 transition ${disabled ? "opacity-50 cursor-not-allowed" : "hover:border-primary/50 hover:shadow-sm cursor-pointer"}`}
       onClick={disabled ? undefined : onClick}
+      data-guide={guideId}
     >
       <div className="text-primary">{icon}</div>
       <div className="font-semibold">{title}</div>

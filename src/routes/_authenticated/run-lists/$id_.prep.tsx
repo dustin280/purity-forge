@@ -16,6 +16,7 @@ import {
 } from "@/lib/sample-prep/generate-from-run-list.functions";
 import { acceptSamplePrep } from "@/lib/sample-prep/accept.functions";
 import { qk } from "@/lib/query-keys";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 export const Route = createFileRoute("/_authenticated/run-lists/$id_/prep")({
   component: RunListPrepPage,
@@ -37,6 +38,7 @@ function RunListPrepPage() {
   const accept = useServerFn(acceptSamplePrep);
 
   const { data: runListData } = useQuery({ queryKey: qk.runLists.detail(id), queryFn: () => get({ data: { id } }) });
+  const signalWorkflowEvent = useWorkflowSignal();
 
   const [created, setCreated] = useState<GeneratedRow[]>([]);
   const [needsInput, setNeedsInput] = useState<NeedsInputRow[]>([]);
@@ -50,6 +52,7 @@ function RunListPrepPage() {
       setNeedsInput(r.needsInput);
       if (!r.created.length && !r.needsInput.length) toast.info("Nothing to generate — all samples already have a linked prep.");
       else toast.success(`${r.created.length} plan${r.created.length === 1 ? "" : "s"} computed${r.needsInput.length ? `, ${r.needsInput.length} need input` : ""}`);
+      signalWorkflowEvent("runlist-prep-opened");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -84,6 +87,7 @@ function RunListPrepPage() {
     onSuccess: (_r, row) => {
       setAccepted(prev => new Set(prev).add(row.prep_id));
       toast.success(`${row.batch_id ?? row.compound} accepted — saved to Drive`);
+      signalWorkflowEvent("sample-prep-accepted");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -120,7 +124,7 @@ function RunListPrepPage() {
           <RefreshCw className={`size-4 mr-1 ${genMut.isPending ? "animate-spin" : ""}`} />
           {genMut.isPending ? "Generating…" : "Regenerate"}
         </Button>
-        <Button size="sm" disabled={readyToAccept.length === 0 || acceptMut.isPending} onClick={acceptAllReady}>
+        <Button size="sm" disabled={readyToAccept.length === 0 || acceptMut.isPending} onClick={acceptAllReady} data-guide="prep-accept-all">
           <CheckCircle2 className="size-4 mr-1" /> Accept all ready ({readyToAccept.length})
         </Button>
         <Button size="sm" variant="secondary" onClick={() => window.print()} disabled={created.length === 0}>

@@ -233,7 +233,7 @@ function RunListDetail() {
               disabled={items.length === 0}
               title="Compute a dilution plan for every sample on this run list and review before accepting"
             >
-              <Link to="/run-lists/$id/prep" params={{ id }}>
+              <Link to="/run-lists/$id/prep" params={{ id }} data-guide="runlist-generate-prep">
                 <FlaskConical className="size-4 mr-1" />
                 Generate Sample Prep
               </Link>

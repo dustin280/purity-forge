@@ -14,6 +14,7 @@ import { listCompounds } from "@/lib/compounds.functions";
 import { createStandardSet, getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
 import { qk } from "@/lib/query-keys";
+import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
 interface GridCompound {
   compoundId: string;
@@ -43,6 +44,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   const createFn = useServerFn(createStandardSet);
   const getSetFn = useServerFn(getStandardSet);
   const { data: allCompounds = [] } = useQuery({ queryKey: qk.compounds.list(), queryFn: () => listCompoundsFn() });
+  const signalWorkflowEvent = useWorkflowSignal();
 
   const [standardName, setStandardName] = useState("");
   const [analystName, setAnalystName] = useState(defaultAnalystName);
@@ -143,6 +145,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     },
     onSuccess: (res) => {
       toast.success(`Saved ${res.log_number} — cut sheet downloaded`);
+      signalWorkflowEvent("standard-set-created");
       navigate({ to: "/lab-logs/standard-preparations/$id", params: { id: res.id } });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -261,7 +264,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       </Card>
 
       <div className="flex justify-end">
-        <Button disabled={!canSubmit || createMut.isPending} onClick={() => createMut.mutate()}>
+        <Button disabled={!canSubmit || createMut.isPending} onClick={() => createMut.mutate()} data-guide="standard-set-submit">
           <Download className="size-4 mr-1" /> {createMut.isPending ? "Saving…" : "Save & Download Cut Sheet"}
         </Button>
       </div>

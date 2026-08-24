@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { ClipboardList, ListChecks, CheckCircle2, Search, ChevronRight, Route } from "lucide-react";
+import { ClipboardList, ListChecks, CheckCircle2, Search, ChevronRight, Route, Beaker } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useWorkflowGuide } from "@/contexts/workflow-guide-context";
 import { WORKFLOW_GUIDES, type WorkflowGuideId } from "@/lib/workflow-guides";
@@ -10,11 +10,13 @@ const ICONS: Record<WorkflowGuideId, typeof ClipboardList> = {
   "generate-runlist": ListChecks,
   "complete-results": CheckCircle2,
   "lookup-status": Search,
+  "sample-standard-prep": Beaker,
 };
 
 const GRANULAR_IDS: WorkflowGuideId[] = [
   "receive-and-schedule",
   "generate-runlist",
+  "sample-standard-prep",
   "complete-results",
   "lookup-status",
 ];
@@ -53,7 +55,7 @@ export function WorkflowLauncher() {
         </div>
       </Card>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {GRANULAR_IDS.map((id) => {
           const guide = WORKFLOW_GUIDES[id];
           const Icon = ICONS[id];
