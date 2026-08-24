@@ -27,6 +27,7 @@ export function exportBenchSheetPdf(
   };
 
   line("Record of Analysis — Bench Sheet", { bold: true, size: 16 });
+  line(sheet.document_number, { bold: true, size: 10 });
   line(list.name, { size: 10 });
   y += 2;
   line(`Instrument: ${list.instrument_id ?? "—"} · Method: ${list.method_name ?? "—"}`);
@@ -57,5 +58,5 @@ export function exportBenchSheetPdf(
   line(`Reviewed by: ${names.reviewedBy ?? "—"}${sheet.reviewed_at ? ` on ${new Date(sheet.reviewed_at).toLocaleString()}` : ""}`);
   if (sheet.review_comment) line(`Review comment: ${sheet.review_comment}`);
 
-  doc.save(`bench-sheet-${list.name.replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+  doc.save(`${sheet.document_number}.pdf`);
 }

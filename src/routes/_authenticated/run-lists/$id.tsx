@@ -178,6 +178,8 @@ function RunListDetail() {
         </Button>
       </div>
 
+      {l && <div className="font-mono text-xs text-muted-foreground">{l.document_number}</div>}
+
       <Card className="p-5 space-y-4 border-border">
         <div className="grid sm:grid-cols-2 gap-4">
           <div><Label>Name</Label><Input value={current.name} onChange={e => setForm({ ...current, name: e.target.value })} /></div>

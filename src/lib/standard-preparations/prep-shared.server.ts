@@ -39,7 +39,6 @@ export interface PrepTargetRow extends PrepTarget {
 export interface StandardPrepRow {
   id: string;
   log_number: string;
-  syn_id: string | null;
   batch_group_id: string | null;
   prepared_at: string;
   analyst_id: string | null;

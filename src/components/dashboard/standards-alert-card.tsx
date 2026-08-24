@@ -5,7 +5,6 @@ import type { PrepAlertCategory } from "@/lib/standard-preparations/prep-alerts"
 
 type AlertItem = {
   id: string;
-  syn_id: string | null;
   log_number: string;
   standard_name: string;
   category: PrepAlertCategory;
@@ -31,7 +30,7 @@ export function StandardsAlertCard({ items, total, isLoading }: { items: AlertIt
             className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors gap-3">
             <div className="min-w-0">
               <div className="text-sm font-medium truncate">{item.standard_name}</div>
-              <div className="text-xs text-muted-foreground mt-0.5 font-mono">{item.syn_id ?? item.log_number}</div>
+              <div className="text-xs text-muted-foreground mt-0.5 font-mono">{item.log_number}</div>
             </div>
             <Badge variant="outline" className={item.className + " shrink-0"}>{item.detail}</Badge>
           </Link>

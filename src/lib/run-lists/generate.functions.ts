@@ -279,14 +279,14 @@ async function resolvePrepsAndCoverage(
 }
 
 interface ResolvedStandard {
-  syn_id: string | null;
+  log_number: string | null;
   standard_name: string;
 }
 
 /**
- * A5: resolve the SYX ID / name for whichever standard_preparation_logs rows
- * the analyst picked to back QC rows on the review screen — used to append
- * the standard's identity onto the CSV Sample name.
+ * A5: resolve the document number / name for whichever standard_preparation_logs
+ * rows the analyst picked to back QC rows on the review screen — used to
+ * append the standard's identity onto the CSV Sample name.
  */
 async function resolveStandardPreps(
   supabase: any,
@@ -296,11 +296,11 @@ async function resolveStandardPreps(
   if (!standardPrepIds.length) return result;
   const { data, error } = await supabase
     .from("standard_preparation_logs")
-    .select("id, syn_id, standard_name")
+    .select("id, log_number, standard_name")
     .in("id", standardPrepIds);
   if (error) throw error;
-  for (const row of (data ?? []) as Array<{ id: string; syn_id: string | null; standard_name: string }>) {
-    result.set(row.id, { syn_id: row.syn_id, standard_name: row.standard_name });
+  for (const row of (data ?? []) as Array<{ id: string; log_number: string | null; standard_name: string }>) {
+    result.set(row.id, { log_number: row.log_number, standard_name: row.standard_name });
   }
   return result;
 }
@@ -377,7 +377,7 @@ function sequenceToCsv(
       : null;
     const baseName = isSample
       ? [batchIdForName, r.lot, fields?.compound, amt].filter(Boolean).join("-")
-      : (linkedStandard ? `${r.label}_${linkedStandard.syn_id ?? linkedStandard.standard_name}` : r.label);
+      : (linkedStandard ? `${r.label}_${linkedStandard.log_number ?? linkedStandard.standard_name}` : r.label);
     // OpenLab appends a result timestamp when the sample name carries this
     // literal marker — required by the analyst's instrument workflow.
     const sampleName = `${baseName} <D>`;
@@ -487,7 +487,14 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
     const csvWithBom = "\uFEFF" + csv;
 
     // Persist as a run_lists + run_list_items record for history/audit
+    const runListRowId = crypto.randomUUID();
+    const { data: runListDocNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "RUNL", p_source_table: "run_lists", p_source_id: runListRowId, p_date: today.toISOString().slice(0, 10), p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: rl, error: rlErr } = await context.supabase.from("run_lists").insert({
+      id: runListRowId,
+      document_number: runListDocNumber,
       name: runListName,
       status: "exported",
       instrument_id: null,       // legacy scheduler-instrument fk; not used here

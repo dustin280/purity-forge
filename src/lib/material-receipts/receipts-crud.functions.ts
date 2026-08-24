@@ -70,8 +70,16 @@ export const createMaterialReceipt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => receiptPayloadSchema.parse(d))
   .handler(async ({ context, data }) => {
+    const rowId = crypto.randomUUID();
+    const receivedDate = new Date(data.received_at).toISOString().slice(0, 10);
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "MREC", p_source_table: "material_receipts", p_source_id: rowId, p_date: receivedDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const payload = emptyToNull({
       ...data,
+      id: rowId,
+      receipt_number: docNumber,
       received_by: context.userId,
       created_by: context.userId,
     });

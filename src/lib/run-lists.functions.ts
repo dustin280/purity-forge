@@ -33,6 +33,7 @@ const WHITELIST_SAMPLE_FIELDS = new Set([
 
 export interface RunListSummary {
   id: string;
+  document_number: string;
   name: string;
   status: "draft" | "exported";
   instrument_id: string | null;
@@ -125,8 +126,13 @@ export const createRunList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => runListInput.parse(d))
   .handler(async ({ context, data }) => {
+    const rowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "RUNL", p_source_table: "run_lists", p_source_id: rowId, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: row, error } = await context.supabase.from("run_lists").insert({
-      ...data, created_by: context.userId,
+      ...data, id: rowId, document_number: docNumber, created_by: context.userId,
     }).select("id").single();
     if (error) throw error;
     return { id: row.id as string };

@@ -139,6 +139,7 @@ function RunListsIndex() {
                 </td>
                 <td className="px-4 py-3">
                   <Link to="/run-lists/$id" params={{ id: r.id }} className="font-semibold text-primary hover:underline">{r.name}</Link>
+                  <div className="font-mono text-[10px] text-muted-foreground/70">{r.document_number}</div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{r.method_name ?? "—"}</td>
                 <td className="px-4 py-3">

@@ -111,6 +111,7 @@ function BenchSheetPage() {
       <div>
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Record of Analysis</div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">{list.name}</h1>
+        {sheet && <div className="font-mono text-xs text-muted-foreground mt-0.5">{sheet.document_number}</div>}
         <p className="text-sm text-muted-foreground mt-1">
           {list.instrument_id ? `Instrument: ${list.instrument_id} · ` : ""}{list.method_name ? `Method: ${list.method_name}` : ""}
         </p>

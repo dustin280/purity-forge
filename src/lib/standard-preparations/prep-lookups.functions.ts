@@ -61,7 +61,7 @@ export const listPrepsForReceipt = createServerFn({ method: "GET" })
   .handler(async ({ context, data }) => {
     const { data: rows, error } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, syn_id, batch_group_id, standard_name, analyst_name, prepared_at, expiration_date, status")
+      .select("id, log_number, batch_group_id, standard_name, analyst_name, prepared_at, expiration_date, status")
       .eq("material_receipt_id", data.receipt_id)
       .order("prepared_at", { ascending: false })
       .limit(500);
@@ -69,7 +69,6 @@ export const listPrepsForReceipt = createServerFn({ method: "GET" })
     return (rows ?? []) as Array<{
       id: string;
       log_number: string;
-      syn_id: string | null;
       batch_group_id: string | null;
       standard_name: string;
       analyst_name: string;

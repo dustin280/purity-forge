@@ -45,7 +45,7 @@ export const StepReview = forwardRef<HTMLDivElement, Props>(function StepReview(
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Section title="Source (Primary Standard)">
             <Row label="Standard" value={src.standard_name} />
-            <Row label="SYX ID" value={src.syn_id || "—"} />
+            <Row label="Document #" value={src.log_number || "—"} />
             <Row label="Concentration" value={`${src.final_concentration_value} ${src.final_concentration_unit}`} />
             <Row label="Traces to" value={src.ref_material_name || "—"} />
             {src.ref_lot && <Row label="Lot" value={src.ref_lot} />}

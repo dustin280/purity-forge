@@ -29,7 +29,7 @@ function NewPrep() {
   const { profile, user } = useAuth();
   const defaultAnalystName = profileDisplayName(profile, null);
   const userToken = analystInitials(profile, user?.email ?? null);
-  const synPreviewPrefix = `SYX_${synDatePart(new Date())}_${userToken}_`;
+  const docNumberPreview = `SYN-STDP-…-${synDatePart(new Date())}`;
   const createBatch = useServerFn(createStandardPreparationBatch);
   const [type, setType] = useState<PrepType>(null);
   const signalWorkflowEvent = useWorkflowSignal();
@@ -148,7 +148,7 @@ function NewPrep() {
             <div className="text-sm text-muted-foreground">Batch calculator</div>
           </div>
           <p className="text-sm text-muted-foreground mb-6">
-            Each row in the calculator becomes its own journal line. A unique SYX ID (<span className="font-mono">{synPreviewPrefix}n</span>) is assigned per standard on save; the per-day counter is shared across all analysts.
+            Each row in the calculator becomes its own journal line. A unique document number (<span className="font-mono">{docNumberPreview}</span>) is assigned per standard on save.
           </p>
           <PrepForm
             defaultAnalystName={defaultAnalystName}
@@ -156,7 +156,7 @@ function NewPrep() {
             submitLabel="Create Preparation"
             draftKey={DRAFT_KEY}
             batchMode
-            synPreviewPrefix={synPreviewPrefix}
+            docNumberPreview={docNumberPreview}
             onSubmit={v => mut.mutate(valuesToBatchPayload(v, userToken))}
             onCancel={() => navigate({ to: "/lab-logs/standard-preparations" })}
           />

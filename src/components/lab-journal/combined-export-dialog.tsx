@@ -53,6 +53,7 @@ export function CombinedExportDialog({
       to: to || null,
       tag: tag || null,
       entries: ordered.map((e) => ({
+        entry_number: e.entry_number,
         user_name: e.user_name,
         entry_at: e.entry_at,
         title: e.title,

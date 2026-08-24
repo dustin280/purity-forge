@@ -169,7 +169,7 @@ function GenerateRunList() {
       rows: seq.rows.map((row, ri) => ri !== rowIndex ? row : {
         ...row,
         standard_prep_id: picked?.id ?? null,
-        standard_label: picked ? (picked.syn_id ?? picked.standard_name) : null,
+        standard_label: picked ? (picked.log_number ?? picked.standard_name) : null,
       }),
     }));
   };

@@ -9,7 +9,7 @@ import type { ConcUnit } from "./solid-flow/types";
 
 export interface PickedStandard {
   id: string;
-  syn_id: string | null;
+  log_number: string | null;
   standard_name: string;
   final_concentration_value: number;
   final_concentration_unit: ConcUnit;
@@ -35,7 +35,7 @@ interface Props {
  * Picks an approved, unexpired primary standard as the source for a Working
  * Standard dilution. Structurally mirrors material-receipt-picker.tsx.
  */
-export function StandardPicker({ placeholder = "Search standard name or SYX ID…", onPick }: Props) {
+export function StandardPicker({ placeholder = "Search standard name or document #…", onPick }: Props) {
   const [q, setQ] = useState("");
   const search = useServerFn(searchApprovedStandardsUnexpired);
   const { data: rows = [], isFetching } = useQuery({
@@ -74,7 +74,7 @@ export function StandardPicker({ placeholder = "Search standard name or SYX ID�
             <div className="min-w-0 flex-1">
               <div className="text-sm font-medium truncate">{s.standard_name}</div>
               <div className="text-[11px] text-muted-foreground truncate">
-                {s.syn_id || "—"} · {s.final_concentration_value} {s.final_concentration_unit} · {s.volume_remaining_ml ?? s.final_volume_ml} of {s.final_volume_ml} mL left
+                {s.log_number || "—"} · {s.final_concentration_value} {s.final_concentration_unit} · {s.volume_remaining_ml ?? s.final_volume_ml} of {s.final_volume_ml} mL left
               </div>
               <div className="text-[11px] text-muted-foreground">
                 {s.expiration_date ? `Expires ${s.expiration_date}` : "No expiration recorded"}

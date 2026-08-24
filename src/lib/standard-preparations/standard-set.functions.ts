@@ -55,10 +55,11 @@ export const createStandardSet = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const preparedDate = new Date(data.prepared_at).toISOString().slice(0, 10);
 
-    const { data: synRes, error: synErr } = await context.supabase
-      .rpc("next_syn_id", { p_user_token: data.user_token, p_day: preparedDate });
-    if (synErr) throw synErr;
-    const syn_id = synRes as unknown as string;
+    const rowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+    const log_number = docNumber as unknown as string;
 
     const days = data.expiration_period_days ?? null;
     const expirationDate = days ? addDaysISO(data.prepared_at, days) : null;
@@ -67,6 +68,8 @@ export const createStandardSet = createServerFn({ method: "POST" })
     const levelCount = data.levels.length;
 
     const logPayload: Record<string, unknown> = {
+      id: rowId,
+      log_number,
       prepared_at: new Date(data.prepared_at).toISOString(),
       analyst_name: data.analyst_name,
       analyst_id: context.userId,
@@ -80,7 +83,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
       expiration_date: expirationDate,
       storage_condition: data.storage_condition ?? null,
       storage_location: data.storage_location ?? null,
-      container_label: syn_id,
+      container_label: log_number,
       status: "approved",
       approver_id: context.userId,
       approver_name: data.analyst_name,
@@ -94,7 +97,6 @@ export const createStandardSet = createServerFn({ method: "POST" })
       material_overridden: false,
       ref_material_name: compoundNames.join(", "),
       ref_form: "solid",
-      syn_id,
       prep_type: "standard_set",
       final_volume_ml: data.batch_volume_ml,
     };
@@ -103,7 +105,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
       .from("standard_preparation_logs")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(logPayload as any)
-      .select("id, log_number, syn_id")
+      .select("id, log_number")
       .single();
     if (insErr) throw insErr;
 
@@ -151,7 +153,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
       if (cErr) throw cErr;
     }
 
-    return { id: row.id as string, log_number: row.log_number as string, syn_id: (row.syn_id as string | null) ?? syn_id };
+    return { id: row.id as string, log_number: row.log_number as string };
   });
 
 export interface StandardSetLevel {
@@ -170,7 +172,6 @@ export interface StandardSetLevel {
 export interface StandardSetDetail {
   id: string;
   log_number: string;
-  syn_id: string | null;
   standard_name: string;
   analyst_name: string;
   prepared_at: string;
@@ -188,7 +189,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
   .handler(async ({ context, data }): Promise<StandardSetDetail> => {
     const { data: log, error: logErr } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, syn_id, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at")
+      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at")
       .eq("id", data.id)
       .single();
     if (logErr) throw logErr;

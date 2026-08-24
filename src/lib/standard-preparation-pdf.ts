@@ -27,8 +27,7 @@ export function exportPrepPdf(r: StandardPrepRow, linked: LinkedReceipt, attachm
     if (y > 280) { doc.addPage(); y = 14; }
   };
   line("Standard Preparation Log", { bold: true, size: 16 });
-  line(r.log_number, { size: 10 });
-  if (r.syn_id) line(`SYX ID: ${r.syn_id}`, { bold: true });
+  line(r.log_number, { bold: true, size: 10 });
   y += 2;
   line(`Standard: ${r.standard_name}`, { bold: true, size: 12 });
   line(`Status: ${STATUS_LABEL[r.status as keyof typeof STATUS_LABEL]?.toUpperCase() ?? r.status.toUpperCase()}`);
@@ -68,5 +67,5 @@ export function exportPrepPdf(r: StandardPrepRow, linked: LinkedReceipt, attachm
   line(`Approved by: ${r.approver_name ?? "—"}${r.approved_at ? ` on ${new Date(r.approved_at).toLocaleString()}` : ""}`);
   if (r.notes) { y += 2; line("Notes:", { bold: true }); line(r.notes); }
   line(`Attachments on file: ${attachmentCount}`);
-  doc.save(`${r.syn_id ?? r.log_number}.pdf`);
+  doc.save(`${r.log_number}.pdf`);
 }

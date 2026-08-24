@@ -7,6 +7,7 @@ import jsPDF from "jspdf";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export interface JournalPdfInput {
+  entry_number: string;
   user_name: string;
   entry_at: string;
   title?: string | null;
@@ -62,6 +63,8 @@ export function generateJournalPdf(data: JournalPdfInput): jsPDF {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(80);
+  doc.text(data.entry_number, margin, y);
+  y += 14;
   doc.text(`Author: ${data.user_name}`, margin, y);
   y += 14;
   doc.text(`Date / Time: ${fmt(data.entry_at)}`, margin, y);
@@ -117,13 +120,7 @@ export function generateJournalPdf(data: JournalPdfInput): jsPDF {
 
 export function downloadJournalPdf(data: JournalPdfInput) {
   const doc = generateJournalPdf(data);
-  const date = data.entry_at.slice(0, 10);
-  const slug = (data.title || "entry")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "entry";
-  doc.save(`lab-journal-${date}-${slug}.pdf`);
+  doc.save(`${data.entry_number}.pdf`);
 }
 
 export interface CombinedJournalPdfInput {
@@ -208,6 +205,8 @@ export function downloadCombinedJournalPdf(input: CombinedJournalPdfInput) {
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(80);
+    doc.text(entry.entry_number, margin, py);
+    py += 14;
     doc.text(`Author: ${entry.user_name}`, margin, py);
     py += 14;
     doc.text(`Date / Time: ${fmt(entry.entry_at)}`, margin, py);

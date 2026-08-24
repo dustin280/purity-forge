@@ -10,7 +10,7 @@ import type { ExpirationCode, RefForm } from "./prep-form-logic";
 import { CONC_UNITS, type ConcUnit } from "./target-units";
 import type { UsePrepFormReturn } from "./use-prep-form";
 
-export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UsePrepFormReturn; batchMode: boolean; synPreviewPrefix?: string }) {
+export function PrepCalculatorCard({ f, batchMode, docNumberPreview }: { f: UsePrepFormReturn; batchMode: boolean; docNumberPreview?: string }) {
   const {
     v, up, markOverridden, computedExpiration, shelfLifeWarning, calcRows,
     addTargetRows, updateTarget, removeTarget, pasteTargets, calcOpen, setCalcOpen,
@@ -142,7 +142,7 @@ export function PrepCalculatorCard({ f, batchMode, synPreviewPrefix }: { f: UseP
                     <td className="py-1 pr-2 text-xs font-mono text-muted-foreground">{idx + 1}</td>
                     {batchMode && (
                       <td className="py-1 pr-2 text-xs font-mono text-muted-foreground">
-                        {synPreviewPrefix ? `${synPreviewPrefix}?` : "—"}
+                        {docNumberPreview ?? "—"}
                       </td>
                     )}
                     <td className="py-1 pr-2"><Input value={t.name} onChange={e => updateTarget(idx, { name: e.target.value })} maxLength={255} /></td>

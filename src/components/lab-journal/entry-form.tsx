@@ -34,7 +34,7 @@ export interface EntryFormProps {
     body: string;
     user_name: string;
     tags: string[];
-  }) => Promise<unknown> | unknown;
+  }) => Promise<LabJournalEntry> | LabJournalEntry;
   onDelete?: () => void;
   onCancelEdit: () => void;
 }
@@ -297,8 +297,8 @@ export function EntryForm({
             if (submittingRef.current) return;
             submittingRef.current = true;
             try {
-              await onSubmit(payload);
-              downloadJournalPdf(payload);
+              const saved = await onSubmit(payload);
+              downloadJournalPdf({ ...payload, entry_number: saved.entry_number });
               if (!editing) reset();
             } finally {
               submittingRef.current = false;
@@ -310,7 +310,7 @@ export function EntryForm({
         <Button
           type="button"
           variant="ghost"
-          onClick={() => downloadJournalPdf(payload)}
+          onClick={() => downloadJournalPdf({ ...payload, entry_number: editing?.entry_number ?? "DRAFT — not yet saved" })}
           disabled={body.trim().length === 0}
         >
           <FileDown className="size-4 mr-1" /> Export PDF only

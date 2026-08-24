@@ -34,7 +34,6 @@ export interface CutSheetLevel {
 export interface StandardSetCutSheetInput {
   standardName: string;
   logNumber: string;
-  synId?: string | null;
   preparedAt: string;
   analystName: string;
   diluentName: string;
@@ -110,8 +109,7 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(90);
-  const idLine = [data.synId, data.logNumber].filter(Boolean).join(" · ");
-  doc.text(idLine, MARGIN_LR, y);
+  doc.text(data.logNumber, MARGIN_LR, y);
   y += 0.22;
 
   // ---- Info block ----

@@ -6,7 +6,6 @@ import { STATUS_LABEL } from "@/lib/lims-utils";
 
 export type BatchRow = {
   id: string;
-  syn_id: string | null;
   log_number: string;
   standard_name: string;
   target_concentration: string | null;
@@ -21,7 +20,6 @@ export function BatchRowsTable({ rows }: { rows: BatchRow[] }) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>SYX ID</TableHead>
             <TableHead>Log #</TableHead>
             <TableHead>Standard</TableHead>
             <TableHead>Conc</TableHead>
@@ -33,7 +31,6 @@ export function BatchRowsTable({ rows }: { rows: BatchRow[] }) {
         <TableBody>
           {rows.map(r => (
             <TableRow key={r.id}>
-              <TableCell className="font-mono text-xs">{r.syn_id ?? "—"}</TableCell>
               <TableCell className="font-mono text-xs">
                 <Link to="/lab-logs/standard-preparations/$id" params={{ id: r.id }} className="hover:underline">{r.log_number}</Link>
               </TableCell>

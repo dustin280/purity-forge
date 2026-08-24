@@ -9,6 +9,7 @@ export type IssueStatus = "open" | "in_progress" | "resolved";
 
 export type IssueRow = {
   id: string;
+  document_number: string;
   occurred_at: string;
   user_name: string;
   description: string;
@@ -62,6 +63,7 @@ export function IssueCard({
               {new Date(issue.occurred_at).toLocaleString()} · {issue.user_name}
             </span>
           </div>
+          <div className="font-mono text-[10px] text-muted-foreground/70 mt-0.5">{issue.document_number}</div>
           <p className="text-sm mt-2 whitespace-pre-wrap break-words">{issue.description}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => onStatus(next)} title="Cycle status">

@@ -37,18 +37,18 @@ interface Props {
   draftKey?: string;
   /**
    * Batch mode: the calculator's target rows are the standards. Hides the
-   * single "Standard name" required field, shows a SYX ID preview column,
-   * and the submit button reflects the row count.
+   * single "Standard name" required field, shows a document number preview
+   * column, and the submit button reflects the row count.
    */
   batchMode?: boolean;
   /**
-   * Prefix for SYX ID preview, e.g. "SYX_052026_JDS_". A "?" is appended
-   * per row since the real counter is assigned server-side.
+   * Preview of the document number format, e.g. "SYN-STDP-…-082126" — the
+   * real number is assigned server-side per row on save.
    */
-  synPreviewPrefix?: string;
+  docNumberPreview?: string;
 }
 
-export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey, batchMode = false, synPreviewPrefix }: Props) {
+export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel = "Save", onSubmit, onCancel, draftKey, batchMode = false, docNumberPreview }: Props) {
   const f = usePrepForm({ initial, defaultAnalystName, draftKey });
   const { v, hasDraft, dirtyRef, discardDraft } = f;
 
@@ -83,13 +83,13 @@ export function PrepForm({ initial, defaultAnalystName, submitting, submitLabel 
         </div>
       )}
       <PrepDetailsCard f={f} batchMode={batchMode} />
-      <PrepCalculatorCard f={f} batchMode={batchMode} synPreviewPrefix={synPreviewPrefix} />
+      <PrepCalculatorCard f={f} batchMode={batchMode} docNumberPreview={docNumberPreview} />
       <PrepStepsCard f={f} />
       <PrepStorageCard f={f} />
 
       {batchMode && (
         <div className="text-xs text-muted-foreground -mt-2 px-1">
-          Final SYX IDs are assigned in order on save. Each standard becomes its own line in the journal.
+          Final document numbers are assigned in order on save. Each standard becomes its own line in the journal.
         </div>
       )}
       <div className="flex gap-2 justify-end">

@@ -36,6 +36,7 @@ export interface BenchSheetRow {
 
 export interface BenchSheet {
   id: string;
+  document_number: string;
   run_list_id: string;
   performed_by: string | null;
   performed_at: string | null;
@@ -157,9 +158,16 @@ export const startBenchSheet = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ runListId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const now = new Date().toISOString();
+    const rowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "BNCH", p_source_table: "run_list_bench_sheets", p_source_id: rowId, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: row, error } = await context.supabase
       .from("run_list_bench_sheets")
       .insert({
+        id: rowId,
+        document_number: docNumber,
         run_list_id: data.runListId,
         performed_by: context.userId,
         performed_at: now,

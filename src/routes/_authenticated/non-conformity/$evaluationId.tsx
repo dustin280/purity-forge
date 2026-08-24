@@ -74,6 +74,7 @@ function NcEvaluationReport() {
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
               {evaluation.nc_compound?.name ?? "—"}
             </h1>
+            <div className="font-mono text-xs text-muted-foreground">{evaluation.document_number}</div>
             <p className="text-sm text-muted-foreground mt-1">
               {sample?.client ? `${sample.client} · ` : ""}
               {new Date(evaluation.run_at).toLocaleString()} · {evaluation.run_by_name}

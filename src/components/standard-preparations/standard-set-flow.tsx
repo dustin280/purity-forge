@@ -121,7 +121,6 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       const doc = generateStandardSetCutSheetPdf({
         standardName: detail.standard_name,
         logNumber: detail.log_number,
-        synId: detail.syn_id,
         preparedAt: detail.prepared_at,
         analystName: detail.analyst_name,
         diluentName: detail.final_diluent ?? diluentName,

@@ -42,7 +42,7 @@ function LabJournalPage() {
           deleting={deleteMut.isPending}
           onSubmit={async (payload) => {
             if (editing) {
-              await updateMut.mutateAsync({
+              const row = await updateMut.mutateAsync({
                 id: editing.id,
                 entry_at: payload.entry_at,
                 title: payload.title,
@@ -50,9 +50,9 @@ function LabJournalPage() {
                 tags: payload.tags,
               });
               setEditing(null);
-            } else {
-              await createMut.mutateAsync(payload);
+              return row;
             }
+            return createMut.mutateAsync(payload);
           }}
           onDelete={
             editing

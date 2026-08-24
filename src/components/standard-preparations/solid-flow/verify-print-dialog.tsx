@@ -4,13 +4,13 @@ import { FileDown, Printer } from "lucide-react";
 
 interface Props {
   open: boolean;
-  synId: string | null;
+  documentNumber: string | null;
   onSavePdf: () => void;
   onPrint: () => void;
   onExit: () => void;
 }
 
-export function VerifyPrintDialog({ open, synId, onSavePdf, onPrint, onExit }: Props) {
+export function VerifyPrintDialog({ open, documentNumber, onSavePdf, onPrint, onExit }: Props) {
   return (
     <Dialog open={open} onOpenChange={o => { if (!o) onExit(); }}>
       <DialogContent>
@@ -22,8 +22,8 @@ export function VerifyPrintDialog({ open, synId, onSavePdf, onPrint, onExit }: P
         </DialogHeader>
         <div className="text-sm space-y-2">
           <p>
-            Saved to the Standard Prep Log{synId ? ` as ` : "."}
-            {synId && <span className="font-mono font-semibold">{synId}</span>}
+            Saved to the Standard Prep Log{documentNumber ? ` as ` : "."}
+            {documentNumber && <span className="font-mono font-semibold">{documentNumber}</span>}
           </p>
           <p className="text-muted-foreground">You can save a PDF, print, or both. Click Exit when done.</p>
         </div>

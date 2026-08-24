@@ -31,7 +31,7 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
   const [step, setStep] = useState(0);
   const [state, setState] = useState<AqueousFlowState>(() => emptyAqueousState());
   const preparedAt = useMemo(() => new Date().toISOString(), []);
-  const [savedSyn, setSavedSyn] = useState<string | null>(null);
+  const [savedNumber, setSavedNumber] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const reviewRef = useRef<HTMLDivElement>(null);
 
@@ -39,11 +39,11 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
   const mut = useMutation({
     mutationFn: (payload: Record<string, unknown>) =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      create({ data: payload as any }) as Promise<{ id: string; log_number: string; syn_id: string }>,
+      create({ data: payload as any }) as Promise<{ id: string; log_number: string }>,
     onSuccess: (res) => {
-      setSavedSyn(res.syn_id);
+      setSavedNumber(res.log_number);
       setSavedId(res.id);
-      toast.success(`Saved ${res.syn_id}`);
+      toast.success(`Saved ${res.log_number}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -114,8 +114,7 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
 
     const row = {
       id: savedId ?? "",
-      log_number: savedSyn ?? "",
-      syn_id: savedSyn,
+      log_number: savedNumber ?? "",
       batch_group_id: null,
       prepared_at: preparedAt,
       analyst_id: null,
@@ -132,7 +131,7 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
       expiration_date: expDate.toISOString().slice(0, 10),
       storage_condition: state.concentration.storage_condition,
       storage_location: state.concentration.storage_location,
-      container_label: savedSyn,
+      container_label: savedNumber,
       prep_type: "primary_aqueous",
       status: "approved" as const,
       reviewer_id: null, reviewer_name: defaultAnalystName, reviewed_at: new Date().toISOString(),
@@ -232,15 +231,15 @@ export function AqueousFlow({ defaultAnalystName, userToken }: Props) {
             Next <ArrowRight className="size-4 ml-1" />
           </Button>
         ) : (
-          <Button type="button" onClick={handleVerify} disabled={!dilutionResult || !!dilutionResult.error || mut.isPending || !!savedSyn}>
-            {mut.isPending ? "Saving…" : savedSyn ? "Verified ✓" : "Verify & Save"}
+          <Button type="button" onClick={handleVerify} disabled={!dilutionResult || !!dilutionResult.error || mut.isPending || !!savedNumber}>
+            {mut.isPending ? "Saving…" : savedNumber ? "Verified ✓" : "Verify & Save"}
           </Button>
         )}
       </div>
 
       <VerifyPrintDialog
-        open={!!savedSyn}
-        synId={savedSyn}
+        open={!!savedNumber}
+        documentNumber={savedNumber}
         onSavePdf={handleSavePdf}
         onPrint={handlePrint}
         onExit={handleExit}

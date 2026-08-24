@@ -28,13 +28,13 @@ function BatchView() {
     try { await navigator.clipboard.writeText(text); toast.success(`${label} copied`); }
     catch { toast.error("Copy failed"); }
   };
-  const allIds = rows.map(r => r.syn_id).filter(Boolean).join("\n");
+  const allIds = rows.map(r => r.log_number).filter(Boolean).join("\n");
   const summary = [
     `Batch prepared ${new Date(head.prepared_at).toLocaleString()} by ${head.analyst_name}`,
     head.ref_material_name ? `Reference: ${head.ref_material_name} (Lot ${head.ref_lot ?? "—"})` : "",
     `Standards: ${rows.length}`,
     "",
-    ...rows.map(r => `${r.syn_id ?? r.log_number}  ${r.standard_name}  ${r.target_concentration ?? ""}  ${r.final_volume ?? ""}`),
+    ...rows.map(r => `${r.log_number}  ${r.standard_name}  ${r.target_concentration ?? ""}  ${r.final_volume ?? ""}`),
   ].filter(Boolean).join("\n");
 
   return (
@@ -51,7 +51,7 @@ function BatchView() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => copy(allIds, "SYX IDs")}><Copy className="size-4 mr-1" /> Copy IDs</Button>
+          <Button variant="outline" size="sm" onClick={() => copy(allIds, "Document numbers")}><Copy className="size-4 mr-1" /> Copy IDs</Button>
           <Button variant="outline" size="sm" onClick={() => copy(summary, "Summary")}><Copy className="size-4 mr-1" /> Copy summary</Button>
         </div>
       </div>

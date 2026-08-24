@@ -216,9 +216,16 @@ export const saveNcEvaluation = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => saveEvaluationInput.parse(d))
   .handler(async ({ context, data }) => {
     const supabase = context.supabase as AnySupabase;
+    const evalRowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await supabase
+      .rpc("register_document", { p_code: "NCR", p_source_table: "nc_evaluations", p_source_id: evalRowId, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: evalRow, error: e1 } = await supabase
       .from("nc_evaluations")
       .insert({
+        id: evalRowId,
+        document_number: docNumber,
         sample_id: data.sample_id,
         result_id: data.result_id,
         nc_compound_id: data.nc_compound_id,

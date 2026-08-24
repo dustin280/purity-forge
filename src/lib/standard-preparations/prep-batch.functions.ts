@@ -23,14 +23,15 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
     const expirationDate = days && shared.prepared_at ? addDaysISO(shared.prepared_at, days) : null;
     const batchGroupId = crypto.randomUUID();
 
-    const created: Array<{ id: string; log_number: string; syn_id: string | null; standard_name: string }> = [];
+    const created: Array<{ id: string; log_number: string; standard_name: string }> = [];
 
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i];
-      const { data: synRes, error: synErr } = await context.supabase
-        .rpc("next_syn_id", { p_user_token: user_token, p_day: preparedDate });
-      if (synErr) throw synErr;
-      const syn_id = synRes as unknown as string;
+      const rowId = crypto.randomUUID();
+      const { data: docNumber, error: docErr } = await context.supabase
+        .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+      if (docErr) throw docErr;
+      const log_number = docNumber as unknown as string;
 
       const standardName = t.name?.trim() || batch_label?.trim() || `Standard ${i + 1}`;
       const concUnit = t.target_concentration_unit ?? "mg/mL";
@@ -42,6 +43,8 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
       const isLiquid = shared.ref_form === "liquid";
 
       const logPayload = emptyToNull({
+        id: rowId,
+        log_number,
         prepared_at: new Date(shared.prepared_at).toISOString(),
         analyst_name: shared.analyst_name,
         analyst_id: context.userId,
@@ -58,7 +61,7 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
         expiration_date: expirationDate,
         storage_condition: shared.storage_condition ?? null,
         storage_location: shared.storage_location ?? null,
-        container_label: syn_id,
+        container_label: log_number,
         notes: [batch_label ? `Batch: ${batch_label}` : "", t.notes ?? "", shared.notes ?? ""].filter(Boolean).join("\n") || null,
         expiration_period_code: shared.expiration_period_code ?? null,
         expiration_period_days: days,
@@ -73,7 +76,6 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
         ref_concentration_mg_per_ml: isLiquid ? (shared.ref_concentration_mg_per_ml ?? null) : null,
         ref_molecular_weight: shared.ref_molecular_weight ?? null,
         ref_receipt_date: shared.ref_receipt_date ?? null,
-        syn_id,
         batch_group_id: batchGroupId,
       }) as Record<string, unknown>;
 
@@ -81,7 +83,7 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
         .from("standard_preparation_logs")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .insert(logPayload as any)
-        .select("id, log_number, syn_id, standard_name")
+        .select("id, log_number, standard_name")
         .single();
       if (insErr) throw insErr;
 
@@ -105,7 +107,6 @@ export const createStandardPreparationBatch = createServerFn({ method: "POST" })
       created.push({
         id: row.id as string,
         log_number: row.log_number as string,
-        syn_id: (row.syn_id as string | null) ?? syn_id,
         standard_name: row.standard_name as string,
       });
     }
@@ -121,7 +122,7 @@ export const getStandardPreparationBatch = createServerFn({ method: "GET" })
       .from("standard_preparation_logs")
       .select("*, material_receipt:material_receipts!standard_preparation_logs_material_receipt_id_fkey(id, receipt_number, internal_lot, manufacturer_lot, material_name)")
       .eq("batch_group_id", data.group_id)
-      .order("syn_id", { ascending: true });
+      .order("log_number", { ascending: true });
     if (error) throw error;
     return (rows ?? []) as unknown as Array<StandardPrepRow & {
       material_receipt: { id: string; receipt_number: string; internal_lot: string | null; manufacturer_lot: string | null; material_name: string } | null;

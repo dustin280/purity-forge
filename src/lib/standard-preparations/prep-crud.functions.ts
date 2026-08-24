@@ -14,7 +14,6 @@ import {
 } from "./prep-shared.server";
 
 const SORT_COLUMNS = [
-  "syn_id",
   "log_number",
   "prepared_at",
   "created_at",
@@ -37,7 +36,7 @@ export const listStandardPreparations = createServerFn({ method: "GET" })
     }).parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
-    const sortBy = data.sortBy ?? "syn_id";
+    const sortBy = data.sortBy ?? "log_number";
     const sortDir = data.sortDir ?? "desc";
     const ascending = sortDir === "asc";
     let q = context.supabase
@@ -57,7 +56,6 @@ export const listStandardPreparations = createServerFn({ method: "GET" })
       q = q.or(
         [
           `log_number.ilike.${term}`,
-          `syn_id.ilike.${term}`,
           `standard_name.ilike.${term}`,
           `analyst_name.ilike.${term}`,
           `manufacturer_lot.ilike.${term}`,

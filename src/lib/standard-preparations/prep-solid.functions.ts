@@ -60,10 +60,11 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const preparedDate = new Date(data.prepared_at).toISOString().slice(0, 10);
 
-    const { data: synRes, error: synErr } = await context.supabase
-      .rpc("next_syn_id", { p_user_token: data.user_token, p_day: preparedDate });
-    if (synErr) throw synErr;
-    const syn_id = synRes as unknown as string;
+    const rowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+    const log_number = docNumber as unknown as string;
 
     const days = data.expiration_period_days ?? null;
     const expirationDate = days && data.prepared_at ? addDaysISO(data.prepared_at, days) : null;
@@ -78,6 +79,8 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
           : "");
 
     const logPayload: Record<string, unknown> = {
+      id: rowId,
+      log_number,
       prepared_at: new Date(data.prepared_at).toISOString(),
       analyst_name: data.analyst_name,
       analyst_id: context.userId,
@@ -92,7 +95,7 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
       expiration_date: expirationDate,
       storage_condition: data.storage_condition ?? null,
       storage_location: data.storage_location ?? null,
-      container_label: syn_id,
+      container_label: log_number,
       status: "approved",
       approver_id: context.userId,
       approver_name: data.analyst_name,
@@ -114,7 +117,6 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
       ref_purity_percent: data.ref_purity_percent ?? null,
       ref_molecular_weight: data.ref_molecular_weight ?? null,
       ref_receipt_date: data.ref_receipt_date ?? null,
-      syn_id,
       prep_type: "primary_solid",
       diluent_solvents: data.diluent_solvents,
       final_concentration_value: data.final_concentration_value,
@@ -128,7 +130,7 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
       .from("standard_preparation_logs")
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .insert(logPayload as any)
-      .select("id, log_number, syn_id")
+      .select("id, log_number")
       .single();
     if (insErr) throw insErr;
 
@@ -155,7 +157,6 @@ export const createPrimaryStandardSolid = createServerFn({ method: "POST" })
     return {
       id: row.id as string,
       log_number: row.log_number as string,
-      syn_id: (row.syn_id as string | null) ?? syn_id,
     };
   });
 

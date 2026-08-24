@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { categorizePrepAlert } from "@/lib/standard-preparations/prep-alerts";
 
 export type SortKey =
-  | "syn_id"
   | "log_number"
   | "prepared_at"
   | "created_at"
@@ -20,7 +19,6 @@ export type SortDir = "asc" | "desc";
 type Row = {
   id: string;
   log_number: string;
-  syn_id: string | null;
   status: string;
   standard_name: string;
   analyst_name: string;
@@ -43,8 +41,7 @@ interface Props {
 }
 
 const COLS: { key: SortKey | null; label: string; className?: string }[] = [
-  { key: "syn_id", label: "SYX ID" },
-  { key: "log_number", label: "Log #" },
+  { key: "log_number", label: "Doc #" },
   { key: "standard_name", label: "Standard" },
   { key: "analyst_name", label: "Analyst" },
   { key: "prepared_at", label: "Prepared" },
@@ -106,7 +103,6 @@ export function PrepsTable({ rows, isLoading, sortBy, sortDir, onSort }: Props) 
               className="cursor-pointer"
               onClick={() => navigate({ to: "/lab-logs/standard-preparations/$id", params: { id: r.id } })}
             >
-              <TableCell className="font-mono text-xs">{r.syn_id ?? "—"}</TableCell>
               <TableCell className="font-mono text-xs">{r.log_number}</TableCell>
               <TableCell className="font-medium max-w-[220px] truncate">{r.standard_name}</TableCell>
               <TableCell className="text-muted-foreground">{r.analyst_name}</TableCell>

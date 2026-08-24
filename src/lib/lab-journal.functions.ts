@@ -8,6 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface LabJournalEntry {
   id: string;
+  entry_number: string;
   user_id: string;
   user_name: string;
   entry_at: string;
@@ -55,9 +56,17 @@ export const createLabJournalEntry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => createSchema.parse(d))
   .handler(async ({ context, data }) => {
+    const rowId = crypto.randomUUID();
+    const entryDate = new Date(data.entry_at).toISOString().slice(0, 10);
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "JRNL", p_source_table: "lab_journal_entries", p_source_id: rowId, p_date: entryDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: row, error } = await context.supabase
       .from("lab_journal_entries")
       .insert({
+        id: rowId,
+        entry_number: docNumber,
         entry_at: data.entry_at,
         user_name: data.user_name,
         title: data.title || null,

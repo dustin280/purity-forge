@@ -920,6 +920,65 @@ export type Database = {
         }
         Relationships: []
       }
+      document_counters: {
+        Row: {
+          code: string
+          next_seq: number
+        }
+        Insert: {
+          code: string
+          next_seq?: number
+        }
+        Update: {
+          code?: string
+          next_seq?: number
+        }
+        Relationships: []
+      }
+      document_records: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          document_number: string
+          id: string
+          record_date: string
+          seq_number: number
+          source_id: string
+          source_table: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          document_number: string
+          id?: string
+          record_date: string
+          seq_number: number
+          source_id: string
+          source_table: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          document_number?: string
+          id?: string
+          record_date?: string
+          seq_number?: number
+          source_id?: string
+          source_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_records_code_fkey"
+            columns: ["code"]
+            isOneToOne: false
+            referencedRelation: "document_counters"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       export_config: {
         Row: {
           api_key: string
@@ -1333,6 +1392,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string
+          document_number: string
           id: string
           occurred_at: string
           status: string
@@ -1344,6 +1404,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description: string
+          document_number: string
           id?: string
           occurred_at?: string
           status?: string
@@ -1355,6 +1416,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string
+          document_number?: string
           id?: string
           occurred_at?: string
           status?: string
@@ -1413,6 +1475,7 @@ export type Database = {
           body: string
           created_at: string
           entry_at: string
+          entry_number: string
           id: string
           tags: string[]
           title: string | null
@@ -1424,6 +1487,7 @@ export type Database = {
           body?: string
           created_at?: string
           entry_at?: string
+          entry_number: string
           id?: string
           tags?: string[]
           title?: string | null
@@ -1435,6 +1499,7 @@ export type Database = {
           body?: string
           created_at?: string
           entry_at?: string
+          entry_number?: string
           id?: string
           tags?: string[]
           title?: string | null
@@ -1550,21 +1615,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      material_receipt_counters: {
-        Row: {
-          day: string
-          last_seq: number
-        }
-        Insert: {
-          day: string
-          last_seq?: number
-        }
-        Update: {
-          day?: string
-          last_seq?: number
-        }
-        Relationships: []
       }
       material_receipts: {
         Row: {
@@ -2146,6 +2196,7 @@ export type Database = {
       nc_evaluations: {
         Row: {
           created_at: string
+          document_number: string
           dx_file_id: string | null
           dx_folder_id: string | null
           dx_match_confidence: string | null
@@ -2162,6 +2213,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          document_number: string
           dx_file_id?: string | null
           dx_folder_id?: string | null
           dx_match_confidence?: string | null
@@ -2178,6 +2230,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          document_number?: string
           dx_file_id?: string | null
           dx_folder_id?: string | null
           dx_match_confidence?: string | null
@@ -3263,6 +3316,7 @@ export type Database = {
           created_at: string
           deviation_flag: boolean
           deviation_notes: string | null
+          document_number: string
           id: string
           narrative: string | null
           performed_at: string | null
@@ -3280,6 +3334,7 @@ export type Database = {
           created_at?: string
           deviation_flag?: boolean
           deviation_notes?: string | null
+          document_number: string
           id?: string
           narrative?: string | null
           performed_at?: string | null
@@ -3297,6 +3352,7 @@ export type Database = {
           created_at?: string
           deviation_flag?: boolean
           deviation_notes?: string | null
+          document_number?: string
           id?: string
           narrative?: string | null
           performed_at?: string | null
@@ -3466,6 +3522,7 @@ export type Database = {
           created_by: string | null
           csv_storage_path: string | null
           data_file_pattern: string
+          document_number: string
           exported_at: string | null
           exported_by: string | null
           id: string
@@ -3483,6 +3540,7 @@ export type Database = {
           created_by?: string | null
           csv_storage_path?: string | null
           data_file_pattern?: string
+          document_number: string
           exported_at?: string | null
           exported_by?: string | null
           id?: string
@@ -3500,6 +3558,7 @@ export type Database = {
           created_by?: string | null
           csv_storage_path?: string | null
           data_file_pattern?: string
+          document_number?: string
           exported_at?: string | null
           exported_by?: string | null
           id?: string
@@ -4511,21 +4570,6 @@ export type Database = {
           },
         ]
       }
-      sp_preparation_counters: {
-        Row: {
-          day: string
-          last_seq: number
-        }
-        Insert: {
-          day: string
-          last_seq?: number
-        }
-        Update: {
-          day?: string
-          last_seq?: number
-        }
-        Relationships: []
-      }
       sp_preparation_records: {
         Row: {
           analyte_id: string
@@ -5141,7 +5185,6 @@ export type Database = {
           status: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition: string | null
           storage_location: string | null
-          syn_id: string | null
           target_concentration: string | null
           updated_at: string
           volume_remaining_ml: number | null
@@ -5198,7 +5241,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition?: string | null
           storage_location?: string | null
-          syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
           volume_remaining_ml?: number | null
@@ -5255,7 +5297,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["standard_prep_status"]
           storage_condition?: string | null
           storage_location?: string | null
-          syn_id?: string | null
           target_concentration?: string | null
           updated_at?: string
           volume_remaining_ml?: number | null
@@ -5545,21 +5586,6 @@ export type Database = {
           tray_count?: number | null
           unit_type?: Database["public"]["Enums"]["storage_unit_type"]
           updated_at?: string
-        }
-        Relationships: []
-      }
-      syn_id_counters: {
-        Row: {
-          day: string
-          last_seq: number
-        }
-        Insert: {
-          day: string
-          last_seq?: number
-        }
-        Update: {
-          day?: string
-          last_seq?: number
         }
         Relationships: []
       }
@@ -5879,19 +5905,16 @@ export type Database = {
         Returns: number
       }
       next_coc_invoice_number: { Args: never; Returns: string }
-      next_material_receipt_number: { Args: never; Returns: string }
       next_mobile_phase_prep_number: { Args: never; Returns: string }
       next_run_list_seq: {
         Args: { p_day: string; p_instrument_key: string }
         Returns: number
       }
-      next_sp_prep_number: { Args: never; Returns: string }
-      next_standard_preparation_number: { Args: never; Returns: string }
-      next_stdlog_lot: { Args: never; Returns: string }
-      next_syn_id: {
-        Args: { p_day: string; p_user_token: string }
+      next_document_number: {
+        Args: { p_code: string; p_date?: string }
         Returns: string
       }
+      next_stdlog_lot: { Args: never; Returns: string }
       record_standard_usage: {
         Args: {
           p_actor_id: string
@@ -5902,6 +5925,10 @@ export type Database = {
           p_withdrawn_ml: number
         }
         Returns: number
+      }
+      register_document: {
+        Args: { p_code: string; p_created_by?: string; p_date?: string; p_source_id: string; p_source_table: string }
+        Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
       trigger_cal_qc_watcher: { Args: never; Returns: undefined }

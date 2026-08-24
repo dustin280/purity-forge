@@ -124,6 +124,9 @@ export function EntriesList({
                       <div className="text-xs text-muted-foreground">
                         {fmt(r.entry_at)}
                       </div>
+                      <div className="text-xs font-mono text-muted-foreground/70">
+                        {r.entry_number}
+                      </div>
                     </div>
                     {!isOpen && (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
@@ -156,6 +159,7 @@ export function EntriesList({
                       variant="ghost"
                       onClick={() =>
                         downloadJournalPdf({
+                          entry_number: r.entry_number,
                           user_name: r.user_name,
                           entry_at: r.entry_at,
                           title: r.title,

@@ -348,13 +348,16 @@ function buildPlanInput(
 async function persistPlan(
   supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedRevisionCtx, plan: PrepPlan,
 ): Promise<{ prep_id: string; prep_number: string }> {
-  const { data: prepNumberData, error: numErr } = await supabase.rpc("next_sp_prep_number");
-  if (numErr) throw numErr;
-  const prep_number = prepNumberData as string;
+  const recordId = crypto.randomUUID();
+  const { data: docNumber, error: docErr } = await supabase
+    .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
+  if (docErr) throw docErr;
+  const prep_number = docNumber as string;
 
   const { data: record, error } = await supabase
     .from("sp_preparation_records")
     .insert({
+      id: recordId,
       prep_number,
       method_revision_id: null,
       analyte_id: null,

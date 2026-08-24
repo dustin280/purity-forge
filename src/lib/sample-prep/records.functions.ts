@@ -92,15 +92,18 @@ export const createDraftRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => CreateSchema.parse(data))
   .handler(async ({ data, context }) => {
-    const { data: prepNumberData, error: numErr } = await context.supabase.rpc("next_sp_prep_number");
-    if (numErr) throw numErr;
-    const prep_number = prepNumberData as unknown as string;
+    const recordId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: context.userId });
+    if (docErr) throw docErr;
+    const prep_number = docNumber as unknown as string;
 
     const { steps, ...header } = data;
     const { data: record, error } = await context.supabase
       .from("sp_preparation_records")
       .insert({
         ...header,
+        id: recordId,
         sample_context: header.sample_context as Json,
         plan: header.plan as Json,
         prep_number,

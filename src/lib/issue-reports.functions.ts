@@ -7,6 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export interface IssueReportRow {
   id: string;
+  document_number: string;
   occurred_at: string;
   user_id: string | null;
   user_name: string;
@@ -60,9 +61,17 @@ export const createIssueReport = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
+    const rowId = crypto.randomUUID();
+    const occurredDate = new Date(data.occurred_at).toISOString().slice(0, 10);
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "NCR", p_source_table: "issue_reports", p_source_id: rowId, p_date: occurredDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+
     const { data: row, error } = await context.supabase
       .from("issue_reports")
       .insert({
+        id: rowId,
+        document_number: docNumber,
         occurred_at: new Date(data.occurred_at).toISOString(),
         user_name: data.user_name,
         description: data.description,

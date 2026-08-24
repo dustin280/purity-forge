@@ -19,7 +19,7 @@ function StandardPrepsIndex() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [analyst, setAnalyst] = useState("");
-  const [sortBy, setSortBy] = useState<SortKey>("syn_id");
+  const [sortBy, setSortBy] = useState<SortKey>("log_number");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const filters = useMemo(() => ({

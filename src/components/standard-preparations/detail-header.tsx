@@ -16,7 +16,6 @@ import { STATUS_LABEL } from "@/lib/lims-utils";
 
 type RowLike = {
   log_number: string;
-  syn_id?: string | null;
   standard_name: string;
   status: string;
   target_concentration?: string | null;
@@ -48,7 +47,6 @@ export function PrepDetailHeader({
         <div>
           <div className="font-mono text-sm text-muted-foreground">
             {row.log_number}
-            {row.syn_id && <span className="ml-2 text-foreground">· {row.syn_id}</span>}
           </div>
           <h1 className="text-3xl font-bold tracking-tight mt-1">{row.standard_name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
