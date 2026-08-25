@@ -144,8 +144,6 @@ static string? SanitizeForFileName(string? name)
     return cleaned.Length > 0 ? cleaned : null;
 }
 
-sealed record ExtractedPicture(byte[] Bytes, long AreaEmu, string? CompoundName);
-
 // Walks the real OOXML relationship graph (workbook -> sheets -> drawings ->
 // media) instead of just reading xl/media/* in zip-entry order, so pictures
 // are correctly attributed to their sheet/position and every embedded
@@ -312,3 +310,8 @@ static string ResolveTarget(string fromPart, string target)
     }
     return string.Join('/', parts);
 }
+
+// Top-level statement files require every top-level statement/local
+// function to precede any type declaration -- this has to be the last
+// thing in the file, not sitting between two local functions.
+sealed record ExtractedPicture(byte[] Bytes, long AreaEmu, string? CompoundName);
