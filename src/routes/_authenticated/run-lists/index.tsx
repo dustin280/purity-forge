@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Download, Wand2 } from "lucide-react";
-import { createRunList, deleteRunList, deleteRunLists, listRunLists } from "@/lib/run-lists.functions";
+import { createRunList, deleteRunList, deleteRunLists, listRunLists, DEFAULT_METHOD_NAME } from "@/lib/run-lists.functions";
 import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/run-lists/")({
@@ -40,7 +40,7 @@ function RunListsIndex() {
     });
 
   const createMut = useMutation({
-    mutationFn: () => create({ data: { name: name.trim(), starting_vial: 1, inj_per_vial: 1, data_file_pattern: "{sample}_{yyyyMMdd}_{seq}" } }),
+    mutationFn: () => create({ data: { name: name.trim(), starting_vial: 1, inj_per_vial: 1, data_file_pattern: "{sample}_{yyyyMMdd}_{seq}", method_name: DEFAULT_METHOD_NAME } }),
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: qk.runLists.all });
       setOpen(false); setName("");
