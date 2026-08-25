@@ -111,8 +111,13 @@ function QueuePage() {
     setSelected(checked ? new Set(sortedWork.map((s) => s.id)) : new Set());
 
   function handleSort(key: QueueSortKey) {
-    if (key === sortKey) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(key); setSortDir("asc"); }
+    if (key === sortKey) { setSortDir((d) => (d === "asc" ? "desc" : "asc")); return; }
+    setSortKey(key);
+    // "Received" reads naturally newest-first on the first click (that's
+    // what "new to old" means for an intake date); every other column's
+    // natural first click is still ascending (e.g. due date = soonest
+    // first, sample ID = alphabetical).
+    setSortDir(key === "receipt_date" ? "desc" : "asc");
   }
 
   const { data, isLoading } = useQuery({
