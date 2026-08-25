@@ -157,6 +157,38 @@ export async function findCalibrationImage(folderId: string, reportFileName: str
   return findSiblingImage(folderId, reportFileName, ".calibration.png");
 }
 
+// A blend report gets one calibration image per compound (the fixed
+// ChromatogramConverter -- see tools/chromatogram-converter -- names them
+// "<report>.calibration.<Compound>.png"), falling back to the single flat
+// "<report>.calibration.png" name when there's only one curve. Lists every
+// sibling matching the calibration prefix rather than assuming a filename,
+// since older/simple reports and reports with a resolvable-vs-unresolvable
+// compound label produce different name shapes.
+async function findCalibrationImages(folderId: string, reportFileName: string): Promise<Array<{ compound: string | null; image: string }>> {
+  const stem = reportFileName.replace(/\.[^.]+$/, "");
+  const prefix = `${stem}.calibration`;
+  try {
+    const q = encodeURIComponent(`'${folderId}' in parents and trashed = false and name contains '${prefix.replace(/'/g, "\\'")}'`);
+    const fields = encodeURIComponent("files(id,name)");
+    const r = await fetch(`${GATEWAY}/drive/v3/files?q=${q}&fields=${fields}&pageSize=50`, { headers: gatewayHeaders() });
+    if (!r.ok) return [];
+    const json = (await r.json()) as { files?: Array<{ id: string; name: string }> };
+    const matches = (json.files ?? []).filter((f) => f.name.startsWith(prefix) && f.name.toLowerCase().endsWith(".png"));
+    const results = await Promise.all(matches.map(async (f) => {
+      const bytes = await driveDownload(f.id);
+      const image = `data:image/png;base64,${Buffer.from(bytes).toString("base64")}`;
+      // "<stem>.calibration.png" (flat, single curve) vs
+      // "<stem>.calibration.<Compound>.png" (per-compound, multiple curves).
+      const rest = f.name.slice(prefix.length).replace(/\.png$/i, "");
+      const compound = rest.startsWith(".") ? rest.slice(1) : null;
+      return { compound: compound || null, image };
+    }));
+    return results;
+  } catch {
+    return [];
+  }
+}
+
 export async function loadReportsFolderId(supabase: import("@supabase/supabase-js").SupabaseClient): Promise<string> {
   const { data } = await supabase.from("sp_settings").select("drive_lm_reports_complete_folder_id").eq("id", true).maybeSingle();
   const folderId = data?.drive_lm_reports_complete_folder_id;
@@ -213,6 +245,16 @@ export type CalibrationData = {
   scaled_type: string | null;
 };
 
+// One compound's calibration curve, image + fit stats merged together (by
+// compound name) from the two independent sources they come from — the
+// image is a Drive sibling written by the chromatogram-converter agent,
+// the fit stats are parsed straight out of the xlsx's own cells.
+export type CalibrationCurve = {
+  compound: string | null;
+  image: string | null;
+  data: CalibrationData | null;
+};
+
 export type ParsedReport = {
   file_id: string;
   file_name: string;
@@ -222,8 +264,13 @@ export type ParsedReport = {
   compounds: ParsedReportCompound[];
   raw_text: string;
   chromatogram_image: string | null;
+  // Singular fields kept for backward compatibility (partner export API,
+  // older UI code) -- always the first/primary curve. calibration_curves
+  // carries the full per-compound set for blend reports (SUMMIT etc.).
   calibration_image: string | null;
   calibration_data: CalibrationData | null;
+  calibration_data_blocks: CalibrationData[];
+  calibration_curves: CalibrationCurve[];
   // Report-header label:value pairs that don't belong to any one compound
   // row (data file, operator, instrument, injection volume, location,
   // acquisition/processing method, signal, etc.) — xlsx reports only, null
@@ -294,7 +341,7 @@ function parseCompoundLine(line: string): ParsedReportCompound | null {
  *   "Compound:SS-31 (DAD1A)"
  *   "Exp. RT:5.208"
  */
-function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> | null {
+function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> | null {
   if (!/Single Injection Report/.test(text)) return null;
   const sampleIdMatch = text.match(/Sample name:\s*([A-Za-z0-9-]+)/);
   const purityMatch = text.match(/Purity\s*([<>]?\d+\.\d{2})%/);
@@ -322,11 +369,12 @@ function parseSingleInjectionReport(text: string): Omit<ParsedReport, "file_id" 
     total_peptide_contents_mg: null,
     compounds: [compound],
     calibration_data: null,
+    calibration_data_blocks: [],
     report_metadata: null,
   };
 }
 
-export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
+export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> {
   const sampleIdMatch = text.match(/Sample ID:\s*([^\n]+?)(?:Analyte:|Product:|\n)/);
   const analysisDateMatch = text.match(/Analysis date:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}[^\n]*?)(?:Report|\n)/);
   const totalMatch = text.match(/Total Peptide Contents:\s*([\d.]+)\s*mg/i);
@@ -347,6 +395,7 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
     total_peptide_contents_mg: totalMatch ? Number(totalMatch[1]) : null,
     compounds,
     calibration_data: null,
+    calibration_data_blocks: [],
     report_metadata: null,
   };
 }
@@ -429,16 +478,15 @@ const CALIBRATION_LABEL_ALIASES: Record<keyof CalibrationData, string[]> = {
   scaled_type: ["scaled type"],
 };
 
-// Returns null (not an error) when the sheet has no calibration block at
-// all — older reports / report templates predating this addition.
-function findCalibrationData(rows: unknown[][]): CalibrationData | null {
-  const calibrationUpdate = findLabelValue(rows, CALIBRATION_LABEL_ALIASES.calibration_update);
-  if (calibrationUpdate == null) return null;
+function findCalibrationDataInRange(rows: unknown[][]): CalibrationData | null {
   const str = (key: keyof typeof CALIBRATION_LABEL_ALIASES) => findLabelValue(rows, CALIBRATION_LABEL_ALIASES[key]);
   const num = (key: keyof typeof CALIBRATION_LABEL_ALIASES) => numOrNull(str(key));
+  const calibrationUpdate = str("calibration_update");
+  const compound = str("compound");
+  if (calibrationUpdate == null && compound == null) return null;
   return {
     calibration_update: calibrationUpdate,
-    compound: str("compound"),
+    compound,
     exp_rt: num("exp_rt"),
     residual_std: num("residual_std"),
     r: num("r"),
@@ -451,6 +499,34 @@ function findCalibrationData(rows: unknown[][]): CalibrationData | null {
     scaled_label: str("scaled_label"),
     scaled_type: str("scaled_type"),
   };
+}
+
+// A blend report has one calibration block per compound (confirmed against
+// a real 4-compound SUMMIT report: four "Compound:" cells, ~15 rows apart,
+// each starting its own Exp. RT/Residual STD/R/R²/Formula/a-d block). Each
+// block is delimited by its "Compound:" row through the row before the
+// next one (or end of sheet for the last block). Older/simpler reports
+// with no per-compound "Compound:" label at all fall back to scanning the
+// whole sheet as a single block, same as the original single-block
+// behavior — returns [] (not null) when there's no calibration block at
+// all, e.g. older reports/report templates predating this addition.
+function findCalibrationDataBlocks(rows: unknown[][]): CalibrationData[] {
+  const starts: number[] = [];
+  rows.forEach((row, i) => {
+    if ((row ?? []).some((cell) => normKey(cellText(cell).replace(/:$/, "")) === normKey("compound"))) starts.push(i);
+  });
+  if (starts.length === 0) {
+    const single = findCalibrationDataInRange(rows);
+    return single ? [single] : [];
+  }
+  const blocks: CalibrationData[] = [];
+  for (let i = 0; i < starts.length; i++) {
+    const from = starts[i];
+    const to = i + 1 < starts.length ? starts[i + 1] : rows.length;
+    const block = findCalibrationDataInRange(rows.slice(from, to));
+    if (block) blocks.push(block);
+  }
+  return blocks;
 }
 
 function cellText(v: unknown): string {
@@ -529,13 +605,20 @@ function findReportMetadata(rows: unknown[][]): Record<string, string> | null {
   return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
+// Newer report templates split a blend's per-compound calibration blocks
+// onto a second worksheet ("Page 2") while the compound table/chromatogram
+// stay on the first ("Page 1") — reading only SheetNames[0] silently missed
+// every calibration block on those reports (confirmed against a real
+// SUMMIT report: "Compound:"/"Exp. RT:"/etc. exist only on Page 2). All
+// sheets are concatenated in workbook order; single-sheet (older/simple)
+// reports are unaffected since there's nothing to add.
 function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
   const wb = XLSX.read(buffer, { type: "buffer" });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  return XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "" });
+  return wb.SheetNames.flatMap((name) =>
+    XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[name], { header: 1, defval: "" }));
 }
 
-function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
+function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> {
   const header = findXlsxHeaderRow(rows);
   const compounds: ParsedReportCompound[] = [];
   if (header) {
@@ -563,17 +646,22 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
     }
   }
 
+  const calibrationBlocks = findCalibrationDataBlocks(rows);
   return {
     sample_id_in_report: findLabelValue(rows, LABEL_ALIASES.sample_id),
     analysis_date: findLabelValue(rows, LABEL_ALIASES.analysis_date),
     total_peptide_contents_mg: null,
     compounds,
-    calibration_data: findCalibrationData(rows),
+    // Singular field kept for backward compatibility (partner API, older UI
+    // paths) -- the first/primary block. calibration_data_blocks below
+    // carries the full per-compound set for blend reports.
+    calibration_data: calibrationBlocks[0] ?? null,
+    calibration_data_blocks: calibrationBlocks,
     report_metadata: findReportMetadata(rows),
   };
 }
 
-export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> {
+export function parseXlsxReport(buffer: Buffer): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> {
   return parseXlsxRows(xlsxRowsFromBuffer(buffer));
 }
 
@@ -587,7 +675,7 @@ function isXlsxFile(fileName: string): boolean {
  * pipeline (compoundsToPeaks, result insertion) never needs to know which
  * format a given report came in as.
  */
-export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image"> & { raw_text: string }> {
+export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): Promise<Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> & { raw_text: string }> {
   if (isXlsxFile(fileName)) {
     const rows = xlsxRowsFromBuffer(Buffer.from(bytes));
     return { ...parseXlsxRows(rows), raw_text: JSON.stringify(rows) };
@@ -620,6 +708,51 @@ export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Pe
   };
 }
 
+// Matches each Drive calibration image to its xlsx-parsed fit-stats block
+// by compound name -- the two are independent sources (image comes from a
+// sibling PNG file, data from the report's own cells) that need reuniting.
+// Names are normalized (lowercased, trimmed, detector-channel tag like
+// "(DAD1A)" stripped) since the xlsx text still carries that tag while the
+// image filename (sanitized by the converter) doesn't.
+function normalizeCompoundKey(name: string | null): string | null {
+  if (!name) return null;
+  const noTag = name.replace(/\([^)]*\)\s*$/, "").trim();
+  return noTag ? noTag.toLowerCase() : null;
+}
+
+function mergeCalibrationCurves(
+  images: Array<{ compound: string | null; image: string }>,
+  dataBlocks: CalibrationData[],
+): CalibrationCurve[] {
+  if (images.length <= 1 && dataBlocks.length <= 1) {
+    if (images.length === 0 && dataBlocks.length === 0) return [];
+    return [{
+      compound: dataBlocks[0]?.compound ?? images[0]?.compound ?? null,
+      image: images[0]?.image ?? null,
+      data: dataBlocks[0] ?? null,
+    }];
+  }
+  const dataByKey = new Map<string, CalibrationData>();
+  for (const d of dataBlocks) {
+    const key = normalizeCompoundKey(d.compound);
+    if (key) dataByKey.set(key, d);
+  }
+  const curves: CalibrationCurve[] = [];
+  const usedKeys = new Set<string>();
+  for (const img of images) {
+    const key = normalizeCompoundKey(img.compound);
+    const data = key ? dataByKey.get(key) ?? null : null;
+    if (key) usedKeys.add(key);
+    curves.push({ compound: data?.compound ?? img.compound, image: img.image, data });
+  }
+  for (const d of dataBlocks) {
+    const key = normalizeCompoundKey(d.compound);
+    if (key && usedKeys.has(key)) continue;
+    curves.push({ compound: d.compound, image: null, data: d });
+  }
+  return curves;
+}
+
 export const parseReportFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ file_id: z.string().min(1), file_name: z.string().min(1) }).parse(d))
@@ -636,12 +769,17 @@ export const parseReportFile = createServerFn({ method: "POST" })
       return isNaN(d.getTime()) ? null : d.toISOString();
     })();
     const folderId = await loadReportsFolderId(context.supabase);
-    const [chromatogramImage, calibrationImage] = await Promise.all([
+    const [chromatogramImage, calibrationImages] = await Promise.all([
       findChromatogramImage(folderId, data.file_name),
-      findCalibrationImage(folderId, data.file_name),
+      findCalibrationImages(folderId, data.file_name),
     ]);
+    const calibrationCurves = mergeCalibrationCurves(calibrationImages, parsed.calibration_data_blocks);
     return {
       file_id: data.file_id, file_name: data.file_name, raw_text: text, ...parsed,
-      analysis_date: analysisDate, chromatogram_image: chromatogramImage, calibration_image: calibrationImage,
+      analysis_date: analysisDate, chromatogram_image: chromatogramImage,
+      // Singular fields (back-compat): first/primary curve.
+      calibration_image: calibrationCurves[0]?.image ?? null,
+      calibration_data: calibrationCurves[0]?.data ?? parsed.calibration_data,
+      calibration_curves: calibrationCurves,
     };
   });

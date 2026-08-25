@@ -10,7 +10,7 @@ import { useSampleDetail } from "@/components/samples/use-sample-detail";
 import { downloadCoa } from "@/components/samples/download-coa";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { NonchromResultCard } from "@/components/samples/nonchrom/nonchrom-result-card";
-import type { CalibrationData } from "@/lib/results/drive-reports.functions";
+import type { CalibrationData, CalibrationCurve } from "@/lib/results/drive-reports.functions";
 export const Route = createFileRoute("/_authenticated/samples/$batchId")({ component: SampleDetail });
 
 function SampleDetail() {
@@ -69,6 +69,7 @@ function SampleDetail() {
             chromatogram_image: (latestResult as { chromatogram_image?: string | null }).chromatogram_image ?? null,
             calibration_image: (latestResult as { calibration_image?: string | null }).calibration_image ?? null,
             calibration_data: (latestResult as { calibration_data?: CalibrationData | null }).calibration_data ?? null,
+            calibration_curves: (latestResult as { calibration_curves?: CalibrationCurve[] | null }).calibration_curves ?? null,
             raw_data_file_path: (latestResult as { raw_data_file_path?: string | null }).raw_data_file_path ?? null,
             uv_conf_match: (latestResult as { uv_conf_match?: number | null }).uv_conf_match ?? null,
             wavelength_nm: (latestResult as { wavelength_nm?: number | null }).wavelength_nm ?? null,

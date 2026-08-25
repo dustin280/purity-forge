@@ -10,7 +10,7 @@ import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
 import { CloudDownload, X } from "lucide-react";
 import { DriveReportPickerDialog, type ImportedResult } from "./drive-report-picker-dialog";
 import { parsePeaks } from "@/lib/parse-peaks";
-import type { CalibrationData } from "@/lib/results/drive-reports.functions";
+import type { CalibrationData, CalibrationCurve } from "@/lib/results/drive-reports.functions";
 import { getReviewConfig } from "@/lib/review-config.functions";
 import { qk } from "@/lib/query-keys";
 import { NonConformityButton } from "./non-conformity-button";
@@ -26,6 +26,7 @@ type LatestResult = {
   chromatogram_image: string | null;
   calibration_image: string | null;
   calibration_data: CalibrationData | null;
+  calibration_curves: CalibrationCurve[] | null;
   raw_data_file_path: string | null;
   uv_conf_match: number | null;
   wavelength_nm: number | null;
@@ -65,6 +66,7 @@ export function ResultsTab({
     chromatogram_image: string | null;
     calibration_image: string | null;
     calibration_data: CalibrationData | null;
+    calibration_curves: CalibrationCurve[] | null;
     uv_conf_match: number | null;
     wavelength_nm: number | null;
     report_metadata: Record<string, string> | null;
@@ -121,6 +123,7 @@ export function ResultsTab({
         chromatogram_image: imported.chromatogram_image,
         calibration_image: imported.calibration_image,
         calibration_data: imported.calibration_data,
+        calibration_curves: imported.calibration_curves,
         uv_conf_match: imported.uv_conf_match,
         wavelength_nm: imported.wavelength_nm,
         report_metadata: imported.report_metadata,
@@ -243,86 +246,90 @@ export function ResultsTab({
               ))}
             </div>
           )}
-          {latestResult.calibration_data && (
-            <div className="px-4 py-3 border-t border-border space-y-2">
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Calibration Curve
-              </div>
-              {latestResult.calibration_image && (
-                <img
-                  src={latestResult.calibration_image}
-                  alt="Calibration curve"
-                  className="w-full h-auto max-h-56 object-contain rounded border border-border"
-                />
-              )}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <div>
-                  Compound:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.compound ?? "—"}
-                  </span>
+          {(() => {
+            // calibration_curves is the full per-compound set for blend
+            // reports; older results saved before that field existed only
+            // have the singular calibration_image/calibration_data, so
+            // fall back to treating those as a one-entry list.
+            const curves: CalibrationCurve[] = latestResult.calibration_curves?.length
+              ? latestResult.calibration_curves
+              : latestResult.calibration_data
+                ? [{ compound: latestResult.calibration_data.compound, image: latestResult.calibration_image, data: latestResult.calibration_data }]
+                : [];
+            if (curves.length === 0) return null;
+            return (
+              <div className="px-4 py-3 border-t border-border space-y-3">
+                <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+                  {curves.length === 1 ? "Calibration Curve" : `Calibration Curves (${curves.length} compounds)`}
                 </div>
-                <div>
-                  Exp. RT:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.exp_rt ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  Residual STD:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.residual_std ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  R:{" "}
-                  <span className="text-foreground">{latestResult.calibration_data.r ?? "—"}</span>
-                </div>
-                <div>
-                  R²:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.r_squared ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  Formula:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.formula ?? "—"}
-                  </span>
-                </div>
-                <div>
-                  a:{" "}
-                  <span className="text-foreground">{latestResult.calibration_data.a ?? "—"}</span>
-                </div>
-                <div>
-                  b:{" "}
-                  <span className="text-foreground">{latestResult.calibration_data.b ?? "—"}</span>
-                </div>
-                <div>
-                  c:{" "}
-                  <span className="text-foreground">{latestResult.calibration_data.c ?? "—"}</span>
-                </div>
-                {latestResult.calibration_data.d != null && (
-                  <div>
-                    d: <span className="text-foreground">{latestResult.calibration_data.d}</span>
+                {curves.map((curve, i) => (
+                  <div key={i} className={curves.length > 1 ? "space-y-2 border border-border rounded-md p-2" : "space-y-2"}>
+                    {curves.length > 1 && (
+                      <div className="text-xs font-medium">{curve.compound ?? `Curve ${i + 1}`}</div>
+                    )}
+                    {curve.image && (
+                      <img
+                        src={curve.image}
+                        alt={`${curve.compound ?? "Calibration"} curve`}
+                        className="w-full h-auto max-h-56 object-contain rounded border border-border"
+                      />
+                    )}
+                    {curve.data && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <div>
+                          Compound:{" "}
+                          <span className="text-foreground">{curve.data.compound ?? "—"}</span>
+                        </div>
+                        <div>
+                          Exp. RT:{" "}
+                          <span className="text-foreground">{curve.data.exp_rt ?? "—"}</span>
+                        </div>
+                        <div>
+                          Residual STD:{" "}
+                          <span className="text-foreground">{curve.data.residual_std ?? "—"}</span>
+                        </div>
+                        <div>
+                          R: <span className="text-foreground">{curve.data.r ?? "—"}</span>
+                        </div>
+                        <div>
+                          R²:{" "}
+                          <span className="text-foreground">{curve.data.r_squared ?? "—"}</span>
+                        </div>
+                        <div>
+                          Formula:{" "}
+                          <span className="text-foreground">{curve.data.formula ?? "—"}</span>
+                        </div>
+                        <div>
+                          a: <span className="text-foreground">{curve.data.a ?? "—"}</span>
+                        </div>
+                        <div>
+                          b: <span className="text-foreground">{curve.data.b ?? "—"}</span>
+                        </div>
+                        <div>
+                          c: <span className="text-foreground">{curve.data.c ?? "—"}</span>
+                        </div>
+                        {curve.data.d != null && (
+                          <div>
+                            d: <span className="text-foreground">{curve.data.d}</span>
+                          </div>
+                        )}
+                        <div>
+                          Scaled:{" "}
+                          <span className="text-foreground">
+                            {curve.data.scaled_label ?? "—"} ({curve.data.scaled_type ?? "—"})
+                          </span>
+                        </div>
+                        <div>
+                          Updated:{" "}
+                          <span className="text-foreground">{curve.data.calibration_update ?? "—"}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-                <div>
-                  Scaled:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.scaled_label ?? "—"} (
-                    {latestResult.calibration_data.scaled_type ?? "—"})
-                  </span>
-                </div>
-                <div>
-                  Updated:{" "}
-                  <span className="text-foreground">
-                    {latestResult.calibration_data.calibration_update ?? "—"}
-                  </span>
-                </div>
+                ))}
               </div>
-            </div>
-          )}
+            );
+          })()}
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-mono">
               <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">

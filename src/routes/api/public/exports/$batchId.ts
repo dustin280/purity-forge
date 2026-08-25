@@ -131,8 +131,16 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
                   reviewer_name: r.reviewer_id ? nameById.get(r.reviewer_id) ?? null : null,
                   approved_at: r.approved_at,
                   chromatogram_png: r.chromatogram_image,
+                  // calibration_png/calibration_data: unchanged shape, first/
+                  // primary curve only -- do not remove or reshape, existing
+                  // partner integration reads these two verbatim.
                   calibration_png: r.calibration_image,
                   calibration_data: r.calibration_data ?? null,
+                  // Full per-compound set for blend reports (SUMMIT etc.) --
+                  // additive field, absent/empty on older results and on
+                  // single-compound reports where it'd just duplicate the
+                  // two fields above.
+                  calibration_curves: r.calibration_curves ?? null,
                   appearance: sample.physical_description ?? null,
                   uv_conf_match: r.uv_conf_match ?? null,
                   wavelength_nm: r.wavelength_nm ?? null,

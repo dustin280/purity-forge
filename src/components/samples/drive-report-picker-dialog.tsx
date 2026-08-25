@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileText, CheckCircle2, AlertTriangle } from "lucide-react";
-import { listReportFiles, parseReportFile, compoundsToPeaks, type ParsedReport, type CalibrationData } from "@/lib/results/drive-reports.functions";
+import { listReportFiles, parseReportFile, compoundsToPeaks, type ParsedReport, type CalibrationData, type CalibrationCurve } from "@/lib/results/drive-reports.functions";
 import type { Peak } from "@/lib/lims-utils";
 
 export type ImportedResult = {
@@ -26,6 +26,7 @@ export type ImportedResult = {
   chromatogram_image: string | null;
   calibration_image: string | null;
   calibration_data: CalibrationData | null;
+  calibration_curves: CalibrationCurve[] | null;
   uv_conf_match: number | null;
   wavelength_nm: number | null;
   report_metadata: Record<string, string> | null;
@@ -80,6 +81,7 @@ export function DriveReportPickerDialog({
       file_name: parsed.file_name, sample_id_in_report: parsed.sample_id_in_report,
       analysis_date: parsed.analysis_date, chromatogram_image: parsed.chromatogram_image,
       calibration_image: parsed.calibration_image, calibration_data: parsed.calibration_data,
+      calibration_curves: parsed.calibration_curves,
       uv_conf_match, wavelength_nm, report_metadata: parsed.report_metadata,
     });
     onOpenChange(false);
@@ -171,22 +173,34 @@ export function DriveReportPickerDialog({
               </p>
             )}
 
-            {parsed.calibration_data && (
-              <div className="rounded-md border border-border p-2 space-y-1.5">
+            {parsed.calibration_curves && parsed.calibration_curves.length > 0 && (
+              <div className="space-y-2">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  {parsed.calibration_image
-                    ? <><CheckCircle2 className="size-3 text-emerald-500" /> Calibration curve found</>
-                    : "Calibration data found (no curve image)"}
+                  <CheckCircle2 className="size-3 text-emerald-500" />
+                  {parsed.calibration_curves.length === 1
+                    ? "Calibration curve found"
+                    : `${parsed.calibration_curves.length} calibration curves found (one per compound)`}
                 </div>
-                {parsed.calibration_image && (
-                  <img src={parsed.calibration_image} alt="Calibration curve preview" className="w-full h-auto rounded border border-border" />
-                )}
-                <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5">
-                  <div>R²: {parsed.calibration_data.r_squared ?? "—"}</div>
-                  <div>Residual STD: {parsed.calibration_data.residual_std ?? "—"}</div>
-                  <div>Exp. RT: {parsed.calibration_data.exp_rt ?? "—"}</div>
-                  <div>Updated: {parsed.calibration_data.calibration_update ?? "—"}</div>
-                </div>
+                {parsed.calibration_curves.map((curve, i) => (
+                  <div key={i} className="rounded-md border border-border p-2 space-y-1.5">
+                    {parsed.calibration_curves!.length > 1 && (
+                      <div className="text-xs font-medium">{curve.compound ?? `Curve ${i + 1}`}</div>
+                    )}
+                    {curve.image ? (
+                      <img src={curve.image} alt={`${curve.compound ?? "Calibration"} curve preview`} className="w-full h-auto rounded border border-border" />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No curve image for this compound.</p>
+                    )}
+                    {curve.data && (
+                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        <div>R²: {curve.data.r_squared ?? "—"}</div>
+                        <div>Residual STD: {curve.data.residual_std ?? "—"}</div>
+                        <div>Exp. RT: {curve.data.exp_rt ?? "—"}</div>
+                        <div>Updated: {curve.data.calibration_update ?? "—"}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
 

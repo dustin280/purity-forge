@@ -224,6 +224,22 @@ export const setPurityWaived = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+const calibrationDataSchema = z.object({
+  calibration_update: z.string().nullable(),
+  compound: z.string().nullable(),
+  exp_rt: z.number().nullable(),
+  residual_std: z.number().nullable(),
+  r: z.number().nullable(),
+  r_squared: z.number().nullable(),
+  formula: z.string().nullable(),
+  a: z.number().nullable(),
+  b: z.number().nullable(),
+  c: z.number().nullable(),
+  d: z.number().nullable(),
+  scaled_label: z.string().nullable(),
+  scaled_type: z.string().nullable(),
+});
+
 const peakSchema = z.object({
   peak_id: z.string(), rt: z.number(), area: z.number().nullable(),
   area_pct: z.number(), identity: z.string().optional(), sn: z.number().optional(),
@@ -259,21 +275,16 @@ export const saveResult = createServerFn({ method: "POST" })
       // the report has no "Calibration Update" block (older report
       // templates) or the sibling image hasn't been converted yet.
       calibration_image: z.string().max(2_000_000).optional().nullable(),
-      calibration_data: z.object({
-        calibration_update: z.string().nullable(),
+      calibration_data: calibrationDataSchema.optional().nullable(),
+      // Full per-compound calibration curve set for blend reports (SUMMIT
+      // etc.) -- calibration_image/calibration_data above stay populated
+      // with the first/primary curve for backward compatibility (partner
+      // export API, older UI code); this carries all of them.
+      calibration_curves: z.array(z.object({
         compound: z.string().nullable(),
-        exp_rt: z.number().nullable(),
-        residual_std: z.number().nullable(),
-        r: z.number().nullable(),
-        r_squared: z.number().nullable(),
-        formula: z.string().nullable(),
-        a: z.number().nullable(),
-        b: z.number().nullable(),
-        c: z.number().nullable(),
-        d: z.number().nullable(),
-        scaled_label: z.string().nullable(),
-        scaled_type: z.string().nullable(),
-      }).optional().nullable(),
+        image: z.string().max(2_000_000).nullable(),
+        data: calibrationDataSchema.nullable(),
+      })).optional().nullable(),
       // Instrument-sourced values — no manual-entry UI supplies these yet,
       // but the schema accepts them the moment a real source (report
       // template or ACAML) is wired in.
@@ -295,6 +306,7 @@ export const saveResult = createServerFn({ method: "POST" })
       chromatogram_image: data.chromatogram_image ?? null,
       calibration_image: data.calibration_image ?? null,
       calibration_data: data.calibration_data ?? null,
+      calibration_curves: data.calibration_curves ?? null,
       uv_conf_match: data.uv_conf_match ?? null,
       wavelength_nm: data.wavelength_nm ?? null,
       report_metadata: data.report_metadata ?? null,

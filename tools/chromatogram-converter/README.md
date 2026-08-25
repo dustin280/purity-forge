@@ -2,22 +2,37 @@
 
 Runs on the lab PC that exports OpenLab CDS reports into the Drive-synced
 "LM-Reports Complete" folder. Every few minutes it scans that folder for
-`.xlsx` reports, pulls out the embedded chromatogram picture, and — if
-it's a Windows EMF metafile (the default when the picture was pasted from
-the clipboard) — converts it to PNG using .NET's built-in GDI+ renderer.
-No Office/Excel install or external tools (ImageMagick, LibreOffice, etc.)
-are needed; `System.Drawing.Imaging.Metafile` is part of the .NET runtime
-on Windows and renders EMF exactly the way Windows already does when you
-open the file.
+`.xlsx` reports, pulls out every embedded picture (the chromatogram trace
+plus one calibration-curve chart per compound on the report), and — for
+any that are Windows EMF metafiles (the default when a picture was pasted
+from the clipboard) — converts them to PNG using .NET's built-in GDI+
+renderer. No Office/Excel install or external tools (ImageMagick,
+LibreOffice, etc.) are needed; `System.Drawing.Imaging.Metafile` is part
+of the .NET runtime on Windows and renders EMF exactly the way Windows
+already does when you open the file.
 
-The converted image is written as a **sibling file** next to the report —
+Pictures are found by walking the real OOXML relationship graph (workbook
+→ sheets → drawings → media), not just reading `xl/media/*` in zip order —
+a report's chromatogram and its calibration curve(s) can be spread across
+one or two sheets depending on how OpenLab exported it. The chromatogram
+is identified as the largest embedded picture by area (reliably and
+clearly bigger than any calibration-curve thumbnail); everything else is
+a calibration curve, one per compound.
+
+Converted images are written as **sibling files** next to the report —
 `ER MOTS Xavier.xlsx` → `ER MOTS Xavier.chromatogram.png` — rather than
 rewriting the xlsx's internal zip/relationship structure, which is
-fragile and easy to corrupt. The sibling syncs up to Drive right alongside
-the report itself, and the purity-forge server picks it up automatically
-when it processes that report (see `findChromatogramImage` in
+fragile and easy to corrupt. A report with exactly one calibration curve
+gets `ER MOTS Xavier.calibration.png`; a blend with several compounds
+gets one per compound, named from that curve's own "Compound: X" label on
+the sheet — `ER MOTS Xavier.calibration.Cartalax.png`,
+`ER MOTS Xavier.calibration.TB500.png`, etc. (falls back to a numbered
+suffix if a curve's compound label can't be resolved). The siblings sync
+up to Drive right alongside the report itself, and the purity-forge
+server picks them up automatically when it processes that report (see
+`findChromatogramImage`/`findCalibrationImage` in
 `src/lib/results/drive-reports.functions.ts`) — no server-side change is
-needed per report. If the embedded picture is already a PNG, it's copied
+needed per report. If an embedded picture is already a PNG, it's copied
 through unchanged; the original `.xlsx` is never modified.
 
 ## Requirements
@@ -87,19 +102,22 @@ Unregister-ScheduledTask -TaskName SynthesyxChromatogramConverter
 
 Each run appends to `converter.log` next to the exe (path is configurable
 via `LogFile` in `appsettings.json`). Check there first if a report isn't
-getting a `.chromatogram.png` sibling — it logs why a file was skipped
-(still being written, no embedded picture, unrecognized image format,
-already converted) as well as any failures.
+getting its `.chromatogram.png`/`.calibration*.png` siblings — it logs why
+a file was skipped (still being written, no embedded pictures,
+unrecognized image format, already converted) as well as any failures.
 
 ## Notes / limitations
 
-- Only the **first** embedded picture in each report is converted — fine
-  for the current single-chromatogram report template. A report with
-  multiple embedded pictures logs a warning and only converts the first;
-  extend `ExtractFirstMediaEntry` in `Program.cs` if that ever changes.
-- A report is only reconverted if the xlsx's own last-write time is newer
-  than its existing `.chromatogram.png` sibling, so reprocessing a rerun
-  report picks up the change automatically without redoing untouched
-  reports every pass.
-- Never modifies the original `.xlsx` — always writes a separate sibling
-  file, so a bug here can't corrupt the source report.
+- Each output sibling is only rewritten if the xlsx's own last-write time
+  is newer than that specific sibling, checked independently per file —
+  so a report whose chromatogram is already up to date but whose
+  calibration curves are missing or stale (e.g. reprocessed after this
+  multi-curve support was added) gets just the missing/stale ones
+  backfilled, not skipped as a whole.
+- Never modifies the original `.xlsx` — always writes separate sibling
+  files, so a bug here can't corrupt the source report.
+- Compound-name resolution for calibration curves depends on a
+  "Compound: <name>" label cell existing on the same sheet as that curve's
+  picture (the current report template always has one) — a curve whose
+  label can't be resolved falls back to a numbered filename instead of a
+  compound name, it's never dropped.

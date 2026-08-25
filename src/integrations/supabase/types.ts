@@ -3246,6 +3246,7 @@ export type Database = {
           analyst_id: string | null
           approved_at: string | null
           calibration_data: Json | null
+          calibration_curves: Json | null
           calibration_image: string | null
           chromatogram_image: string | null
           created_at: string
@@ -3266,6 +3267,7 @@ export type Database = {
           analyst_id?: string | null
           approved_at?: string | null
           calibration_data?: Json | null
+          calibration_curves?: Json | null
           calibration_image?: string | null
           chromatogram_image?: string | null
           created_at?: string
@@ -3286,6 +3288,7 @@ export type Database = {
           analyst_id?: string | null
           approved_at?: string | null
           calibration_data?: Json | null
+          calibration_curves?: Json | null
           calibration_image?: string | null
           chromatogram_image?: string | null
           created_at?: string
