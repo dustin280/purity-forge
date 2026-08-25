@@ -522,43 +522,79 @@ export function buildBlendPlanInput(
   };
 }
 
+/**
+ * A recompute (auto-run on every Prep Queue page load, or an explicit
+ * "Recompute") should refine the one still-open plan for a sample, not
+ * mint a new controlled document number every time -- prep_number comes
+ * from register_document's real sequential counter (SYN-SAMP-######-MMDDYY,
+ * the same controlled-numbering scheme used across the app), so repeatedly
+ * inserting would both burn real document numbers on throwaway recomputes
+ * and leave stale duplicate drafts in Records. Once a record leaves
+ * "draft" (submitted/reviewed/approved) it's a real event and must not be
+ * overwritten -- a recompute after that point starts a fresh draft.
+ */
+async function findOpenDraft(supabase: SB, sampleId: string, source: string): Promise<{ id: string; prep_number: string } | null> {
+  // Filtered in application code, not via a `sample_context->>sample_id`
+  // PostgREST filter -- see the identical caution in
+  // run-lists/generate.functions.ts's resolvePrepsAndCoverage: the real
+  // sample UUID only lives inside the jsonb blob, and no query in this
+  // codebase trusts a JSON-path filter to round-trip through the client.
+  const { data, error } = await supabase
+    .from("sp_preparation_records")
+    .select("id, prep_number, sample_context, created_at")
+    .eq("status", "draft")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  const rows = (data ?? []) as Array<{ id: string; prep_number: string; sample_context: { sample_id?: string; source?: string } | null }>;
+  const match = rows.find(r => r.sample_context?.sample_id === sampleId && r.sample_context?.source === source);
+  return match ? { id: match.id, prep_number: match.prep_number } : null;
+}
+
 export async function persistBlendPlan(
   supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedBlendCtx, plan: BlendPlan, source: string = "run_list",
 ): Promise<{ prep_id: string; prep_number: string }> {
-  const recordId = crypto.randomUUID();
-  const { data: docNumber, error: docErr } = await supabase
-    .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
-  if (docErr) throw docErr;
-  const prep_number = docNumber as string;
+  const existing = await findOpenDraft(supabase, sample.id, source);
+  const recordId = existing?.id ?? crypto.randomUUID();
+  let prep_number = existing?.prep_number;
+  if (!prep_number) {
+    const { data: docNumber, error: docErr } = await supabase
+      .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
+    if (docErr) throw docErr;
+    prep_number = docNumber as string;
+  }
 
-  const { data: record, error } = await supabase
-    .from("sp_preparation_records")
-    .insert({
-      id: recordId,
-      prep_number,
-      method_revision_id: null,
-      analyte_id: null,
-      status: "draft",
-      // No single target concentration/level for a blend -- the real
-      // per-compound breakdown lives in plan.components below.
-      planned_target_concentration_mg_per_ml: null,
-      planned_target_volume_ul: null,
-      planned_calibration_level: null,
-      sample_id: sample.batch_id,
-      sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.blendName },
-      plan: {
-        isBlend: true,
-        warnings: plan.warnings,
-        totalDilutionFactor: plan.totalDilutionFactor,
-        components: plan.components,
-      },
-      total_dilution_factor: plan.totalDilutionFactor,
-      prepared_by: userId,
-    })
-    .select("id, prep_number")
-    .single();
+  const row = {
+    id: recordId,
+    prep_number,
+    method_revision_id: null,
+    analyte_id: null,
+    status: "draft",
+    // No single target concentration/level for a blend -- the real
+    // per-compound breakdown lives in plan.components below.
+    planned_target_concentration_mg_per_ml: null,
+    planned_target_volume_ul: null,
+    planned_calibration_level: null,
+    sample_id: sample.batch_id,
+    sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.blendName },
+    plan: {
+      isBlend: true,
+      warnings: plan.warnings,
+      totalDilutionFactor: plan.totalDilutionFactor,
+      components: plan.components,
+    },
+    total_dilution_factor: plan.totalDilutionFactor,
+    prepared_by: userId,
+  };
+  const { data: record, error } = existing
+    ? await supabase.from("sp_preparation_records").update(row).eq("id", recordId).select("id, prep_number").single()
+    : await supabase.from("sp_preparation_records").insert(row).select("id, prep_number").single();
   if (error) throw error;
 
+  if (existing) {
+    const { error: delErr } = await supabase.from("sp_preparation_steps").delete().eq("record_id", recordId);
+    if (delErr) throw delErr;
+  }
   if (plan.steps.length) {
     const { error: sErr } = await supabase.from("sp_preparation_steps").insert(
       plan.steps.map(s => ({
@@ -576,33 +612,40 @@ export async function persistBlendPlan(
 export async function persistPlan(
   supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedRevisionCtx, plan: PrepPlan, source: string = "run_list",
 ): Promise<{ prep_id: string; prep_number: string }> {
-  const recordId = crypto.randomUUID();
-  const { data: docNumber, error: docErr } = await supabase
-    .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
-  if (docErr) throw docErr;
-  const prep_number = docNumber as string;
+  const existing = await findOpenDraft(supabase, sample.id, source);
+  const recordId = existing?.id ?? crypto.randomUUID();
+  let prep_number = existing?.prep_number;
+  if (!prep_number) {
+    const { data: docNumber, error: docErr } = await supabase
+      .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
+    if (docErr) throw docErr;
+    prep_number = docNumber as string;
+  }
 
-  const { data: record, error } = await supabase
-    .from("sp_preparation_records")
-    .insert({
-      id: recordId,
-      prep_number,
-      method_revision_id: null,
-      analyte_id: null,
-      status: "draft",
-      planned_target_concentration_mg_per_ml: plan.targetConcentrationMgPerMl,
-      planned_target_volume_ul: plan.finalVolumeUl,
-      planned_calibration_level: ctx.calibrationLevel,
-      sample_id: sample.batch_id,
-      sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.analyteName },
-      plan: { warnings: plan.warnings, totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl },
-      total_dilution_factor: plan.totalDilutionFactor,
-      prepared_by: userId,
-    })
-    .select("id, prep_number")
-    .single();
+  const row = {
+    id: recordId,
+    prep_number,
+    method_revision_id: null,
+    analyte_id: null,
+    status: "draft",
+    planned_target_concentration_mg_per_ml: plan.targetConcentrationMgPerMl,
+    planned_target_volume_ul: plan.finalVolumeUl,
+    planned_calibration_level: ctx.calibrationLevel,
+    sample_id: sample.batch_id,
+    sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.analyteName },
+    plan: { warnings: plan.warnings, totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl },
+    total_dilution_factor: plan.totalDilutionFactor,
+    prepared_by: userId,
+  };
+  const { data: record, error } = existing
+    ? await supabase.from("sp_preparation_records").update(row).eq("id", recordId).select("id, prep_number").single()
+    : await supabase.from("sp_preparation_records").insert(row).select("id, prep_number").single();
   if (error) throw error;
 
+  if (existing) {
+    const { error: delErr } = await supabase.from("sp_preparation_steps").delete().eq("record_id", recordId);
+    if (delErr) throw delErr;
+  }
   if (plan.steps.length) {
     const { error: sErr } = await supabase.from("sp_preparation_steps").insert(
       plan.steps.map(s => ({
