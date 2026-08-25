@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- WinExe (not Exe) so Windows never allocates a console window for
-         this process at all -- fixes the visible flashing window when
+         this process at all — fixes the visible flashing window when
          Task Scheduler runs it. Console.WriteLine calls become silent
          no-ops; converter.log (see Logger.cs) is the real output. -->
     <OutputType>WinExe</OutputType>
