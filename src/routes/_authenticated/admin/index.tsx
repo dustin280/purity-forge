@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack, Refrigerator, TerminalSquare } from "lucide-react";
+import { FlaskConical, Users, ChevronRight, ClipboardList, ShieldCheck, History, Beaker, CalendarDays, Droplets, Clock, Columns3, ListChecks, KeyRound, GaugeCircle, Layers, Grid3x3, BellRing, FileStack, Refrigerator, TerminalSquare, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/")({ component: AdminIndex });
 
@@ -23,6 +23,7 @@ const TILES = [
   { to: "/admin/queue-config", title: "Analysis Queue Config", desc: "Daily capacity, TAT days, business-days-only, and the amber warning threshold.", icon: GaugeCircle },
   { to: "/admin/notifications", title: "Notifications", desc: "Who gets emailed/texted when a new Sample Receipt is submitted.", icon: BellRing },
   { to: "/admin/report-reconciliation", title: "Report Reconciliation", desc: "Auto-matches completed reports to samples hourly. Review low-confidence and ambiguous matches here.", icon: FileStack },
+  { to: "/admin/review-config", title: "Result Review Config", desc: "Allow or block an analyst from reviewing their own submitted results.", icon: UserCheck },
   { to: "/users", title: "Users & Roles", desc: "Grant or revoke admin, reviewer, and tech roles.", icon: Users },
 ] as const;
 

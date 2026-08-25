@@ -70,6 +70,7 @@ import { Route as AuthenticatedAdminTraysRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminTimesheetProjectsRouteImport } from './routes/_authenticated/admin/timesheet-projects'
 import { Route as AuthenticatedAdminStorageRouteImport } from './routes/_authenticated/admin/storage'
 import { Route as AuthenticatedAdminRunListColumnsRouteImport } from './routes/_authenticated/admin/run-list-columns'
+import { Route as AuthenticatedAdminReviewConfigRouteImport } from './routes/_authenticated/admin/review-config'
 import { Route as AuthenticatedAdminReportReconciliationRouteImport } from './routes/_authenticated/admin/report-reconciliation'
 import { Route as AuthenticatedAdminQueueConfigRouteImport } from './routes/_authenticated/admin/queue-config'
 import { Route as AuthenticatedAdminPartnerWebhookSecretRouteImport } from './routes/_authenticated/admin/partner-webhook-secret'
@@ -462,6 +463,12 @@ const AuthenticatedAdminRunListColumnsRoute =
     path: '/admin/run-list-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminReviewConfigRoute =
+  AuthenticatedAdminReviewConfigRouteImport.update({
+    id: '/admin/review-config',
+    path: '/admin/review-config',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminReportReconciliationRoute =
   AuthenticatedAdminReportReconciliationRouteImport.update({
     id: '/admin/report-reconciliation',
@@ -750,6 +757,7 @@ export interface FileRoutesByFullPath {
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
+  '/admin/review-config': typeof AuthenticatedAdminReviewConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
@@ -856,6 +864,7 @@ export interface FileRoutesByTo {
   '/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
+  '/admin/review-config': typeof AuthenticatedAdminReviewConfigRoute
   '/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
@@ -964,6 +973,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/partner-webhook-secret': typeof AuthenticatedAdminPartnerWebhookSecretRoute
   '/_authenticated/admin/queue-config': typeof AuthenticatedAdminQueueConfigRoute
   '/_authenticated/admin/report-reconciliation': typeof AuthenticatedAdminReportReconciliationRoute
+  '/_authenticated/admin/review-config': typeof AuthenticatedAdminReviewConfigRoute
   '/_authenticated/admin/run-list-columns': typeof AuthenticatedAdminRunListColumnsRoute
   '/_authenticated/admin/storage': typeof AuthenticatedAdminStorageRoute
   '/_authenticated/admin/timesheet-projects': typeof AuthenticatedAdminTimesheetProjectsRoute
@@ -1072,6 +1082,7 @@ export interface FileRouteTypes {
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
     | '/admin/report-reconciliation'
+    | '/admin/review-config'
     | '/admin/run-list-columns'
     | '/admin/storage'
     | '/admin/timesheet-projects'
@@ -1178,6 +1189,7 @@ export interface FileRouteTypes {
     | '/admin/partner-webhook-secret'
     | '/admin/queue-config'
     | '/admin/report-reconciliation'
+    | '/admin/review-config'
     | '/admin/run-list-columns'
     | '/admin/storage'
     | '/admin/timesheet-projects'
@@ -1285,6 +1297,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/partner-webhook-secret'
     | '/_authenticated/admin/queue-config'
     | '/_authenticated/admin/report-reconciliation'
+    | '/_authenticated/admin/review-config'
     | '/_authenticated/admin/run-list-columns'
     | '/_authenticated/admin/storage'
     | '/_authenticated/admin/timesheet-projects'
@@ -1811,6 +1824,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRunListColumnsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin/review-config': {
+      id: '/_authenticated/admin/review-config'
+      path: '/admin/review-config'
+      fullPath: '/admin/review-config'
+      preLoaderRoute: typeof AuthenticatedAdminReviewConfigRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin/report-reconciliation': {
       id: '/_authenticated/admin/report-reconciliation'
       path: '/admin/report-reconciliation'
@@ -2175,6 +2195,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminPartnerWebhookSecretRoute: typeof AuthenticatedAdminPartnerWebhookSecretRoute
   AuthenticatedAdminQueueConfigRoute: typeof AuthenticatedAdminQueueConfigRoute
   AuthenticatedAdminReportReconciliationRoute: typeof AuthenticatedAdminReportReconciliationRoute
+  AuthenticatedAdminReviewConfigRoute: typeof AuthenticatedAdminReviewConfigRoute
   AuthenticatedAdminRunListColumnsRoute: typeof AuthenticatedAdminRunListColumnsRoute
   AuthenticatedAdminStorageRoute: typeof AuthenticatedAdminStorageRoute
   AuthenticatedAdminTimesheetProjectsRoute: typeof AuthenticatedAdminTimesheetProjectsRoute
@@ -2270,6 +2291,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminQueueConfigRoute: AuthenticatedAdminQueueConfigRoute,
   AuthenticatedAdminReportReconciliationRoute:
     AuthenticatedAdminReportReconciliationRoute,
+  AuthenticatedAdminReviewConfigRoute: AuthenticatedAdminReviewConfigRoute,
   AuthenticatedAdminRunListColumnsRoute: AuthenticatedAdminRunListColumnsRoute,
   AuthenticatedAdminStorageRoute: AuthenticatedAdminStorageRoute,
   AuthenticatedAdminTimesheetProjectsRoute:

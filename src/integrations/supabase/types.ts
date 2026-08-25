@@ -3311,6 +3311,24 @@ export type Database = {
           },
         ]
       }
+      review_config: {
+        Row: {
+          allow_self_review: boolean
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          allow_self_review?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          allow_self_review?: boolean
+          id?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       run_list_bench_sheets: {
         Row: {
           created_at: string

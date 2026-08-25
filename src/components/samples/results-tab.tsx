@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +11,8 @@ import { CloudDownload, X } from "lucide-react";
 import { DriveReportPickerDialog, type ImportedResult } from "./drive-report-picker-dialog";
 import { parsePeaks } from "@/lib/parse-peaks";
 import type { CalibrationData } from "@/lib/results/drive-reports.functions";
+import { getReviewConfig } from "@/lib/review-config.functions";
+import { qk } from "@/lib/query-keys";
 import { NonConformityButton } from "./non-conformity-button";
 
 type LatestResult = {
@@ -87,8 +91,14 @@ export function ResultsTab({
       : verdict === "fail"
         ? "var(--destructive)"
         : "var(--muted-foreground)";
+  const getReviewConfigFn = useServerFn(getReviewConfig);
+  const { data: reviewConfig } = useQuery({
+    queryKey: qk.reviewConfig.get(),
+    queryFn: () => getReviewConfigFn(),
+  });
   const canReview =
-    !!latestResult && !latestResult.reviewed_at && latestResult.analyst_id !== currentUserId;
+    !!latestResult && !latestResult.reviewed_at
+    && (reviewConfig?.allow_self_review || latestResult.analyst_id !== currentUserId);
   const canApprove = !!latestResult && !!latestResult.reviewed_at && !latestResult.approved_at;
 
   const [pickerOpen, setPickerOpen] = useState(false);

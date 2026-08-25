@@ -217,6 +217,11 @@ export const qk = {
     list: () => ["method-groups"] as const,
   },
 
+  reviewConfig: {
+    all: ["review-config"] as const,
+    get: () => ["review-config"] as const,
+  },
+
   sampleDisposal: {
     all: ["sample-disposal"] as const,
     list: () => ["sample-disposal", "locations"] as const,
