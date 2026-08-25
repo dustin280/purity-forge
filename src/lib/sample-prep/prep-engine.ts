@@ -135,10 +135,13 @@ function fmtVol(uL: number): string {
   return `${uL.toFixed(uL < 10 ? 2 : 1)} µL`;
 }
 
+// Pipette volumes (fmtVol) switch between µL/mL for readability, but
+// concentrations stay in mg/mL throughout a plan -- Dustin's call
+// (2026-08-25 live testing): switching units mid-plan (e.g. mg/mL for the
+// stock, µg/mL for a downstream dilution) makes it harder to sanity-check
+// a plan at a glance, even though the raw pipette settings can be µL.
 function fmtConc(mgPerMl: number): string {
-  if (mgPerMl >= 1) return `${mgPerMl.toPrecision(4)} mg/mL`;
-  if (mgPerMl >= 0.001) return `${(mgPerMl * 1000).toPrecision(4)} µg/mL`;
-  return `${(mgPerMl * 1_000_000).toPrecision(4)} ng/mL`;
+  return `${mgPerMl.toPrecision(4)} mg/mL`;
 }
 
 export function planPreparation(input: PrepPlanInput): PrepPlan {

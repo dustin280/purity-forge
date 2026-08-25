@@ -60,10 +60,11 @@ function fmtVolUl(uL: number): string {
   return `${trim(uL)} µL`;
 }
 
+// Volumes (fmtVolUl) switch between µL/mL for readability, but
+// concentrations stay in mg/mL throughout -- switching units mid-plan makes
+// it harder to sanity-check at a glance (Dustin, 2026-08-25).
 function fmtConcMgPerMl(mgPerMl: number): string {
-  if (mgPerMl >= 1) return `${trim(mgPerMl)} mg/mL`;
-  if (mgPerMl >= 0.001) return `${trim(mgPerMl * 1000)} µg/mL`;
-  return `${trim(mgPerMl * 1_000_000)} ng/mL`;
+  return `${trim(mgPerMl)} mg/mL`;
 }
 
 function trim(n: number): string {
