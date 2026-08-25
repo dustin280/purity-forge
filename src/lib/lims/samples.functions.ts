@@ -129,6 +129,67 @@ const SAMPLE_STATUS_TRANSITIONS: Record<SampleStatusValue, SampleStatusValue[]> 
   cancelled: ["received"],
 };
 
+/**
+ * Core of updateSampleStatus, pulled out so reviewResult/approveResult can
+ * drive the same transition (validation, gate check, audit log, vial
+ * release) as a same-action follow-through instead of leaving it as a
+ * separate manual click in the header — reviewing/approving a result is
+ * the actual decision; advancing the sample's own status bucket to match
+ * has no judgment left in it once that decision is made. Callers that want
+ * this to happen automatically should catch and swallow failures (e.g. a
+ * multi-test sample where another test isn't done yet) rather than let a
+ * transition that isn't ready block the review/approval that already
+ * succeeded — the header's manual buttons remain the fallback either way.
+ */
+async function transitionSampleStatus(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  userId: string,
+  sampleId: string,
+  status: SampleStatusValue,
+): Promise<void> {
+  const { data: sample, error: sampleErr } = await supabase
+    .from("samples").select("status, purity_waived").eq("id", sampleId).maybeSingle();
+  if (sampleErr) throw sampleErr;
+  if (!sample) throw new Error("Sample not found");
+
+  const currentStatus = sample.status as SampleStatusValue;
+  const allowedNext = SAMPLE_STATUS_TRANSITIONS[currentStatus] ?? [];
+  if (!allowedNext.includes(status)) {
+    throw new Error(`Cannot move sample from "${currentStatus}" to "${status}"`);
+  }
+
+  // A purity-waived sample (referee-lab work with no purity requested at
+  // all) has no results row to check against — skip the gate entirely.
+  if ((status === "reviewed" || status === "approved") && !sample.purity_waived) {
+    const { data: tests } = await supabase.from("tests").select("id").eq("sample_id", sampleId);
+    const testIds = (tests ?? []).map(t => t.id);
+    const { data: latestResult } = testIds.length
+      ? await supabase.from("results").select("reviewed_at,approved_at")
+          .in("test_id", testIds).order("analysis_date", { ascending: false }).limit(1).maybeSingle()
+      : { data: null };
+
+    if (status === "reviewed" && !latestResult?.reviewed_at) {
+      throw new Error("The latest result must be reviewed before the sample can move to \"reviewed\"");
+    }
+    if (status === "approved" && !latestResult?.approved_at) {
+      throw new Error("The latest result must be approved before the sample can move to \"approved\"");
+    }
+  }
+
+  const { error } = await supabase.from("samples").update({ status }).eq("id", sampleId);
+  if (error) throw error;
+  await supabase.from("audit_log").insert({
+    action: `status_change:${status}`, table_name: "samples",
+    record_id: sampleId, changed_by: userId,
+    diff: { status },
+  });
+  // Completing a sample frees its instrument vial position automatically
+  // -- no separate "remove from instrument" click needed.
+  if (status === "approved") {
+    await releaseSampleFromInstrument(supabase, sampleId);
+  }
+}
+
 export const updateSampleStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -138,49 +199,7 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
-    const { supabase, userId } = context;
-
-    const { data: sample, error: sampleErr } = await supabase
-      .from("samples").select("status, purity_waived").eq("id", data.sampleId).maybeSingle();
-    if (sampleErr) throw sampleErr;
-    if (!sample) throw new Error("Sample not found");
-
-    const currentStatus = sample.status as SampleStatusValue;
-    const allowedNext = SAMPLE_STATUS_TRANSITIONS[currentStatus] ?? [];
-    if (!allowedNext.includes(data.status)) {
-      throw new Error(`Cannot move sample from "${currentStatus}" to "${data.status}"`);
-    }
-
-    // A purity-waived sample (referee-lab work with no purity requested at
-    // all) has no results row to check against — skip the gate entirely.
-    if ((data.status === "reviewed" || data.status === "approved") && !sample.purity_waived) {
-      const { data: tests } = await supabase.from("tests").select("id").eq("sample_id", data.sampleId);
-      const testIds = (tests ?? []).map(t => t.id);
-      const { data: latestResult } = testIds.length
-        ? await supabase.from("results").select("reviewed_at,approved_at")
-            .in("test_id", testIds).order("analysis_date", { ascending: false }).limit(1).maybeSingle()
-        : { data: null };
-
-      if (data.status === "reviewed" && !latestResult?.reviewed_at) {
-        throw new Error("The latest result must be reviewed before the sample can move to \"reviewed\"");
-      }
-      if (data.status === "approved" && !latestResult?.approved_at) {
-        throw new Error("The latest result must be approved before the sample can move to \"approved\"");
-      }
-    }
-
-    const { error } = await supabase.from("samples").update({ status: data.status }).eq("id", data.sampleId);
-    if (error) throw error;
-    await supabase.from("audit_log").insert({
-      action: `status_change:${data.status}`, table_name: "samples",
-      record_id: data.sampleId, changed_by: userId,
-      diff: { status: data.status },
-    });
-    // Completing a sample frees its instrument vial position automatically
-    // -- no separate "remove from instrument" click needed.
-    if (data.status === "approved") {
-      await releaseSampleFromInstrument(supabase, data.sampleId);
-    }
+    await transitionSampleStatus(context.supabase, context.userId, data.sampleId, data.status);
     return { ok: true };
   });
 
@@ -301,6 +320,19 @@ export const saveResult = createServerFn({ method: "POST" })
     return res;
   });
 
+// reviewResult/approveResult both need the sample a result belongs to
+// (results -> tests -> samples has no shortcut FK) purely to attempt the
+// matching sample-status cascade below.
+async function sampleIdForResult(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  resultId: string,
+): Promise<string | null> {
+  const { data: result } = await supabase.from("results").select("test_id").eq("id", resultId).maybeSingle();
+  if (!result?.test_id) return null;
+  const { data: test } = await supabase.from("tests").select("sample_id").eq("id", result.test_id).maybeSingle();
+  return test?.sample_id ?? null;
+}
+
 export const reviewResult = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ resultId: z.string().uuid() }).parse(d))
@@ -314,10 +346,31 @@ export const reviewResult = createServerFn({ method: "POST" })
     if (!result) throw new Error("Result not found");
     if (result.analyst_id === userId && !config?.allow_self_review) throw new Error("You cannot review your own result");
 
+    // Review is the one real decision left once a result is entered —
+    // approve alongside it in the same call rather than making the analyst
+    // come back for a second, purely mechanical click. approveResult stays
+    // available as its own action (e.g. re-running this on an older result
+    // that was reviewed before this existed), it's just redundant in the
+    // normal one-click path since canApprove goes false the moment
+    // approved_at is set here.
+    const now = new Date().toISOString();
     const { error } = await supabase.from("results").update({
-      reviewer_id: userId, reviewed_at: new Date().toISOString(),
+      reviewer_id: userId, reviewed_at: now, approved_at: now,
     }).eq("id", data.resultId);
     if (error) throw error;
+
+    // Best-effort: walk the sample all the way to "approved" (also frees
+    // its instrument vial position) so reviewing is the one action that
+    // finishes it. Each step is attempted independently so a sample not
+    // currently eligible for one step (already past it, another test still
+    // outstanding, etc.) doesn't block the other — the header's manual
+    // "Mark In Review"/"Complete" buttons remain the fallback either way,
+    // this never blocks the review that already succeeded above.
+    const sampleId = await sampleIdForResult(supabase, data.resultId);
+    if (sampleId) {
+      try { await transitionSampleStatus(supabase, userId, sampleId, "reviewed"); } catch { /* already past this, or blocked */ }
+      try { await transitionSampleStatus(supabase, userId, sampleId, "approved"); } catch { /* fallback to manual */ }
+    }
     return { ok: true };
   });
 
@@ -325,7 +378,7 @@ export const approveResult = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ resultId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     const { data: result, error: fetchErr } = await supabase
       .from("results").select("reviewed_at").eq("id", data.resultId).maybeSingle();
     if (fetchErr) throw fetchErr;
@@ -336,5 +389,12 @@ export const approveResult = createServerFn({ method: "POST" })
       approved_at: new Date().toISOString(),
     }).eq("id", data.resultId);
     if (error) throw error;
+
+    // Same best-effort cascade as reviewResult above, straight to
+    // "approved" (also releases the sample's instrument vial position).
+    const sampleId = await sampleIdForResult(supabase, data.resultId);
+    if (sampleId) {
+      try { await transitionSampleStatus(supabase, userId, sampleId, "approved"); } catch { /* fallback to manual */ }
+    }
     return { ok: true };
   });

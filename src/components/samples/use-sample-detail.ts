@@ -123,7 +123,8 @@ export function useSampleDetail(batchId: string) {
     setBusy(true);
     try {
       await reviewResultFn({ data: { resultId } });
-      toast.success("Result reviewed");
+      toast.success("Reviewed and approved — sample complete");
+      signalWorkflowEvent("sample-approved");
       qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
     } catch (e) { toast.error(e instanceof Error ? e.message : "Review failed"); }
     finally { setBusy(false); }

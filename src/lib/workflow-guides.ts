@@ -94,10 +94,10 @@ const COMPLETE_RESULTS_STEPS: WorkflowGuideStep[] = [
     completionEvent: "result-submitted",
   },
   {
-    title: "Approve the result",
-    description: "Once reviewed, click “Approve.”",
+    title: "Review & Complete",
+    description: "Click “Review & Complete” — one click reviews, approves, and finishes the sample.",
     route: "/samples",
-    targetSelector: '[data-guide="results-approve"]',
+    targetSelector: '[data-guide="results-review"]',
     completionEvent: "sample-approved",
   },
 ];

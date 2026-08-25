@@ -196,8 +196,9 @@ export function ResultsTab({
                     disabled={busy}
                     onClick={() => onReview(latestResult.id)}
                     className="bg-[#ff2d95] hover:bg-[#ff54ab] text-white border-0 font-bold animate-pulse shadow-[0_0_18px_5px_rgba(255,45,149,0.9)] hover:shadow-[0_0_26px_9px_rgba(255,45,149,1)]"
+                    data-guide="results-review"
                   >
-                    Review
+                    Review &amp; Complete
                   </Button>
                 )}
                 {canApprove && (
