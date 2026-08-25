@@ -89,6 +89,20 @@ export const setSamplePrepFlag = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const bulkSetSamplePrepFlag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ sample_ids: z.array(z.string().uuid()).min(1), flag: z.boolean() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { error } = await context.supabase.from("samples").update({
+      prep_flag: data.flag,
+      prep_flagged_at: data.flag ? new Date().toISOString() : null,
+      prep_flagged_by: data.flag ? context.userId : null,
+    }).in("id", data.sample_ids);
+    if (error) throw error;
+    return { ok: true, count: data.sample_ids.length };
+  });
+
 export const listPrepFlaggedSamples = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

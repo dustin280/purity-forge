@@ -210,6 +210,7 @@ export const qk = {
     all: ["queue"] as const,
     overview: () => ["queue", "overview"] as const,
     config: () => ["queue", "config"] as const,
+    work: () => ["queue", "work"] as const,
   },
 
   methodGroups: {

@@ -42,6 +42,8 @@ export interface GeneratedRow {
   steps: string[];
   targetConcentrationMgPerMl: number;
   calibrationLevel: number | null;
+  totalDilutionFactor: number | null;
+  stockConcentrationMgPerMl: number | null;
 }
 
 export interface NeedsInputRow {
@@ -53,7 +55,7 @@ export interface NeedsInputRow {
   message: string;
 }
 
-interface SampleCtx {
+export interface SampleCtx {
   id: string;
   batch_id: string | null;
   compound: string | null;
@@ -70,7 +72,7 @@ interface SampleCtx {
  * (set by the intake picker) over a case-insensitive name match, which
  * only exists now as a fallback for rows that predate the picker.
  */
-function resolutionKeyFor(sample: Pick<SampleCtx, "compound_id" | "compound">): string | null {
+export function resolutionKeyFor(sample: Pick<SampleCtx, "compound_id" | "compound">): string | null {
   if (sample.compound_id) return `id:${sample.compound_id}`;
   const name = (sample.compound ?? "").trim();
   return name ? `name:${name.toLowerCase()}` : null;
@@ -94,7 +96,7 @@ function parseConcentrationMgPerMl(v: string | null | undefined): number | null 
   return n;
 }
 
-interface ResolvedRevisionCtx {
+export interface ResolvedRevisionCtx {
   analyteName: string;
   rules: {
     absoluteMinPipetteUl: number;
@@ -122,7 +124,7 @@ interface GlobalPrepSettings {
   defaultTargetLevel: number;
 }
 
-async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSettings> {
+export async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSettings> {
   const { data } = await supabase.from("sp_settings").select("*").eq("id", true).maybeSingle();
   const s = (data ?? {}) as Record<string, unknown>;
   return {
@@ -149,7 +151,7 @@ async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSettings>
  * sp_settings global default, so no compound is ever gated on being linked
  * to anything.
  */
-async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[], settings: GlobalPrepSettings): Promise<{
+export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[], settings: GlobalPrepSettings): Promise<{
   byCompoundLower: Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>;
 }> {
   const byCompoundLower = new Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>();
@@ -268,7 +270,7 @@ interface LabAssets {
   equipment: PrepPlanInput["equipment"];
 }
 
-async function loadLabAssets(supabase: SB): Promise<LabAssets> {
+export async function loadLabAssets(supabase: SB): Promise<LabAssets> {
   const [{ data: vesselRows }, { data: equipRows }] = await Promise.all([
     supabase.from("sp_vessels").select("id, name, nominal_capacity_ul, min_working_volume_ul, max_working_volume_ul").eq("is_active", true),
     supabase.from("sp_equipment").select("id, equipment_id, equipment_type, manufacturer, model, min_capacity, max_capacity, capacity_unit").eq("is_active", true),
@@ -285,7 +287,7 @@ async function loadLabAssets(supabase: SB): Promise<LabAssets> {
 }
 
 /** Builds a PrepPlanInput for one sample given its resolved revision context, applying any analyst-supplied overrides for missing as-received data. Returns a needs-input result instead of throwing when required data is absent. */
-function buildPlanInput(
+export function buildPlanInput(
   sample: SampleCtx,
   ctx: ResolvedRevisionCtx,
   overrides: Overrides | undefined,
@@ -345,8 +347,8 @@ function buildPlanInput(
   };
 }
 
-async function persistPlan(
-  supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedRevisionCtx, plan: PrepPlan,
+export async function persistPlan(
+  supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedRevisionCtx, plan: PrepPlan, source: string = "run_list",
 ): Promise<{ prep_id: string; prep_number: string }> {
   const recordId = crypto.randomUUID();
   const { data: docNumber, error: docErr } = await supabase
@@ -366,7 +368,7 @@ async function persistPlan(
       planned_target_volume_ul: plan.finalVolumeUl,
       planned_calibration_level: ctx.calibrationLevel,
       sample_id: sample.batch_id,
-      sample_context: { source: "run_list", sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.analyteName },
+      sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.analyteName },
       plan: { warnings: plan.warnings, totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl },
       total_dilution_factor: plan.totalDilutionFactor,
       prepared_by: userId,
@@ -461,6 +463,7 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
         run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
         warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
         targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
+        totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
       });
     }
 
@@ -511,5 +514,6 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
       run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
       warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
       targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
+      totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
     } satisfies GeneratedRow;
   });

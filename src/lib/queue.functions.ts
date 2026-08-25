@@ -144,6 +144,41 @@ export const getQueueOverview = createServerFn({ method: "GET" })
     };
   });
 
+export type QueueWorkListRow = QueueSampleRow & {
+  prep_flag: boolean | null;
+  prep_flagged_at: string | null;
+  prep_flagged_by: string | null;
+  prep_flagged_by_name: string | null;
+};
+
+/**
+ * The full, unfiltered sample list for Queue selection -- every non-cancelled
+ * sample regardless of status, so a completed sample can still be picked up
+ * for a rerun. Deliberately separate from getQueueOverview's capacity
+ * simulation: due-date/TAT tracking there stays cosmetic/informational, it
+ * must not gate what's selectable here.
+ */
+export const listQueueWorkSamples = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("samples")
+      .select("id, batch_id, client, project, compound, lot, receipt_date, due_date, status, assigned_analysis_date, priority, prep_flag, prep_flagged_at, prep_flagged_by")
+      .neq("status", "cancelled")
+      .order("due_date", { ascending: true });
+    if (error) throw error;
+    const flaggedByIds = [...new Set((rows ?? []).map((r) => r.prep_flagged_by as string | null).filter((v): v is string => Boolean(v)))];
+    let nameById = new Map<string, string>();
+    if (flaggedByIds.length > 0) {
+      const { data: profiles } = await context.supabase.from("profiles").select("id, full_name").in("id", flaggedByIds);
+      nameById = new Map((profiles ?? []).map((p) => [p.id as string, p.full_name as string]));
+    }
+    return (rows ?? []).map((r) => ({
+      ...r,
+      prep_flagged_by_name: r.prep_flagged_by ? (nameById.get(r.prep_flagged_by as string) ?? null) : null,
+    })) as unknown as QueueWorkListRow[];
+  });
+
 const checkInput = z.object({
   receipt_date: z.string().min(10).max(10).optional(),
   count: z.number().int().min(1).max(100).optional().default(1),
