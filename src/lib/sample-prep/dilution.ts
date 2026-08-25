@@ -13,6 +13,24 @@ export type VolUnit = (typeof VOL_UNITS)[number];
 const MASS_TO_MG: Record<MassUnit, number> = { g: 1000, mg: 1, ug: 0.001 };
 const VOL_TO_UL: Record<VolUnit, number> = { mL: 1000, uL: 1 };
 
+/**
+ * Electronic pipettors can only be set in practical increments of 0.05 mL
+ * (50 µL) -- every pipetted/diluent/final volume in a plan must land on
+ * this grid, not an arbitrary exact-math value. Rounding shifts the
+ * achieved concentration slightly off the theoretical target; callers
+ * recompute the real resulting concentration from the rounded volume
+ * rather than reporting the pre-rounding theoretical one.
+ */
+const VOLUME_GRID_UL = 50;
+
+export function roundToVolumeGrid(uL: number, floorUl = 0): number {
+  if (uL <= 0) return 0;
+  let rounded = Math.round(uL / VOLUME_GRID_UL) * VOLUME_GRID_UL;
+  if (rounded < VOLUME_GRID_UL) rounded = VOLUME_GRID_UL;
+  if (floorUl > 0 && rounded < floorUl) rounded = Math.ceil(floorUl / VOLUME_GRID_UL) * VOLUME_GRID_UL;
+  return rounded;
+}
+
 function concToMgPerMl(conc: number, mass: MassUnit, vol: VolUnit): number {
   // (mass * MASS_TO_MG mg) / (vol * VOL_TO_UL/1000 mL) = mg/mL
   const mg = conc * MASS_TO_MG[mass];
@@ -70,7 +88,7 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   const { stock, target, diluentName, minPipetteUl } = input;
   const c1 = concToMgPerMl(stock.conc, stock.massUnit, stock.volUnit);
   const c2 = concToMgPerMl(target.conc, target.massUnit, target.volUnit);
-  const v2Ul = target.finalVol * VOL_TO_UL[target.finalVolUnit];
+  const v2Ul = roundToVolumeGrid(target.finalVol * VOL_TO_UL[target.finalVolUnit]);
   const availableUl = stock.availableVol * VOL_TO_UL[stock.availableVolUnit];
   const warnings: string[] = [];
 
@@ -82,9 +100,11 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   }
 
   const df = c1 / c2;
-  const singleAliquotUl = v2Ul / df;
+  const singleAliquotUlExact = v2Ul / df;
 
-  if (singleAliquotUl >= minPipetteUl) {
+  if (singleAliquotUlExact >= minPipetteUl) {
+    const singleAliquotUl = roundToVolumeGrid(singleAliquotUlExact, minPipetteUl);
+    const actualConc = c1 * (singleAliquotUl / v2Ul);
     if (singleAliquotUl > availableUl) {
       warnings.push(`Required aliquot (${fmtVolUl(singleAliquotUl)}) exceeds available stock (${fmtVolUl(availableUl)}).`);
     }
@@ -92,13 +112,14 @@ export function computeDilution(input: DilutionInput): DilutionResult {
       fromLabel: "Stock",
       aliquotUl: singleAliquotUl,
       finalVolUl: v2Ul,
-      resultingMgPerMl: c2,
+      resultingMgPerMl: actualConc,
       diluentName,
     });
+    const actualDf = c1 / actualConc;
     return {
       steps: [step],
-      procedure: renderProcedure([step], diluentName, minPipetteUl, df, false),
-      dilutionFactor: df,
+      procedure: renderProcedure([step], diluentName, minPipetteUl, actualDf, false),
+      dilutionFactor: actualDf,
       serial: false,
       warnings,
     };
@@ -130,7 +151,15 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     };
   }
 
-  const firstAliquotUl = v2Ul / factors[0];
+  // Grid-round every step's aliquot to the same volume where the factor
+  // repeats (e.g. 10x10) so consecutive steps use the same pipette setting
+  // -- minimizes pipette volume changes across the plan, not just per-step.
+  const aliquotByFactor = new Map<number, number>();
+  for (const k of factors) {
+    if (!aliquotByFactor.has(k)) aliquotByFactor.set(k, roundToVolumeGrid(v2Ul / k, minPipetteUl));
+  }
+
+  const firstAliquotUl = aliquotByFactor.get(factors[0]) ?? roundToVolumeGrid(v2Ul / factors[0], minPipetteUl);
   if (firstAliquotUl > availableUl) {
     warnings.push(`First aliquot (${fmtVolUl(firstAliquotUl)}) exceeds available stock (${fmtVolUl(availableUl)}).`);
   }
@@ -140,10 +169,11 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   let prevLabel = "Stock";
   for (let i = 0; i < factors.length; i++) {
     const k = factors[i];
-    const resulting = prevConc / k;
+    const aliquotUl = aliquotByFactor.get(k) as number;
+    const resulting = prevConc * (aliquotUl / v2Ul);
     const s = buildStep({
       fromLabel: prevLabel,
-      aliquotUl: v2Ul / k,
+      aliquotUl,
       finalVolUl: v2Ul,
       resultingMgPerMl: resulting,
       diluentName,
@@ -153,10 +183,11 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     prevLabel = `Intermediate ${i + 1}`;
   }
 
+  const actualDf = c1 / prevConc;
   return {
     steps,
-    procedure: renderProcedure(steps, diluentName, minPipetteUl, df, true, factors),
-    dilutionFactor: df,
+    procedure: renderProcedure(steps, diluentName, minPipetteUl, actualDf, true, factors),
+    dilutionFactor: actualDf,
     serial: true,
     warnings,
   };

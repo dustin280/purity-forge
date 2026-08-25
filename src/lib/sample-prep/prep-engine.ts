@@ -5,7 +5,7 @@
  * (reconstitute → optional serial dilutions → aliquot) with warnings.
  * No I/O; safe to import from both client and server.
  */
-import { computeDilution, type MassUnit, type VolUnit } from "./dilution";
+import { computeDilution, roundToVolumeGrid, type MassUnit, type VolUnit } from "./dilution";
 
 export interface PrepPlanInput {
   analyteName: string;
@@ -155,14 +155,18 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
     };
   }
 
-  // Determine stock concentration.
+  // Determine stock concentration. Reconstitution math uses the nominal
+  // (label-claim) mass, never purity-corrected -- for a sample of unknown
+  // purity that's exactly what the purity assay is being run to find out,
+  // so pre-correcting for it here would be circular. Purity correction is
+  // only valid for a certified reference standard, which goes through the
+  // separate standard-preparations flow, not this sample engine.
   let stockMgPerMl: number | null = null;
   let stockLabel = "Stock";
-  const purity = input.source.purityFraction ?? 1;
 
   if (input.source.form === "lyophilized") {
     const mass = input.source.availableMassMg ?? 0;
-    const vol = input.reconstitution.volumeUl ?? input.rules.preferredInitialReconstitutionUl ?? 0;
+    const vol = roundToVolumeGrid(input.reconstitution.volumeUl ?? input.rules.preferredInitialReconstitutionUl ?? 0);
     if (mass <= 0 || vol <= 0) {
       return {
         ok: false, steps: [], warnings: [{ code: "invalid-input", message: "Provide available mass and reconstitution volume." }],
@@ -181,14 +185,14 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
         message: `Reconstitution volume ${fmtVol(vol)} outside method rule ${input.rules.minInitialReconstitutionUl ?? "?"}–${input.rules.maxInitialReconstitutionUl ?? "?"} µL.`,
       });
     }
-    stockMgPerMl = (mass * purity) / (vol / 1000);
+    stockMgPerMl = mass / (vol / 1000);
     stockLabel = "Reconstituted stock";
     steps.push({
       kind: "reconstitute",
       ordinal: 1,
       fromLabel: input.analyteName,
       toLabel: stockLabel,
-      instruction: `Dissolve ${mass} mg of ${input.analyteName}${purity < 1 ? ` (purity ${(purity * 100).toFixed(1)}%)` : ""} in ${fmtVol(vol)} of ${input.reconstitution.solventName} → ${fmtConc(stockMgPerMl)}.`,
+      instruction: `Dissolve ${mass} mg of ${input.analyteName} in ${fmtVol(vol)} of ${input.reconstitution.solventName} → ${fmtConc(stockMgPerMl)}.`,
       finalVolumeUl: vol,
       resultingMgPerMl: stockMgPerMl,
       diluentUl: vol,
