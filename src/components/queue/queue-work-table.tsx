@@ -7,13 +7,14 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QueueWorkListRow } from "@/lib/queue.functions";
 
-export type QueueSortKey = "batch_id" | "compound" | "client" | "due_date" | "status";
+export type QueueSortKey = "batch_id" | "compound" | "client" | "due_date" | "status" | "receipt_date";
 export type SortDir = "asc" | "desc";
 
 const COLUMNS: { key: QueueSortKey; label: string }[] = [
   { key: "batch_id", label: "Sample ID" },
   { key: "compound", label: "Compound / Lot" },
   { key: "client", label: "Client" },
+  { key: "receipt_date", label: "Received" },
   { key: "due_date", label: "Due" },
   { key: "status", label: "Status" },
 ];
@@ -68,9 +69,9 @@ export function QueueWorkTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
+          {isLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>}
           {!isLoading && rows.length === 0 && (
-            <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">No samples.</td></tr>
+            <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No samples.</td></tr>
           )}
           {rows.map((s) => (
             <tr key={s.id} className="hover:bg-muted/30">
@@ -87,6 +88,7 @@ export function QueueWorkTable({
                 {s.lot && <div className="text-xs text-muted-foreground font-mono">Lot {s.lot}</div>}
               </td>
               <td className="px-4 py-3">{s.client}</td>
+              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{s.receipt_date}</td>
               <td className={cn("px-4 py-3 font-mono text-xs", dueClass(s.due_date, today))}>{s.due_date}</td>
               <td className="px-4 py-3"><StatusPill status={s.status as SampleStatus} /></td>
               <td className="px-4 py-3 text-xs text-muted-foreground">

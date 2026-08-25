@@ -23,7 +23,7 @@ import { QuickActions } from "@/components/queue/quick-actions";
 import { AutoScheduleDialog } from "@/components/queue/auto-schedule-dialog";
 import { CapacityCheckDialog } from "@/components/queue/capacity-check-dialog";
 import { PrintLabelsDialog } from "@/components/samples/print-labels-dialog";
-import { CANONICAL_STATUS_FOR_DISPLAY, DISPLAY_STATUS_LABEL, type DisplayStatus, type SampleStatus } from "@/lib/lims-utils";
+import { CANONICAL_STATUS_FOR_DISPLAY, DISPLAY_STATUS_LABEL, toDisplayStatus, type DisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 
 export const Route = createFileRoute("/_authenticated/queue/")({
   component: QueuePage,
@@ -33,6 +33,14 @@ type Overview = Awaited<ReturnType<typeof getQueueOverview>>;
 
 const FLAG_STATUSES = Object.keys(DISPLAY_STATUS_LABEL) as DisplayStatus[];
 type FlagStatus = DisplayStatus;
+
+// "cancelled" is already excluded server-side (listQueueWorkSamples), so it
+// never shows up as an option here.
+const STATUS_FILTER_OPTIONS: DisplayStatus[] = ["received", "in_progress", "on_hold", "in_review", "complete"];
+// Completed samples piling up at the front was the actual complaint (Dustin,
+// 2026-08-25) -- default to hiding them, not to some other subset, so the
+// queue opens showing open work first with completed reruns one click away.
+const DEFAULT_STATUS_FILTER = new Set<DisplayStatus>(["received", "in_progress", "on_hold", "in_review"]);
 
 function compareWorkRows(a: QueueWorkListRow, b: QueueWorkListRow, key: QueueSortKey): number {
   const av = key === "compound" ? a.compound ?? "" : (a as unknown as Record<string, string>)[key] ?? "";
@@ -54,6 +62,15 @@ function QueuePage() {
   const [sortKey, setSortKey] = useState<QueueSortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<Set<DisplayStatus>>(() => new Set(DEFAULT_STATUS_FILTER));
+
+  function toggleStatusFilter(s: DisplayStatus) {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) next.delete(s); else next.add(s);
+      return next;
+    });
+  }
 
   const bulkFn = useServerFn(bulkSetSampleQueueStatus);
   const bulkFlag = useMutation({
@@ -110,9 +127,19 @@ function QueuePage() {
     refetchInterval: 60_000,
   });
 
+  const statusCounts = useMemo(() => {
+    const counts = new Map<DisplayStatus, number>();
+    for (const s of workRows ?? []) {
+      const d = toDisplayStatus(s.status as SampleStatus);
+      counts.set(d, (counts.get(d) ?? 0) + 1);
+    }
+    return counts;
+  }, [workRows]);
+
   const sortedWork = useMemo(() => {
     const q = search.trim().toLowerCase();
     const rows = (workRows ?? []).filter((s) => {
+      if (!statusFilter.has(toDisplayStatus(s.status as SampleStatus))) return false;
       if (!q) return true;
       return `${s.batch_id} ${s.client} ${s.project ?? ""} ${s.compound ?? ""} ${s.lot ?? ""}`.toLowerCase().includes(q);
     });
@@ -127,7 +154,7 @@ function QueuePage() {
       rows.sort((a, b) => Number(idMatches(b)) - Number(idMatches(a)));
     }
     return rows;
-  }, [workRows, sortKey, sortDir, search]);
+  }, [workRows, sortKey, sortDir, search, statusFilter]);
 
   useEffect(() => {
     const channel = supabase
@@ -220,14 +247,35 @@ function QueuePage() {
             </div>
           )}
 
-          <div className="relative max-w-md">
-            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search Sample ID, client, compound, lot…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative max-w-md flex-1 min-w-[240px]">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search Sample ID, client, compound, lot…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {STATUS_FILTER_OPTIONS.map((s) => {
+                const active = statusFilter.has(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleStatusFilter(s)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-transparent text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    {DISPLAY_STATUS_LABEL[s]} ({statusCounts.get(s) ?? 0})
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <QueueWorkTable
