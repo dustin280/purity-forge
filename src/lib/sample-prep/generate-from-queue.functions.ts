@@ -27,7 +27,7 @@ type SB = any;
 async function loadSamples(supabase: SB, sampleIds: string[]): Promise<Map<string, SampleCtx>> {
   const { data: rows } = await supabase
     .from("samples")
-    .select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent")
+    .select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size")
     .in("id", sampleIds);
   return new Map(((rows ?? []) as SampleCtx[]).map((s) => [s.id, s] as const));
 }
@@ -83,7 +83,7 @@ export const recomputeSamplePrepForSample = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: sampleRow, error: sErr } = await context.supabase
-      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent")
+      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size")
       .eq("id", data.sample_id).single();
     if (sErr) throw sErr;
     const sample = sampleRow as SampleCtx;

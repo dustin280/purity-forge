@@ -69,6 +69,7 @@ export interface SampleCtx {
   received_quantity: number | null;
   received_quantity_unit: string | null;
   received_purity_percent: number | null;
+  container_size: string | null;
 }
 
 /**
@@ -665,11 +666,46 @@ export async function persistPlan(
 }
 
 /**
+ * Reconstitution volume choices for a dry (lyophilized) sample, driven by
+ * its physical vial size -- Dustin's rule (2026-08-25): every vial the lab
+ * uses is 3 mL or larger. A 3 mL vial (the smallest) only ever gets 1 mL or
+ * 2 mL of diluent; a larger vial (5 mL, 10 mL, ...) can take anywhere from
+ * 1 mL up to (vial size - 1 mL), always in whole-mL steps -- that's a
+ * measured addition, not a pipetted volume, and no vial is ever filled to
+ * the brim with diluent alone. Returns null when the vial size can't be
+ * read as a real supported size (missing, unparseable, or below 3 mL) --
+ * the caller surfaces that as needs-input rather than guessing a
+ * reconstitution volume for math this precision-sensitive.
+ */
+export function reconstitutionCandidatesUl(containerSize: string | null | undefined): number[] | null {
+  const m = (containerSize ?? "").match(/(\d+(?:\.\d+)?)\s*m\s*l/i);
+  if (!m) return null;
+  const vialMl = Math.round(parseFloat(m[1]));
+  if (!Number.isFinite(vialMl) || vialMl < 3) return null;
+  if (vialMl === 3) return [1000, 2000];
+  const maxMl = vialMl - 1;
+  return Array.from({ length: maxMl }, (_, i) => (i + 1) * 1000);
+}
+
+const VIAL_SIZE_NEEDS_INPUT = (containerSize: string | null | undefined): { ok: false; reason: NeedsInputReason; message: string } => ({
+  ok: false, reason: "missing_as_received_data",
+  message: `Vial size not recorded or unrecognized (container_size: "${containerSize ?? ""}") -- needed to pick a valid reconstitution volume. Every vial in use is 3 mL or larger.`,
+});
+
+/**
  * Shared by both call sites in this file and the queue-driven equivalents
  * in generate-from-queue.functions.ts -- resolves to either a single-
  * compound plan (planPreparation/persistPlan, unchanged) or a blend plan
  * (planBlendPreparation/persistBlendPlan, one shared dilution across all
  * of the blend's components), branching on `resolved.kind`.
+ *
+ * For a lyophilized/dry sample, the reconstitution volume isn't a single
+ * fixed default -- it's chosen from the vial-size-driven candidates above,
+ * picking whichever candidate lands the final achieved concentration(s)
+ * closest to target (normalized by each compound's own calibration range,
+ * same scoring shape pickSharedDilutionFactor already uses for blends).
+ * The whole vial always gets reconstituted at once; only the diluent
+ * volume varies between candidates.
  */
 export async function planAndPersistForSample(
   supabase: SB, userId: string, sample: SampleCtx,
@@ -682,8 +718,25 @@ export async function planAndPersistForSample(
   if (resolved.kind === "blend") {
     const built = buildBlendPlanInput(sample, resolved);
     if (!built.ok) return built;
-    const plan = planBlendPreparation(built.input);
-    if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a blend plan." };
+    const candidates = reconstitutionCandidatesUl(sample.container_size);
+    if (!candidates) return VIAL_SIZE_NEEDS_INPUT(sample.container_size);
+
+    let best: BlendPlan | null = null;
+    let bestScore = Infinity;
+    let lastError: string | undefined;
+    for (const volumeUl of candidates) {
+      const attempt = planBlendPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
+      if (!attempt.ok) { lastError = attempt.error; continue; }
+      let score = 0;
+      for (const c of attempt.components) {
+        const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
+        score += Math.abs(c.resultingConcMgPerMl - c.targetConcMgPerMl) / range;
+      }
+      if (score < bestScore) { bestScore = score; best = attempt; }
+    }
+    if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a blend plan for any valid reconstitution volume." };
+
+    const plan = best;
     const { prep_id, prep_number } = await persistBlendPlan(supabase, userId, sample, resolved, plan, source);
     const primary = plan.components[0];
     const droppedWarnings = built.droppedComponents.map(n => `"${n}" from the sample's text didn't match a known component of ${resolved.blendName} — skipped.`);
@@ -704,8 +757,31 @@ export async function planAndPersistForSample(
 
   const built = buildPlanInput(sample, resolved, overrides, assets);
   if (!built.ok) return built;
-  const plan = planPreparation(built.input);
-  if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a plan." };
+
+  let plan: PrepPlan;
+  if (built.input.source.form === "lyophilized") {
+    const candidates = reconstitutionCandidatesUl(sample.container_size);
+    if (!candidates) return VIAL_SIZE_NEEDS_INPUT(sample.container_size);
+    const range = resolved.calMaxMgPerMl != null && resolved.calMinMgPerMl != null && resolved.calMaxMgPerMl > resolved.calMinMgPerMl
+      ? resolved.calMaxMgPerMl - resolved.calMinMgPerMl : 1;
+
+    let best: PrepPlan | null = null;
+    let bestScore = Infinity;
+    let lastError: string | undefined;
+    for (const volumeUl of candidates) {
+      const attempt = planPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
+      if (!attempt.ok) { lastError = attempt.error; continue; }
+      const achieved = attempt.steps[attempt.steps.length - 1]?.resultingMgPerMl ?? attempt.targetConcentrationMgPerMl;
+      const score = Math.abs(achieved - resolved.targetConcMgPerMl) / range;
+      if (score < bestScore) { bestScore = score; best = attempt; }
+    }
+    if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a plan for any valid reconstitution volume." };
+    plan = best;
+  } else {
+    plan = planPreparation(built.input);
+    if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a plan." };
+  }
+
   const { prep_id, prep_number } = await persistPlan(supabase, userId, sample, resolved, plan, source);
   return {
     ok: true,
@@ -733,7 +809,7 @@ async function loadUnlinkedSampleRows(supabase: SB, runListId: string): Promise<
   const unlinked = rows.filter(r => r.sample_id && !r.sp_preparation_record_id);
   const sampleIds = Array.from(new Set(unlinked.map(r => r.sample_id))) as string[];
   const { data: sampleRows } = sampleIds.length
-    ? await supabase.from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent").in("id", sampleIds)
+    ? await supabase.from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size").in("id", sampleIds)
     : { data: [] };
   const samples = new Map(((sampleRows ?? []) as SampleCtx[]).map(s => [s.id, s] as const));
   return {
@@ -800,7 +876,7 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
     if (!item.sample_id) throw new Error("Row has no sample.");
 
     const { data: sampleRow, error: sErr } = await context.supabase
-      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent")
+      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size")
       .eq("id", item.sample_id).single();
     if (sErr) throw sErr;
     const sample = sampleRow as SampleCtx;
