@@ -117,6 +117,15 @@ function QueuePage() {
       return `${s.batch_id} ${s.client} ${s.project ?? ""} ${s.compound ?? ""} ${s.lot ?? ""}`.toLowerCase().includes(q);
     });
     rows.sort((a, b) => compareWorkRows(a, b, sortKey) * (sortDir === "asc" ? 1 : -1));
+    if (q) {
+      // A search match on the Sample ID itself is what someone's looking
+      // for -- rank those above rows that only match incidentally via
+      // client/compound/lot text (e.g. searching "test" also matches every
+      // sample for a client literally named "...dba Testides"), so the
+      // sample they typed for doesn't get buried by the normal sort order.
+      const idMatches = (s: QueueWorkListRow) => s.batch_id.toLowerCase().includes(q);
+      rows.sort((a, b) => Number(idMatches(b)) - Number(idMatches(a)));
+    }
     return rows;
   }, [workRows, sortKey, sortDir, search]);
 
