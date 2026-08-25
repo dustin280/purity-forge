@@ -28,6 +28,36 @@ const BENCH_SHEET_STATUS_LABEL: Record<string, string> = {
   in_progress: "In Progress", completed: "Completed", reviewed: "Reviewed",
 };
 
+/** Minimal RFC 4180 CSV parser (quoted fields, doubled-quote escaping, embedded commas/newlines) -- just enough to render the generated CSV as a real table instead of a raw scrolling blob. */
+function parseCsvRows(csv: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < csv.length; i++) {
+    const c = csv[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (csv[i + 1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field); field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && csv[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      rows.push(row); row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.length > 1 || r[0] !== "");
+}
+
 export const Route = createFileRoute("/_authenticated/run-lists/$id")({
   component: RunListDetail,
 });
@@ -372,7 +402,26 @@ function RunListDetail() {
               Preview of the generated run list CSV
             </DialogDescription>
           </DialogHeader>
-          <pre className="text-xs font-mono bg-muted p-3 rounded overflow-auto max-h-[60vh]">{preview?.csv}</pre>
+          <div className="overflow-auto max-h-[60vh] rounded border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0">
+                <tr>
+                  {(preview ? parseCsvRows(preview.csv)[0] ?? [] : []).map((cell, i) => (
+                    <th key={i} className="text-left px-3 py-2 font-semibold whitespace-nowrap">{cell}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(preview ? parseCsvRows(preview.csv).slice(1) : []).map((row, i) => (
+                  <tr key={i} className="hover:bg-muted/30">
+                    {row.map((cell, j) => (
+                      <td key={j} className="px-3 py-2 font-mono whitespace-nowrap">{cell || <span className="text-muted-foreground">—</span>}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
