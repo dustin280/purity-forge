@@ -306,11 +306,13 @@ export const reviewResult = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ resultId: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    const { data: result, error: fetchErr } = await supabase
-      .from("results").select("analyst_id").eq("id", data.resultId).maybeSingle();
+    const [{ data: result, error: fetchErr }, { data: config }] = await Promise.all([
+      supabase.from("results").select("analyst_id").eq("id", data.resultId).maybeSingle(),
+      supabase.from("review_config").select("allow_self_review").eq("id", true).maybeSingle(),
+    ]);
     if (fetchErr) throw fetchErr;
     if (!result) throw new Error("Result not found");
-    if (result.analyst_id === userId) throw new Error("You cannot review your own result");
+    if (result.analyst_id === userId && !config?.allow_self_review) throw new Error("You cannot review your own result");
 
     const { error } = await supabase.from("results").update({
       reviewer_id: userId, reviewed_at: new Date().toISOString(),
