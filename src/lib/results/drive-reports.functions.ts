@@ -362,17 +362,25 @@ export function parseReportText(text: string): Omit<ParsedReport, "file_id" | "f
  * validated against real PDFs, and adjust the column aliases below.
  */
 const XLSX_COLUMN_ALIASES: Record<keyof Pick<ParsedReportCompound, "compound" | "rt" | "area" | "amount_per_vial_mg" | "percent_label_claim" | "purity_pct" | "rf" | "peak_height_mau" | "concentration_mg" | "peak_purity" | "peak_purity_passed" | "uv_match" | "wavelength_nm">, string[]> = {
-  compound: ["compound", "analyte", "identity", "name"],
+  // "Peak Assignment" is the multi-compound blend-report template's name
+  // for this column (e.g. SUMMIT's 4-compound table) — single-analyte
+  // reports use "Compound"/"Analyte"/etc, both need to resolve here.
+  compound: ["compound", "analyte", "identity", "name", "peak assignment"],
   rt: ["rt", "rt [min]", "retention time"],
   area: ["area"],
   amount_per_vial_mg: ["amount/vial", "amount/vial [mg]", "amount [mg]", "amount per vial"],
   percent_label_claim: ["% label claim", "label claim", "%labelclaim"],
-  purity_pct: ["purity %", "purity", "area purity %", "area %"],
+  // Blend-report template has no column literally called "Purity %" — "DAD
+  // Peak Purity [%]" is the right per-compound purity source there (same
+  // spectral-purity concept peak_purity below reads); "Blend UV Purity" is
+  // explicitly NOT component-specific per that report's own Signal note,
+  // so it's deliberately not aliased here.
+  purity_pct: ["purity %", "purity", "area purity %", "area %", "dad peak purity"],
   rf: ["rf"],
   peak_height_mau: ["peak height [mau]", "peak height", "height"],
   concentration_mg: ["concentration [mg]", "concentration"],
-  peak_purity: ["peak purity"],
-  peak_purity_passed: ["peak purity passed"],
+  peak_purity: ["peak purity", "dad peak purity"],
+  peak_purity_passed: ["peak purity passed", "dad purity pass"],
   uv_match: ["uv match [0-1000]", "uv match"],
   wavelength_nm: ["λ [nm]", "wavelength [nm]", "wavelength"],
 };
