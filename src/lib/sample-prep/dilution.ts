@@ -17,18 +17,21 @@ const VOL_TO_UL: Record<VolUnit, number> = { mL: 1000, uL: 1 };
  * Electronic pipettors can only be set in practical increments of 0.05 mL
  * (50 µL) -- but that's a large-volume-scale constraint (diluent additions,
  * final volumes), not a real limit on small aliquots, which have their own
- * much finer practical resolution. Below COARSE_GRID_THRESHOLD_UL, round to
- * the nearest whole µL instead (cleans up floating-point noise without
- * distorting the value); at or above it, use the 50 µL grid. Confirmed
- * 2026-08-25: a 20 µL SUMMIT aliquot forced onto the 50 µL grid unmodified
- * would round up to 50 µL -- a 150% distortion that pushed one blend
- * compound's resulting concentration all the way to its calibration
- * ceiling. Rounding shifts the achieved concentration slightly off the
+ * much finer practical resolution (a dedicated low-volume pipette). Below
+ * COARSE_GRID_THRESHOLD_UL, round to the nearest 5 µL instead; at or above
+ * it, use the 50 µL grid. Confirmed 2026-08-25: a 20 µL SUMMIT aliquot
+ * forced onto the 50 µL grid unmodified would round up to 50 µL -- a 150%
+ * distortion that pushed one blend compound's resulting concentration all
+ * the way to its calibration ceiling -- but the fine grid still has to be
+ * 5 µL, not 1 µL: this is high-precision quant work and ugly values (13 µL,
+ * 0.47 mL) are themselves a problem Dustin needs to avoid at a glance, on
+ * top of not being reliably pipettable below the lab's real absolute
+ * minimum. Rounding shifts the achieved concentration slightly off the
  * theoretical target either way; callers recompute the real resulting
  * concentration from the rounded volume rather than reporting the
  * pre-rounding theoretical one.
  */
-const FINE_GRID_UL = 1;
+const FINE_GRID_UL = 5;
 const COARSE_GRID_UL = 50;
 const COARSE_GRID_THRESHOLD_UL = 200;
 
