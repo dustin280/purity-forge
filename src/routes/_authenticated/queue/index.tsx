@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Tags, FlaskConical } from "lucide-react";
+import { Tags, FlaskConical, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { qk } from "@/lib/query-keys";
 import { StatusBanner } from "@/components/queue/status-banner";
 import { CapacityOverview } from "@/components/queue/capacity-overview";
@@ -52,6 +53,7 @@ function QueuePage() {
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [sortKey, setSortKey] = useState<QueueSortKey>("due_date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [search, setSearch] = useState("");
 
   const bulkFn = useServerFn(bulkSetSampleQueueStatus);
   const bulkFlag = useMutation({
@@ -109,10 +111,14 @@ function QueuePage() {
   });
 
   const sortedWork = useMemo(() => {
-    const rows = [...(workRows ?? [])];
+    const q = search.trim().toLowerCase();
+    const rows = (workRows ?? []).filter((s) => {
+      if (!q) return true;
+      return `${s.batch_id} ${s.client} ${s.project ?? ""} ${s.compound ?? ""} ${s.lot ?? ""}`.toLowerCase().includes(q);
+    });
     rows.sort((a, b) => compareWorkRows(a, b, sortKey) * (sortDir === "asc" ? 1 : -1));
     return rows;
-  }, [workRows, sortKey, sortDir]);
+  }, [workRows, sortKey, sortDir, search]);
 
   useEffect(() => {
     const channel = supabase
@@ -204,6 +210,16 @@ function QueuePage() {
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
             </div>
           )}
+
+          <div className="relative max-w-md">
+            <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search Sample ID, client, compound, lot…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
           <QueueWorkTable
             rows={sortedWork}
