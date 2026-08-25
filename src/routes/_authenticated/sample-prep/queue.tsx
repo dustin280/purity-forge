@@ -8,13 +8,15 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, RefreshCw, AlertTriangle } from "lucide-react";
+import { ArrowLeft, RefreshCw, AlertTriangle, FileText } from "lucide-react";
 import { listPrepFlaggedSamples, type PrepFlaggedSample } from "@/lib/run-lists.functions";
 import {
   generateSamplePrepForSamples, recomputeSamplePrepForSample,
   type GeneratedRow, type NeedsInputRow,
 } from "@/lib/sample-prep/generate-from-queue.functions";
 import { qk } from "@/lib/query-keys";
+import { useAuth, profileDisplayName } from "@/hooks/use-auth";
+import { BenchReferenceDialog } from "@/components/sample-prep/bench-reference-dialog";
 
 export const Route = createFileRoute("/_authenticated/sample-prep/queue")({
   component: PrepQueuePage,
@@ -44,11 +46,14 @@ function PrepQueuePage() {
   const listFlagged = useServerFn(listPrepFlaggedSamples);
   const generate = useServerFn(generateSamplePrepForSamples);
   const recompute = useServerFn(recomputeSamplePrepForSample);
+  const { profile, user } = useAuth();
+  const analystName = profileDisplayName(profile, user?.email) || user?.email || "";
 
   const [sampleIds, setSampleIds] = useState<string[] | null | undefined>(undefined);
   const [created, setCreated] = useState<GeneratedRow[]>([]);
   const [needsInput, setNeedsInput] = useState<NeedsInputRow[]>([]);
   const [overrides, setOverrides] = useState<Record<string, { form?: "lyophilized" | "solution"; quantity?: string; unit?: string; purity?: string }>>({});
+  const [cutSheetOpen, setCutSheetOpen] = useState(false);
 
   // Sample IDs come from the Queue's "Send to Prep" hand-off (sessionStorage,
   // same pattern as Print Labels' vial-labels-pending). Direct visits with
@@ -126,7 +131,15 @@ function PrepQueuePage() {
           <RefreshCw className={`size-4 mr-1 ${genMut.isPending ? "animate-spin" : ""}`} />
           {genMut.isPending ? "Computing…" : "Recompute all"}
         </Button>
+        <Button size="sm" onClick={() => setCutSheetOpen(true)} disabled={!created.length || needsInput.length > 0}>
+          <FileText className="size-4 mr-1" /> Print Bench Reference
+        </Button>
       </div>
+      {needsInput.length > 0 && created.length > 0 && (
+        <p className="text-xs text-muted-foreground -mt-4">
+          Fill in the samples that need input below before printing the Bench Reference.
+        </p>
+      )}
 
       {needsInput.length > 0 && (
         <Card className="p-4 border-amber-500/40 bg-amber-500/5 space-y-3">
@@ -244,9 +257,16 @@ function PrepQueuePage() {
       </Card>
 
       <p className="text-xs text-muted-foreground">
-        Bench Reference cut sheet printing and multi-step dilution editing land next — this page currently
+        Multi-step dilution editing (add/edit steps, change diluent) lands next — this page currently
         auto-computes and persists a plan per sample (visible in Sample Prep → Records).
       </p>
+
+      <BenchReferenceDialog
+        open={cutSheetOpen}
+        onOpenChange={setCutSheetOpen}
+        prepIds={created.map((c) => c.prep_id)}
+        analystName={analystName}
+      />
     </div>
   );
 }
