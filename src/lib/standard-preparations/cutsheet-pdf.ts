@@ -138,23 +138,44 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   y += 0.08;
 
   const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.abbrev))));
-  const head = ["Level", ...compoundNames.map(n => `${n} mg/mL`), ...compoundNames.map(n => `${n} µL`), "Diluent µL", "Expected"];
+  const batchUl = data.batchVolumeMl * 1000;
+  const dfText = (stockUl: number | null | undefined): string => {
+    if (!stockUl) return "—";
+    const df = batchUl / stockUl;
+    return `${Number.isInteger(df) ? df : df.toFixed(1)}×`;
+  };
+  const head = [
+    "Level",
+    ...compoundNames.map(n => `${n} mg/mL`),
+    ...compoundNames.map(n => `${n} µL`),
+    ...compoundNames.map(n => `${n} DF`),
+    "Diluent µL",
+    "Expected",
+  ];
   const body = data.levels.map(l => {
     const byAbbrev = new Map(l.components.map(c => [c.abbrev, c] as const));
     return [
       l.label,
       ...compoundNames.map(n => byAbbrev.get(n)?.concMgPerMl?.toString() ?? "—"),
       ...compoundNames.map(n => byAbbrev.get(n)?.stockUl?.toString() ?? "—"),
+      ...compoundNames.map(n => dfText(byAbbrev.get(n)?.stockUl)),
       l.diluentUl?.toString() ?? "—",
       l.expectedNote ?? "",
     ];
   });
+  // DF columns sit after Level (1) + mg/mL cols + µL cols
+  const dfColStart = 1 + compoundNames.length * 2;
+  const dfColumnStyles: Record<number, { fontStyle: "bold" }> = {};
+  for (let i = 0; i < compoundNames.length; i++) {
+    dfColumnStyles[dfColStart + i] = { fontStyle: "bold" };
+  }
   autoTable(doc, {
     startY: y,
     head: [head],
     body,
     styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
     headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 6.8 },
+    columnStyles: dfColumnStyles,
     margin: { left: MARGIN_LR, right: MARGIN_LR },
   });
 

@@ -57,6 +57,7 @@ export type QueueSampleRow = {
   client: string;
   project: string | null;
   compound: string | null;
+  lot?: string | null;
   receipt_date: string;
   due_date: string;
   status: string;
@@ -80,7 +81,7 @@ export const getQueueOverview = createServerFn({ method: "GET" })
     if (allIds.length > 0) {
       const { data: rows, error } = await context.supabase
         .from("samples")
-        .select("id, batch_id, client, project, compound, receipt_date, due_date, status, assigned_analysis_date, priority")
+        .select("id, batch_id, client, project, compound, lot, receipt_date, due_date, status, assigned_analysis_date, priority")
         .in("id", allIds);
       if (error) throw error;
       sampleMap = new Map((rows ?? []).map((r) => [r.id as string, r as unknown as QueueSampleRow]));

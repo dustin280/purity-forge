@@ -7,6 +7,7 @@ type Sample = {
   batch_id: string;
   client: string;
   compound: string | null;
+  lot?: string | null;
   receipt_date: string;
   due_date: string;
   status: string;

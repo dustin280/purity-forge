@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tags } from "lucide-react";
 import { qk } from "@/lib/query-keys";
 import { StatusBanner } from "@/components/queue/status-banner";
 import { CapacityOverview } from "@/components/queue/capacity-overview";
@@ -19,6 +20,7 @@ import { AtRiskPanel } from "@/components/queue/at-risk-panel";
 import { QuickActions } from "@/components/queue/quick-actions";
 import { AutoScheduleDialog } from "@/components/queue/auto-schedule-dialog";
 import { CapacityCheckDialog } from "@/components/queue/capacity-check-dialog";
+import { PrintLabelsDialog } from "@/components/samples/print-labels-dialog";
 import { CANONICAL_STATUS_FOR_DISPLAY, DISPLAY_STATUS_LABEL, type DisplayStatus, type SampleStatus } from "@/lib/lims-utils";
 
 export const Route = createFileRoute("/_authenticated/queue/")({
@@ -39,6 +41,7 @@ function QueuePage() {
   const [checkOpen, setCheckOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [flagStatus, setFlagStatus] = useState<FlagStatus>("on_hold");
+  const [labelsOpen, setLabelsOpen] = useState(false);
 
   const bulkFn = useServerFn(bulkSetSampleQueueStatus);
   const bulkFlag = useMutation({
@@ -90,6 +93,10 @@ function QueuePage() {
   }, [activeDate, data?.today]);
 
   const openSample = (batchId: string) => navigate({ to: "/samples/$batchId", params: { batchId } });
+
+  const selectedSamples = (data?.per_day ?? [])
+    .flatMap((d) => d.samples)
+    .filter((s) => selected.has(s.id));
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl">
@@ -147,6 +154,9 @@ function QueuePage() {
                   >
                     {bulkFlag.isPending ? "Flagging…" : "Flag selected"}
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setLabelsOpen(true)}>
+                    <Tags className="size-4 mr-1" />Print Labels
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
                 </div>
               )}
@@ -191,6 +201,7 @@ function QueuePage() {
 
       <AutoScheduleDialog open={autoOpen} onOpenChange={setAutoOpen} />
       <CapacityCheckDialog open={checkOpen} onOpenChange={setCheckOpen} />
+      <PrintLabelsDialog open={labelsOpen} onOpenChange={setLabelsOpen} samples={selectedSamples} />
     </div>
   );
 }
