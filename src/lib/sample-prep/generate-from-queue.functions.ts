@@ -2,21 +2,21 @@
  * Sample -> preparation plan generation, driven directly from a set of
  * sample IDs (Analysis Queue "Send to Prep" hand-off) rather than from an
  * existing run list. Reuses every piece of generate-from-run-list.functions.ts
- * unmodified (compound resolution, plan-input building, planPreparation(),
- * persistence) -- the only real difference is there's no run_list_items row
- * to read/write here, since no run list exists yet at this point in the
- * pipeline. A later run list generated from these samples picks the
- * resulting sp_preparation_records back up via sample_context.sample_id,
- * same as the run-list-first path already does.
+ * unmodified (compound resolution, blend detection, plan-input building,
+ * planPreparation()/planBlendPreparation(), persistence) -- the only real
+ * difference is there's no run_list_items row to read/write here, since no
+ * run list exists yet at this point in the pipeline. A later run list
+ * generated from these samples picks the resulting sp_preparation_records
+ * back up via sample_context.sample_id, same as the run-list-first path
+ * already does.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { planPreparation } from "./prep-engine";
 import {
   type SampleCtx, type GeneratedRow, type NeedsInputRow,
-  resolutionKeyFor, resolveCompoundContexts, buildPlanInput, persistPlan,
-  loadGlobalPrepSettings, loadLabAssets,
+  resolutionKeyFor, resolveCompoundContexts, loadGlobalPrepSettings, loadLabAssets,
+  planAndPersistForSample,
 } from "./generate-from-run-list.functions";
 
 export type { GeneratedRow, NeedsInputRow } from "./generate-from-run-list.functions";
@@ -59,23 +59,12 @@ export const generateSamplePrepForSamples = createServerFn({ method: "POST" })
         needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target." });
         continue;
       }
-      const built = buildPlanInput(sample, resolved, undefined, assets);
-      if (!built.ok) {
-        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: built.reason, message: built.message });
+      const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, undefined, "queue");
+      if (!result.ok) {
+        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message });
         continue;
       }
-      const plan = planPreparation(built.input);
-      if (!plan.ok) {
-        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "plan_error", message: plan.error ?? "Could not compute a plan." });
-        continue;
-      }
-      const { prep_id, prep_number } = await persistPlan(context.supabase, context.userId, sample, resolved, plan, "queue");
-      created.push({
-        run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
-        warnings: plan.warnings.map((w) => w.message), steps: plan.steps.map((s) => s.instruction),
-        targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
-        totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
-      });
+      created.push({ run_list_item_id: sample.id, ...result.row });
     }
 
     return { created, needsInput };
@@ -109,16 +98,7 @@ export const recomputeSamplePrepForSample = createServerFn({ method: "POST" })
     const resolved = byCompoundLower.get(resolutionKey);
     if (!resolved || "reason" in resolved) throw new Error(resolved?.message ?? "Could not resolve a calibration target.");
 
-    const built = buildPlanInput(sample, resolved, data.overrides, assets);
-    if (!built.ok) throw new Error(built.message);
-    const plan = planPreparation(built.input);
-    if (!plan.ok) throw new Error(plan.error ?? "Could not compute a plan.");
-
-    const { prep_id, prep_number } = await persistPlan(context.supabase, context.userId, sample, resolved, plan, "queue");
-    return {
-      run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
-      warnings: plan.warnings.map((w) => w.message), steps: plan.steps.map((s) => s.instruction),
-      targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
-      totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
-    } satisfies GeneratedRow;
+    const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, data.overrides, "queue");
+    if (!result.ok) throw new Error(result.message);
+    return { run_list_item_id: sample.id, ...result.row } satisfies GeneratedRow;
   });

@@ -185,29 +185,60 @@ function PrepQueuePage() {
                 {sampleIds?.length ? "No plans yet." : "No samples checked out. Select samples on the Analysis Queue and use Send to Prep."}
               </td></tr>
             )}
-            {created.map((row) => (
-              <tr key={row.prep_id} className="align-top hover:bg-muted/30">
-                <td className="px-4 py-3 font-mono">{row.batch_id ?? row.sample_id}</td>
-                <td className="px-4 py-3">
-                  {row.compound}
-                  {row.warnings.length > 0 && (
-                    <Badge variant="secondary" className="ml-2 text-amber-600">{row.warnings.length} warning{row.warnings.length === 1 ? "" : "s"}</Badge>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <ol className="text-xs space-y-1 pl-4 list-decimal">
-                    {row.steps.map((s, i) => <li key={i}>{s}</li>)}
-                  </ol>
-                </td>
-                <td className="px-4 py-3 font-semibold whitespace-nowrap">
-                  {row.targetConcentrationMgPerMl.toPrecision(4)} mg/mL
-                  {row.calibrationLevel != null && <div className="text-[10px] text-muted-foreground font-normal">Level {row.calibrationLevel}</div>}
-                </td>
-                <td className="px-4 py-3 font-semibold">
-                  {row.totalDilutionFactor != null ? `${row.totalDilutionFactor.toPrecision(3)}×` : "—"}
-                </td>
-              </tr>
-            ))}
+            {created.map((row) => {
+              const isBlend = !!row.components?.length;
+              return (
+                <tr key={row.prep_id} className="align-top hover:bg-muted/30">
+                  <td className="px-4 py-3 font-mono">{row.batch_id ?? row.sample_id}</td>
+                  <td className="px-4 py-3">
+                    {row.compound}
+                    {row.warnings.length > 0 && (
+                      <Badge variant="secondary" className="ml-2 text-amber-600">{row.warnings.length} warning{row.warnings.length === 1 ? "" : "s"}</Badge>
+                    )}
+                    {isBlend && (
+                      <table className="mt-2 text-xs w-full">
+                        <tbody>
+                          {row.components!.map((c, i) => (
+                            <tr key={i} className={c.withinRange === false ? "text-destructive" : "text-muted-foreground"}>
+                              <td className="pr-3 py-0.5">{c.name}</td>
+                              <td className="pr-3 py-0.5 whitespace-nowrap">target {c.targetConcMgPerMl.toPrecision(3)} mg/mL</td>
+                              {c.withinRange === false && <td className="py-0.5 font-medium">outside its own range</td>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <ol className="text-xs space-y-1 pl-4 list-decimal">
+                      {row.steps.map((s, i) => <li key={i}>{s}</li>)}
+                    </ol>
+                  </td>
+                  <td className="px-4 py-3 font-semibold whitespace-nowrap">
+                    {isBlend ? (
+                      <table className="text-xs w-full">
+                        <tbody>
+                          {row.components!.map((c, i) => (
+                            <tr key={i} className={c.withinRange === false ? "text-destructive" : undefined}>
+                              <td className="py-0.5 pr-2">{c.name}</td>
+                              <td className="py-0.5 whitespace-nowrap">{c.resultingConcMgPerMl.toPrecision(3)} mg/mL</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <>
+                        {row.targetConcentrationMgPerMl.toPrecision(4)} mg/mL
+                        {row.calibrationLevel != null && <div className="text-[10px] text-muted-foreground font-normal">Level {row.calibrationLevel}</div>}
+                      </>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 font-semibold">
+                    {row.totalDilutionFactor != null ? `${row.totalDilutionFactor.toPrecision(3)}×` : "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>

@@ -15,19 +15,36 @@ const VOL_TO_UL: Record<VolUnit, number> = { mL: 1000, uL: 1 };
 
 /**
  * Electronic pipettors can only be set in practical increments of 0.05 mL
- * (50 µL) -- every pipetted/diluent/final volume in a plan must land on
- * this grid, not an arbitrary exact-math value. Rounding shifts the
- * achieved concentration slightly off the theoretical target; callers
- * recompute the real resulting concentration from the rounded volume
- * rather than reporting the pre-rounding theoretical one.
+ * (50 µL) -- but that's a large-volume-scale constraint (diluent additions,
+ * final volumes), not a real limit on small aliquots, which have their own
+ * much finer practical resolution. Below COARSE_GRID_THRESHOLD_UL, round to
+ * the nearest whole µL instead (cleans up floating-point noise without
+ * distorting the value); at or above it, use the 50 µL grid. Confirmed
+ * 2026-08-25: a 20 µL SUMMIT aliquot forced onto the 50 µL grid unmodified
+ * would round up to 50 µL -- a 150% distortion that pushed one blend
+ * compound's resulting concentration all the way to its calibration
+ * ceiling. Rounding shifts the achieved concentration slightly off the
+ * theoretical target either way; callers recompute the real resulting
+ * concentration from the rounded volume rather than reporting the
+ * pre-rounding theoretical one.
  */
-const VOLUME_GRID_UL = 50;
+const FINE_GRID_UL = 1;
+const COARSE_GRID_UL = 50;
+const COARSE_GRID_THRESHOLD_UL = 200;
+
+function gridFor(uL: number): number {
+  return uL < COARSE_GRID_THRESHOLD_UL ? FINE_GRID_UL : COARSE_GRID_UL;
+}
 
 export function roundToVolumeGrid(uL: number, floorUl = 0): number {
   if (uL <= 0) return 0;
-  let rounded = Math.round(uL / VOLUME_GRID_UL) * VOLUME_GRID_UL;
-  if (rounded < VOLUME_GRID_UL) rounded = VOLUME_GRID_UL;
-  if (floorUl > 0 && rounded < floorUl) rounded = Math.ceil(floorUl / VOLUME_GRID_UL) * VOLUME_GRID_UL;
+  const grid = gridFor(uL);
+  let rounded = Math.round(uL / grid) * grid;
+  if (rounded < grid) rounded = grid;
+  if (floorUl > 0 && rounded < floorUl) {
+    const floorGrid = gridFor(floorUl);
+    rounded = Math.ceil(floorUl / floorGrid) * floorGrid;
+  }
   return rounded;
 }
 

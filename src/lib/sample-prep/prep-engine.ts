@@ -330,3 +330,137 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
 
 export function formatVolume(uL: number): string { return fmtVol(uL); }
 export function formatConcentration(mgPerMl: number): string { return fmtConc(mgPerMl); }
+
+// ---------------------------------------------------------------------
+// Blend samples (SUMMIT etc.): one physical reconstitution + one shared
+// dilution step feeding N compounds simultaneously -- there's no way to
+// dilute one compound out of a mixed solution differently from another,
+// so unlike planPreparation() above there's a single shared dilution
+// factor, not N independent ones.
+// ---------------------------------------------------------------------
+
+export interface BlendComponentInput {
+  name: string;
+  massMg: number;
+  targetConcMgPerMl: number;
+  calibrationLevel: number | null;
+  calMinMgPerMl: number | null;
+  calMaxMgPerMl: number | null;
+}
+
+export interface BlendPlanInput {
+  analyteName: string;
+  reconstitution: { volumeUl: number; solventName: string };
+  finalVolumeUl: number;
+  components: BlendComponentInput[];
+  rules: { absoluteMinPipetteUl: number; preferredMinPipetteUl: number };
+}
+
+export interface BlendComponentResult {
+  name: string;
+  stockConcMgPerMl: number;
+  targetConcMgPerMl: number;
+  calibrationLevel: number | null;
+  resultingConcMgPerMl: number;
+  calMinMgPerMl: number | null;
+  calMaxMgPerMl: number | null;
+  withinRange: boolean | null;
+}
+
+export interface BlendPlan {
+  ok: boolean;
+  steps: PlanStep[];
+  warnings: PlanWarning[];
+  components: BlendComponentResult[];
+  totalDilutionFactor: number | null;
+  error?: string;
+}
+
+/**
+ * Picks the single shared dilution factor that minimizes total deviation
+ * (normalized by each compound's own cal range width, so a narrow-range
+ * compound being off matters more than a wide-range one being off by the
+ * same absolute amount) across every component's own Level 3 target.
+ * Sum-of-normalized-absolute-deviation is piecewise linear in 1/DF, so its
+ * minimum is guaranteed to land exactly on one component's own ideal DF --
+ * checking each candidate directly finds the true minimum, no numeric
+ * search needed.
+ */
+function pickSharedDilutionFactor(components: Array<{ stockConcMgPerMl: number; targetConcMgPerMl: number; calMinMgPerMl: number | null; calMaxMgPerMl: number | null }>): number {
+  const candidates = components.map(c => c.stockConcMgPerMl / c.targetConcMgPerMl).filter(df => df > 0 && Number.isFinite(df));
+  let bestDf = candidates[0] ?? 1;
+  let bestScore = Infinity;
+  for (const df of candidates) {
+    let score = 0;
+    for (const c of components) {
+      const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl
+        ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
+      const resulting = c.stockConcMgPerMl / df;
+      score += Math.abs(resulting - c.targetConcMgPerMl) / range;
+    }
+    if (score < bestScore) { bestScore = score; bestDf = df; }
+  }
+  return bestDf;
+}
+
+export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
+  const warnings: PlanWarning[] = [];
+  const steps: PlanStep[] = [];
+
+  if (input.components.length === 0) {
+    return { ok: false, steps: [], warnings: [{ code: "invalid-input", message: "No blend components to plan." }], components: [], totalDilutionFactor: null, error: "No components" };
+  }
+  const totalMassMg = input.components.reduce((s, c) => s + c.massMg, 0);
+  const vol = input.reconstitution.volumeUl;
+  if (totalMassMg <= 0 || vol <= 0) {
+    return { ok: false, steps: [], warnings: [{ code: "invalid-input", message: "Provide component masses and a reconstitution volume." }], components: [], totalDilutionFactor: null, error: "Missing reconstitution" };
+  }
+
+  const stockByName = new Map(input.components.map(c => [c.name, c.massMg / (vol / 1000)]));
+  const forPicker = input.components.map(c => ({
+    stockConcMgPerMl: stockByName.get(c.name)!, targetConcMgPerMl: c.targetConcMgPerMl,
+    calMinMgPerMl: c.calMinMgPerMl, calMaxMgPerMl: c.calMaxMgPerMl,
+  }));
+  const idealDf = pickSharedDilutionFactor(forPicker);
+
+  steps.push({
+    kind: "reconstitute", ordinal: 1, fromLabel: input.analyteName, toLabel: "Reconstituted stock",
+    instruction: `Dissolve ${totalMassMg} mg of ${input.analyteName} (${input.components.map(c => `${c.name} ${c.massMg} mg`).join(" + ")}) in ${fmtVol(vol)} of ${input.reconstitution.solventName}.`,
+    finalVolumeUl: vol, diluentUl: vol,
+  });
+
+  const minPipette = Math.max(1, input.rules.absoluteMinPipetteUl);
+  const rawAliquotUl = input.finalVolumeUl / idealDf;
+  if (rawAliquotUl <= 0) {
+    return { ok: false, steps, warnings, components: [], totalDilutionFactor: null, error: "Computed aliquot is not positive." };
+  }
+  const aliquotUl = roundToVolumeGrid(rawAliquotUl, minPipette);
+  const actualDf = input.finalVolumeUl / aliquotUl;
+  const diluentUl = Math.max(0, input.finalVolumeUl - aliquotUl);
+
+  const components: BlendComponentResult[] = input.components.map(c => {
+    const stockConcMgPerMl = stockByName.get(c.name)!;
+    const resultingConcMgPerMl = stockConcMgPerMl / actualDf;
+    const withinRange = c.calMinMgPerMl != null && c.calMaxMgPerMl != null
+      ? resultingConcMgPerMl >= c.calMinMgPerMl && resultingConcMgPerMl <= c.calMaxMgPerMl
+      : null;
+    if (withinRange === false) {
+      warnings.push({ code: "target-outside-calibration-range", message: `${c.name} lands at ${fmtConc(resultingConcMgPerMl)}, outside its own calibration range (${fmtConc(c.calMinMgPerMl!)}–${fmtConc(c.calMaxMgPerMl!)}) -- no single shared dilution hits every compound.` });
+    }
+    return {
+      name: c.name, stockConcMgPerMl, targetConcMgPerMl: c.targetConcMgPerMl, calibrationLevel: c.calibrationLevel,
+      resultingConcMgPerMl, calMinMgPerMl: c.calMinMgPerMl, calMaxMgPerMl: c.calMaxMgPerMl, withinRange,
+    };
+  });
+
+  steps.push({
+    kind: "dilute", ordinal: 2, fromLabel: "Reconstituted stock", toLabel: "Working sample",
+    instruction: `Pipette ${fmtVol(aliquotUl)} of Reconstituted stock into ${fmtVol(diluentUl)} of ${input.reconstitution.solventName} → ${fmtVol(input.finalVolumeUl)} total (${components.map(c => `${c.name} ${fmtConc(c.resultingConcMgPerMl)}`).join(", ")}).`,
+    aliquotUl, diluentUl, finalVolumeUl: input.finalVolumeUl,
+  });
+  if (aliquotUl < input.rules.preferredMinPipetteUl) {
+    warnings.push({ code: aliquotUl < minPipette ? "below-absolute-pipette" : "below-preferred-pipette", message: `Aliquot ${fmtVol(aliquotUl)} is below preferred minimum ${input.rules.preferredMinPipetteUl} µL.` });
+  }
+
+  return { ok: true, steps, warnings, components, totalDilutionFactor: actualDf };
+}

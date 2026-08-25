@@ -19,7 +19,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { planPreparation, type PrepPlanInput, type PrepPlan } from "./prep-engine";
+import { planPreparation, planBlendPreparation, type PrepPlanInput, type PrepPlan, type BlendPlanInput, type BlendPlan, type BlendComponentResult } from "./prep-engine";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
@@ -40,10 +40,14 @@ export interface GeneratedRow {
   prep_number: string;
   warnings: string[];
   steps: string[];
+  // For a single-compound row these describe the one compound. For a
+  // blend row (components is non-empty) they mirror the first component
+  // as a display fallback -- render sub-rows from `components` instead.
   targetConcentrationMgPerMl: number;
   calibrationLevel: number | null;
   totalDilutionFactor: number | null;
   stockConcentrationMgPerMl: number | null;
+  components?: BlendComponentResult[];
 }
 
 export interface NeedsInputRow {
@@ -96,7 +100,56 @@ function parseConcentrationMgPerMl(v: string | null | undefined): number | null 
   return n;
 }
 
+// "Cartalax 20mg + TB-500 10mg + BPC-157 10mg + KPV 10mg" -> per-component
+// mass. This is the SUMMIT-style layout where the intake text already
+// spells out each component's own mg -- not the harder "named blend,
+// aggregate-only" case (e.g. a hypothetical "KLOW 80mg" with no per-
+// compound breakdown at all), which has no lookup table today and is left
+// as a needs-input gap rather than guessed at.
+export function parseBlendMassBreakdown(compoundText: string): Array<{ name: string; massMg: number }> | null {
+  const cleaned = compoundText.replace(/\s*\[[^\]]*\]\s*$/, "");
+  // Everything after the blend label's opening "(" -- tolerates a missing
+  // closing ")", confirmed present in real intake data (SYX-000006-10's
+  // compound text has an unbalanced paren). A strict "(...)" match would
+  // silently swallow the whole string into one unparseable segment and
+  // drop every component instead of just failing loudly.
+  const openIdx = cleaned.indexOf("(");
+  const body = (openIdx >= 0 ? cleaned.slice(openIdx + 1) : cleaned).replace(/\)\s*$/, "");
+  const parts = body.split("+").map(p => p.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const items: Array<{ name: string; massMg: number }> = [];
+  for (const part of parts) {
+    const m = part.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|g)\s*$/i);
+    if (!m) return null; // any segment that doesn't parse invalidates the whole breakdown
+    const [, rawName, amountStr, unit] = m;
+    const amount = parseFloat(amountStr);
+    const massMg = amount * (MASS_TO_MG[unit.toLowerCase()] ?? 1);
+    const name = rawName.trim();
+    if (!name || !Number.isFinite(massMg) || massMg <= 0) return null;
+    items.push({ name, massMg });
+  }
+  return items;
+}
+
+export interface ResolvedBlendComponentCtx {
+  name: string;
+  compoundId: string | null;
+  targetConcMgPerMl: number;
+  calibrationLevel: number | null;
+  calMinMgPerMl: number | null;
+  calMaxMgPerMl: number | null;
+}
+
+export interface ResolvedBlendCtx {
+  kind: "blend";
+  blendName: string;
+  diluentName: string;
+  rules: ResolvedRevisionCtx["rules"];
+  components: ResolvedBlendComponentCtx[];
+}
+
 export interface ResolvedRevisionCtx {
+  kind: "single";
   analyteName: string;
   rules: {
     absoluteMinPipetteUl: number;
@@ -152,9 +205,9 @@ export async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSe
  * to anything.
  */
 export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[], settings: GlobalPrepSettings): Promise<{
-  byCompoundLower: Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>;
+  byCompoundLower: Map<string, ResolvedRevisionCtx | ResolvedBlendCtx | { reason: NeedsInputReason; message: string }>;
 }> {
-  const byCompoundLower = new Map<string, ResolvedRevisionCtx | { reason: NeedsInputReason; message: string }>();
+  const byCompoundLower = new Map<string, ResolvedRevisionCtx | ResolvedBlendCtx | { reason: NeedsInputReason; message: string }>();
 
   const units = new Map<string, string>(); // key -> display label
   for (const s of samples) {
@@ -166,14 +219,70 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
 
   const { data: compoundRows } = await supabase
     .from("compounds")
-    .select("id, name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, default_diluent_name");
+    .select("id, name, is_blend, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, default_diluent_name");
   type CompoundRow = {
-    id: string; name: string; default_diluent_name: string | null;
+    id: string; name: string; is_blend: boolean; default_diluent_name: string | null;
     cal_l1_mg_per_ml: number | null; cal_l2_mg_per_ml: number | null; cal_l3_mg_per_ml: number | null;
     cal_l4_mg_per_ml: number | null; cal_l5_mg_per_ml: number | null; cal_l6_mg_per_ml: number | null;
   };
   const compounds = (compoundRows ?? []) as CompoundRow[];
   const byId = new Map(compounds.map(c => [c.id, c] as const));
+
+  type BlendComponentRow = {
+    blend_id: string; component_id: string;
+    cal_l1_mg_per_ml: number | null; cal_l2_mg_per_ml: number | null; cal_l3_mg_per_ml: number | null;
+    cal_l4_mg_per_ml: number | null; cal_l5_mg_per_ml: number | null; cal_l6_mg_per_ml: number | null;
+  };
+  const blendIds = compounds.filter(c => c.is_blend).map(c => c.id);
+  const blendComponentsByBlendId = new Map<string, BlendComponentRow[]>();
+  if (blendIds.length > 0) {
+    const { data: bcRows } = await supabase
+      .from("compound_blend_components")
+      .select("blend_id, component_id, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml")
+      .in("blend_id", blendIds);
+    for (const row of (bcRows ?? []) as BlendComponentRow[]) {
+      const list = blendComponentsByBlendId.get(row.blend_id) ?? [];
+      list.push(row);
+      blendComponentsByBlendId.set(row.blend_id, list);
+    }
+  }
+
+  function resolveBlend(match: CompoundRow): ResolvedBlendCtx {
+    const rows = blendComponentsByBlendId.get(match.id) ?? [];
+    const components: ResolvedBlendComponentCtx[] = rows.map(row => {
+      const comp = byId.get(row.component_id);
+      const levels = [row.cal_l1_mg_per_ml, row.cal_l2_mg_per_ml, row.cal_l3_mg_per_ml, row.cal_l4_mg_per_ml, row.cal_l5_mg_per_ml, row.cal_l6_mg_per_ml];
+      const numericLevels = levels.map((v, i) => ({ level: i + 1, v })).filter((l): l is { level: number; v: number } => l.v != null);
+      const target = numericLevels.find(l => l.level === settings.defaultTargetLevel) ?? numericLevels[Math.floor(numericLevels.length / 2)] ?? null;
+      const calVals = numericLevels.map(l => l.v);
+      return {
+        name: comp?.name ?? row.component_id,
+        compoundId: row.component_id,
+        targetConcMgPerMl: target?.v ?? (settings.defaultCalMinMgPerMl + settings.defaultCalMaxMgPerMl) / 2,
+        calibrationLevel: target?.level ?? null,
+        calMinMgPerMl: calVals.length ? Math.min(...calVals) : settings.defaultCalMinMgPerMl,
+        calMaxMgPerMl: calVals.length ? Math.max(...calVals) : settings.defaultCalMaxMgPerMl,
+      };
+    });
+    return {
+      kind: "blend",
+      // Some blend registry rows have their full recipe baked into `name`
+      // (e.g. "SUMMIT (Cartalax 20mg + ...)") rather than just "SUMMIT" --
+      // use the short form for display so the generated instruction text
+      // doesn't double-list every component's mg alongside the real one
+      // parsed from the sample's own text.
+      blendName: match.name.split("(")[0].trim() || match.name,
+      diluentName: match.default_diluent_name ?? settings.diluentName,
+      rules: {
+        absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
+        preferredMinPipetteUl: settings.preferredMinPipetteUl,
+        maxDilutionSteps: settings.maxDilutionSteps,
+        preferredFinalVolumeUl: settings.finalVolumeUl,
+        preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
+      },
+      components,
+    };
+  }
 
   // Strip a "[... vial]" tag (see the non-chrom exclusion rule) and a
   // trailing dose like " 50mg" — samples record compound as free text
@@ -226,6 +335,12 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
 
   for (const [key, label] of units) {
     const match = key.startsWith("id:") ? byId.get(key.slice(3)) ?? null : findByName(label);
+
+    if (match?.is_blend) {
+      byCompoundLower.set(key, resolveBlend(match));
+      continue;
+    }
+
     const levels = match
       ? [match.cal_l1_mg_per_ml, match.cal_l2_mg_per_ml, match.cal_l3_mg_per_ml, match.cal_l4_mg_per_ml, match.cal_l5_mg_per_ml, match.cal_l6_mg_per_ml]
       : [];
@@ -240,6 +355,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
     const calMax = calVals.length ? Math.max(...calVals) : settings.defaultCalMaxMgPerMl;
 
     byCompoundLower.set(key, {
+      kind: "single",
       analyteName: match?.name ?? label,
       rules: {
         absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
@@ -347,6 +463,116 @@ export function buildPlanInput(
   };
 }
 
+// Strips parenthetical qualifiers and every non-alphanumeric character so
+// "TB500 (Thymosin β4 fragment)" and the sample text's own "TB-500 / TB-4"
+// both reduce to a comparable core ("tb500..."/"tb500tb4") -- matched by
+// prefix rather than requiring equality, confirmed against real SUMMIT
+// sample text where the intake alias and registry name diverge like this.
+function normalizeComponentName(s: string): string {
+  return s.trim().toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9]/g, "");
+}
+
+function componentNamesMatch(a: string, b: string): boolean {
+  const na = normalizeComponentName(a);
+  const nb = normalizeComponentName(b);
+  if (!na || !nb) return false;
+  return na === nb || na.startsWith(nb) || nb.startsWith(na);
+}
+
+/**
+ * Builds a BlendPlanInput for a blend sample (SUMMIT etc.) -- parses the
+ * sample's own compound text for the per-component mg breakdown (e.g.
+ * "Cartalax 20mg + TB-500 10mg + ...") and matches each parsed name against
+ * the blend's known components. A component that's in the blend's registry
+ * but not found in the sample's text is dropped with a warning rather than
+ * failing the whole plan -- e.g. a report that only lists 3 of 4 components
+ * for some reason still gets a plan for the ones it can resolve.
+ */
+export function buildBlendPlanInput(
+  sample: SampleCtx,
+  ctx: ResolvedBlendCtx,
+): { ok: true; input: BlendPlanInput; droppedComponents: string[] } | { ok: false; reason: NeedsInputReason; message: string } {
+  const breakdown = sample.compound ? parseBlendMassBreakdown(sample.compound) : null;
+  if (!breakdown) {
+    return { ok: false, reason: "missing_as_received_data", message: `Could not parse a per-compound mg breakdown from "${sample.compound ?? ""}" — this blend has no named-recipe lookup, so the sample's own text must spell out each compound's mg.` };
+  }
+  const components: BlendPlanInput["components"] = [];
+  const droppedComponents: string[] = [];
+  for (const item of breakdown) {
+    const known = ctx.components.find(c => componentNamesMatch(c.name, item.name));
+    if (!known) { droppedComponents.push(item.name); continue; }
+    components.push({
+      name: known.name, massMg: item.massMg, targetConcMgPerMl: known.targetConcMgPerMl,
+      calibrationLevel: known.calibrationLevel, calMinMgPerMl: known.calMinMgPerMl, calMaxMgPerMl: known.calMaxMgPerMl,
+    });
+  }
+  if (components.length === 0) {
+    return { ok: false, reason: "no_calibration_data", message: "None of this sample's parsed components matched the blend's known compounds." };
+  }
+  return {
+    ok: true,
+    droppedComponents,
+    input: {
+      analyteName: ctx.blendName,
+      reconstitution: { volumeUl: ctx.rules.preferredInitialReconstitutionUl, solventName: ctx.diluentName },
+      finalVolumeUl: ctx.rules.preferredFinalVolumeUl,
+      components,
+      rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl },
+    },
+  };
+}
+
+export async function persistBlendPlan(
+  supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedBlendCtx, plan: BlendPlan, source: string = "run_list",
+): Promise<{ prep_id: string; prep_number: string }> {
+  const recordId = crypto.randomUUID();
+  const { data: docNumber, error: docErr } = await supabase
+    .rpc("register_document", { p_code: "SAMP", p_source_table: "sp_preparation_records", p_source_id: recordId, p_created_by: userId });
+  if (docErr) throw docErr;
+  const prep_number = docNumber as string;
+
+  const { data: record, error } = await supabase
+    .from("sp_preparation_records")
+    .insert({
+      id: recordId,
+      prep_number,
+      method_revision_id: null,
+      analyte_id: null,
+      status: "draft",
+      // No single target concentration/level for a blend -- the real
+      // per-compound breakdown lives in plan.components below.
+      planned_target_concentration_mg_per_ml: null,
+      planned_target_volume_ul: null,
+      planned_calibration_level: null,
+      sample_id: sample.batch_id,
+      sample_context: { source, sample_id: sample.id, compound: sample.compound, resolved_compound: ctx.blendName },
+      plan: {
+        isBlend: true,
+        warnings: plan.warnings,
+        totalDilutionFactor: plan.totalDilutionFactor,
+        components: plan.components,
+      },
+      total_dilution_factor: plan.totalDilutionFactor,
+      prepared_by: userId,
+    })
+    .select("id, prep_number")
+    .single();
+  if (error) throw error;
+
+  if (plan.steps.length) {
+    const { error: sErr } = await supabase.from("sp_preparation_steps").insert(
+      plan.steps.map(s => ({
+        record_id: record.id,
+        step_no: s.ordinal,
+        kind: s.kind,
+        planned: { instruction: s.instruction, label: s.toLabel },
+      })),
+    );
+    if (sErr) throw sErr;
+  }
+  return { prep_id: record.id as string, prep_number: record.prep_number as string };
+}
+
 export async function persistPlan(
   supabase: SB, userId: string, sample: SampleCtx, ctx: ResolvedRevisionCtx, plan: PrepPlan, source: string = "run_list",
 ): Promise<{ prep_id: string; prep_number: string }> {
@@ -393,6 +619,60 @@ export async function persistPlan(
     if (sErr) throw sErr;
   }
   return { prep_id: record.id as string, prep_number: record.prep_number as string };
+}
+
+/**
+ * Shared by both call sites in this file and the queue-driven equivalents
+ * in generate-from-queue.functions.ts -- resolves to either a single-
+ * compound plan (planPreparation/persistPlan, unchanged) or a blend plan
+ * (planBlendPreparation/persistBlendPlan, one shared dilution across all
+ * of the blend's components), branching on `resolved.kind`.
+ */
+export async function planAndPersistForSample(
+  supabase: SB, userId: string, sample: SampleCtx,
+  resolved: ResolvedRevisionCtx | ResolvedBlendCtx,
+  assets: LabAssets, overrides: Overrides | undefined, source: string,
+): Promise<
+  { ok: true; row: Omit<GeneratedRow, "run_list_item_id"> }
+  | { ok: false; reason: NeedsInputReason; message: string }
+> {
+  if (resolved.kind === "blend") {
+    const built = buildBlendPlanInput(sample, resolved);
+    if (!built.ok) return built;
+    const plan = planBlendPreparation(built.input);
+    if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a blend plan." };
+    const { prep_id, prep_number } = await persistBlendPlan(supabase, userId, sample, resolved, plan, source);
+    const primary = plan.components[0];
+    const droppedWarnings = built.droppedComponents.map(n => `"${n}" from the sample's text didn't match a known component of ${resolved.blendName} — skipped.`);
+    return {
+      ok: true,
+      row: {
+        sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
+        warnings: [...plan.warnings.map(w => w.message), ...droppedWarnings],
+        steps: plan.steps.map(s => s.instruction),
+        targetConcentrationMgPerMl: primary?.targetConcMgPerMl ?? 0,
+        calibrationLevel: primary?.calibrationLevel ?? null,
+        totalDilutionFactor: plan.totalDilutionFactor,
+        stockConcentrationMgPerMl: primary?.stockConcMgPerMl ?? null,
+        components: plan.components,
+      },
+    };
+  }
+
+  const built = buildPlanInput(sample, resolved, overrides, assets);
+  if (!built.ok) return built;
+  const plan = planPreparation(built.input);
+  if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a plan." };
+  const { prep_id, prep_number } = await persistPlan(supabase, userId, sample, resolved, plan, source);
+  return {
+    ok: true,
+    row: {
+      sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
+      warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
+      targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
+      totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
+    },
+  };
 }
 
 async function loadUnlinkedSampleRows(supabase: SB, runListId: string): Promise<{
@@ -447,24 +727,13 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
         needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target." });
         continue;
       }
-      const built = buildPlanInput(sample, resolved, undefined, assets);
-      if (!built.ok) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: built.reason, message: built.message });
+      const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, undefined, "run_list");
+      if (!result.ok) {
+        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message });
         continue;
       }
-      const plan = planPreparation(built.input);
-      if (!plan.ok) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "plan_error", message: plan.error ?? "Could not compute a plan." });
-        continue;
-      }
-      const { prep_id, prep_number } = await persistPlan(context.supabase, context.userId, sample, resolved, plan);
-      await context.supabase.from("run_list_items").update({ sp_preparation_record_id: prep_id }).eq("id", item.id);
-      created.push({
-        run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
-        warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
-        targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
-        totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
-      });
+      await context.supabase.from("run_list_items").update({ sp_preparation_record_id: result.row.prep_id }).eq("id", item.id);
+      created.push({ run_list_item_id: item.id, ...result.row });
     }
 
     return { created, needsInput };
@@ -503,17 +772,8 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
     const resolved = byCompoundLower.get(resolutionKey);
     if (!resolved || "reason" in resolved) throw new Error(resolved?.message ?? "Could not resolve a calibration target.");
 
-    const built = buildPlanInput(sample, resolved, data.overrides, assets);
-    if (!built.ok) throw new Error(built.message);
-    const plan = planPreparation(built.input);
-    if (!plan.ok) throw new Error(plan.error ?? "Could not compute a plan.");
-
-    const { prep_id, prep_number } = await persistPlan(context.supabase, context.userId, sample, resolved, plan);
-    await context.supabase.from("run_list_items").update({ sp_preparation_record_id: prep_id }).eq("id", item.id);
-    return {
-      run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, prep_id, prep_number,
-      warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
-      targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
-      totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
-    } satisfies GeneratedRow;
+    const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, data.overrides, "run_list");
+    if (!result.ok) throw new Error(result.message);
+    await context.supabase.from("run_list_items").update({ sp_preparation_record_id: result.row.prep_id }).eq("id", item.id);
+    return { run_list_item_id: item.id, ...result.row } satisfies GeneratedRow;
   });
