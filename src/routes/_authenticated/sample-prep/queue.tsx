@@ -131,13 +131,15 @@ function PrepQueuePage() {
           <RefreshCw className={`size-4 mr-1 ${genMut.isPending ? "animate-spin" : ""}`} />
           {genMut.isPending ? "Computing…" : "Recompute all"}
         </Button>
-        <Button size="sm" onClick={() => setCutSheetOpen(true)} disabled={!created.length || needsInput.length > 0}>
+        <Button size="sm" onClick={() => setCutSheetOpen(true)} disabled={!created.length}>
           <FileText className="size-4 mr-1" /> Print Bench Reference
         </Button>
       </div>
-      {needsInput.length > 0 && created.length > 0 && (
+      {needsInput.length > 0 && (
         <p className="text-xs text-muted-foreground -mt-4">
-          Fill in the samples that need input below before printing the Bench Reference.
+          {created.length > 0
+            ? "The Bench Reference only covers the samples computed below — fill in the samples that need input if you want them included too."
+            : "Fill in the samples that need input below before printing the Bench Reference."}
         </p>
       )}
 
