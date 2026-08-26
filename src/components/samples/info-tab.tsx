@@ -63,13 +63,18 @@ export function SampleInfoTab({
   const [specMax, setSpecMax] = useState(test?.spec_max?.toString() ?? "");
   const [saving, setSaving] = useState(false);
   const [syncingPhoto, setSyncingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   async function syncVialPhoto() {
     setSyncingPhoto(true);
     try {
       const res = await syncVialPhotoFn({ data: { sample_id: sample.id } });
-      if (res.ok) toast.success(`Vial photo synced to Drive as "${res.drive_file_name}"`);
-      else toast.error(res.reason ?? "Vial photo sync failed");
+      if (res.ok) {
+        toast.success(`Vial photo synced to Drive as "${res.drive_file_name}"`);
+        setPhotoPreview(res.preview_data_uri ?? null);
+      } else {
+        toast.error(res.reason ?? "Vial photo sync failed");
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Vial photo sync failed");
     } finally {
@@ -136,6 +141,13 @@ export function SampleInfoTab({
             Pushes this sample's intake vial photo to the Drive "LM-Reports Complete" folder, named
             "{batchId}.jpg".
           </p>
+          {photoPreview && (
+            <img
+              src={photoPreview}
+              alt={`${batchId} vial photo`}
+              className="mt-3 max-h-64 rounded-md border border-border object-contain"
+            />
+          )}
         </div>
       </Card>
       <StorageLocationCard sampleId={sample.id} physicalForm={sample.physical_form ?? null} />

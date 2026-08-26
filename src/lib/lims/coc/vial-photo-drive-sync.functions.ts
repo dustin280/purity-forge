@@ -136,6 +136,8 @@ export interface VialPhotoSyncResult {
   reason?: string;
   drive_file_id?: string;
   drive_file_name?: string;
+  /** Same bytes just pushed to Drive, inlined as a data URI so the caller can show a preview without a second fetch (from Drive or Storage). */
+  preview_data_uri?: string;
 }
 
 export async function pushVialPhotoToReportsDrive(
@@ -168,7 +170,8 @@ export async function pushVialPhotoToReportsDrive(
       ? await driveUpdateBinary(existingId, bytes, mimeType)
       : await driveUploadBinary(folderId, name, bytes, mimeType);
 
-    return { ok: true, drive_file_id: uploaded.id, drive_file_name: uploaded.name };
+    const preview_data_uri = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+    return { ok: true, drive_file_id: uploaded.id, drive_file_name: uploaded.name, preview_data_uri };
   } catch (e) {
     return { ok: false, reason: (e as Error).message };
   }
