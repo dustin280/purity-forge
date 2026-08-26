@@ -29,6 +29,17 @@ function fmtConc(n: number): string {
   return `${n.toPrecision(3)} mg/mL`;
 }
 
+// jsPDF's built-in fonts (Helvetica etc.) only cover WinAnsi/CP1252 --
+// prep-engine.ts's instruction strings use "→" (U+2192), which isn't in
+// that set and renders as mojibake in a real PDF viewer (confirmed
+// 2026-08-26 reading a generated cut sheet's raw bytes directly; browsers
+// hide this by silently font-substituting, so it wasn't caught by
+// screenshotting the in-app preview iframe earlier). Substitute at the
+// PDF boundary only -- the web UI keeps the real arrow.
+function pdfSafe(s: string): string {
+  return s.replace(/→/g, "->");
+}
+
 export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetInput): jsPDF {
   const doc = new jsPDF({ unit: "in", format: "letter" });
   const W = doc.internal.pageSize.getWidth();
@@ -160,7 +171,7 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
     autoTable(doc, {
       startY: y,
       head: [["#", "Instruction"]],
-      body: sample.steps.map(s => [String(s.ordinal), s.instruction]),
+      body: sample.steps.map(s => [String(s.ordinal), pdfSafe(s.instruction)]),
       styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.05 },
       headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 6.8 },
       columnStyles: { 0: { cellWidth: 0.3 } },
