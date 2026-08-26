@@ -40,7 +40,7 @@ export function exportAnalysisBatchPdf(
   details: SterilityDetails,
   names: { performedBy: string | null; reviewedBy: string | null },
 ) {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const margin = 40;
 

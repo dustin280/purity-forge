@@ -50,7 +50,7 @@ function labelCellText(level: CutSheetLevel): string {
 }
 
 export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): jsPDF {
-  const doc = new jsPDF({ unit: "in", format: "letter" });
+  const doc = new jsPDF({ unit: "in", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
 
   // ---- Label row(s): real label-sheet grid, up to 8 per row ----

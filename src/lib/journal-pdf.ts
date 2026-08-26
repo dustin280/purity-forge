@@ -24,7 +24,7 @@ function fmt(iso: string) {
 }
 
 export function generateJournalPdf(data: JournalPdfInput): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const margin = 48;
@@ -132,7 +132,7 @@ export interface CombinedJournalPdfInput {
 }
 
 export function downloadCombinedJournalPdf(input: CombinedJournalPdfInput) {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const margin = 48;

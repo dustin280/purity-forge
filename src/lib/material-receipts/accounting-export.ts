@@ -79,7 +79,7 @@ export async function downloadAccountingPdf(
 ) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "landscape" });
+  const doc = new jsPDF({ orientation: "landscape", compress: true });
 
   doc.setFontSize(16);
   doc.text("Material Receipts — Accounting Report", 14, 16);

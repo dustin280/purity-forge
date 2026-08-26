@@ -9,7 +9,7 @@ import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 import type { CocFieldLite } from "@/lib/coc-pdf";
 
 export function buildBlankCocPdf(sampleId: string, fields: CocFieldLite[]): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;

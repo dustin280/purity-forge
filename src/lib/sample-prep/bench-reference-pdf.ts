@@ -41,7 +41,7 @@ function pdfSafe(s: string): string {
 }
 
 export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetInput): jsPDF {
-  const doc = new jsPDF({ unit: "in", format: "letter" });
+  const doc = new jsPDF({ unit: "in", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const copies = Math.max(1, data.labelsPerStep);

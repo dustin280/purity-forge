@@ -49,7 +49,7 @@ export async function downloadTimesheetPdf(
 ) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "landscape" });
+  const doc = new jsPDF({ orientation: "landscape", compress: true });
 
   doc.setFontSize(16);
   doc.text(opts.title, 14, 16);

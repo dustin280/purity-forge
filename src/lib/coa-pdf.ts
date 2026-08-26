@@ -17,7 +17,7 @@ export interface CoaInput {
 }
 
 export function generateCoaPdf(data: CoaInput): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const W = doc.internal.pageSize.getWidth();
   const margin = 40;
 

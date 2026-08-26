@@ -8,7 +8,7 @@ export function downloadAccessLogsPdf(args: {
   summary: AccessLogsSummary;
 }) {
   const { rows, from, to, summary } = args;
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;

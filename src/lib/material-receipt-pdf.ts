@@ -8,7 +8,7 @@ import type { MaterialReceiptRow } from "@/lib/material-receipts.functions";
 export async function exportMaterialReceiptPdf(r: MaterialReceiptRow) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "portrait" });
+  const doc = new jsPDF({ orientation: "portrait", compress: true });
   doc.setFontSize(16);
   doc.text(`Material Receipt — ${r.receipt_number}`, 14, 18);
   doc.setFontSize(10);

@@ -42,7 +42,7 @@ export function assistantText(messages: UIMessage[]): string {
 
 export async function downloadChatPdf(title: string, messages: ChatExportMessage[]) {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const margin = 48;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();

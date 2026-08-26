@@ -33,7 +33,7 @@ export interface SamplePrepPdfInput {
 }
 
 export function buildSamplePrepPdf(input: SamplePrepPdfInput): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;

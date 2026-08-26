@@ -16,7 +16,7 @@ export type LinkedReceipt = {
  * actually exports.
  */
 export function exportPrepPdf(r: StandardPrepRow, linked: LinkedReceipt, attachmentCount: number) {
-  const doc = new jsPDF();
+  const doc = new jsPDF({ compress: true });
   let y = 14;
   const line = (text: string, opts?: { bold?: boolean; size?: number }) => {
     doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
