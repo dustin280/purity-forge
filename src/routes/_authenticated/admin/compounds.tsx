@@ -83,9 +83,10 @@ function CompoundsAdmin() {
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">Compounds</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Every compound (and blend) carries its own acquisition/processing method, column
-          temperature, injection volume, diluent, and calibration levels — click a row to
-          configure it. Blends reference their component compounds directly, each with its
-          own per-level target, instead of a free-text recipe.
+          temperature, wavelength, injection volume, diluent, calibration levels, and separate
+          Standard Prep / Sample Prep modification notes — click a row to configure it. Blends
+          reference their component compounds directly, each with its own per-level target,
+          instead of a free-text recipe.
         </p>
       </div>
 

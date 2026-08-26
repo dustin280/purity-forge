@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { type Compound } from "@/lib/compounds.functions";
 import { BlendComponentsEditor } from "./blend-components-editor";
 
@@ -50,6 +51,11 @@ export function CompoundDetailPanel({
           <Input className="h-8 text-xs" type="number" defaultValue={compound.injection_volume_ul ?? ""}
             onBlur={(e) => onPatch({ injection_volume_ul: num(e.target.value) })} />
         </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Wavelength (nm)</Label>
+          <Input className="h-8 text-xs" type="number" step="1" defaultValue={compound.wavelength_nm ?? ""}
+            onBlur={(e) => onPatch({ wavelength_nm: num(e.target.value) })} />
+        </div>
         <div className="space-y-1 sm:col-span-2">
           <Label className="text-xs">Default diluent</Label>
           <Input className="h-8 text-xs" defaultValue={compound.default_diluent_name ?? ""} placeholder="e.g. Mobile Phase A"
@@ -58,6 +64,21 @@ export function CompoundDetailPanel({
         <div className="flex items-center gap-2 pt-5">
           <Switch checked={compound.is_blend} onCheckedChange={(v) => onPatch({ is_blend: v })} />
           <Label className="text-xs">Multi-compound blend</Label>
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">SP-STD — Standard Prep modifications</Label>
+          <Textarea className="text-xs min-h-16" defaultValue={compound.sp_std_notes ?? ""}
+            placeholder="Anything that changes how this compound is prepped as a standard (e.g. reconstitution solvent, handling notes)…"
+            onBlur={(e) => onPatch({ sp_std_notes: e.target.value || null })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">SP-SMP — Sample Prep modifications</Label>
+          <Textarea className="text-xs min-h-16" defaultValue={compound.sp_smp_notes ?? ""}
+            placeholder="Anything that changes how this compound is prepped as an unknown sample, if different from standard prep…"
+            onBlur={(e) => onPatch({ sp_smp_notes: e.target.value || null })} />
         </div>
       </div>
 

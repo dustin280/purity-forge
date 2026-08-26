@@ -754,7 +754,10 @@ export type Database = {
           name: string
           processing_method: string | null
           sp_analyte_id: string | null
+          sp_smp_notes: string | null
+          sp_std_notes: string | null
           updated_at: string
+          wavelength_nm: number | null
         }
         Insert: {
           acquisition_method?: string | null
@@ -778,7 +781,10 @@ export type Database = {
           name: string
           processing_method?: string | null
           sp_analyte_id?: string | null
+          sp_smp_notes?: string | null
+          sp_std_notes?: string | null
           updated_at?: string
+          wavelength_nm?: number | null
         }
         Update: {
           acquisition_method?: string | null
@@ -802,7 +808,10 @@ export type Database = {
           name?: string
           processing_method?: string | null
           sp_analyte_id?: string | null
+          sp_smp_notes?: string | null
+          sp_std_notes?: string | null
           updated_at?: string
+          wavelength_nm?: number | null
         }
         Relationships: [
           {

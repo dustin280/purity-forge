@@ -12,6 +12,7 @@ export type Compound = {
   acquisition_method: string | null;
   processing_method: string | null;
   column_temperature_c: number | null;
+  wavelength_nm: number | null;
   is_blend: boolean;
   default_diluent_name: string | null;
   cal_l1_mg_per_ml: number | null;
@@ -20,6 +21,10 @@ export type Compound = {
   cal_l4_mg_per_ml: number | null;
   cal_l5_mg_per_ml: number | null;
   cal_l6_mg_per_ml: number | null;
+  /** Standard Prep-specific prep modification notes -- can legitimately differ from sample prep for the same compound. */
+  sp_std_notes: string | null;
+  /** Sample Prep-specific prep modification notes. */
+  sp_smp_notes: string | null;
 };
 
 export type BlendComponent = {
@@ -39,7 +44,7 @@ export type BlendComponent = {
 };
 
 const COMPOUND_COLUMNS =
-  "id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id, acquisition_method, processing_method, column_temperature_c, is_blend, default_diluent_name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml";
+  "id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id, acquisition_method, processing_method, column_temperature_c, wavelength_nm, is_blend, default_diluent_name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, sp_std_notes, sp_smp_notes";
 
 export const listCompounds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -93,6 +98,7 @@ export const updateCompound = createServerFn({ method: "POST" })
         acquisition_method: z.string().max(255).nullable().optional(),
         processing_method: z.string().max(255).nullable().optional(),
         column_temperature_c: numOrNull,
+        wavelength_nm: numOrNull,
         is_blend: z.boolean().optional(),
         default_diluent_name: z.string().max(160).nullable().optional(),
         cal_l1_mg_per_ml: numOrNull,
@@ -101,6 +107,8 @@ export const updateCompound = createServerFn({ method: "POST" })
         cal_l4_mg_per_ml: numOrNull,
         cal_l5_mg_per_ml: numOrNull,
         cal_l6_mg_per_ml: numOrNull,
+        sp_std_notes: z.string().max(4000).nullable().optional(),
+        sp_smp_notes: z.string().max(4000).nullable().optional(),
       })
       .parse(d),
   )
