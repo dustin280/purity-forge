@@ -94,7 +94,7 @@ export function DriveReportPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset(); }}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Import from LM-Reports Complete</DialogTitle>
           <DialogDescription className="sr-only">Pick a completed instrument report PDF to auto-fill this result</DialogDescription>
@@ -150,7 +150,7 @@ export function DriveReportPickerDialog({
                 {parsed.total_peptide_contents_mg != null && ` · Total peptide contents: ${parsed.total_peptide_contents_mg} mg/vial`}
               </div>
               {parsed.report_metadata && (
-                <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5 pt-1 border-t border-border/60 mt-1">
+                <div className="text-xs text-muted-foreground grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-0.5 pt-1 border-t border-border/60 mt-1">
                   {Object.entries(parsed.report_metadata).map(([key, value]) => (
                     <div key={key} className="truncate">
                       <span className="capitalize">{key.replace(/_/g, " ")}:</span> {value}
@@ -160,49 +160,53 @@ export function DriveReportPickerDialog({
               )}
             </div>
 
-            {parsed.chromatogram_image ? (
-              <div className="rounded-md border border-border p-2 space-y-1.5">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3 text-emerald-500" /> Chromatogram found — will be attached to this result
-                </div>
-                <img src={parsed.chromatogram_image} alt="Chromatogram preview" className="w-full h-auto rounded border border-border" />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                No chromatogram found for this report — check that the lab PC converter has processed it yet.
-              </p>
-            )}
-
-            {parsed.calibration_curves && parsed.calibration_curves.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3 text-emerald-500" />
-                  {parsed.calibration_curves.length === 1
-                    ? "Calibration curve found"
-                    : `${parsed.calibration_curves.length} calibration curves found (one per compound)`}
-                </div>
-                {parsed.calibration_curves.map((curve, i) => (
-                  <div key={i} className="rounded-md border border-border p-2 space-y-1.5">
-                    {parsed.calibration_curves!.length > 1 && (
-                      <div className="text-xs font-medium">{curve.compound ?? `Curve ${i + 1}`}</div>
-                    )}
-                    {curve.image ? (
-                      <img src={curve.image} alt={`${curve.compound ?? "Calibration"} curve preview`} className="w-full h-auto rounded border border-border" />
-                    ) : (
-                      <p className="text-xs text-muted-foreground">No curve image for this compound.</p>
-                    )}
-                    {curve.data && (
-                      <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5">
-                        <div>R²: {curve.data.r_squared ?? "—"}</div>
-                        <div>Residual STD: {curve.data.residual_std ?? "—"}</div>
-                        <div>Exp. RT: {curve.data.exp_rt ?? "—"}</div>
-                        <div>Updated: {curve.data.calibration_update ?? "—"}</div>
-                      </div>
-                    )}
+            <div className="grid lg:grid-cols-2 gap-3">
+              {parsed.chromatogram_image ? (
+                <div className="rounded-md border border-border p-2 space-y-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="size-3 text-emerald-500" /> Chromatogram found — will be attached to this result
                   </div>
-                ))}
-              </div>
-            )}
+                  <img src={parsed.chromatogram_image} alt="Chromatogram preview" className="w-full h-auto rounded border border-border" />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No chromatogram found for this report — check that the lab PC converter has processed it yet.
+                </p>
+              )}
+
+              {parsed.calibration_curves && parsed.calibration_curves.length > 0 && (
+                <div className="space-y-2">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <CheckCircle2 className="size-3 text-emerald-500" />
+                    {parsed.calibration_curves.length === 1
+                      ? "Calibration curve found"
+                      : `${parsed.calibration_curves.length} calibration curves found (one per compound)`}
+                  </div>
+                  <div className={parsed.calibration_curves.length > 1 ? "grid sm:grid-cols-2 gap-2" : undefined}>
+                    {parsed.calibration_curves.map((curve, i) => (
+                      <div key={i} className="rounded-md border border-border p-2 space-y-1.5">
+                        {parsed.calibration_curves!.length > 1 && (
+                          <div className="text-xs font-medium">{curve.compound ?? `Curve ${i + 1}`}</div>
+                        )}
+                        {curve.image ? (
+                          <img src={curve.image} alt={`${curve.compound ?? "Calibration"} curve preview`} className="w-full h-auto rounded border border-border" />
+                        ) : (
+                          <p className="text-xs text-muted-foreground">No curve image for this compound.</p>
+                        )}
+                        {curve.data && (
+                          <div className="text-xs text-muted-foreground grid grid-cols-2 gap-x-3 gap-y-0.5">
+                            <div>R²: {curve.data.r_squared ?? "—"}</div>
+                            <div>Residual STD: {curve.data.residual_std ?? "—"}</div>
+                            <div>Exp. RT: {curve.data.exp_rt ?? "—"}</div>
+                            <div>Updated: {curve.data.calibration_update ?? "—"}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <table className="w-full text-xs font-mono">
               <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
