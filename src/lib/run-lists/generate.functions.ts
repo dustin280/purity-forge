@@ -190,7 +190,12 @@ function csvEscape(v: unknown): string {
 function mapSampleType(t: string): string {
   switch (t) {
     case "NIB": case "ICB": case "CCB": return "Blank";
-    case "ICV": case "CCV": return "Cal. Std.";
+    // LCS is the current row (replaces ICV, 2026-08-25); ICV/CCV are kept
+    // mapped for historical run lists generated before that change. All
+    // three verify an already-established calibration/method accuracy --
+    // they don't build a calibration curve, so "QC check" is correct, not
+    // "Cal. Std." (that's reserved for real Level 1-6 standard prep rows).
+    case "LCS": case "ICV": case "CCV": return "QC check";
     default: return "Sample";
   }
 }
@@ -422,7 +427,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
     injection_volume_ul: z.union([z.literal("method"), z.number().min(0.1).max(1000)]).default("method"),
     // optional overrides posted from the review screen
     rows: z.array(z.object({
-      type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "Sample"]),
+      type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "LCS", "Sample"]),
       label: z.string(),
       sample_id: z.string().uuid().nullable(),
       lot: z.string().nullable().optional(),

@@ -28,8 +28,13 @@ export interface OptimizerTrayPosition {
   position_code: string;
 }
 
+// ICV and CCV are retained only so historical run lists (generated before
+// 2026-08-25) still type-check and render correctly -- the optimizer no
+// longer produces either. LCS replaces the once-per-sequence ICV row;
+// CCV is dropped entirely (Dustin's call, 2026-08-25): only CCB repeats
+// per block now.
 export type SequenceRowType =
-  | "NIB" | "ICB" | "ICV" | "CCB" | "CCV" | "Sample";
+  | "NIB" | "ICB" | "ICV" | "CCB" | "CCV" | "LCS" | "Sample";
 
 export interface SequenceRow {
   type: SequenceRowType;
@@ -45,7 +50,7 @@ export interface SequenceRow {
   why: string;                   // rationale for review UI
   /** C6: preview-time prep-coverage warning for this row's sample, null/absent when fine. Attached after optimize() runs — not set here. */
   prep_warning?: "no_prep" | "not_approved" | "expired" | null;
-  /** A5: which standard_preparation_logs row backs this QC row (NIB/ICB/ICV/CCB/CCV) — picked by the analyst on the review screen, not set here. */
+  /** A5: which standard_preparation_logs row backs this QC row (NIB/ICB/LCS/CCB) — picked by the analyst on the review screen, not set here. */
   standard_prep_id?: string | null;
   standard_label?: string | null;
 }
@@ -113,7 +118,7 @@ function withQC(
   };
   push("NIB", "NIB", true);
   push("ICB", "ICB", true);
-  push("ICV", "ICV", true);
+  push("LCS", "LCS", true);
 
   const blocks = chunk(samples, 10);
   blocks.forEach((block, bi) => {
@@ -140,7 +145,6 @@ function withQC(
       });
     });
     push("CCB", `CCB-${bi + 1}`, true, { why: `Continuing calibration blank after block ${bi + 1}` });
-    push("CCV", `CCV-${bi + 1}`, true, { level: "3", why: `Continuing calibration verification after block ${bi + 1}` });
   });
   return rows;
 }

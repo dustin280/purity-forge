@@ -1,6 +1,6 @@
 /**
  * Reverse lookup for Track A5: which generated sequences used this standard
- * prep to back a QC row (NIB/ICB/ICV/CCB/CCV). Only rendered when at least
+ * prep to back a QC row (NIB/ICB/LCS/CCB). Only rendered when at least
  * one link exists.
  */
 import { Link } from "@tanstack/react-router";
