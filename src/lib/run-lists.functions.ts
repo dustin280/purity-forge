@@ -44,6 +44,7 @@ const WHITELIST_SAMPLE_FIELDS = new Set([
 const OPENLAB_SAMPLE_TYPE_FOR_QC_CODE: Record<string, string> = {
   NIB: "Blank", ICB: "Blank", CCB: "Blank",
   LCS: "QC check", ICV: "QC check", CCV: "QC check",
+  CalStd: "Cal. Std.",
 };
 
 /** NIB = "No Injection/Instrument Blank" -- the Injection Source column calls that out explicitly; every other row leaves it blank. */

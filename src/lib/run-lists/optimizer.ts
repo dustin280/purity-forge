@@ -32,9 +32,13 @@ export interface OptimizerTrayPosition {
 // 2026-08-25) still type-check and render correctly -- the optimizer no
 // longer produces either. LCS replaces the once-per-sequence ICV row;
 // CCV is dropped entirely (Dustin's call, 2026-08-25): only CCB repeats
-// per block now.
+// per block now. CalStd is new: six once-per-sequence calibration curve
+// rows (Level 1-6), each linkable to a real prepared Standard Set via the
+// same "Pick standard" mechanism every other QC row already has (Track
+// A5, generate.tsx's SeqRow) -- Cal. Std. data itself lives in the
+// Standard Prep system, not here; this only adds the sequence slot for it.
 export type SequenceRowType =
-  | "NIB" | "ICB" | "ICV" | "CCB" | "CCV" | "LCS" | "Sample";
+  | "NIB" | "ICB" | "ICV" | "CCB" | "CCV" | "LCS" | "CalStd" | "Sample";
 
 export interface SequenceRow {
   type: SequenceRowType;
@@ -117,6 +121,9 @@ function withQC(
     });
   };
   push("NIB", "NIB", true);
+  for (let lvl = 1; lvl <= 6; lvl++) {
+    push("CalStd", `Cal Std L${lvl}`, true, { level: String(lvl), why: `Calibration curve level ${lvl}` });
+  }
   push("ICB", "ICB", true);
   push("LCS", "LCS", true);
 

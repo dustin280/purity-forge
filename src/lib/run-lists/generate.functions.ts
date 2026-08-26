@@ -194,8 +194,9 @@ function mapSampleType(t: string): string {
     // mapped for historical run lists generated before that change. All
     // three verify an already-established calibration/method accuracy --
     // they don't build a calibration curve, so "QC check" is correct, not
-    // "Cal. Std." (that's reserved for real Level 1-6 standard prep rows).
+    // "Cal. Std." (that's reserved for the real Level 1-6 CalStd rows).
     case "LCS": case "ICV": case "CCV": return "QC check";
+    case "CalStd": return "Cal. Std.";
     default: return "Sample";
   }
 }
@@ -427,7 +428,7 @@ export const generateAndSaveRunList = createServerFn({ method: "POST" })
     injection_volume_ul: z.union([z.literal("method"), z.number().min(0.1).max(1000)]).default("method"),
     // optional overrides posted from the review screen
     rows: z.array(z.object({
-      type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "LCS", "Sample"]),
+      type: z.enum(["NIB", "ICB", "ICV", "CCB", "CCV", "LCS", "CalStd", "Sample"]),
       label: z.string(),
       sample_id: z.string().uuid().nullable(),
       lot: z.string().nullable().optional(),
