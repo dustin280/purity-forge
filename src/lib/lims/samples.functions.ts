@@ -64,7 +64,7 @@ export const createSample = createServerFn({ method: "POST" })
       ...rest, client_id, client: client.company_name, created_by: userId,
     }).select().single();
     if (error) throw error;
-    await provisionTestsForSample(supabase, sample, data.parameters, userId);
+    await provisionTestsForSample(supabase, sample, data.parameters, userId, data.receipt_date);
     return sample;
   });
 

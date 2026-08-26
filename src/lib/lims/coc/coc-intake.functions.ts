@@ -369,7 +369,7 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
         status: "prep",
       })
       .eq("id", data.sampleId)
-      .select("id,batch_id")
+      .select("id,batch_id,receipt_date")
       .single();
     if (error) throw error;
     await supabase.from("audit_log").insert({
@@ -379,6 +379,6 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       changed_by: userId,
       diff: { status: "prep" },
     });
-    await provisionTestsForSample(supabase, updated, data.parameters, userId);
+    await provisionTestsForSample(supabase, updated, data.parameters, userId, updated.receipt_date);
     return { ok: true };
   });
