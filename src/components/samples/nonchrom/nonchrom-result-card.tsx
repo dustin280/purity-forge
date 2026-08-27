@@ -53,14 +53,15 @@ function SavedSummary({ testType, data, analystName, date }: {
     );
   }
   if (testType === "endotoxin") {
-    const d = data as unknown as EndotoxinData & { verdict?: "pass" | "fail" };
+    const d = data as unknown as EndotoxinData & { assay_sensitivity_eu_per_ml?: number | null };
     const color = d.verdict === "fail" ? "var(--destructive)" : "var(--status-success)";
     return (
       <div>
-        <div className="text-2xl font-mono font-bold" style={{ color }}>
-          {d.result_value} {d.unit} <span className="text-sm uppercase">({d.verdict ?? "—"})</span>
+        <div className="text-2xl font-mono font-bold uppercase" style={{ color }}>{d.verdict}</div>
+        <div className="text-xs text-muted-foreground mt-1">
+          Assay Sensitivity: {d.assay_sensitivity_eu_per_ml != null ? `<${d.assay_sensitivity_eu_per_ml} EU/mL` : "—"} · Method: {d.method}
+          {d.result_value != null && ` · Reading: ${d.result_value} ${d.unit ?? ""}`}
         </div>
-        <div className="text-xs text-muted-foreground mt-1">Limit: {d.limit} {d.unit} · Method: {d.method}</div>
         {meta}
       </div>
     );

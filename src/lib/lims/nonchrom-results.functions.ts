@@ -22,11 +22,18 @@ const sterilityData = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
+// No per-product limit here -- it's highly variable and never reported on
+// the COA. The analyst asserts pass/fail directly (already reviewed by
+// Micro independently before this is transcribed, same trust model as the
+// rest of this file). Assay sensitivity is a permanent lab-wide setting
+// (sp_settings.endotoxin_assay_sensitivity_eu_per_ml), stamped in
+// server-side below rather than accepted from the client, since it isn't
+// something entered with each result.
 const endotoxinData = z.object({
-  result_value: z.number().nonnegative(),
-  unit: z.enum(["EU/mL", "EU/device"]),
-  limit: z.number().positive(),
+  verdict: z.enum(["pass", "fail"]),
   method: z.enum(["gel_clot", "kinetic_turbidimetric", "kinetic_chromogenic"]),
+  result_value: z.number().nonnegative().nullable().optional(),
+  unit: z.enum(["EU/mL", "EU/device"]).nullable().optional(),
 });
 
 const heavyMetalsData = z.object({
@@ -52,16 +59,21 @@ export const saveNonchromResult = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
-    // Endotoxin's and sterility's pass/fail are derived server-side rather
-    // than trusted from the client, same spirit as purityVerdict being
-    // computed, not stored. Sterility fails if either tube shows growth.
-    const payload = data.test_type === "endotoxin"
-      ? { ...data.data, verdict: data.data.result_value <= data.data.limit ? "pass" : "fail" }
-      : data.test_type === "sterility"
-        ? { ...data.data, verdict: data.data.ftm_result === "turbid" || data.data.tsb_result === "turbid" ? "fail" : "pass" }
-        : data.data;
+    // Sterility's pass/fail is derived server-side rather than trusted from
+    // the client, same spirit as purityVerdict being computed, not stored --
+    // fails if either tube shows growth. Endotoxin's verdict is the
+    // analyst's own direct assertion (see endotoxinData comment above); the
+    // only thing stamped in here is the assay sensitivity snapshot, read
+    // fresh from the permanent setting rather than trusted from the client.
+    let payload: object = data.data;
+    if (data.test_type === "endotoxin") {
+      const { data: settings } = await supabase.from("sp_settings").select("endotoxin_assay_sensitivity_eu_per_ml").eq("id", true).maybeSingle();
+      payload = { ...data.data, assay_sensitivity_eu_per_ml: settings?.endotoxin_assay_sensitivity_eu_per_ml ?? null };
+    } else if (data.test_type === "sterility") {
+      payload = { ...data.data, verdict: data.data.ftm_result === "turbid" || data.data.tsb_result === "turbid" ? "fail" : "pass" };
+    }
     const { data: row, error } = await supabase.from("nonchrom_results").insert({
-      test_id: data.testId, test_type: data.test_type, data: payload, analyst_id: userId,
+      test_id: data.testId, test_type: data.test_type, data: payload as never, analyst_id: userId,
     }).select().single();
     if (error) throw error;
 

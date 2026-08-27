@@ -4965,6 +4965,7 @@ export type Database = {
           drive_lm_reports_complete_folder_id: string | null
           drive_lm_sample_prep_folder_id: string | null
           drive_qc_samples_folder_id: string | null
+          endotoxin_assay_sensitivity_eu_per_ml: number | null
           id: boolean
           max_dilution_steps: number
           preferred_min_pipette_ul: number
@@ -4984,6 +4985,7 @@ export type Database = {
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           drive_qc_samples_folder_id?: string | null
+          endotoxin_assay_sensitivity_eu_per_ml?: number | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number
@@ -5003,6 +5005,7 @@ export type Database = {
           drive_lm_reports_complete_folder_id?: string | null
           drive_lm_sample_prep_folder_id?: string | null
           drive_qc_samples_folder_id?: string | null
+          endotoxin_assay_sensitivity_eu_per_ml?: number | null
           id?: boolean
           max_dilution_steps?: number
           preferred_min_pipette_ul?: number

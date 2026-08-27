@@ -45,6 +45,7 @@ function SettingsPage() {
         <F label="Default calibration levels"><Input type="number" value={form?.default_calibration_levels ?? ""} onChange={e => setForm(f => f ? { ...f, default_calibration_levels: Number(e.target.value) } : f)} /></F>
         <F label="Default target level"><Input type="number" value={form?.default_target_level ?? ""} onChange={e => setForm(f => f ? { ...f, default_target_level: Number(e.target.value) } : f)} /></F>
         <F label="Max dilution steps"><Input type="number" value={form?.max_dilution_steps ?? ""} onChange={e => setForm(f => f ? { ...f, max_dilution_steps: Number(e.target.value) } : f)} /></F>
+        <F label="Endotoxin assay sensitivity (EU/mL)"><Input type="number" step="any" value={form?.endotoxin_assay_sensitivity_eu_per_ml ?? ""} onChange={e => setForm(f => f ? { ...f, endotoxin_assay_sensitivity_eu_per_ml: Number(e.target.value) } : f)} /></F>
         <F label="LM-SamplePrep Drive folder">
           <Input
             value={form?.drive_lm_sample_prep_folder_id ?? ""}
