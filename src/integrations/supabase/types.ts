@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -735,6 +735,12 @@ export type Database = {
         Row: {
           acquisition_method: string | null
           aliases: string[] | null
+          cal_l1_mg_per_ml: number | null
+          cal_l2_mg_per_ml: number | null
+          cal_l3_mg_per_ml: number | null
+          cal_l4_mg_per_ml: number | null
+          cal_l5_mg_per_ml: number | null
+          cal_l6_mg_per_ml: number | null
           cas_number: string | null
           column_temperature_c: number | null
           combined_net_content_unit: string | null
@@ -743,12 +749,6 @@ export type Database = {
           created_by: string | null
           default_appearance: string | null
           default_diluent_name: string | null
-          cal_l1_mg_per_ml: number | null
-          cal_l2_mg_per_ml: number | null
-          cal_l3_mg_per_ml: number | null
-          cal_l4_mg_per_ml: number | null
-          cal_l5_mg_per_ml: number | null
-          cal_l6_mg_per_ml: number | null
           id: string
           injection_volume_ul: number | null
           is_active: boolean
@@ -766,6 +766,12 @@ export type Database = {
         Insert: {
           acquisition_method?: string | null
           aliases?: string[] | null
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
           cas_number?: string | null
           column_temperature_c?: number | null
           combined_net_content_unit?: string | null
@@ -774,12 +780,6 @@ export type Database = {
           created_by?: string | null
           default_appearance?: string | null
           default_diluent_name?: string | null
-          cal_l1_mg_per_ml?: number | null
-          cal_l2_mg_per_ml?: number | null
-          cal_l3_mg_per_ml?: number | null
-          cal_l4_mg_per_ml?: number | null
-          cal_l5_mg_per_ml?: number | null
-          cal_l6_mg_per_ml?: number | null
           id?: string
           injection_volume_ul?: number | null
           is_active?: boolean
@@ -797,6 +797,12 @@ export type Database = {
         Update: {
           acquisition_method?: string | null
           aliases?: string[] | null
+          cal_l1_mg_per_ml?: number | null
+          cal_l2_mg_per_ml?: number | null
+          cal_l3_mg_per_ml?: number | null
+          cal_l4_mg_per_ml?: number | null
+          cal_l5_mg_per_ml?: number | null
+          cal_l6_mg_per_ml?: number | null
           cas_number?: string | null
           column_temperature_c?: number | null
           combined_net_content_unit?: string | null
@@ -805,12 +811,6 @@ export type Database = {
           created_by?: string | null
           default_appearance?: string | null
           default_diluent_name?: string | null
-          cal_l1_mg_per_ml?: number | null
-          cal_l2_mg_per_ml?: number | null
-          cal_l3_mg_per_ml?: number | null
-          cal_l4_mg_per_ml?: number | null
-          cal_l5_mg_per_ml?: number | null
-          cal_l6_mg_per_ml?: number | null
           id?: string
           injection_volume_ul?: number | null
           is_active?: boolean
@@ -1751,7 +1751,7 @@ export type Database = {
           qc_results?: string | null
           quantity?: number | null
           quarantine_status?: Database["public"]["Enums"]["material_quarantine_status"]
-          receipt_number?: string
+          receipt_number: string
           received_at?: string
           received_by?: string | null
           receiver_name: string
@@ -3296,8 +3296,8 @@ export type Database = {
           analysis_date: string
           analyst_id: string | null
           approved_at: string | null
-          calibration_data: Json | null
           calibration_curves: Json | null
+          calibration_data: Json | null
           calibration_image: string | null
           chromatogram_image: string | null
           created_at: string
@@ -3317,8 +3317,8 @@ export type Database = {
           analysis_date?: string
           analyst_id?: string | null
           approved_at?: string | null
-          calibration_data?: Json | null
           calibration_curves?: Json | null
+          calibration_data?: Json | null
           calibration_image?: string | null
           chromatogram_image?: string | null
           created_at?: string
@@ -3338,8 +3338,8 @@ export type Database = {
           analysis_date?: string
           analyst_id?: string | null
           approved_at?: string | null
-          calibration_data?: Json | null
           calibration_curves?: Json | null
+          calibration_data?: Json | null
           calibration_image?: string | null
           chromatogram_image?: string | null
           created_at?: string
@@ -4644,12 +4644,12 @@ export type Database = {
       }
       sp_preparation_records: {
         Row: {
-          analyte_id: string
+          analyte_id: string | null
           created_at: string
           expires_at: string | null
           id: string
           lot_number: string | null
-          method_revision_id: string
+          method_revision_id: string | null
           notes: string | null
           plan: Json
           planned_calibration_level: number | null
@@ -4670,12 +4670,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          analyte_id: string
+          analyte_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
           lot_number?: string | null
-          method_revision_id: string
+          method_revision_id?: string | null
           notes?: string | null
           plan?: Json
           planned_calibration_level?: number | null
@@ -4696,12 +4696,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          analyte_id?: string
+          analyte_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
           lot_number?: string | null
-          method_revision_id?: string
+          method_revision_id?: string | null
           notes?: string | null
           plan?: Json
           planned_calibration_level?: number | null
@@ -4958,7 +4958,12 @@ export type Database = {
         Row: {
           absolute_min_pipette_ul: number
           cron_secret: string
+          default_cal_max_mg_per_ml: number | null
+          default_cal_min_mg_per_ml: number | null
           default_calibration_levels: number
+          default_diluent_name: string | null
+          default_final_volume_ul: number | null
+          default_reconstitution_volume_ul: number | null
           default_target_level: number
           drive_cal_std_folder_id: string | null
           drive_hplc_results_folder_id: string | null
@@ -4978,7 +4983,12 @@ export type Database = {
         Insert: {
           absolute_min_pipette_ul?: number
           cron_secret?: string
+          default_cal_max_mg_per_ml?: number | null
+          default_cal_min_mg_per_ml?: number | null
           default_calibration_levels?: number
+          default_diluent_name?: string | null
+          default_final_volume_ul?: number | null
+          default_reconstitution_volume_ul?: number | null
           default_target_level?: number
           drive_cal_std_folder_id?: string | null
           drive_hplc_results_folder_id?: string | null
@@ -4998,7 +5008,12 @@ export type Database = {
         Update: {
           absolute_min_pipette_ul?: number
           cron_secret?: string
+          default_cal_max_mg_per_ml?: number | null
+          default_cal_min_mg_per_ml?: number | null
           default_calibration_levels?: number
+          default_diluent_name?: string | null
+          default_final_volume_ul?: number | null
+          default_reconstitution_volume_ul?: number | null
           default_target_level?: number
           drive_cal_std_folder_id?: string | null
           drive_hplc_results_folder_id?: string | null
@@ -5192,21 +5207,6 @@ export type Database = {
           },
         ]
       }
-      standard_preparation_counters: {
-        Row: {
-          day: string
-          last_seq: number
-        }
-        Insert: {
-          day: string
-          last_seq?: number
-        }
-        Update: {
-          day?: string
-          last_seq?: number
-        }
-        Relationships: []
-      }
       standard_preparation_logs: {
         Row: {
           analyst_id: string | null
@@ -5287,7 +5287,7 @@ export type Database = {
           id?: string
           initial_solvent?: string | null
           lifecycle_status?: string
-          log_number?: string
+          log_number: string
           manufacturer_lot?: string | null
           material_overridden?: boolean
           material_receipt_id?: string | null
@@ -5580,6 +5580,98 @@ export type Database = {
           last_seq?: number
         }
         Relationships: []
+      }
+      sterility_preps: {
+        Row: {
+          created_at: string
+          ftm_lot_number: string | null
+          ftm_receipt_id: string | null
+          id: string
+          inoculation_volume_ml: number
+          interim_check_at: string | null
+          interim_check_by: string | null
+          interim_check_notes: string | null
+          interim_check_status: string
+          interim_notified_at: string | null
+          prepared_at: string
+          prepared_by: string | null
+          readout_notified_at: string | null
+          sample_id: string
+          test_id: string
+          tsb_lot_number: string | null
+          tsb_receipt_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          ftm_lot_number?: string | null
+          ftm_receipt_id?: string | null
+          id?: string
+          inoculation_volume_ml?: number
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          prepared_at?: string
+          prepared_by?: string | null
+          readout_notified_at?: string | null
+          sample_id: string
+          test_id: string
+          tsb_lot_number?: string | null
+          tsb_receipt_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          ftm_lot_number?: string | null
+          ftm_receipt_id?: string | null
+          id?: string
+          inoculation_volume_ml?: number
+          interim_check_at?: string | null
+          interim_check_by?: string | null
+          interim_check_notes?: string | null
+          interim_check_status?: string
+          interim_notified_at?: string | null
+          prepared_at?: string
+          prepared_by?: string | null
+          readout_notified_at?: string | null
+          sample_id?: string
+          test_id?: string
+          tsb_lot_number?: string | null
+          tsb_receipt_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sterility_preps_ftm_receipt_id_fkey"
+            columns: ["ftm_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "samples"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_test_id_fkey"
+            columns: ["test_id"]
+            isOneToOne: false
+            referencedRelation: "tests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sterility_preps_tsb_receipt_id_fkey"
+            columns: ["tsb_receipt_id"]
+            isOneToOne: false
+            referencedRelation: "material_receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       storage_slots: {
         Row: {
@@ -5980,14 +6072,14 @@ export type Database = {
         Returns: number
       }
       next_coc_invoice_number: { Args: never; Returns: string }
+      next_document_number: {
+        Args: { p_code: string; p_date?: string }
+        Returns: string
+      }
       next_mobile_phase_prep_number: { Args: never; Returns: string }
       next_run_list_seq: {
         Args: { p_day: string; p_instrument_key: string }
         Returns: number
-      }
-      next_document_number: {
-        Args: { p_code: string; p_date?: string }
-        Returns: string
       }
       next_stdlog_lot: { Args: never; Returns: string }
       record_standard_usage: {
@@ -6002,7 +6094,13 @@ export type Database = {
         Returns: number
       }
       register_document: {
-        Args: { p_code: string; p_created_by?: string; p_date?: string; p_source_id: string; p_source_table: string }
+        Args: {
+          p_code: string
+          p_created_by?: string
+          p_date?: string
+          p_source_id: string
+          p_source_table: string
+        }
         Returns: string
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }

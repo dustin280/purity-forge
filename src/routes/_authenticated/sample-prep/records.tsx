@@ -88,8 +88,9 @@ function RecordsList() {
                       {r.prep_number}
                     </Link>
                   </td>
-                  <td className="p-3">{analyteName(r.analyte_id)}</td>
-                  <td className="p-3">{methodName(r.method_revision_id)}</td>
+                  <td className="p-3">{analyteName(r.analyte_id ?? "")}</td>
+                  <td className="p-3">{methodName(r.method_revision_id ?? "")}</td>
+
                   <td className="p-3">
                     {r.sample_id || "—"}
                     {r.lot_number ? <span className="text-muted-foreground"> · {r.lot_number}</span> : null}
