@@ -87,6 +87,7 @@ import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminApiTesterRouteImport } from './routes/_authenticated/admin/api-tester'
 import { Route as AuthenticatedAdminAccessLogsRouteImport } from './routes/_authenticated/admin/access-logs'
 import { Route as ApiPublicStatusIndexRouteImport } from './routes/api/public/status/index'
+import { Route as ApiPublicCompoundsIndexRouteImport } from './routes/api/public/compounds/index'
 import { Route as AuthenticatedNonConformityLibraryIndexRouteImport } from './routes/_authenticated/non-conformity/library/index'
 import { Route as AuthenticatedLabLogsTimesheetsIndexRouteImport } from './routes/_authenticated/lab-logs/timesheets/index'
 import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/index'
@@ -565,6 +566,11 @@ const ApiPublicStatusIndexRoute = ApiPublicStatusIndexRouteImport.update({
   path: '/api/public/status/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCompoundsIndexRoute = ApiPublicCompoundsIndexRouteImport.update({
+  id: '/api/public/compounds/',
+  path: '/api/public/compounds/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedNonConformityLibraryIndexRoute =
   AuthenticatedNonConformityLibraryIndexRouteImport.update({
     id: '/non-conformity/library/',
@@ -842,6 +848,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/non-conformity/library/': typeof AuthenticatedNonConformityLibraryIndexRoute
+  '/api/public/compounds/': typeof ApiPublicCompoundsIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -950,6 +957,7 @@ export interface FileRoutesByTo {
   '/lab-logs/standard-preparations': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/lab-logs/timesheets': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/non-conformity/library': typeof AuthenticatedNonConformityLibraryIndexRoute
+  '/api/public/compounds': typeof ApiPublicCompoundsIndexRoute
   '/api/public/status': typeof ApiPublicStatusIndexRoute
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -1060,6 +1068,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/standard-preparations/': typeof AuthenticatedLabLogsStandardPreparationsIndexRoute
   '/_authenticated/lab-logs/timesheets/': typeof AuthenticatedLabLogsTimesheetsIndexRoute
   '/_authenticated/non-conformity/library/': typeof AuthenticatedNonConformityLibraryIndexRoute
+  '/api/public/compounds/': typeof ApiPublicCompoundsIndexRoute
   '/api/public/status/': typeof ApiPublicStatusIndexRoute
   '/_authenticated/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
@@ -1170,6 +1179,7 @@ export interface FileRouteTypes {
     | '/lab-logs/standard-preparations/'
     | '/lab-logs/timesheets/'
     | '/non-conformity/library/'
+    | '/api/public/compounds/'
     | '/api/public/status/'
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
@@ -1278,6 +1288,7 @@ export interface FileRouteTypes {
     | '/lab-logs/standard-preparations'
     | '/lab-logs/timesheets'
     | '/non-conformity/library'
+    | '/api/public/compounds'
     | '/api/public/status'
     | '/lab-logs/standard-preparations/batch/$groupId'
   id:
@@ -1387,6 +1398,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/standard-preparations/'
     | '/_authenticated/lab-logs/timesheets/'
     | '/_authenticated/non-conformity/library/'
+    | '/api/public/compounds/'
     | '/api/public/status/'
     | '/_authenticated/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesById: FileRoutesById
@@ -1405,6 +1417,7 @@ export interface RootRouteChildren {
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
   ApiPublicStatusBatchIdRoute: typeof ApiPublicStatusBatchIdRoute
+  ApiPublicCompoundsIndexRoute: typeof ApiPublicCompoundsIndexRoute
   ApiPublicStatusIndexRoute: typeof ApiPublicStatusIndexRoute
 }
 
@@ -1956,6 +1969,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicStatusIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/compounds/': {
+      id: '/api/public/compounds/'
+      path: '/api/public/compounds'
+      fullPath: '/api/public/compounds/'
+      preLoaderRoute: typeof ApiPublicCompoundsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/non-conformity/library/': {
       id: '/_authenticated/non-conformity/library/'
       path: '/non-conformity/library'
@@ -2436,6 +2456,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,
   ApiPublicStatusBatchIdRoute: ApiPublicStatusBatchIdRoute,
+  ApiPublicCompoundsIndexRoute: ApiPublicCompoundsIndexRoute,
   ApiPublicStatusIndexRoute: ApiPublicStatusIndexRoute,
 }
 export const routeTree = rootRouteImport
