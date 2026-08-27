@@ -548,15 +548,19 @@ function findAliasColIndex(normalizedRow: string[], aliases: string[]): number |
 }
 
 // "Blend UV Purity" / "UV Area % (Blend)" are deliberately excluded from
-// purity_pct's own aliases above (see that comment) -- a blend-wide number
-// isn't any one component's purity when a report genuinely has multiple
-// rows. But the same blend-capable template also runs single-compound
-// samples (confirmed 2026-08-25, real report for SYX-000005-06/TB500 on
-// "*BPC-157 TB500 Blend 6 Cal" processing method) -- there, "DAD Peak
-// Purity" reads "N/A" (not computed for that acquisition) while the
-// blend-wide UV purity number is, unambiguously, that one compound's
-// purity. parseXlsxRows below only uses this fallback when the table
-// resolved to exactly one real compound row.
+// purity_pct's own aliases above (see that comment) -- "DAD Peak Purity" is
+// the right per-compound spectral-purity source when it's present. But it
+// reads "N/A" for any peak with no compound match to score against --
+// confirmed both for a single-compound sample run on the blend-capable
+// template where DAD purity is N/A for the whole acquisition (2026-08-25,
+// SYX-000005-06/TB500 on "*BPC-157 TB500 Blend 6 Cal") and, separately, for
+// a genuine unassigned/uncalibrated peak sitting alongside an otherwise
+// normal identified-compound row (2026-08-27, SYX-000006-01/BPC-157: real
+// export has "UV Area % (Blend)" = 0.59% for the unassigned peak and 99.41%
+// for BPC-157, summing to 100% -- confirming it's a real per-peak area
+// share, not a single blend-wide constant repeated on every row). So the
+// fallback below applies per row, to whichever rows have no DAD purity of
+// their own, regardless of how many other rows in the same table do.
 const BLEND_UV_PURITY_ALIASES = ["uv area % (blend)", "blend uv purity"];
 
 function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>>; blendUvPurityCol: number | undefined } | null {
@@ -645,7 +649,6 @@ function xlsxRowsFromBuffer(buffer: Buffer): unknown[][] {
 function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_name" | "raw_text" | "chromatogram_image" | "calibration_image" | "calibration_curves"> {
   const header = findXlsxHeaderRow(rows);
   const compounds: ParsedReportCompound[] = [];
-  const compoundRowIdx: number[] = [];
   if (header) {
     for (let i = header.rowIdx + 1; i < rows.length; i++) {
       const row = rows[i] ?? [];
@@ -653,14 +656,22 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
       if (!compoundName || /not (found|detected)/i.test(compoundName)) continue;
       const rt = header.colMap.rt !== undefined ? numOrNull(row[header.colMap.rt]) : null;
       if (rt === null) continue; // no RT means nothing quantitative on this row
-      compoundRowIdx.push(i);
+      let purityPct = header.colMap.purity_pct !== undefined ? numOrNull(row[header.colMap.purity_pct]) : null;
+      // No DAD purity of its own (no compound match to score spectrally
+      // against -- an unassigned peak, or an acquisition where it wasn't
+      // computed at all) -- fall back to this row's own UV Area %/Blend UV
+      // Purity value, a real per-peak area share (see BLEND_UV_PURITY_ALIASES
+      // comment above), rather than leaving it null/0.
+      if (purityPct == null && header.blendUvPurityCol !== undefined) {
+        purityPct = numOrNull(row[header.blendUvPurityCol]);
+      }
       compounds.push({
         compound: compoundName,
         rt,
         area: header.colMap.area !== undefined ? numOrNull(row[header.colMap.area]) : null,
         amount_per_vial_mg: header.colMap.amount_per_vial_mg !== undefined ? numOrNull(row[header.colMap.amount_per_vial_mg]) : null,
         percent_label_claim: header.colMap.percent_label_claim !== undefined ? numOrNull(row[header.colMap.percent_label_claim]) : null,
-        purity_pct: header.colMap.purity_pct !== undefined ? numOrNull(row[header.colMap.purity_pct]) : null,
+        purity_pct: purityPct,
         rf: header.colMap.rf !== undefined ? numOrNull(row[header.colMap.rf]) : null,
         peak_height_mau: header.colMap.peak_height_mau !== undefined ? numOrNull(row[header.colMap.peak_height_mau]) : null,
         concentration_mg: header.colMap.concentration_mg !== undefined ? numOrNull(row[header.colMap.concentration_mg]) : null,
@@ -669,14 +680,6 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
         uv_match: header.colMap.uv_match !== undefined ? numOrNull(row[header.colMap.uv_match]) : null,
         wavelength_nm: header.colMap.wavelength_nm !== undefined ? numOrNull(row[header.colMap.wavelength_nm]) : null,
       });
-    }
-    // Single real compound + no DAD purity (N/A on this acquisition) + a
-    // blend-wide UV purity column present -- unambiguous fallback (see
-    // BLEND_UV_PURITY_ALIASES above). Never applied when a report has more
-    // than one real compound row.
-    if (compounds.length === 1 && compounds[0].purity_pct == null && header.blendUvPurityCol !== undefined) {
-      const fallback = numOrNull(rows[compoundRowIdx[0]]?.[header.blendUvPurityCol]);
-      if (fallback != null) compounds[0] = { ...compounds[0], purity_pct: fallback };
     }
   }
 
