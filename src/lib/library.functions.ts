@@ -23,6 +23,16 @@ export interface LibraryItem {
   confidence: string | null;
   ambiguity_notes: string | null;
   source_url: string | null;
+  pubchem_cid: string | null;
+  unii: string | null;
+  inchikey: string | null;
+  smiles: string | null;
+  inn_usan_name: string | null;
+  drugbank_id: string | null;
+  chembl_id: string | null;
+  atc_code: string | null;
+  research_summary: string | null;
+  key_references: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -43,6 +53,16 @@ const itemSchema = z.object({
   confidence: z.string().max(500).nullable().optional(),
   ambiguity_notes: z.string().max(2000).nullable().optional(),
   source_url: z.string().max(1000).nullable().optional(),
+  pubchem_cid: z.string().max(50).nullable().optional(),
+  unii: z.string().max(50).nullable().optional(),
+  inchikey: z.string().max(100).nullable().optional(),
+  smiles: z.string().max(2000).nullable().optional(),
+  inn_usan_name: z.string().max(300).nullable().optional(),
+  drugbank_id: z.string().max(50).nullable().optional(),
+  chembl_id: z.string().max(50).nullable().optional(),
+  atc_code: z.string().max(50).nullable().optional(),
+  research_summary: z.string().max(4000).nullable().optional(),
+  key_references: z.string().max(4000).nullable().optional(),
 });
 
 type LibraryInsert = {
@@ -60,6 +80,16 @@ type LibraryInsert = {
   confidence: string | null;
   ambiguity_notes: string | null;
   source_url: string | null;
+  pubchem_cid: string | null;
+  unii: string | null;
+  inchikey: string | null;
+  smiles: string | null;
+  inn_usan_name: string | null;
+  drugbank_id: string | null;
+  chembl_id: string | null;
+  atc_code: string | null;
+  research_summary: string | null;
+  key_references: string | null;
 };
 
 function normalize(input: z.infer<typeof itemSchema>): LibraryInsert {
@@ -79,6 +109,16 @@ function normalize(input: z.infer<typeof itemSchema>): LibraryInsert {
     confidence: s(input.confidence),
     ambiguity_notes: s(input.ambiguity_notes),
     source_url: s(input.source_url),
+    pubchem_cid: s(input.pubchem_cid),
+    unii: s(input.unii),
+    inchikey: s(input.inchikey),
+    smiles: s(input.smiles),
+    inn_usan_name: s(input.inn_usan_name),
+    drugbank_id: s(input.drugbank_id),
+    chembl_id: s(input.chembl_id),
+    atc_code: s(input.atc_code),
+    research_summary: s(input.research_summary),
+    key_references: s(input.key_references),
   };
 }
 

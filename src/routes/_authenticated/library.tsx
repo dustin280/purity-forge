@@ -47,6 +47,16 @@ const FIELDS: Array<{ key: keyof LibraryItem; label: string }> = [
   { key: "confidence", label: "Confidence" },
   { key: "ambiguity_notes", label: "Notes on Ambiguity" },
   { key: "source_url", label: "Source URL" },
+  { key: "pubchem_cid", label: "PubChem CID" },
+  { key: "unii", label: "FDA UNII" },
+  { key: "inchikey", label: "InChIKey" },
+  { key: "smiles", label: "SMILES" },
+  { key: "inn_usan_name", label: "INN / USAN Name" },
+  { key: "drugbank_id", label: "DrugBank ID" },
+  { key: "chembl_id", label: "ChEMBL ID" },
+  { key: "atc_code", label: "ATC Code" },
+  { key: "research_summary", label: "Research Summary" },
+  { key: "key_references", label: "Key References" },
 ];
 
 function parseCsv(text: string): string[][] {
@@ -97,6 +107,25 @@ const CSV_HEADER_MAP: Record<string, keyof LibraryItem> = {
   "notes on ambiguity": "ambiguity_notes",
   "primary source url": "source_url",
   "source url": "source_url",
+  "pubchem cid": "pubchem_cid",
+  "cid": "pubchem_cid",
+  "unii": "unii",
+  "fda unii": "unii",
+  "inchikey": "inchikey",
+  "smiles": "smiles",
+  "inn/usan name": "inn_usan_name",
+  "inn / usan name": "inn_usan_name",
+  "inn": "inn_usan_name",
+  "usan": "inn_usan_name",
+  "drugbank id": "drugbank_id",
+  "drugbank": "drugbank_id",
+  "chembl id": "chembl_id",
+  "chembl": "chembl_id",
+  "atc code": "atc_code",
+  "atc": "atc_code",
+  "research summary": "research_summary",
+  "key references": "key_references",
+  "references": "key_references",
 };
 
 function LibraryPage() {
