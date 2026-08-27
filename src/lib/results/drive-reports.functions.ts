@@ -547,26 +547,27 @@ function findAliasColIndex(normalizedRow: string[], aliases: string[]): number |
   return idx === -1 ? undefined : idx;
 }
 
-// "Blend UV Purity" / "UV Area % (Blend)" are deliberately excluded from
-// purity_pct's own aliases above (see that comment) -- "DAD Peak Purity" is
-// the right per-compound spectral-purity source when it's present. But it
-// reads "N/A" for any peak with no compound match to score against --
-// confirmed both for a single-compound sample run on the blend-capable
-// template where DAD purity is N/A for the whole acquisition (2026-08-25,
-// SYX-000005-06/TB500 on "*BPC-157 TB500 Blend 6 Cal") and, separately, for
-// a genuine unassigned/uncalibrated peak sitting alongside an otherwise
-// normal identified-compound row (confirmed against two real exports,
-// 2026-08-27/SYX-000006-01/BPC-157 and 2026-08-25/SYX-000005-02/CJC-1295+
-// Ipamorelin: "UV Area % (Blend)" holds real, distinct per-peak values that
-// sum to 100% across every row, while "Blend UV Purity" is a SEPARATE
-// column on the same sheet that's blank on every row in both exports).
-// These are two different columns, not alternate names for one column --
-// treating them as interchangeable aliases into a single lookup let
-// "Blend UV Purity" (blank, and positioned earlier in the row) win over
-// "UV Area % (Blend)" (the one with real data) purely by column order.
-// Looked up separately below; "Blend UV Purity" is only used as a
-// last-resort in case some report variant carries real data under that
-// name instead -- unverified, kept only because it's harmless when unused.
+// "UV Area % (Blend)" -- this peak's own area as a % of the TOTAL area of
+// every peak in the table (assigned or not) -- is the right source for the
+// purity_pct/Purity % column, not "DAD Peak Purity" (a per-compound
+// spectral-cleanliness score, excluded from purity_pct's own aliases
+// above). Confirmed against two real exports (2026-08-27/SYX-000006-01/
+// BPC-157, 2026-08-25/SYX-000005-02/CJC-1295+Ipamorelin): "UV Area %
+// (Blend)" values sum to exactly 100% across every row in a table,
+// including unassigned peaks (0.59%, or 0.08%+0.20% for two), which is
+// what "purity should account for unassigned peak area" actually means --
+// DAD Peak Purity does NOT sum to anything meaningful across rows (e.g.
+// BPC-157 99.98% + its unassigned peak's N/A do not describe how much of
+// the injection is BPC-157). "Blend UV Purity" is a separate, third column
+// on the same sheet, blank on every row in both exports -- kept as a
+// last-resort fallback only in case some report variant carries real data
+// under that name instead, unverified since it's never been observed
+// populated.
+//
+// DAD Peak Purity is still captured on its own via the peak_purity field
+// below (feeds a separate PEAK PURITY / PURITY PASS column) -- this only
+// changes what purity_pct/Purity % represents, not whether the spectral
+// score is available at all.
 const UV_AREA_PCT_BLEND_ALIASES = ["uv area % (blend)"];
 const BLEND_UV_PURITY_FALLBACK_ALIASES = ["blend uv purity"];
 
@@ -664,14 +665,16 @@ function parseXlsxRows(rows: unknown[][]): Omit<ParsedReport, "file_id" | "file_
       if (!compoundName || /not (found|detected)/i.test(compoundName)) continue;
       const rt = header.colMap.rt !== undefined ? numOrNull(row[header.colMap.rt]) : null;
       if (rt === null) continue; // no RT means nothing quantitative on this row
-      let purityPct = header.colMap.purity_pct !== undefined ? numOrNull(row[header.colMap.purity_pct]) : null;
-      // No DAD purity of its own (no compound match to score spectrally
-      // against -- an unassigned peak, or an acquisition where it wasn't
-      // computed at all) -- fall back to this row's own UV Area %/Blend UV
-      // Purity value, a real per-peak area share (see BLEND_UV_PURITY_ALIASES
-      // comment above), rather than leaving it null/0.
-      if (purityPct == null && header.blendUvPurityCol !== undefined) {
-        purityPct = numOrNull(row[header.blendUvPurityCol]);
+      // Prefer this row's own UV Area %/Blend UV Purity value -- the real
+      // per-peak share of total area (see UV_AREA_PCT_BLEND_ALIASES comment
+      // above) -- over DAD Peak Purity, a spectral score that doesn't
+      // account for other peaks' area at all. Reports with no such column
+      // (older/simple single-analyte templates, where "Purity %" already
+      // means area% by that template's own convention) fall back to
+      // whatever purity_pct's own aliases resolved.
+      let purityPct = header.blendUvPurityCol !== undefined ? numOrNull(row[header.blendUvPurityCol]) : null;
+      if (purityPct == null && header.colMap.purity_pct !== undefined) {
+        purityPct = numOrNull(row[header.colMap.purity_pct]);
       }
       compounds.push({
         compound: compoundName,
