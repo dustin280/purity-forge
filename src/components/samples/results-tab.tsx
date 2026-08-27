@@ -14,8 +14,9 @@ import type { CalibrationData, CalibrationCurve } from "@/lib/results/drive-repo
 import { getReviewConfig } from "@/lib/review-config.functions";
 import { qk } from "@/lib/query-keys";
 import { NonConformityButton } from "./non-conformity-button";
+import { ReviewChecklistDialog } from "./review-checklist-dialog";
 
-type LatestResult = {
+export type LatestResult = {
   id: string;
   purity_percentage: number | null;
   analysis_date: string;
@@ -53,6 +54,15 @@ export function ResultsTab({
   compoundId,
   compoundName,
   actorName,
+  client,
+  lot,
+  appearance,
+  receiptDate,
+  analystName,
+  methodName,
+  instrument,
+  nonPurityTests,
+  nonchromResults,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
@@ -85,6 +95,15 @@ export function ResultsTab({
   compoundId: string | null;
   compoundName: string | null;
   actorName: string;
+  client: string;
+  lot: string | null;
+  appearance: string | null;
+  receiptDate: string;
+  analystName: string | null;
+  methodName: string | null;
+  instrument: string | null;
+  nonPurityTests: Array<{ id: string; test_type: string }>;
+  nonchromResults: Array<{ test_id: string }>;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const verdictColor =
@@ -105,6 +124,7 @@ export function ResultsTab({
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [imported, setImported] = useState<ImportedResult | null>(null);
+  const [checklistOpen, setChecklistOpen] = useState(false);
 
   const pastedLineCount = pasted
     .split(/\r?\n/)
@@ -197,7 +217,7 @@ export function ResultsTab({
                   <Button
                     size="sm"
                     disabled={busy}
-                    onClick={() => onReview(latestResult.id)}
+                    onClick={() => setChecklistOpen(true)}
                     className="bg-[#ff2d95] hover:bg-[#ff54ab] text-white border-0 font-bold animate-pulse shadow-[0_0_18px_5px_rgba(255,45,149,0.9)] hover:shadow-[0_0_26px_9px_rgba(255,45,149,1)]"
                     data-guide="results-review"
                   >
@@ -501,6 +521,28 @@ export function ResultsTab({
         batchId={batchId}
         onImport={setImported}
       />
+
+      {latestResult && (
+        <ReviewChecklistDialog
+          open={checklistOpen}
+          onOpenChange={setChecklistOpen}
+          onConfirm={() => { setChecklistOpen(false); onReview(latestResult.id); }}
+          busy={busy}
+          batchId={batchId}
+          client={client}
+          lot={lot}
+          appearance={appearance}
+          receiptDate={receiptDate}
+          latestResult={latestResult}
+          peaks={peaks}
+          spec={spec}
+          analystName={analystName}
+          methodName={methodName}
+          instrument={instrument}
+          nonPurityTests={nonPurityTests}
+          nonchromResults={nonchromResults}
+        />
+      )}
     </div>
   );
 }

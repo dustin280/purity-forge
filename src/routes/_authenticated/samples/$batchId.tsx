@@ -93,6 +93,15 @@ function SampleDetail() {
           compoundId={sample.compound_id}
           compoundName={sample.compound}
           actorName={actorName}
+          client={sample.client}
+          lot={sample.lot}
+          appearance={sample.physical_description}
+          receiptDate={sample.receipt_date}
+          analystName={nameFor(latestResult?.analyst_id ?? null)}
+          methodName={(test as { method_name?: string | null } | undefined)?.method_name ?? null}
+          instrument={(test as { instrument?: string | null } | undefined)?.instrument ?? null}
+          nonPurityTests={nonPurityTests as Array<{ id: string; test_type: string }>}
+          nonchromResults={nonchromResults as Array<{ test_id: string }>}
         />
       )}
 
