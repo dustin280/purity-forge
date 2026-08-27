@@ -73,12 +73,17 @@ export function GuideOverlay() {
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
-    const measure = () => setCardSize({ width: el.offsetWidth, height: el.offsetHeight });
+    const measure = () => {
+      const width = el.offsetWidth;
+      const height = el.offsetHeight;
+      setCardSize((prev) => (prev && prev.width === width && prev.height === height ? prev : { width, height }));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  });
+  }, [activeWorkflow, currentStep]);
+
 
   if (!activeWorkflow || !currentStep) return null;
   const guide = WORKFLOW_GUIDES[activeWorkflow];

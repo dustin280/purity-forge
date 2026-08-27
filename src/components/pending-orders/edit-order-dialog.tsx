@@ -39,6 +39,24 @@ type Header = {
   special_instructions: string;
 };
 
+/** Renders a timestamp as the YYYY-MM-DD the user sees in their own timezone. */
+function toLocalDateInput(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Keeps the original timestamp (with its time-of-day) when the date field
+ * wasn't actually changed; otherwise uses local midnight of the picked day. */
+function resolveOrderDate(input: string, original: string | null): string | null {
+  const v = input.trim();
+  if (!v) return null;
+  if (original && toLocalDateInput(original) === v) return original;
+  const [y, m, d] = v.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1).toISOString();
+}
+
 const emptyHeader: Header = {
   external_order_id: "", customer_company: "", customer_name: "", customer_email: "",
   carrier: "", tracking_number: "", order_date: "", expected_arrival: "", special_instructions: "",
@@ -54,6 +72,7 @@ export function EditPendingOrderDialog({
   const [header, setHeader] = useState<Header>(emptyHeader);
   const [lines, setLines] = useState<Line[]>([]);
   const [saving, setSaving] = useState(false);
+  const [originalOrderDate, setOriginalOrderDate] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["pending_orders", "detail", orderId],
@@ -71,10 +90,11 @@ export function EditPendingOrderDialog({
       customer_email: o.customer_email ?? "",
       carrier: o.carrier ?? "",
       tracking_number: o.tracking_number ?? "",
-      order_date: o.order_date ? o.order_date.slice(0, 10) : "",
+      order_date: o.order_date ? toLocalDateInput(o.order_date) : "",
       expected_arrival: o.expected_arrival ?? "",
       special_instructions: o.special_instructions ?? "",
     });
+    setOriginalOrderDate(o.order_date ?? null);
     setLines(data.samples.map((s) => ({
       id: s.id,
       product_name: s.product_name ?? "",
@@ -98,7 +118,7 @@ export function EditPendingOrderDialog({
     if (lines.some((l) => !l.product_name.trim())) { toast.error("Every sample line needs a product name"); return; }
     setSaving(true);
     try {
-      await save({ data: { id: orderId, ...header, samples: lines.map((l) => ({ ...l, quantity: Math.max(1, Number(l.quantity) || 1) })) } });
+      await save({ data: { id: orderId, ...header, order_date: resolveOrderDate(header.order_date, originalOrderDate), samples: lines.map((l) => ({ ...l, quantity: Math.max(1, Number(l.quantity) || 1) })) } });
       toast.success("Order updated");
       qc.invalidateQueries({ queryKey: ["pending_orders"] });
       onOpenChange(false);
