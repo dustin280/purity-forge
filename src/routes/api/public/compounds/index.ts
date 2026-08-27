@@ -12,9 +12,10 @@ import { verifyPartnerRequest } from "@/lib/partner-webhook-auth.server";
  *
  * POST registers a new compound or blend when either side encounters one
  * we don't have yet. Signed like order intake (x-signature, not x-api-key)
- * since it writes data. New rows land with is_active=false -- invisible to
- * the lab's own intake picker and to this same GET -- until reviewed and
- * activated from the Compounds admin page.
+ * since it writes data. New rows land with is_active=false -- excluded from
+ * the lab's own intake picker, but still returned by this same GET (tagged
+ * is_active:false) so a partner integration can see its own pending
+ * submissions -- until reviewed and activated from the Compounds admin page.
  */
 
 const createCompoundSchema = z.object({
