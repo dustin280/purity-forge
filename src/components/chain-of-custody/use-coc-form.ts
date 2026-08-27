@@ -84,7 +84,7 @@ export function useCocForm({
   });
   const compoundOptions: CompoundOption[] = compoundRows
     .filter((c) => c.is_active)
-    .map((c) => ({ id: c.id, name: c.name }));
+    .map((c) => ({ id: c.id, name: c.name, default_appearance: c.default_appearance }));
   async function createCompoundOption(name: string): Promise<CompoundOption> {
     const row = await createCompoundFnCall({ data: { name } });
     qc.invalidateQueries({ queryKey: qk.compounds.all });

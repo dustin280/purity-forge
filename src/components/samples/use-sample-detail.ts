@@ -2,7 +2,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult, saveNonchromResult, setPurityWaived } from "@/lib/lims.functions";
+import { getSampleDetail, updateSampleStatus, saveResult, reviewResult, approveResult, saveNonchromResult, setPurityWaived, updateSampleAppearance } from "@/lib/lims.functions";
 import { type SampleStatus, type Peak } from "@/lib/lims-utils";
 import { qk } from "@/lib/query-keys";
 import { parsePeaks } from "@/lib/parse-peaks";
@@ -29,6 +29,7 @@ export function useSampleDetail(batchId: string) {
   const fn = useServerFn(getSampleDetail);
   const setStatusFn = useServerFn(updateSampleStatus);
   const setPurityWaivedFn = useServerFn(setPurityWaived);
+  const updateAppearanceFn = useServerFn(updateSampleAppearance);
   const saveResultFn = useServerFn(saveResult);
   const reviewResultFn = useServerFn(reviewResult);
   const approveResultFn = useServerFn(approveResult);
@@ -154,5 +155,14 @@ export function useSampleDetail(batchId: string) {
     finally { setBusy(false); }
   }
 
-  return { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState };
+  async function updateAppearance(sampleId: string, physical_description: string | null) {
+    setBusy(true);
+    try {
+      await updateAppearanceFn({ data: { sampleId, physical_description } });
+      qc.invalidateQueries({ queryKey: qk.samples.detail(batchId) });
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Update failed"); }
+    finally { setBusy(false); }
+  }
+
+  return { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState, updateAppearance };
 }

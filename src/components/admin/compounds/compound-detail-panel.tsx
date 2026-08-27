@@ -61,6 +61,29 @@ export function CompoundDetailPanel({
           <Input className="h-8 text-xs" defaultValue={compound.default_diluent_name ?? ""} placeholder="e.g. Mobile Phase A"
             onBlur={(e) => onPatch({ default_diluent_name: e.target.value || null })} />
         </div>
+        <div className="space-y-1">
+          <Label className="text-xs">CAS number</Label>
+          <Input className="h-8 text-xs" defaultValue={compound.cas_number ?? ""} placeholder="Blank prints common name"
+            onBlur={(e) => onPatch({ cas_number: e.target.value || null })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Molecular formula</Label>
+          <Input className="h-8 text-xs" defaultValue={compound.molecular_formula ?? ""} placeholder="Blank prints common name"
+            onBlur={(e) => onPatch({ molecular_formula: e.target.value || null })} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">Default appearance</Label>
+          <Input className="h-8 text-xs" defaultValue={compound.default_appearance ?? ""} placeholder="e.g. White cake"
+            onBlur={(e) => onPatch({ default_appearance: e.target.value || null })} />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label className="text-xs">Aliases (market/shorthand names, comma-separated)</Label>
+          <Input className="h-8 text-xs" defaultValue={(compound.aliases ?? []).join(", ")} placeholder="e.g. RETA, Reta"
+            onBlur={(e) => {
+              const list = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+              onPatch({ aliases: list.length ? list : null });
+            }} />
+        </div>
         <div className="flex items-center gap-2 pt-5">
           <Switch checked={compound.is_blend} onCheckedChange={(v) => onPatch({ is_blend: v })} />
           <Label className="text-xs">Multi-compound blend</Label>

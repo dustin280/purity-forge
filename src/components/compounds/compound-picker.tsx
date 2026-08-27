@@ -19,6 +19,7 @@ import {
 export interface CompoundOption {
   id: string;
   name: string;
+  default_appearance?: string | null;
 }
 
 interface CompoundPickerProps {

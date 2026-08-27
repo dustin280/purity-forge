@@ -127,7 +127,10 @@ function PendingOrdersPage() {
         requested_tests: [],
         client_received_date: "",
         manufacture_date: "",
-        physical_description: sm.notes ?? "",
+        // Was pre-filled from sm.notes (the customer's order note) -- left
+        // blank now so it can't silently become the printed appearance;
+        // auto-fills from the compound's default once a compound is picked.
+        physical_description: "",
       }));
       const draftId = newDraftId(`pending-${order.id.slice(0, 8)}`);
       saveCocDraft({

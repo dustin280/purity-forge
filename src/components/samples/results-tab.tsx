@@ -63,6 +63,7 @@ export function ResultsTab({
   instrument,
   nonPurityTests,
   nonchromResults,
+  onUpdateAppearance,
 }: {
   latestResult: LatestResult;
   peaks: Peak[];
@@ -104,6 +105,7 @@ export function ResultsTab({
   instrument: string | null;
   nonPurityTests: Array<{ id: string; test_type: string }>;
   nonchromResults: Array<{ test_id: string }>;
+  onUpdateAppearance: (physical_description: string | null) => void;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const verdictColor =
@@ -541,6 +543,7 @@ export function ResultsTab({
           instrument={instrument}
           nonPurityTests={nonPurityTests}
           nonchromResults={nonchromResults}
+          onUpdateAppearance={onUpdateAppearance}
         />
       )}
     </div>

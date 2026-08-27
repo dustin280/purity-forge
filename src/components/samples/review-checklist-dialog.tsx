@@ -8,9 +8,10 @@
  * before "Confirm & Complete Review" enables -- a real gate, not a
  * formality.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { fmtPct, type Peak } from "@/lib/lims-utils";
@@ -33,7 +34,7 @@ export function ReviewChecklistDialog({
   open, onOpenChange, onConfirm, busy,
   batchId, client, lot, appearance, receiptDate,
   latestResult, peaks, spec, analystName, methodName, instrument,
-  nonPurityTests, nonchromResults,
+  nonPurityTests, nonchromResults, onUpdateAppearance,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -52,6 +53,7 @@ export function ReviewChecklistDialog({
   instrument: string | null;
   nonPurityTests: Array<{ id: string; test_type: string }>;
   nonchromResults: Array<{ test_id: string }>;
+  onUpdateAppearance: (physical_description: string | null) => void;
 }) {
   const verdict = latestResult ? purityVerdict(latestResult.purity_percentage, spec) : null;
   const curves: CalibrationCurve[] = latestResult?.calibration_curves?.length
@@ -61,9 +63,19 @@ export function ReviewChecklistDialog({
       : [];
   const unassignedPeaks = peaks.filter((p) => !p.identity || /unassigned|not (found|detected)/i.test(p.identity));
 
+  // Local draft so the field can be edited right here to record an actual
+  // defect (deviation from the compound's default appearance) -- resyncs
+  // whenever the dialog (re)opens or a fresh sample value arrives.
+  const [appearanceDraft, setAppearanceDraft] = useState(appearance ?? "");
+  useEffect(() => { setAppearanceDraft(appearance ?? ""); }, [appearance, open]);
+  function commitAppearance() {
+    const next = appearanceDraft.trim();
+    if (next !== (appearance ?? "").trim()) onUpdateAppearance(next || null);
+  }
+
   const items: ChecklistItem[] = useMemo(() => [
     { key: "identity", label: "Batch / Client / Lot", value: `${batchId} · ${client}${lot ? ` · Lot ${lot}` : ""}`, ok: true },
-    { key: "appearance", label: "Appearance", value: appearance ?? "Not recorded", ok: !!appearance },
+    { key: "appearance", label: "Appearance", value: appearanceDraft || "Not recorded", ok: !!appearanceDraft.trim() },
     { key: "dates", label: "Date received / analysed", value: `${receiptDate} → ${latestResult?.analysis_date ? new Date(latestResult.analysis_date).toLocaleString() : "—"}`, ok: !!latestResult?.analysis_date },
     { key: "purity", label: "Purity result", value: latestResult ? `${fmtPct(latestResult.purity_percentage)} — ${verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "no spec on file"}` : "No result", ok: !!latestResult && latestResult.purity_percentage != null },
     { key: "uvmatch", label: "UV match / wavelength", value: latestResult ? `${latestResult.uv_conf_match ?? "—"} / ${latestResult.wavelength_nm != null ? `${latestResult.wavelength_nm} nm` : "—"}` : "—", ok: !!latestResult && (latestResult.uv_conf_match != null || latestResult.wavelength_nm != null) },
@@ -89,7 +101,7 @@ export function ReviewChecklistDialog({
         ok: has,
       };
     }),
-  ], [batchId, client, lot, appearance, receiptDate, latestResult, verdict, methodName, instrument, analystName, peaks, unassignedPeaks.length, curves, nonPurityTests, nonchromResults]);
+  ], [batchId, client, lot, appearanceDraft, receiptDate, latestResult, verdict, methodName, instrument, analystName, peaks, unassignedPeaks.length, curves, nonPurityTests, nonchromResults]);
 
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const allChecked = items.every((i) => checked.has(i.key));
@@ -138,9 +150,21 @@ export function ReviewChecklistDialog({
                   )}
                   {item.label}
                 </div>
-                <div className={`text-xs mt-0.5 ${!item.ok ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
-                  {item.value}
-                </div>
+                {item.key === "appearance" ? (
+                  <Textarea
+                    rows={1}
+                    value={appearanceDraft}
+                    onClick={(e) => e.preventDefault()}
+                    onChange={(e) => setAppearanceDraft(e.target.value)}
+                    onBlur={commitAppearance}
+                    placeholder="e.g. White cake"
+                    className="mt-1 h-7 min-h-7 text-xs py-1"
+                  />
+                ) : (
+                  <div className={`text-xs mt-0.5 ${!item.ok ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                    {item.value}
+                  </div>
+                )}
               </div>
             </label>
           ))}

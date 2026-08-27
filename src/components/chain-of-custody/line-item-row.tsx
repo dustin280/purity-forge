@@ -116,7 +116,14 @@ export function LineItemRow({
             <CompoundPicker
               options={compoundOptions}
               value={{ compound_id: li.compound_id, name: li.compound }}
-              onChange={(v) => onChange({ compound_id: v.compound_id, compound: v.name })}
+              onChange={(v) => {
+                const defaultAppearance = compoundOptions.find((o) => o.id === v.compound_id)?.default_appearance;
+                onChange({
+                  compound_id: v.compound_id,
+                  compound: v.name,
+                  ...(!li.physical_description.trim() && defaultAppearance ? { physical_description: defaultAppearance } : {}),
+                });
+              }}
               onCreateCompound={onCreateCompound}
               disabled={disabled}
             />

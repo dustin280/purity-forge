@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/samples/$batchId")({ compo
 
 function SampleDetail() {
   const { batchId } = Route.useParams();
-  const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState } = useSampleDetail(batchId);
+  const { query, busy, changeStatus, submitResult, submitNonchromResult, reviewLatestResult, approveLatestResult, setPurityWaivedState, updateAppearance } = useSampleDetail(batchId);
   const { user, profile } = useAuth();
   const { data, isLoading } = query;
   const [tab, setTab] = useState<SampleDetailTab>("info");
@@ -102,6 +102,7 @@ function SampleDetail() {
           instrument={(test as { instrument?: string | null } | undefined)?.instrument ?? null}
           nonPurityTests={nonPurityTests as Array<{ id: string; test_type: string }>}
           nonchromResults={nonchromResults as Array<{ test_id: string }>}
+          onUpdateAppearance={(v) => updateAppearance(sample.id, v)}
         />
       )}
 

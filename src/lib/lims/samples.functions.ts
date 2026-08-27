@@ -203,6 +203,27 @@ export const updateSampleStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateSampleAppearance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ sampleId: z.string().uuid(), physical_description: z.string().max(2000).nullable() }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: prior, error: readErr } = await supabase
+      .from("samples").select("physical_description").eq("id", data.sampleId).single();
+    if (readErr) throw readErr;
+    const { error } = await supabase.from("samples")
+      .update({ physical_description: data.physical_description }).eq("id", data.sampleId);
+    if (error) throw error;
+    await supabase.from("audit_log").insert({
+      action: "appearance_updated",
+      table_name: "samples", record_id: data.sampleId, changed_by: userId,
+      diff: { physical_description: { from: prior?.physical_description ?? null, to: data.physical_description } },
+    });
+    return { ok: true };
+  });
+
 export const setPurityWaived = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>

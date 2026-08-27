@@ -734,11 +734,14 @@ export type Database = {
       compounds: {
         Row: {
           acquisition_method: string | null
+          aliases: string[] | null
+          cas_number: string | null
           column_temperature_c: number | null
           combined_net_content_unit: string | null
           combined_net_content_value: number | null
           created_at: string
           created_by: string | null
+          default_appearance: string | null
           default_diluent_name: string | null
           cal_l1_mg_per_ml: number | null
           cal_l2_mg_per_ml: number | null
@@ -751,6 +754,7 @@ export type Database = {
           is_active: boolean
           is_blend: boolean
           method_group_id: string | null
+          molecular_formula: string | null
           name: string
           processing_method: string | null
           sp_analyte_id: string | null
@@ -761,11 +765,14 @@ export type Database = {
         }
         Insert: {
           acquisition_method?: string | null
+          aliases?: string[] | null
+          cas_number?: string | null
           column_temperature_c?: number | null
           combined_net_content_unit?: string | null
           combined_net_content_value?: number | null
           created_at?: string
           created_by?: string | null
+          default_appearance?: string | null
           default_diluent_name?: string | null
           cal_l1_mg_per_ml?: number | null
           cal_l2_mg_per_ml?: number | null
@@ -778,6 +785,7 @@ export type Database = {
           is_active?: boolean
           is_blend?: boolean
           method_group_id?: string | null
+          molecular_formula?: string | null
           name: string
           processing_method?: string | null
           sp_analyte_id?: string | null
@@ -788,11 +796,14 @@ export type Database = {
         }
         Update: {
           acquisition_method?: string | null
+          aliases?: string[] | null
+          cas_number?: string | null
           column_temperature_c?: number | null
           combined_net_content_unit?: string | null
           combined_net_content_value?: number | null
           created_at?: string
           created_by?: string | null
+          default_appearance?: string | null
           default_diluent_name?: string | null
           cal_l1_mg_per_ml?: number | null
           cal_l2_mg_per_ml?: number | null
@@ -805,6 +816,7 @@ export type Database = {
           is_active?: boolean
           is_blend?: boolean
           method_group_id?: string | null
+          molecular_formula?: string | null
           name?: string
           processing_method?: string | null
           sp_analyte_id?: string | null
@@ -1521,62 +1533,92 @@ export type Database = {
       library_items: {
         Row: {
           ambiguity_notes: string | null
+          atc_code: string | null
           cas_number: string | null
           category: string | null
+          chembl_id: string | null
           chemical_formula: string | null
           confidence: string | null
           created_at: string
           created_by: string | null
+          drugbank_id: string | null
           id: string
+          inchikey: string | null
+          inn_usan_name: string | null
+          key_references: string | null
           molecular_size: string | null
           molecular_weight: string | null
           names: string
           notes: string | null
+          pubchem_cid: string | null
+          research_summary: string | null
           salt_form: string | null
           sequence: string | null
           size_basis: string | null
+          smiles: string | null
           source_url: string | null
           termini_modifications: string | null
+          unii: string | null
           updated_at: string
         }
         Insert: {
           ambiguity_notes?: string | null
+          atc_code?: string | null
           cas_number?: string | null
           category?: string | null
+          chembl_id?: string | null
           chemical_formula?: string | null
           confidence?: string | null
           created_at?: string
           created_by?: string | null
+          drugbank_id?: string | null
           id?: string
+          inchikey?: string | null
+          inn_usan_name?: string | null
+          key_references?: string | null
           molecular_size?: string | null
           molecular_weight?: string | null
           names: string
           notes?: string | null
+          pubchem_cid?: string | null
+          research_summary?: string | null
           salt_form?: string | null
           sequence?: string | null
           size_basis?: string | null
+          smiles?: string | null
           source_url?: string | null
           termini_modifications?: string | null
+          unii?: string | null
           updated_at?: string
         }
         Update: {
           ambiguity_notes?: string | null
+          atc_code?: string | null
           cas_number?: string | null
           category?: string | null
+          chembl_id?: string | null
           chemical_formula?: string | null
           confidence?: string | null
           created_at?: string
           created_by?: string | null
+          drugbank_id?: string | null
           id?: string
+          inchikey?: string | null
+          inn_usan_name?: string | null
+          key_references?: string | null
           molecular_size?: string | null
           molecular_weight?: string | null
           names?: string
           notes?: string | null
+          pubchem_cid?: string | null
+          research_summary?: string | null
           salt_form?: string | null
           sequence?: string | null
           size_basis?: string | null
+          smiles?: string | null
           source_url?: string | null
           termini_modifications?: string | null
+          unii?: string | null
           updated_at?: string
         }
         Relationships: []

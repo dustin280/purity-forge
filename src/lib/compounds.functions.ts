@@ -25,6 +25,13 @@ export type Compound = {
   sp_std_notes: string | null;
   /** Sample Prep-specific prep modification notes. */
   sp_smp_notes: string | null;
+  /** For the partner certificate's identifier line ("CAS · formula"). Null prints the common name instead -- never guess one in. */
+  cas_number: string | null;
+  molecular_formula: string | null;
+  /** Auto-fills a new sample's Physical Description at intake; always stays freely editable there and at review. */
+  default_appearance: string | null;
+  /** Market/shorthand names (e.g. "RETA", "SS31") that resolve to this compound -- exposed via the public compounds API for partner-side name matching. */
+  aliases: string[] | null;
 };
 
 export type BlendComponent = {
@@ -44,7 +51,7 @@ export type BlendComponent = {
 };
 
 const COMPOUND_COLUMNS =
-  "id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id, acquisition_method, processing_method, column_temperature_c, wavelength_nm, is_blend, default_diluent_name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, sp_std_notes, sp_smp_notes";
+  "id, name, is_active, method_group_id, injection_volume_ul, sp_analyte_id, acquisition_method, processing_method, column_temperature_c, wavelength_nm, is_blend, default_diluent_name, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, sp_std_notes, sp_smp_notes, cas_number, molecular_formula, default_appearance, aliases";
 
 export const listCompounds = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -109,6 +116,10 @@ export const updateCompound = createServerFn({ method: "POST" })
         cal_l6_mg_per_ml: numOrNull,
         sp_std_notes: z.string().max(4000).nullable().optional(),
         sp_smp_notes: z.string().max(4000).nullable().optional(),
+        cas_number: z.string().max(200).nullable().optional(),
+        molecular_formula: z.string().max(500).nullable().optional(),
+        default_appearance: z.string().max(200).nullable().optional(),
+        aliases: z.array(z.string().max(100)).max(50).nullable().optional(),
       })
       .parse(d),
   )
