@@ -555,13 +555,20 @@ function findAliasColIndex(normalizedRow: string[], aliases: string[]): number |
 // template where DAD purity is N/A for the whole acquisition (2026-08-25,
 // SYX-000005-06/TB500 on "*BPC-157 TB500 Blend 6 Cal") and, separately, for
 // a genuine unassigned/uncalibrated peak sitting alongside an otherwise
-// normal identified-compound row (2026-08-27, SYX-000006-01/BPC-157: real
-// export has "UV Area % (Blend)" = 0.59% for the unassigned peak and 99.41%
-// for BPC-157, summing to 100% -- confirming it's a real per-peak area
-// share, not a single blend-wide constant repeated on every row). So the
-// fallback below applies per row, to whichever rows have no DAD purity of
-// their own, regardless of how many other rows in the same table do.
-const BLEND_UV_PURITY_ALIASES = ["uv area % (blend)", "blend uv purity"];
+// normal identified-compound row (confirmed against two real exports,
+// 2026-08-27/SYX-000006-01/BPC-157 and 2026-08-25/SYX-000005-02/CJC-1295+
+// Ipamorelin: "UV Area % (Blend)" holds real, distinct per-peak values that
+// sum to 100% across every row, while "Blend UV Purity" is a SEPARATE
+// column on the same sheet that's blank on every row in both exports).
+// These are two different columns, not alternate names for one column --
+// treating them as interchangeable aliases into a single lookup let
+// "Blend UV Purity" (blank, and positioned earlier in the row) win over
+// "UV Area % (Blend)" (the one with real data) purely by column order.
+// Looked up separately below; "Blend UV Purity" is only used as a
+// last-resort in case some report variant carries real data under that
+// name instead -- unverified, kept only because it's harmless when unused.
+const UV_AREA_PCT_BLEND_ALIASES = ["uv area % (blend)"];
+const BLEND_UV_PURITY_FALLBACK_ALIASES = ["blend uv purity"];
 
 function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial<Record<keyof typeof XLSX_COLUMN_ALIASES, number>>; blendUvPurityCol: number | undefined } | null {
   for (let i = 0; i < rows.length; i++) {
@@ -573,7 +580,8 @@ function findXlsxHeaderRow(rows: unknown[][]): { rowIdx: number; colMap: Partial
     }
     // A real header row needs at minimum a compound name and RT column.
     if (colMap.compound !== undefined && colMap.rt !== undefined) {
-      return { rowIdx: i, colMap, blendUvPurityCol: findAliasColIndex(row, BLEND_UV_PURITY_ALIASES) };
+      const blendUvPurityCol = findAliasColIndex(row, UV_AREA_PCT_BLEND_ALIASES) ?? findAliasColIndex(row, BLEND_UV_PURITY_FALLBACK_ALIASES);
+      return { rowIdx: i, colMap, blendUvPurityCol };
     }
   }
   return null;
