@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { fmtPct, type Peak } from "@/lib/lims-utils";
+import { fmtPct, looksLikeAddOnVialShorthand, type Peak } from "@/lib/lims-utils";
 import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
 import type { CalibrationCurve } from "@/lib/results/drive-reports.functions";
 import type { LatestResult } from "./results-tab";
@@ -75,7 +75,13 @@ export function ReviewChecklistDialog({
 
   const items: ChecklistItem[] = useMemo(() => [
     { key: "identity", label: "Batch / Client / Lot", value: `${batchId} · ${client}${lot ? ` · Lot ${lot}` : ""}`, ok: true },
-    { key: "appearance", label: "Appearance", value: appearanceDraft || "Not recorded", ok: !!appearanceDraft.trim() },
+    {
+      key: "appearance", label: "Appearance",
+      value: looksLikeAddOnVialShorthand(appearanceDraft)
+        ? "Reads like an add-on-test note, not an appearance — this goes out to the partner export as-is"
+        : appearanceDraft || "Not recorded",
+      ok: !!appearanceDraft.trim() && !looksLikeAddOnVialShorthand(appearanceDraft),
+    },
     { key: "dates", label: "Date received / analysed", value: `${receiptDate} → ${latestResult?.analysis_date ? new Date(latestResult.analysis_date).toLocaleString() : "—"}`, ok: !!latestResult?.analysis_date },
     { key: "purity", label: "Purity result", value: latestResult ? `${fmtPct(latestResult.purity_percentage)} — ${verdict === "pass" ? "PASS" : verdict === "fail" ? "FAIL" : "no spec on file"}` : "No result", ok: !!latestResult && latestResult.purity_percentage != null },
     { key: "uvmatch", label: "UV match / wavelength", value: latestResult ? `${latestResult.uv_conf_match ?? "—"} / ${latestResult.wavelength_nm != null ? `${latestResult.wavelength_nm} nm` : "—"}` : "—", ok: !!latestResult && (latestResult.uv_conf_match != null || latestResult.wavelength_nm != null) },

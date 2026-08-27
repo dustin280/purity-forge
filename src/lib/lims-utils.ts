@@ -190,6 +190,18 @@ export function fmtPct(n: number | null | undefined, digits = 3) {
 }
 
 /**
+ * Catches the "QC vial — add-on tests: ..." shorthand analysts have used
+ * for add-on sterility/endotoxin vials -- it belongs in Notes, not
+ * Appearance (it flows straight through to the results review screen and
+ * to the partner export's `appearance` field). See samples SYX-000006-04/
+ * 08/12/13/14/15 for the real rows this was cleaned up from.
+ */
+export function looksLikeAddOnVialShorthand(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return /\bqc vial\b|\badd-?on tests?\b/i.test(text);
+}
+
+/**
  * Derive a short uppercase token for SYN_mmddyy_<token>_n IDs.
  * Tries first+last+middle initials from full_name first, then email prefix.
  */

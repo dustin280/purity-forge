@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Camera, Upload, X, ImageIcon, Plus, Trash2 } from "lucide-react";
 import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
+import { looksLikeAddOnVialShorthand } from "@/lib/lims-utils";
 import { emptyLineComponent, type LineItem, type LineItemComponent } from "./types";
 
 export const CONTAINER_SIZES = ["2 mL", "3 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
@@ -303,6 +304,14 @@ export function LineItemRow({
           </Label>
           <Textarea rows={2} className="mt-1" value={li.physical_description} disabled={disabled}
             onChange={e => onChange({ physical_description: e.target.value })} />
+          {looksLikeAddOnVialShorthand(li.physical_description) && (
+            <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-500">
+              This reads like an add-on-test note ("QC vial — add-on tests…"), not an appearance —
+              it'll show up as-is on the results review screen and in the partner export. Describe
+              the vial's actual color/form here instead, and record why it's a separate vial in
+              Notes at Intake Verification.
+            </p>
+          )}
         </div>
 
         <div className="sm:col-span-3">
