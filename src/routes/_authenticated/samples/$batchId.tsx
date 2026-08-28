@@ -7,7 +7,6 @@ import { SampleDetailTabs, type SampleDetailTab } from "@/components/samples/det
 import { SampleInfoTab } from "@/components/samples/info-tab";
 import { CoaTab } from "@/components/samples/coa-tab";
 import { useSampleDetail } from "@/components/samples/use-sample-detail";
-import { downloadCoa } from "@/components/samples/download-coa";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { NonchromResultCard } from "@/components/samples/nonchrom/nonchrom-result-card";
 import type { CalibrationData, CalibrationCurve } from "@/lib/results/drive-reports.functions";
@@ -123,13 +122,7 @@ function SampleDetail() {
       })}
 
       {tab === "coa" && (
-        <CoaTab
-          onDownload={() => downloadCoa(
-            sample, test, latestResult, peaks,
-            { analystName: nameFor(latestResult?.analyst_id ?? null), reviewerName: nameFor(latestResult?.reviewer_id ?? null) },
-          )}
-          hasResult={!!latestResult}
-        />
+        <CoaTab sampleId={sample.id} hasResult={!!latestResult} />
       )}
     </div>
   );
