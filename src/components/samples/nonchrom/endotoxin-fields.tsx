@@ -22,6 +22,15 @@ const METHOD_LABEL: Record<EndotoxinData["method"], string> = {
   kinetic_chromogenic: "Kinetic Chromogenic",
 };
 
+/** Parses a typed reading like "<0.05", ">5", or "1.2" into a value + optional comparator. */
+function parseReading(raw: string): { value: number; comparator: "<" | ">" | null } | null {
+  const m = raw.trim().match(/^([<>])?\s*(\d+(?:\.\d+)?)$/);
+  if (!m) return null;
+  const value = Number(m[2]);
+  if (isNaN(value) || value < 0) return null;
+  return { value, comparator: (m[1] as "<" | ">" | undefined) ?? null };
+}
+
 export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData) => void; busy: boolean }) {
   const getSettingsFn = useServerFn(getPrepSettings);
   const { data: settings } = useQuery({ queryKey: ["sp-settings"], queryFn: () => getSettingsFn() });
@@ -29,11 +38,10 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
   const [verdict, setVerdict] = useState<EndotoxinData["verdict"] | null>(null);
   const [method, setMethod] = useState<EndotoxinData["method"]>("kinetic_turbidimetric");
   const [resultValue, setResultValue] = useState("");
-  const [comparator, setComparator] = useState<EndotoxinData["result_comparator"]>(null);
   const [unit, setUnit] = useState<NonNullable<EndotoxinData["unit"]>>("EU/mL");
 
-  const rv = resultValue.trim() === "" ? null : Number(resultValue);
-  const rvValid = rv === null || (!isNaN(rv) && rv >= 0);
+  const parsedReading = resultValue.trim() === "" ? null : parseReading(resultValue);
+  const rvValid = resultValue.trim() === "" || parsedReading !== null;
   const valid = verdict !== null && rvValid;
 
   return (
@@ -85,24 +93,19 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted-foreground">Reading (optional)</label>
-          <div className="flex gap-1 mt-1">
-            <div className="flex rounded-md border border-input overflow-hidden shrink-0">
-              {([["=", null], ["<", "<"], [">", ">"]] as const).map(([label, val]) => (
-                <button
-                  key={label}
-                  type="button"
-                  className="w-7 text-sm font-mono"
-                  style={comparator === val
-                    ? { background: "var(--primary)", color: "var(--primary-foreground)" }
-                    : { color: "var(--muted-foreground)" }}
-                  onClick={() => setComparator(val)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <Input type="number" step="any" value={resultValue} onChange={e => setResultValue(e.target.value)} placeholder="Not recorded" />
-          </div>
+          <Input
+            type="text"
+            inputMode="decimal"
+            className="mt-1"
+            value={resultValue}
+            onChange={e => setResultValue(e.target.value)}
+            placeholder="Not recorded — e.g. <0.05"
+          />
+          {resultValue.trim() !== "" && !parsedReading && (
+            <p className="mt-1 text-[11px] text-destructive">
+              Enter a number, optionally starting with &lt; or &gt; (e.g. &lt;0.05)
+            </p>
+          )}
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Unit</label>
@@ -119,7 +122,12 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
       <Button
         size="sm"
         disabled={busy || !valid}
-        onClick={() => verdict && onSave({ verdict, method, result_value: rv, result_comparator: rv !== null ? comparator : null, unit: rv !== null ? unit : null })}
+        onClick={() => verdict && onSave({
+          verdict, method,
+          result_value: parsedReading?.value ?? null,
+          result_comparator: parsedReading?.comparator ?? null,
+          unit: parsedReading ? unit : null,
+        })}
       >
         {busy ? "Saving…" : "Save Endotoxin Result"}
       </Button>
