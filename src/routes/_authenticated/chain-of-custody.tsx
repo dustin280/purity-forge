@@ -20,6 +20,7 @@ import { useCocDialogs } from "@/components/chain-of-custody/use-coc-dialogs";
 import { nextCocInvoiceNumber } from "@/lib/lims.functions";
 import { buildBlankCocPdf } from "@/lib/coc-blank-pdf";
 import { safeFileName } from "@/lib/coc-pdf";
+import { OutboundCocDialog } from "@/components/chain-of-custody/outbound-coc-dialog";
 
 export const Route = createFileRoute("/_authenticated/chain-of-custody")({ component: CocPage });
 
@@ -37,6 +38,7 @@ function CocPage() {
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
   const [printing, setPrinting] = useState(false);
   const [initialFile, setInitialFile] = useState<File | null>(null);
+  const [outboundOpen, setOutboundOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
 
   async function handlePrintBlank() {
@@ -72,6 +74,7 @@ function CocPage() {
         onNew={() => { setInitialFile(null); openNew(); }}
         onPrintBlank={handlePrintBlank}
         onUploadFilled={handleUploadFilled}
+        onOutboundShipment={() => setOutboundOpen(true)}
         printing={printing}
       />
       <input
@@ -116,6 +119,7 @@ function CocPage() {
         fields={fields}
         onDownload={(id) => downloadOne(id)}
       />
+      <OutboundCocDialog open={outboundOpen} onOpenChange={setOutboundOpen} />
     </div>
   );
 }

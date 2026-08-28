@@ -1,15 +1,17 @@
 import { Button } from "@/components/ui/button";
-import { Plus, Printer, Upload } from "lucide-react";
+import { Plus, Printer, Upload, Send } from "lucide-react";
 
 export function PageHeader({
   onNew,
   onPrintBlank,
   onUploadFilled,
+  onOutboundShipment,
   printing,
 }: {
   onNew: () => void;
   onPrintBlank: () => void;
   onUploadFilled: () => void;
+  onOutboundShipment: () => void;
   printing?: boolean;
 }) {
   return (
@@ -25,6 +27,9 @@ export function PageHeader({
         </Button>
         <Button variant="outline" onClick={onUploadFilled}>
           <Upload className="size-4 mr-1" /> Upload / Photo CoC
+        </Button>
+        <Button variant="outline" onClick={onOutboundShipment}>
+          <Send className="size-4 mr-1" /> Outbound Shipment
         </Button>
         <Button onClick={onNew} data-guide="coc-new">
           <Plus className="size-4 mr-1" /> New Sample Receipt
