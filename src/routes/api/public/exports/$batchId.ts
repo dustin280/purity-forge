@@ -28,11 +28,14 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           sample = byLot?.[0] ?? null;
         }
         if (!sample) return new Response("Not found", { status: 404 });
-        if (sample.status !== "approved") {
-          return new Response(JSON.stringify({ error: "Sample not approved", status: sample.status }), {
-            status: 409, headers: { "Content-Type": "application/json" },
-          });
-        }
+        // No blanket "sample not approved" gate here anymore -- sterility/
+        // endotoxin/heavy-metals results (including the day3/day7 sterility
+        // checkpoints below) already have no in-app review step of their own
+        // and are explicitly meant to reach the partner before the sample's
+        // purity work is done. Purity itself stays gated per-result on
+        // approved_at instead (see the "purity" branch below), so an
+        // unreviewed purity number never leaks out just because sterility
+        // finished first.
         const { data: tests } = await supabaseAdmin.from("tests").select("*").eq("sample_id", sample.id);
         const testIds = (tests ?? []).map(t => t.id);
         const results = testIds.length
@@ -78,12 +81,19 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           return [p.id, fl || p.full_name || p.email || null] as const;
         }));
 
-        // Newest purity result (by analysis_date) — calibration_data is a
-        // per-injection concept, so extras.calibration_data mirrors
+        // Purity results are the one thing still gated -- unlike sterility/
+        // endotoxin/heavy-metals, purity has an explicit in-app review step,
+        // so an unreviewed number must never reach the partner. Everything
+        // downstream that reads "the" purity result (extras.calibration_data
+        // and the purity branch of tests[] below) only ever sees approved
+        // ones.
+        const approvedPurityResults = results.filter(r => r.approved_at != null);
+        // Newest approved purity result (by analysis_date) — calibration_data
+        // is a per-injection concept, so extras.calibration_data mirrors
         // whichever result is currently "the" result for this sample,
         // same convention as the rest of extras being sample-level
         // convenience copies of what's already nested under tests[].
-        const latestPurityResult = results
+        const latestPurityResult = approvedPurityResults
           .slice()
           .sort((a, b) => +new Date(b.analysis_date) - +new Date(a.analysis_date))[0] ?? null;
 
@@ -113,6 +123,7 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
           // method_name stays free text and can be renamed anytime.
           tests: (tests ?? []).map(t => {
             if (t.test_type === "purity") {
+              const approvedForTest = approvedPurityResults.filter(r => r.test_id === t.id);
               return {
                 id: t.id,
                 test_type: t.test_type,
@@ -120,8 +131,8 @@ export const Route = createFileRoute("/api/public/exports/$batchId")({
                 method_name: t.method_name,
                 instrument: t.instrument,
                 parameters: t.parameters,
-                status: "available",
-                results: results.filter(r => r.test_id === t.id).map(r => ({
+                status: approvedForTest.length ? "available" : "pending",
+                results: approvedForTest.map(r => ({
                   purity_percentage: r.purity_percentage,
                   peak_details: r.peak_details,
                   analysis_date: r.analysis_date,
