@@ -15,11 +15,18 @@
  * "-EN"/"-ST" for their dedicated endotoxin/sterility add-on vials) -- an
  * observed lab convention, not a schema-enforced invariant, so a lot with
  * no such suffix just groups with itself.
+ *
+ * Per-vial data comes from buildPartnerExportPayload -- the exact same
+ * per-sample query Wayne's system consumes from
+ * /api/public/exports/$batchId.ts -- rather than a second, parallel
+ * data-assembly path. One source of truth for "what data is available and
+ * how it's shaped," and this report doubles as a way to see exactly what
+ * the partner receives for a given sample.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { findVialPhotoDataUri } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
+import { buildPartnerExportPayload } from "@/lib/lims/partner-export.functions";
 import { isUnassignedPeak, type Peak } from "@/lib/lims-utils";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -39,7 +46,7 @@ export type CoaVial = {
   compound: string | null;
   lot: string | null;
   appearance: string | null;
-  test: { id: string; method_name: string; instrument: string; spec_min: number | null; spec_max: number | null } | null;
+  test: { id: string; method_name: string; instrument: string } | null;
   result: {
     purity_percentage: number | null;
     analysis_date: string;
@@ -107,49 +114,50 @@ export const getCoaData = createServerFn({ method: "GET" })
     const sterilitySample = addOnFor(/\[Sterility/i);
     const endotoxinSample = addOnFor(/\[Endotoxin/i);
 
-    const vialSampleIds = finalMainVials.map((s) => s.id);
-    const { data: vialTests } = vialSampleIds.length
-      ? await supabase.from("tests").select("*").in("sample_id", vialSampleIds).eq("test_type", "purity")
-      : { data: [] };
-    const testIds = (vialTests ?? []).map((t) => t.id);
-    const { data: vialResults } = testIds.length
-      ? await supabase.from("results").select("*").in("test_id", testIds)
-      : { data: [] };
+    const { data: cfgRow } = await supabase.from("export_config")
+      .select("include_lcs, include_ccv, include_method_blank, include_calibration").limit(1).maybeSingle();
+    const exportCfg = cfgRow ?? { include_lcs: false, include_ccv: false, include_method_blank: false, include_calibration: true };
 
-    const testBySample = new Map((vialTests ?? []).map((t) => [t.sample_id, t]));
-    const resultByTest = new Map((vialResults ?? []).map((r) => [r.test_id, r]));
+    const vialPayloads = await Promise.all(
+      finalMainVials.map((s) => buildPartnerExportPayload(supabase, s, exportCfg)),
+    );
 
-    const vials: CoaVial[] = finalMainVials.map((s) => {
-      const test = testBySample.get(s.id) ?? null;
-      const result = test ? (resultByTest.get(test.id) ?? null) : null;
-      const peaks = (result?.peak_details as unknown as Peak[]) ?? [];
+    const vials: CoaVial[] = finalMainVials.map((s, i) => {
+      const purityTest = vialPayloads[i].tests.find((t) => t.test_type === "purity");
+      const r = purityTest?.results[0] as Record<string, unknown> | undefined;
+      const peaks = (r?.peak_details as unknown as Peak[]) ?? [];
       const target = peaks.find((p) => !isUnassignedPeak(p.identity)) ?? null;
       return {
         sampleId: s.id, batchId: s.batch_id, compound: s.compound, lot: s.lot,
-        appearance: s.physical_description,
-        test: test ? { id: test.id, method_name: test.method_name, instrument: test.instrument, spec_min: test.spec_min, spec_max: test.spec_max } : null,
-        result: result ? {
-          purity_percentage: result.purity_percentage, analysis_date: result.analysis_date,
-          peak_details: peaks, uv_conf_match: result.uv_conf_match, wavelength_nm: result.wavelength_nm,
-          chromatogram_image: result.chromatogram_image, calibration_image: result.calibration_image,
-          calibration_data: result.calibration_data, analyst_id: result.analyst_id, reviewer_id: result.reviewer_id,
-          approved_at: result.approved_at,
+        appearance: (r?.appearance as string | null) ?? null,
+        test: purityTest ? { id: purityTest.id, method_name: purityTest.method_name, instrument: purityTest.instrument } : null,
+        result: r ? {
+          purity_percentage: r.purity_percentage as number | null,
+          analysis_date: r.analysis_date as string,
+          peak_details: peaks,
+          uv_conf_match: r.uv_conf_match as number | null,
+          wavelength_nm: r.wavelength_nm as number | null,
+          chromatogram_image: r.chromatogram_png as string | null,
+          calibration_image: r.calibration_png as string | null,
+          calibration_data: (r.calibration_data ?? null) as Json | null,
+          analyst_id: r.analyst_id as string | null,
+          reviewer_id: r.reviewer_id as string | null,
+          approved_at: r.approved_at as string | null,
         } : null,
         targetPeak: target ?? null,
       };
     });
 
-    /** Prefers the dedicated add-on vial; falls back to a matching test on one of the main vials themselves for products never split off into their own add-on vial. */
+    /** Prefers the dedicated add-on vial; falls back to a matching test on the primary main vial for products never split off into their own add-on vial. */
     async function nonchromSummary(addOnSample: SampleRow | undefined, testType: "sterility" | "endotoxin"): Promise<CoaNonchromSummary | null> {
-      const targetSampleIds = addOnSample ? [addOnSample.id] : vialSampleIds;
-      if (!targetSampleIds.length) return null;
-      const { data: matchingTests } = await supabase.from("tests").select("id").eq("test_type", testType).in("sample_id", targetSampleIds).limit(1);
-      const testId = matchingTests?.[0]?.id;
-      if (!testId) return null;
-      const { data: nr } = await supabase.from("nonchrom_results").select("data, analysis_date")
-        .eq("test_id", testId).order("analysis_date", { ascending: false }).limit(1).maybeSingle();
-      if (!nr) return null;
-      return { testType, data: nr.data, analysisDate: nr.analysis_date };
+      const payload = addOnSample
+        ? await buildPartnerExportPayload(supabase, addOnSample, exportCfg)
+        : vialPayloads[0];
+      if (!payload) return null;
+      const test = payload.tests.find((t) => t.test_type === testType);
+      const r = test?.results[0] as { data?: Json; analysis_date?: string } | undefined;
+      if (!r) return null;
+      return { testType, data: (r.data ?? null) as Json | null, analysisDate: r.analysis_date ?? null };
     }
 
     const [sterility, endotoxin] = await Promise.all([
@@ -157,24 +165,17 @@ export const getCoaData = createServerFn({ method: "GET" })
       nonchromSummary(endotoxinSample, "endotoxin"),
     ]);
 
-    const vialPhoto = await findVialPhotoDataUri(supabase, sample.batch_id);
+    let analystName: string | null = null;
+    let reviewerName: string | null = null;
+    for (const payload of vialPayloads) {
+      const r = payload.tests.find((t) => t.test_type === "purity")?.results[0] as
+        { analyst_name?: string | null; reviewer_name?: string | null } | undefined;
+      if (!analystName && r?.analyst_name) analystName = r.analyst_name;
+      if (!reviewerName && r?.reviewer_name) reviewerName = r.reviewer_name;
+    }
 
-    const analystId = vials.find((v) => v.result?.analyst_id)?.result?.analyst_id ?? null;
-    const reviewerId = vials.find((v) => v.result?.reviewer_id)?.result?.reviewer_id ?? null;
-    const profileIds = [analystId, reviewerId].filter((x): x is string => !!x);
-    const { data: profiles } = profileIds.length
-      ? await supabase.from("profiles").select("id, full_name, first_name, last_name, email").in("id", profileIds)
-      : { data: [] };
-    const nameFor = (id: string | null) => {
-      if (!id) return null;
-      const p = (profiles ?? []).find((p) => p.id === id);
-      if (!p) return null;
-      const fl = [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
-      return fl || p.full_name || p.email || null;
-    };
-
-    const { data: settings } = await supabase.from("sp_settings")
-      .select("endotoxin_assay_sensitivity_eu_per_ml").eq("id", true).maybeSingle();
+    const endotoxinAssaySensitivity =
+      (endotoxin?.data as { assay_sensitivity_eu_per_ml?: number } | null)?.assay_sensitivity_eu_per_ml ?? null;
 
     return {
       primary: {
@@ -183,9 +184,8 @@ export const getCoaData = createServerFn({ method: "GET" })
       },
       vials,
       sterility, endotoxin,
-      vialPhoto,
-      analystName: nameFor(analystId),
-      reviewerName: nameFor(reviewerId),
-      endotoxinAssaySensitivity: settings?.endotoxin_assay_sensitivity_eu_per_ml ?? null,
+      vialPhoto: vialPayloads[0]?.vial_photo ?? null,
+      analystName, reviewerName,
+      endotoxinAssaySensitivity,
     };
   });
