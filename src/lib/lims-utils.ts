@@ -189,6 +189,11 @@ export function fmtPct(n: number | null | undefined, digits = 3) {
   return Number(n).toFixed(digits) + "%";
 }
 
+/** A peak with no identity, or explicitly flagged as unassigned/unidentified by the report. */
+export function isUnassignedPeak(identity: string | null | undefined): boolean {
+  return !identity || /unassigned|unidentified|not (found|detected)/i.test(identity);
+}
+
 /**
  * Catches the "QC vial — add-on tests: ..." shorthand analysts have used
  * for add-on sterility/endotoxin vials -- it belongs in Notes, not

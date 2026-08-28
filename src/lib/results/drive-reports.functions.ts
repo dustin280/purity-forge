@@ -20,7 +20,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Peak } from "@/lib/lims-utils";
+import { isUnassignedPeak, type Peak } from "@/lib/lims-utils";
 // pdf-parse's own wrapper (pdf-parse/lib/pdf-parse.js) resolves its PDF.js
 // engine via `require(`./pdf.js/${version}/build/pdf.js`)` — a template-
 // string require Rollup can't statically analyze, so it throws
@@ -734,9 +734,15 @@ export async function parseReportBuffer(bytes: ArrayBuffer, fileName: string): P
 
 /**
  * Maps a parsed report's compound rows to Peak[] + the sample's overall
- * purity (the peak with the highest area_pct) — shared by the single-file
- * picker dialog and the bulk reconciliation path so both save results the
- * same way.
+ * purity — shared by the single-file picker dialog and the bulk
+ * reconciliation path so both save results the same way.
+ *
+ * Purity is the sum of area_pct across every identified peak, not just the
+ * single largest one: for a single-compound report that's the same number
+ * (one identified peak, everything else unassigned), but a blend has one
+ * peak per target compound and all of them count toward "how much of this
+ * injection is wanted material" — e.g. Ipamorelin 93.13% + CJC-1295 6.59%
+ * = 99.72% for SYX-000005-02, not just Ipamorelin's 93.13% alone.
  */
 export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Peak[]; purity: number; uv_conf_match: number | null; wavelength_nm: number | null } {
   const peaks: Peak[] = compounds.map((c, i) => ({
@@ -747,11 +753,14 @@ export function compoundsToPeaks(compounds: ParsedReportCompound[]): { peaks: Pe
     uv_match: c.uv_match, wavelength_nm: c.wavelength_nm,
   }));
   const main = peaks.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), peaks[0]);
+  const purity = peaks
+    .filter(p => !isUnassignedPeak(p.identity))
+    .reduce((sum, p) => sum + (p.area_pct ?? 0), 0);
   // results.uv_conf_match/wavelength_nm are single columns per result (not
-  // per-peak) — sourced from the same main/purity peak used for the overall
-  // purity number, same convention as chromatogram_image.
+  // per-peak) — sourced from the main/largest peak regardless, since a UV
+  // match score and wavelength don't sum across compounds the way area% does.
   return {
-    peaks, purity: main?.area_pct ?? 0,
+    peaks, purity,
     uv_conf_match: main?.uv_match ?? null, wavelength_nm: main?.wavelength_nm ?? null,
   };
 }

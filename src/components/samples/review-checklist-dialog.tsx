@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { fmtPct, looksLikeAddOnVialShorthand, type Peak } from "@/lib/lims-utils";
+import { fmtPct, isUnassignedPeak, looksLikeAddOnVialShorthand, type Peak } from "@/lib/lims-utils";
 import { purityVerdict, type SpecRange } from "@/lib/lims/spec-verdict";
 import type { CalibrationCurve } from "@/lib/results/drive-reports.functions";
 import type { LatestResult } from "./results-tab";
@@ -61,7 +61,7 @@ export function ReviewChecklistDialog({
     : latestResult?.calibration_data
       ? [{ compound: latestResult.calibration_data.compound, image: latestResult.calibration_image, data: latestResult.calibration_data }]
       : [];
-  const unassignedPeaks = peaks.filter((p) => !p.identity || /unassigned|not (found|detected)/i.test(p.identity));
+  const unassignedPeaks = peaks.filter((p) => isUnassignedPeak(p.identity));
 
   // Local draft so the field can be edited right here to record an actual
   // defect (deviation from the compound's default appearance) -- resyncs

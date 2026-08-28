@@ -1,9 +1,11 @@
-import type { Peak } from "@/lib/lims-utils";
+import { isUnassignedPeak, type Peak } from "@/lib/lims-utils";
 
 /**
  * Parse Agilent-style pasted peak rows. Each line is
  * `rt area area_pct [identity] [sn]` separated by whitespace, commas, or tabs.
- * Returns the parsed peaks and the purity (area % of the largest peak).
+ * Returns the parsed peaks and the purity: the sum of area_pct across every
+ * identified peak (not just the largest one), so a blend's purity counts
+ * every target compound's peak, not only its biggest one.
  */
 export function parsePeaks(text: string): { peaks: Peak[]; purity: number } {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -23,6 +25,8 @@ export function parsePeaks(text: string): { peaks: Peak[]; purity: number } {
       sn: cols[4] ? parseFloat(cols[4]) : undefined,
     });
   });
-  const main = out.reduce((a, b) => (b.area_pct > (a?.area_pct ?? 0) ? b : a), out[0]);
-  return { peaks: out, purity: main?.area_pct ?? 0 };
+  const purity = out
+    .filter(p => !isUnassignedPeak(p.identity))
+    .reduce((sum, p) => sum + (p.area_pct ?? 0), 0);
+  return { peaks: out, purity };
 }
