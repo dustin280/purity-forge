@@ -40,6 +40,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
 import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
 import { Route as ApiCronIncubationWatcherRouteImport } from './routes/api/cron/incubation-watcher'
+import { Route as ApiCronDailyDigestRouteImport } from './routes/api/cron/daily-digest'
 import { Route as ApiCronCalQcWatcherRouteImport } from './routes/api/cron/cal-qc-watcher'
 import { Route as AuthenticatedSamplesNewRouteImport } from './routes/_authenticated/samples/new'
 import { Route as AuthenticatedSamplesBatchIdRouteImport } from './routes/_authenticated/samples/$batchId'
@@ -81,6 +82,7 @@ import { Route as AuthenticatedAdminMobilePhaseReagentsRouteImport } from './rou
 import { Route as AuthenticatedAdminMethodGroupsRouteImport } from './routes/_authenticated/admin/method-groups'
 import { Route as AuthenticatedAdminInstrumentsRouteImport } from './routes/_authenticated/admin/instruments'
 import { Route as AuthenticatedAdminHplcColumnsRouteImport } from './routes/_authenticated/admin/hplc-columns'
+import { Route as AuthenticatedAdminDailyDigestRouteImport } from './routes/_authenticated/admin/daily-digest'
 import { Route as AuthenticatedAdminCompoundsRouteImport } from './routes/_authenticated/admin/compounds'
 import { Route as AuthenticatedAdminCocFieldsRouteImport } from './routes/_authenticated/admin/coc-fields'
 import { Route as AuthenticatedAdminAuditLogRouteImport } from './routes/_authenticated/admin/audit-log'
@@ -289,6 +291,11 @@ const ApiCronIncubationWatcherRoute =
     path: '/api/cron/incubation-watcher',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiCronDailyDigestRoute = ApiCronDailyDigestRouteImport.update({
+  id: '/api/cron/daily-digest',
+  path: '/api/cron/daily-digest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronCalQcWatcherRoute = ApiCronCalQcWatcherRouteImport.update({
   id: '/api/cron/cal-qc-watcher',
   path: '/api/cron/cal-qc-watcher',
@@ -531,6 +538,12 @@ const AuthenticatedAdminHplcColumnsRoute =
     path: '/admin/hplc-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminDailyDigestRoute =
+  AuthenticatedAdminDailyDigestRouteImport.update({
+    id: '/admin/daily-digest',
+    path: '/admin/daily-digest',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminCompoundsRoute =
   AuthenticatedAdminCompoundsRouteImport.update({
     id: '/admin/compounds',
@@ -761,6 +774,7 @@ export interface FileRoutesByFullPath {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/daily-digest': typeof AuthenticatedAdminDailyDigestRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
@@ -802,6 +816,7 @@ export interface FileRoutesByFullPath {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
@@ -870,6 +885,7 @@ export interface FileRoutesByTo {
   '/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/admin/daily-digest': typeof AuthenticatedAdminDailyDigestRoute
   '/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
@@ -911,6 +927,7 @@ export interface FileRoutesByTo {
   '/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
@@ -981,6 +998,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/audit-log': typeof AuthenticatedAdminAuditLogRoute
   '/_authenticated/admin/coc-fields': typeof AuthenticatedAdminCocFieldsRoute
   '/_authenticated/admin/compounds': typeof AuthenticatedAdminCompoundsRoute
+  '/_authenticated/admin/daily-digest': typeof AuthenticatedAdminDailyDigestRoute
   '/_authenticated/admin/hplc-columns': typeof AuthenticatedAdminHplcColumnsRoute
   '/_authenticated/admin/instruments': typeof AuthenticatedAdminInstrumentsRoute
   '/_authenticated/admin/method-groups': typeof AuthenticatedAdminMethodGroupsRoute
@@ -1022,6 +1040,7 @@ export interface FileRoutesById {
   '/_authenticated/samples/$batchId': typeof AuthenticatedSamplesBatchIdRoute
   '/_authenticated/samples/new': typeof AuthenticatedSamplesNewRoute
   '/api/cron/cal-qc-watcher': typeof ApiCronCalQcWatcherRoute
+  '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
@@ -1092,6 +1111,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/daily-digest'
     | '/admin/hplc-columns'
     | '/admin/instruments'
     | '/admin/method-groups'
@@ -1133,6 +1153,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
@@ -1201,6 +1222,7 @@ export interface FileRouteTypes {
     | '/admin/audit-log'
     | '/admin/coc-fields'
     | '/admin/compounds'
+    | '/admin/daily-digest'
     | '/admin/hplc-columns'
     | '/admin/instruments'
     | '/admin/method-groups'
@@ -1242,6 +1264,7 @@ export interface FileRouteTypes {
     | '/samples/$batchId'
     | '/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
@@ -1311,6 +1334,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/audit-log'
     | '/_authenticated/admin/coc-fields'
     | '/_authenticated/admin/compounds'
+    | '/_authenticated/admin/daily-digest'
     | '/_authenticated/admin/hplc-columns'
     | '/_authenticated/admin/instruments'
     | '/_authenticated/admin/method-groups'
@@ -1352,6 +1376,7 @@ export interface FileRouteTypes {
     | '/_authenticated/samples/$batchId'
     | '/_authenticated/samples/new'
     | '/api/cron/cal-qc-watcher'
+    | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
@@ -1410,6 +1435,7 @@ export interface RootRouteChildren {
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
   ApiChatTroubleshootingRoute: typeof ApiChatTroubleshootingRoute
   ApiCronCalQcWatcherRoute: typeof ApiCronCalQcWatcherRoute
+  ApiCronDailyDigestRoute: typeof ApiCronDailyDigestRoute
   ApiCronIncubationWatcherRoute: typeof ApiCronIncubationWatcherRoute
   ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
@@ -1638,6 +1664,13 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/incubation-watcher'
       fullPath: '/api/cron/incubation-watcher'
       preLoaderRoute: typeof ApiCronIncubationWatcherRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/daily-digest': {
+      id: '/api/cron/daily-digest'
+      path: '/api/cron/daily-digest'
+      fullPath: '/api/cron/daily-digest'
+      preLoaderRoute: typeof ApiCronDailyDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/cal-qc-watcher': {
@@ -1925,6 +1958,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/hplc-columns'
       fullPath: '/admin/hplc-columns'
       preLoaderRoute: typeof AuthenticatedAdminHplcColumnsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/daily-digest': {
+      id: '/_authenticated/admin/daily-digest'
+      path: '/admin/daily-digest'
+      fullPath: '/admin/daily-digest'
+      preLoaderRoute: typeof AuthenticatedAdminDailyDigestRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/admin/compounds': {
@@ -2226,6 +2266,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminAuditLogRoute: typeof AuthenticatedAdminAuditLogRoute
   AuthenticatedAdminCocFieldsRoute: typeof AuthenticatedAdminCocFieldsRoute
   AuthenticatedAdminCompoundsRoute: typeof AuthenticatedAdminCompoundsRoute
+  AuthenticatedAdminDailyDigestRoute: typeof AuthenticatedAdminDailyDigestRoute
   AuthenticatedAdminHplcColumnsRoute: typeof AuthenticatedAdminHplcColumnsRoute
   AuthenticatedAdminInstrumentsRoute: typeof AuthenticatedAdminInstrumentsRoute
   AuthenticatedAdminMethodGroupsRoute: typeof AuthenticatedAdminMethodGroupsRoute
@@ -2320,6 +2361,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminAuditLogRoute: AuthenticatedAdminAuditLogRoute,
   AuthenticatedAdminCocFieldsRoute: AuthenticatedAdminCocFieldsRoute,
   AuthenticatedAdminCompoundsRoute: AuthenticatedAdminCompoundsRoute,
+  AuthenticatedAdminDailyDigestRoute: AuthenticatedAdminDailyDigestRoute,
   AuthenticatedAdminHplcColumnsRoute: AuthenticatedAdminHplcColumnsRoute,
   AuthenticatedAdminInstrumentsRoute: AuthenticatedAdminInstrumentsRoute,
   AuthenticatedAdminMethodGroupsRoute: AuthenticatedAdminMethodGroupsRoute,
@@ -2449,6 +2491,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
   ApiChatTroubleshootingRoute: ApiChatTroubleshootingRoute,
   ApiCronCalQcWatcherRoute: ApiCronCalQcWatcherRoute,
+  ApiCronDailyDigestRoute: ApiCronDailyDigestRoute,
   ApiCronIncubationWatcherRoute: ApiCronIncubationWatcherRoute,
   ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,

@@ -2699,6 +2699,12 @@ export type Database = {
       notification_recipients: {
         Row: {
           created_at: string
+          digest_due_today: boolean
+          digest_endotoxin_due: boolean
+          digest_heavy_metals: boolean
+          digest_samples_due: boolean
+          digest_samples_received: boolean
+          digest_sterility_readout: boolean
           email: string | null
           id: string
           is_active: boolean
@@ -2710,6 +2716,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          digest_due_today?: boolean
+          digest_endotoxin_due?: boolean
+          digest_heavy_metals?: boolean
+          digest_samples_due?: boolean
+          digest_samples_received?: boolean
+          digest_sterility_readout?: boolean
           email?: string | null
           id?: string
           is_active?: boolean
@@ -2721,6 +2733,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          digest_due_today?: boolean
+          digest_endotoxin_due?: boolean
+          digest_heavy_metals?: boolean
+          digest_samples_due?: boolean
+          digest_samples_received?: boolean
+          digest_sterility_readout?: boolean
           email?: string | null
           id?: string
           is_active?: boolean

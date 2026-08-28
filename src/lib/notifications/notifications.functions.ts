@@ -2,15 +2,19 @@
  * New-sample-intake email/SMS alerts to a fixed lab distribution list, plus
  * the CRUD server fns backing the admin recipients UI.
  *
- * Send calls go through Lovable's connector-gateway, same shared-credential
- * pattern already used for Google Drive elsewhere in this codebase (see
- * src/lib/openlab-drive.functions.ts). Resend and Twilio aren't connected
- * on this project yet (checked in Lovable's Connectors panel), so the
- * request shapes below are a best-effort match to Resend's/Twilio's public
- * REST APIs through that same gateway — NOT yet verified against a live
- * send. Once both connectors are linked in Lovable, confirm/correct these
- * two request shapes (marked below) via Lovable's chat before relying on
- * this in production.
+ * Email calls Resend's public REST API directly (not through Lovable's
+ * connector-gateway used elsewhere for Google Drive, e.g.
+ * src/lib/openlab-drive.functions.ts) -- simpler and independently
+ * verifiable against Resend's own documented API rather than guessing at
+ * an internal gateway's request shape. Needs RESEND_API_KEY set wherever
+ * this app actually runs in production (this repo's tracked .env is NOT
+ * the place for it -- see .env.local for local dev). The "from" domain
+ * (EMAIL_FROM below) must be verified in the Resend account or sends will
+ * fail with a domain-not-verified error.
+ *
+ * SMS still goes through Lovable's connector-gateway and Twilio still
+ * isn't connected -- that request shape (marked below) remains
+ * unverified until Twilio is linked in Lovable's Connectors panel.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
@@ -61,6 +65,12 @@ export const updateNotificationRecipient = createServerFn({ method: "POST" })
       notify_email: z.boolean().optional(),
       notify_sms: z.boolean().optional(),
       is_active: z.boolean().optional(),
+      digest_samples_received: z.boolean().optional(),
+      digest_samples_due: z.boolean().optional(),
+      digest_due_today: z.boolean().optional(),
+      digest_sterility_readout: z.boolean().optional(),
+      digest_endotoxin_due: z.boolean().optional(),
+      digest_heavy_metals: z.boolean().optional(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -81,21 +91,19 @@ export const deleteNotificationRecipient = createServerFn({ method: "POST" })
 
 // ---------- Send (internal, not a createServerFn — called from coc-intake.functions.ts) ----------
 
-const GATEWAY_RESEND = "https://connector-gateway.lovable.dev/resend";
+const RESEND_API_URL = "https://api.resend.com/emails";
 const GATEWAY_TWILIO = "https://connector-gateway.lovable.dev/twilio";
 
 // The "from" identity for each channel: Resend requires a domain verified
 // in the connected Resend account; Twilio requires a number provisioned in
-// the connected Twilio account. Placeholders — confirm/replace once
-// connected (see Verification in the plan).
+// the connected Twilio account.
 const EMAIL_FROM = "Synthesyx Lab Manager <notifications@syxlab.org>";
 const SMS_FROM = process.env.TWILIO_FROM_NUMBER ?? "";
 
 function resendHeaders(): Record<string, string> {
-  const lk = process.env.LOVABLE_API_KEY;
   const rk = process.env.RESEND_API_KEY;
-  if (!lk || !rk) throw new Error("Resend is not connected. Link the Resend connector in Project Settings.");
-  return { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": rk, "Content-Type": "application/json" };
+  if (!rk) throw new Error("RESEND_API_KEY is not set.");
+  return { Authorization: `Bearer ${rk}`, "Content-Type": "application/json" };
 }
 
 function twilioHeaders(): Record<string, string> {
@@ -105,13 +113,12 @@ function twilioHeaders(): Record<string, string> {
   return { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": tk, "Content-Type": "application/x-www-form-urlencoded" };
 }
 
-async function sendEmail(to: string, subject: string, text: string): Promise<void> {
-  // UNVERIFIED — matches Resend's public `POST /emails` shape; confirm via
-  // Lovable once the connector is connected.
-  const r = await fetch(`${GATEWAY_RESEND}/emails`, {
+/** html is optional — plain-text-only callers (e.g. the existing intake/incubation alerts) can omit it. */
+export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<void> {
+  const r = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: resendHeaders(),
-    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, text }),
+    body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, text, ...(html ? { html } : {}) }),
   });
   if (!r.ok) throw new Error(`Resend send failed (${r.status}): ${await r.text()}`);
 }
