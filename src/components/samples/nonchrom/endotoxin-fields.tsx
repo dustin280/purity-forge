@@ -11,6 +11,8 @@ export type EndotoxinData = {
   method: "gel_clot" | "kinetic_turbidimetric" | "kinetic_chromogenic";
   /** Optional supporting reading -- the recorded outcome is the verdict, not a limit comparison. */
   result_value: number | null;
+  /** Set when the reading is below/above the assay's range rather than an exact value (e.g. "<0.05"). */
+  result_comparator: "<" | ">" | null;
   unit: "EU/mL" | "EU/device" | null;
 };
 
@@ -27,6 +29,7 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
   const [verdict, setVerdict] = useState<EndotoxinData["verdict"] | null>(null);
   const [method, setMethod] = useState<EndotoxinData["method"]>("kinetic_turbidimetric");
   const [resultValue, setResultValue] = useState("");
+  const [comparator, setComparator] = useState<EndotoxinData["result_comparator"]>(null);
   const [unit, setUnit] = useState<NonNullable<EndotoxinData["unit"]>>("EU/mL");
 
   const rv = resultValue.trim() === "" ? null : Number(resultValue);
@@ -82,7 +85,24 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-muted-foreground">Reading (optional)</label>
-          <Input type="number" step="any" value={resultValue} onChange={e => setResultValue(e.target.value)} placeholder="Not recorded" />
+          <div className="flex gap-1 mt-1">
+            <div className="flex rounded-md border border-input overflow-hidden shrink-0">
+              {([["=", null], ["<", "<"], [">", ">"]] as const).map(([label, val]) => (
+                <button
+                  key={label}
+                  type="button"
+                  className="w-7 text-sm font-mono"
+                  style={comparator === val
+                    ? { background: "var(--primary)", color: "var(--primary-foreground)" }
+                    : { color: "var(--muted-foreground)" }}
+                  onClick={() => setComparator(val)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Input type="number" step="any" value={resultValue} onChange={e => setResultValue(e.target.value)} placeholder="Not recorded" />
+          </div>
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Unit</label>
@@ -99,7 +119,7 @@ export function EndotoxinFields({ onSave, busy }: { onSave: (data: EndotoxinData
       <Button
         size="sm"
         disabled={busy || !valid}
-        onClick={() => verdict && onSave({ verdict, method, result_value: rv, unit: rv !== null ? unit : null })}
+        onClick={() => verdict && onSave({ verdict, method, result_value: rv, result_comparator: rv !== null ? comparator : null, unit: rv !== null ? unit : null })}
       >
         {busy ? "Saving…" : "Save Endotoxin Result"}
       </Button>

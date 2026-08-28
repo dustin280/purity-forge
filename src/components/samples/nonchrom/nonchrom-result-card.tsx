@@ -60,7 +60,7 @@ function SavedSummary({ testType, data, analystName, date }: {
         <div className="text-2xl font-mono font-bold uppercase" style={{ color }}>{d.verdict}</div>
         <div className="text-xs text-muted-foreground mt-1">
           Assay Sensitivity: {d.assay_sensitivity_eu_per_ml != null ? `<${d.assay_sensitivity_eu_per_ml} EU/mL` : "—"} · Method: {d.method}
-          {d.result_value != null && ` · Reading: ${d.result_value} ${d.unit ?? ""}`}
+          {d.result_value != null && ` · Reading: ${d.result_comparator ?? ""}${d.result_value} ${d.unit ?? ""}`}
         </div>
         {meta}
       </div>

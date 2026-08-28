@@ -33,6 +33,9 @@ const endotoxinData = z.object({
   verdict: z.enum(["pass", "fail"]),
   method: z.enum(["gel_clot", "kinetic_turbidimetric", "kinetic_chromogenic"]),
   result_value: z.number().nonnegative().nullable().optional(),
+  // Set when the reading is below/above the assay's range rather than an
+  // exact value (e.g. "<0.05 EU/mL", the common case for a clean result).
+  result_comparator: z.enum(["<", ">"]).nullable().optional(),
   unit: z.enum(["EU/mL", "EU/device"]).nullable().optional(),
 });
 
