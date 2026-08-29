@@ -15,7 +15,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   type SampleCtx, type GeneratedRow, type NeedsInputRow,
-  resolutionKeyFor, resolveCompoundContexts, loadGlobalPrepSettings, loadLabAssets,
+  resolutionKeyFor, resolveCompoundContexts, loadGlobalPrepSettings, loadLabAssets, knownFrom,
   planAndPersistForSample,
 } from "./generate-from-run-list.functions";
 
@@ -51,17 +51,17 @@ export const generateSamplePrepForSamples = createServerFn({ method: "POST" })
       if (!sample) continue;
       const resolutionKey = resolutionKeyFor(sample);
       if (!resolutionKey) {
-        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "no_compound", message: "Sample has no compound recorded." });
+        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "no_compound", message: "Sample has no compound recorded.", known: knownFrom(sample) });
         continue;
       }
       const resolved = byCompoundLower.get(resolutionKey);
       if (!resolved || "reason" in resolved) {
-        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target." });
+        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target.", known: knownFrom(sample) });
         continue;
       }
       const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, undefined, "queue");
       if (!result.ok) {
-        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message });
+        needsInput.push({ run_list_item_id: sample.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message, known: knownFrom(sample) });
         continue;
       }
       created.push({ run_list_item_id: sample.id, ...result.row });

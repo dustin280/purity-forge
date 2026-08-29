@@ -219,6 +219,29 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
         c.method_group_id as string | null,
       ]),
     );
+    // Components auto-filled from the partner's product string arrive as
+    // names with no compound_id, so nothing downstream could resolve them:
+    // no method group, and no calibration target at prep time. Names are
+    // matched back to the library here rather than left unlinked.
+    const compoundIdByName = new Map(
+      (candidateCompounds ?? []).map((c) => [c.name.trim().toLowerCase(), c.id as string]),
+    );
+    const linkComponentId = (c: { compound?: string | null; compound_id?: string | null }) => {
+      if (c.compound_id) return c.compound_id;
+      const name = (c.compound ?? "").trim();
+      if (!name) return null;
+      const exact = compoundIdByName.get(name.toLowerCase());
+      if (exact) return exact;
+      // Punctuation and spacing are noise ("5-Amino-1MQ" vs "5 Amino 1MQ").
+      // Only accept a normalised hit when exactly one compound matches --
+      // "BPC-157" against three different salts is a real distinction and
+      // must stay unlinked for a person to resolve, not be guessed at.
+      const loosen = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const target = loosen(name);
+      if (!target) return null;
+      const near = (candidateCompounds ?? []).filter((cp) => loosen(cp.name) === target);
+      return near.length === 1 ? (near[0].id as string) : null;
+    };
 
     const { data: coc, error: cocErr } = await supabase
       .from("chain_of_custody_records")
@@ -251,7 +274,11 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       const productName = lotDisplayName(lot.display_name, uiComponents);
       const isBlend = lot.components.length > 1;
       const labelContentNum = totalLabelContentMg(uiComponents);
-      const primaryCompoundId = lot.components.find((c) => c.compound_id)?.compound_id ?? null;
+      // Every component gets its library id resolved, so blends carry usable
+      // links for all of their compounds -- not just whichever one happened
+      // to be picked rather than typed.
+      const linkedComponents = lot.components.map((c) => ({ ...c, compound_id: linkComponentId(c) }));
+      const primaryCompoundId = linkedComponents.find((c) => c.compound_id)?.compound_id ?? null;
 
       const { data: lotRow, error: lotErr } = await supabase
         .from("sample_lots")
@@ -265,7 +292,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           compound_id: primaryCompoundId,
           partner_reported_compound_name: lot.partner_reported_name || null,
           is_multi_component: isBlend,
-          components: lot.components as never,
+          components: linkedComponents as never,
           physical_form: lot.physical_form || null,
           appearance_texture: lot.appearance_texture || null,
           appearance_color: lot.appearance_color || null,
@@ -362,7 +389,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           label_content_value: labelContentNum,
           label_content_unit: labelContentNum != null ? "mg" : null,
           is_multi_component: isBlend,
-          components: lot.components as never,
+          components: linkedComponents as never,
           physical_form_details: physicalFormDetails as never,
         };
       });

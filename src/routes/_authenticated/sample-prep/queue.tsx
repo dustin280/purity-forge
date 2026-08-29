@@ -72,11 +72,37 @@ function PrepQueuePage() {
     if (sampleIds === null && flagged) setSampleIds(flagged.map((s: PrepFlaggedSample) => s.id));
   }, [sampleIds, flagged]);
 
+  /**
+   * Seeds the override form with what receipt already recorded, so only the
+   * genuinely missing field is left to fill. Without this the form opened
+   * blank and an analyst re-typed the form, quantity and unit the system had
+   * held since intake -- and because the purity field only appears once a
+   * form is chosen, re-entering known data was the only way to reach the one
+   * value that was actually missing.
+   */
+  function seedOverrides(rows: NeedsInputRow[]) {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const row of rows) {
+        if (next[row.sample_id] || !row.known) continue;
+        const k = row.known;
+        next[row.sample_id] = {
+          form: k.received_form ?? undefined,
+          quantity: k.received_quantity != null ? String(k.received_quantity) : undefined,
+          unit: k.received_quantity_unit ?? undefined,
+          purity: k.received_purity_percent != null ? String(k.received_purity_percent) : undefined,
+        };
+      }
+      return next;
+    });
+  }
+
   const genMut = useMutation({
     mutationFn: (ids: string[]) => generate({ data: { sample_ids: ids } }),
     onSuccess: (r) => {
       setCreated((prev) => [...prev.filter((c) => !r.created.some((n) => n.sample_id === c.sample_id)), ...r.created]);
       setNeedsInput(r.needsInput);
+      seedOverrides(r.needsInput);
       if (!r.created.length && !r.needsInput.length) toast.info("Nothing to compute — no checked-out samples.");
       else toast.success(`${r.created.length} plan${r.created.length === 1 ? "" : "s"} computed${r.needsInput.length ? `, ${r.needsInput.length} need input` : ""}`);
     },
@@ -157,6 +183,11 @@ function PrepQueuePage() {
                   <div className="text-xs text-muted-foreground mb-2">
                     {row.compound} — {NEEDS_INPUT_LABEL[row.reason] ?? row.reason}: {row.message}
                   </div>
+                  {row.known?.received_form && (
+                    <div className="text-[10px] text-muted-foreground mb-1.5">
+                      Pre-filled from receipt — change only what's wrong.
+                    </div>
+                  )}
                   {(row.reason === "missing_as_received_data" || row.reason === "plan_error") && (
                     <div className="flex flex-wrap items-end gap-2">
                       <div className="w-40">
@@ -170,7 +201,7 @@ function PrepQueuePage() {
                       </div>
                       <Input className="h-8 w-24 text-xs" placeholder="Qty" value={o.quantity ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], quantity: e.target.value } }))} />
                       <Input className="h-8 w-20 text-xs" placeholder="Unit" value={o.unit ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], unit: e.target.value } }))} />
-                      {o.form === "lyophilized" && (
+                      {(o.form ?? row.known?.received_form) === "lyophilized" && (
                         <Input className="h-8 w-24 text-xs" placeholder="Purity %" value={o.purity ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], purity: e.target.value } }))} />
                       )}
                       <Button size="sm" disabled={recomputeMut.isPending} onClick={() => recomputeMut.mutate(row)}>Recompute</Button>

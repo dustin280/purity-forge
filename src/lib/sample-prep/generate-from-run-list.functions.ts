@@ -57,6 +57,31 @@ export interface NeedsInputRow {
   compound: string | null;
   reason: NeedsInputReason;
   message: string;
+  /**
+   * What receipt already recorded for this sample. The prep queue's override
+   * form used to start blank, so an analyst re-typed the form, quantity and
+   * unit the system had held since intake just to reach the one field that
+   * was actually missing. Sent back so the form can pre-fill and only the
+   * genuine gap is left to answer.
+   */
+  known?: {
+    received_form: "lyophilized" | "solution" | null;
+    received_quantity: number | null;
+    received_quantity_unit: string | null;
+    received_purity_percent: number | null;
+  };
+}
+
+/** Receipt-known values attached to every needs-input row. */
+export function knownFrom(sample: Pick<SampleCtx,
+  "received_form" | "received_quantity" | "received_quantity_unit" | "received_purity_percent">
+): NonNullable<NeedsInputRow["known"]> {
+  return {
+    received_form: sample.received_form,
+    received_quantity: sample.received_quantity,
+    received_quantity_unit: sample.received_quantity_unit,
+    received_purity_percent: sample.received_purity_percent,
+  };
 }
 
 export interface SampleCtx {
@@ -838,17 +863,17 @@ export const generateSamplePrepForRunList = createServerFn({ method: "POST" })
       if (!sample) continue;
       const resolutionKey = resolutionKeyFor(sample);
       if (!resolutionKey) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "no_compound", message: "Sample has no compound recorded." });
+        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: "no_compound", message: "Sample has no compound recorded.", known: knownFrom(sample) });
         continue;
       }
       const resolved = byCompoundLower.get(resolutionKey);
       if (!resolved || "reason" in resolved) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target." });
+        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: resolved?.reason ?? "no_calibration_data", message: resolved?.message ?? "Could not resolve a calibration target.", known: knownFrom(sample) });
         continue;
       }
       const result = await planAndPersistForSample(context.supabase, context.userId, sample, resolved, assets, undefined, "run_list");
       if (!result.ok) {
-        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message });
+        needsInput.push({ run_list_item_id: item.id, sample_id: sample.id, batch_id: sample.batch_id, compound: sample.compound, reason: result.reason, message: result.message, known: knownFrom(sample) });
         continue;
       }
       await context.supabase.from("run_list_items").update({ sp_preparation_record_id: result.row.prep_id }).eq("id", item.id);
