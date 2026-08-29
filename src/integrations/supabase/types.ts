@@ -6211,6 +6211,10 @@ export type Database = {
         Returns: number
       }
       next_coc_invoice_number: { Args: never; Returns: string }
+      release_sample_id: {
+        Args: { p_sample_id: string; p_reason?: string | null }
+        Returns: boolean
+      }
       next_document_number: {
         Args: { p_code: string; p_date?: string }
         Returns: string

@@ -75,12 +75,28 @@ export const cancelPendingOrder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
+    const { data: order } = await supabase
+      .from("pending_orders").select("reserved_sample_id").eq("id", data.id).maybeSingle();
     const { error } = await supabase.from("pending_orders").update({
       status: "cancelled",
       cancelled_at: new Date().toISOString(),
       cancelled_by: userId,
     }).eq("id", data.id).eq("status", "pending");
     if (error) throw error;
+    // The id this order was holding is now free -- return it to the pool so
+    // cancelling doesn't leave a permanent hole in the sequence. Runs after
+    // the status flip so release_sample_id's "still a live pending order"
+    // guard no longer blocks it. Best-effort: a failure here must not turn
+    // a successful cancel into an error.
+    if (order?.reserved_sample_id) {
+      try {
+        await supabase.rpc("release_sample_id", {
+          p_sample_id: order.reserved_sample_id, p_reason: "order_cancelled",
+        });
+      } catch (e) {
+        console.error("cancelPendingOrder: could not release reserved id", e);
+      }
+    }
     return { ok: true };
   });
 

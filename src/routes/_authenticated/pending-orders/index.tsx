@@ -12,6 +12,7 @@ import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, Tags, Cli
 import {
   listPendingOrders, getPendingOrder, cancelPendingOrder, reserveSampleIdForOrder,
 } from "@/lib/pending-orders.functions";
+import { releaseSampleId } from "@/lib/lims/coc/coc-records.functions";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
 import type { CocFormSeed } from "@/components/chain-of-custody/use-coc-form";
 import { EditPendingOrderDialog } from "@/components/pending-orders/edit-order-dialog";
@@ -72,6 +73,7 @@ function PendingOrdersPage() {
   const getOne = useServerFn(getPendingOrder);
   const cancel = useServerFn(cancelPendingOrder);
   const reserveId = useServerFn(reserveSampleIdForOrder);
+  const releaseId = useServerFn(releaseSampleId);
 
   const [status, setStatus] = useState<StatusFilter>("pending");
   const [payloadId, setPayloadId] = useState<string | null>(null);
@@ -321,6 +323,9 @@ function PendingOrdersPage() {
                         if (!confirm("Discard this draft? The order stays pending and can be received fresh.")) return;
                         deleteCocDraft(d.draftId);
                         void deleteDraftFiles(d.draftId);
+                        // The order keeps its reservation (it's still
+                        // pending), so nothing to release here -- receiving
+                        // it again reuses the same id.
                       }}
                       className="text-muted-foreground hover:text-destructive"
                       title="Discard draft"

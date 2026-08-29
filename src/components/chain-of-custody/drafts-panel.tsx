@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Trash2 } from "lucide-react";
 import { deleteCocDraft, type CocDraft } from "@/lib/coc-drafts";
+import { useServerFn } from "@tanstack/react-start";
+import { releaseSampleId } from "@/lib/lims/coc/coc-records.functions";
 import { deleteDraftFiles } from "@/lib/coc-draft-files";
 
 export function DraftsPanel({
@@ -16,6 +18,7 @@ export function DraftsPanel({
   drafts: CocDraft[];
   onResume: (d: CocDraft) => void;
 }) {
+  const releaseId = useServerFn(releaseSampleId);
   if (drafts.length === 0) return null;
   return (
     <Card className="mb-4 border-dashed border-primary/40 bg-primary/[0.03]">
@@ -40,7 +43,18 @@ export function DraftsPanel({
             <Button size="sm" variant="default" onClick={() => onResume(d)}>Resume</Button>
             <Button
               size="icon" variant="ghost"
-              onClick={() => { if (confirm("Discard this draft?")) { deleteCocDraft(d.draftId); void deleteDraftFiles(d.draftId); } }}
+              onClick={() => {
+                if (!confirm("Discard this draft?")) return;
+                // Hand the Sample ID back so discarding doesn't leave a
+                // permanent hole in the sequence. Server-side guards refuse
+                // the release if anything real was already saved under it.
+                const sid = (d.values?.sample_id as string | undefined)?.trim();
+                if (sid && !d.recordId) {
+                  void releaseId({ data: { sample_id: sid, reason: "draft_discarded" } }).catch(() => {});
+                }
+                deleteCocDraft(d.draftId);
+                void deleteDraftFiles(d.draftId);
+              }}
               className="text-muted-foreground hover:text-destructive"
             >
               <Trash2 className="size-4" />

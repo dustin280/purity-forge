@@ -2,6 +2,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/**
+ * Hand a reserved-but-unused Sample ID back to the pool so the sequence
+ * stays gap-free (see the sample_id_pool migration). The DB function is
+ * the authority on whether release is safe -- it refuses any id that
+ * already has samples, a CoC, lots, or a live pending order behind it, so
+ * a stale client can't recycle a real record's number.
+ */
+export const releaseSampleId = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ sample_id: z.string().min(1).max(64), reason: z.string().max(64).optional() }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { data: released, error } = await context.supabase
+      .rpc("release_sample_id", { p_sample_id: data.sample_id, p_reason: data.reason ?? null });
+    if (error) throw error;
+    return { released: !!released };
+  });
+
 export const listCocRecords = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

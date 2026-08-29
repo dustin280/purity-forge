@@ -9,7 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  listCocFields, getCocRecord, updateCocRecord, submitCocWithLots,
+  listCocFields, getCocRecord, updateCocRecord, submitCocWithLots, releaseSampleId,
   listParameters, nextCocInvoiceNumber,
   recordCocAttachment, listCocAttachments, deleteCocAttachment, signedCocAttachmentUrl,
 } from "@/lib/lims.functions";
@@ -58,6 +58,7 @@ export function useCocForm({
   const submit = useServerFn(submitCocWithLots);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
+  const releaseId = useServerFn(releaseSampleId);
   const recordAttachment = useServerFn(recordCocAttachment);
   const listAttachments = useServerFn(listCocAttachments);
   const deleteAttachment = useServerFn(deleteCocAttachment);
@@ -309,6 +310,17 @@ export function useCocForm({
   });
 
   function attemptClose() {
+    // A Sample ID is allocated as soon as this form opens, so closing
+    // without saving anything would otherwise burn it permanently and leave
+    // a hole in the sequence. If nothing was persisted -- no draft, not an
+    // edit of an existing record -- hand it back to the pool. An id an
+    // order still has reserved is refused server-side, so a seeded form
+    // can't release the order's number out from under it.
+    const persistedDraft = draftId ? getCocDraft(draftId) : null;
+    const sid = (values.sample_id as string | undefined)?.trim();
+    if (!persistedDraft && !recordId && sid) {
+      void releaseId({ data: { sample_id: sid, reason: "form_closed_unused" } }).catch(() => {});
+    }
     setIsDirty(false);
     setPendingFiles([]);
     setPendingByLine({});
