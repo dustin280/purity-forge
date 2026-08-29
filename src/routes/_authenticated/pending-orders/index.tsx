@@ -138,34 +138,40 @@ function PendingOrdersPage() {
         let lot = lotsByBase.get(base);
         if (!lot) {
           // Their `components` array is already structured ({compound, mg}),
-          // so compounds and masses come across directly -- no parsing of
-          // the concatenated product name needed for partner orders.
+          // so every compound and mass comes across directly -- no parsing
+          // of the concatenated product name needed for partner orders, and
+          // no compound gets singled out as "primary".
           const comps = raw?.components ?? [];
-          const [primary, ...rest] = comps;
+          const components = comps.length
+            ? comps.map((c) => ({
+                compound_id: null,
+                compound: c.compound ?? "",
+                label_content_value: c.mg != null ? String(c.mg) : "",
+                label_content_unit: (c.mg != null ? "mg" : "") as "" | "mg" | "ug",
+              }))
+            // No structured components (a hand-entered order): fall back to
+            // the product name as a single unpriced compound rather than
+            // inventing amounts.
+            : [{ compound_id: null, compound: stripVialTag(sm.product_name), label_content_value: "", label_content_unit: "" as const }];
           lot = {
             ...emptyLot(),
-            compound: primary?.compound ?? stripVialTag(sm.product_name),
+            // Their exact string, kept verbatim as the reference the
+            // components above were read from.
             partner_reported_name: sm.product_name,
             customer_lot: base,
             physical_form: "solid",
-            label_content_value: primary?.mg != null ? String(primary.mg) : "",
-            label_content_unit: primary?.mg != null ? "mg" : "",
-            is_multi_component: comps.length > 1,
-            components: rest.map((c) => ({
-              compound_id: null,
-              compound: c.compound ?? "",
-              label_content_value: c.mg != null ? String(c.mg) : "",
-              label_content_unit: c.mg != null ? "mg" : "",
-            })),
+            is_multi_component: components.length > 1,
+            components,
             vials: [],
           };
           lotsByBase.set(base, lot);
         }
+        const target = lot!;
         const testType = partnerTestType(sm.lot_batch, sm.product_name) ?? "purity";
         // One vial per unit they sent, each keeping their exact per-vial lot
         // string -- their export API is polled by that value.
         for (let i = 0; i < Math.max(1, sm.quantity ?? 1); i++) {
-          lot.vials.push({
+          target.vials.push({
             ...emptyVial(testType),
             partner_lot: sm.lot_batch ?? "",
           });

@@ -68,6 +68,52 @@ export function composeAppearance(
   return `${c} ${t}`;
 }
 
+// ---------- Lot composition ----------
+
+/**
+ * A product is simply 1..N compounds, each with its own amount. There is no
+ * primary/secondary distinction -- a single-compound product is just a lot
+ * with one component.
+ */
+export type LotComponentLike = {
+  compound: string;
+  label_content_value: string;
+  label_content_unit: "" | "mg" | "ug";
+};
+
+/**
+ * Label content for the product as a whole = the sum of every component's
+ * amount, normalised to mg. (Previously this took only the first
+ * component's mass, which understated any blend.)
+ */
+export function totalLabelContentMg(components: LotComponentLike[]): number | null {
+  let total = 0;
+  let sawAny = false;
+  for (const c of components) {
+    if (c.label_content_value === "" || c.label_content_value == null) continue;
+    const v = Number(c.label_content_value);
+    if (!Number.isFinite(v)) continue;
+    sawAny = true;
+    total += c.label_content_unit === "ug" ? v / 1000 : v;
+  }
+  if (!sawAny) return null;
+  // Trim float noise from unit conversion without forcing a fixed precision.
+  return Math.round(total * 1e6) / 1e6;
+}
+
+/**
+ * What to call the product. Prefers the common/marketing name when the lab
+ * has one (SUMMIT, KLOW); otherwise builds a stable identifier by joining
+ * the component names, e.g. "Cartalax_TB-500 / TB-4_BPC-157". Never picks
+ * one component to stand in for the whole blend.
+ */
+export function lotDisplayName(displayName: string | null | undefined, components: LotComponentLike[]): string {
+  const named = (displayName ?? "").trim();
+  if (named) return named;
+  const parts = components.map((c) => c.compound.trim()).filter(Boolean);
+  return parts.join("_");
+}
+
 // ---------- Partner test tagging ----------
 
 /**

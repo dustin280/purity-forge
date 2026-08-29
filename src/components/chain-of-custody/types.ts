@@ -96,8 +96,15 @@ export type VialRow = {
 /** One product/lot within a shipment. Becomes a `sample_lots` row. */
 export type LotRow = {
   customer_lot: string;
-  compound: string;
-  compound_id: string | null;
+  /**
+   * Optional common/marketing name for the product as a whole (SUMMIT,
+   * KLOW). Blank is fine -- a name is then constructed by joining the
+   * component compounds. NOT one of the compounds itself; a blend has no
+   * "primary" compound.
+   */
+  display_name: string;
+  /** The partner's original product string. Reference only -- never edited,
+   *  never treated as a compound, kept so their wording stays recoverable. */
   partner_reported_name: string;
   catalog: string;
   manufacturer: string;
@@ -108,9 +115,9 @@ export type LotRow = {
   appearance_texture: string;
   appearance_texture_other: string;
   appearance_color: string;
-  label_content_value: string;
-  label_content_unit: "" | "mg" | "ug";
   is_multi_component: boolean;
+  /** Every compound in this product, 1..N, each with its own amount. The
+   *  lot's total label content is the SUM of these (totalLabelContentMg). */
   components: LineItemComponent[];
   bottle_size: string;
   liquid_volume_ml: string;
@@ -125,12 +132,12 @@ export const emptyVial = (test_type: TestType = "purity"): VialRow => ({
 });
 
 export const emptyLot = (): LotRow => ({
-  customer_lot: "", compound: "", compound_id: null, partner_reported_name: "",
+  customer_lot: "", display_name: "", partner_reported_name: "",
   catalog: "", manufacturer: "", container_size: "",
   client_received_date: "", manufacture_date: "",
   physical_form: "", appearance_texture: "", appearance_texture_other: "", appearance_color: "",
-  label_content_value: "", label_content_unit: "",
-  is_multi_component: false, components: [],
+  is_multi_component: false,
+  components: [emptyLineComponent()],
   bottle_size: "", liquid_volume_ml: "", label_content_basis: "", capsule_count: "",
   notes: "",
   vials: [emptyVial("purity")],

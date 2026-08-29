@@ -250,9 +250,12 @@ export function useCocForm({
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
         await uploadAllPendingTo(recordId);
       } else {
+        // A lot is submittable once it names at least one compound and has
+        // at least one vial. Blank compound rows are dropped rather than
+        // rejected, so a half-filled extra row doesn't block submit.
         const cleaned = lots
-          .map(l => ({ ...l, compound: l.compound.trim() }))
-          .filter(l => l.compound.length > 0 && l.vials.length > 0);
+          .map(l => ({ ...l, components: l.components.filter(c => c.compound.trim() !== "") }))
+          .filter(l => l.components.length > 0 && l.vials.length > 0);
         if (cleaned.length === 0) throw new Error("Add at least one lot with a compound and one vial");
         const res = await submit({ data: {
           sample_id: sampleIdVal, data, lots: cleaned,
@@ -323,13 +326,13 @@ export function useCocForm({
     // "Resume Draft" button on permanently.
     if (!isDirty) return;
     const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
-    const hasLines = lots.some(l => l.compound.trim() !== "" || l.customer_lot.trim() !== "" || l.catalog.trim() !== "");
+    const hasLines = lots.some(l => l.components.some(c => c.compound.trim() !== "") || l.customer_lot.trim() !== "" || l.catalog.trim() !== "");
     const hasPending = pendingFiles.length > 0 || Object.values(pendingByLine).some(arr => arr.length > 0);
     if (!hasValues && !hasLines && !hasPending) return;
     const summaryParts: string[] = [];
     const invoice = (values.sample_id as string)?.trim();
     if (invoice) summaryParts.push(invoice);
-    const firstCompound = lots.find(l => l.compound.trim() !== "")?.compound.trim();
+    const firstCompound = lots.flatMap(l => l.components).find(c => c.compound.trim() !== "")?.compound.trim();
     if (firstCompound) summaryParts.push(firstCompound);
     const client = (values.client_company as string)?.trim();
     if (client) summaryParts.push(client);

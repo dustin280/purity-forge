@@ -19,7 +19,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
 import {
   APPEARANCE_COLORS, APPEARANCE_TEXTURES, TEST_TYPE_LABEL,
-  composeAppearance, vialBatchId, type TestType,
+  composeAppearance, vialBatchId, lotDisplayName, totalLabelContentMg, type TestType,
 } from "@/lib/lims/sample-hierarchy";
 import { emptyLineComponent, emptyVial, type LotRow, type LineItemComponent, type VialRow } from "./types";
 import { VialRowEditor } from "./vial-row";
@@ -68,6 +68,11 @@ export function LotCard({
 }) {
   const lotId = `${shipmentId}-${String(lotNo).padStart(2, "0")}`;
   const isLiquid = lot.physical_form === "liquid";
+  // Both derived, never stored as entered values: the product's name is the
+  // marketing name or a join of its compounds, and its label content is the
+  // sum of every component's amount.
+  const productName = lotDisplayName(lot.display_name, lot.components);
+  const totalMg = totalLabelContentMg(lot.components);
   const appearance = composeAppearance(
     lot.physical_form, lot.appearance_color, lot.appearance_texture, lot.appearance_texture_other,
   );
@@ -106,14 +111,14 @@ export function LotCard({
   }
 
   const labelContentField = (
-    value: string, unit: LotRow["label_content_unit"],
-    onValue: (v: string) => void, onUnit: (v: LotRow["label_content_unit"]) => void,
+    value: string, unit: LineItemComponent["label_content_unit"],
+    onValue: (v: string) => void, onUnit: (v: LineItemComponent["label_content_unit"]) => void,
     placeholder?: string,
   ) => (
     <div className="flex gap-1">
       <Input type="number" step="0.01" min={0} className="h-8" value={value} disabled={disabled}
         placeholder={placeholder ?? "Amount"} onChange={(e) => onValue(e.target.value)} />
-      <Select value={unit || undefined} disabled={disabled} onValueChange={(v) => onUnit(v as LotRow["label_content_unit"])}>
+      <Select value={unit || undefined} disabled={disabled} onValueChange={(v) => onUnit(v as LineItemComponent["label_content_unit"])}>
         <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Unit" /></SelectTrigger>
         <SelectContent>
           {LABEL_CONTENT_UNITS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
@@ -134,7 +139,7 @@ export function LotCard({
       <div className={`flex flex-wrap items-center gap-2 pl-5 pr-3 py-2.5 ${accent.band} border-b-2 ${accent.ring}`}>
         <span className={`font-mono text-sm font-bold ${accent.ink}`}>{lotId}</span>
         <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Lot {lotNo}</span>
-        {lot.compound && <span className="text-xs font-semibold">· {lot.compound}</span>}
+        {productName && <span className="text-xs font-semibold">· {productName}</span>}
         {lot.customer_lot && (
           <span className="font-mono text-[11px] text-muted-foreground">· {lot.customer_lot}</span>
         )}
@@ -163,36 +168,41 @@ export function LotCard({
               </SelectContent>
             </Select>
           </div>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground pb-1.5">
-            <Checkbox checked={lot.is_multi_component} disabled={disabled}
-              onCheckedChange={(v) => onChange({
-                is_multi_component: !!v,
-                components: v ? (lot.components.length ? lot.components : [emptyLineComponent()]) : [],
-              })} />
-            Multi-component product (blend)
-          </label>
+          {/* No "is this a blend?" toggle any more -- a blend is simply a
+              product with more than one compound, so it's derived from the
+              Compounds list rather than asserted separately. */}
+          {lot.components.length > 1 && (
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground pb-2">
+              Blend · {lot.components.length} compounds
+            </span>
+          )}
         </div>
+
+        {/* The partner's original product string. Read-only reference: it's
+            where the compounds and amounts below were read from, so it stays
+            visible and verbatim for cross-checking, but it is never itself
+            treated as a compound. */}
+        {lot.partner_reported_name && (
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wider text-amber-600/90 dark:text-amber-400/90">
+              As submitted by partner — reference only
+            </div>
+            <div className="text-xs font-mono mt-0.5 break-words">{lot.partner_reported_name}</div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           <div className="sm:col-span-2">
-            <Label className="text-[10px] uppercase text-muted-foreground">
-              {lot.is_multi_component ? "Primary Compound *" : "Product / Compound *"}
-            </Label>
-            <div className="mt-1">
-              <CompoundPicker
-                options={compoundOptions}
-                value={{ compound_id: lot.compound_id, name: lot.compound }}
-                onChange={(v) => {
-                  const opt = compoundOptions.find((o) => o.id === v.compound_id);
-                  onChange({ compound_id: v.compound_id, compound: v.name, ...(!lot.appearance_color && opt?.default_appearance ? {} : {}) });
-                }}
-                onCreateCompound={onCreateCompound}
-                disabled={disabled}
-              />
-              {lot.partner_reported_name && lot.partner_reported_name !== lot.compound && (
-                <p className="text-[10px] text-amber-600 mt-1">Partner said: &ldquo;{lot.partner_reported_name}&rdquo;</p>
-              )}
-            </div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Common / Marketing Name</Label>
+            <Input
+              className="h-8 mt-1" value={lot.display_name} disabled={disabled}
+              placeholder={productName || "e.g. SUMMIT, KLOW — optional"}
+              onChange={(e) => onChange({ display_name: e.target.value })}
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Optional. Left blank, this product is identified as{" "}
+              <span className="font-mono">{lotDisplayName("", lot.components) || "—"}</span>
+            </p>
           </div>
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Client Lot / Batch</Label>
@@ -231,18 +241,57 @@ export function LotCard({
             <Input type="date" className="h-8 mt-1" value={lot.client_received_date} disabled={disabled}
               onChange={(e) => onChange({ client_received_date: e.target.value })} />
           </div>
-          <div>
-            <Label className="text-[10px] uppercase text-muted-foreground">
-              Label Content{isLiquid ? " (per mL)" : lot.physical_form === "capsule" ? " (per capsule)" : ""}
+        </div>
+
+        {/* Compounds -- 1..N, no primary/secondary. Total label content is
+            the sum of every amount here, so it's shown derived rather than
+            typed (it used to take only the first compound's mass, which
+            understated every blend). */}
+        <div className="rounded-md border border-border bg-muted/40 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Compounds{lot.components.length > 1 ? ` (${lot.components.length})` : ""}
             </Label>
-            <div className="mt-1">
-              {labelContentField(
-                lot.label_content_value, lot.label_content_unit,
-                (v) => onChange({ label_content_value: v }),
-                (v) => onChange({ label_content_unit: v }),
+            <div className="flex items-center gap-3">
+              <span className="text-xs">
+                <span className="text-muted-foreground">Label content: </span>
+                <span className="font-semibold">{totalMg != null ? `${totalMg} mg` : "—"}</span>
+                {isLiquid && totalMg != null && <span className="text-muted-foreground"> / mL</span>}
+              </span>
+              {!disabled && (
+                <Button type="button" size="sm" variant="outline"
+                  onClick={() => onChange({ components: [...lot.components, emptyLineComponent()] })}>
+                  <Plus className="size-3.5 mr-1" /> Add compound
+                </Button>
               )}
             </div>
           </div>
+          {lot.components.map((c, idx) => (
+            <div key={idx} className="flex items-end gap-2">
+              <div className="flex-1">
+                <CompoundPicker
+                  options={compoundOptions}
+                  value={{ compound_id: c.compound_id, name: c.compound }}
+                  onChange={(v) => updateComponent(idx, { compound_id: v.compound_id, compound: v.name })}
+                  onCreateCompound={onCreateCompound}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="w-40">
+                {labelContentField(
+                  c.label_content_value, c.label_content_unit,
+                  (v) => updateComponent(idx, { label_content_value: v }),
+                  (v) => updateComponent(idx, { label_content_unit: v }),
+                )}
+              </div>
+              {!disabled && lot.components.length > 1 && (
+                <Button type="button" size="icon" variant="ghost"
+                  onClick={() => onChange({ components: lot.components.filter((_, i) => i !== idx) })}>
+                  <Trash2 className="size-3.5 text-muted-foreground" />
+                </Button>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* Appearance -- entered once, applies to every vial below */}
@@ -284,49 +333,6 @@ export function LotCard({
             )}
           </div>
         </div>
-
-        {lot.is_multi_component && (
-          <div className="space-y-2 rounded-md border border-dashed border-border p-2.5">
-            <div className="flex items-center justify-between">
-              <Label className="text-[10px] uppercase text-muted-foreground">Additional Compounds in Blend</Label>
-              {!disabled && (
-                <Button type="button" size="sm" variant="outline"
-                  onClick={() => onChange({ components: [...lot.components, emptyLineComponent()] })}>
-                  <Plus className="size-3.5 mr-1" /> Add compound
-                </Button>
-              )}
-            </div>
-            {lot.components.length === 0 && (
-              <p className="text-xs text-muted-foreground italic">No additional compounds yet.</p>
-            )}
-            {lot.components.map((c, idx) => (
-              <div key={idx} className="flex items-end gap-2">
-                <div className="flex-1">
-                  <CompoundPicker
-                    options={compoundOptions}
-                    value={{ compound_id: c.compound_id, name: c.compound }}
-                    onChange={(v) => updateComponent(idx, { compound_id: v.compound_id, compound: v.name })}
-                    onCreateCompound={onCreateCompound}
-                    disabled={disabled}
-                  />
-                </div>
-                <div className="w-40">
-                  {labelContentField(
-                    c.label_content_value, c.label_content_unit,
-                    (v) => updateComponent(idx, { label_content_value: v }),
-                    (v) => updateComponent(idx, { label_content_unit: v }),
-                  )}
-                </div>
-                {!disabled && (
-                  <Button type="button" size="icon" variant="ghost"
-                    onClick={() => onChange({ components: lot.components.filter((_, i) => i !== idx) })}>
-                    <Trash2 className="size-3.5 text-muted-foreground" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
 
         <div>
           <Label className="text-[10px] uppercase text-muted-foreground">Notes for this lot</Label>

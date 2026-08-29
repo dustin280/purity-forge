@@ -5,7 +5,7 @@ import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
 import { provisionTestsForSample, provisionTestForVial } from "@/lib/lims/test-provisioning";
 import { syncVialPhotosForNewSamples } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 import { assignStorageForNewSamples } from "@/lib/lims/storage-assignment.functions";
-import { lotCode, vialBatchId, composeAppearance } from "@/lib/lims/sample-hierarchy";
+import { lotCode, vialBatchId, composeAppearance, lotDisplayName, totalLabelContentMg } from "@/lib/lims/sample-hierarchy";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -105,8 +105,8 @@ const vialSchema = z.object({
 
 const lotSchema = z.object({
   customer_lot: z.string().max(255).optional().nullable(),
-  compound: z.string().min(1).max(255),
-  compound_id: z.string().uuid().optional().nullable(),
+  /** Optional common/marketing name. Blank -> derived by joining compounds. */
+  display_name: z.string().max(255).optional().nullable(),
   partner_reported_name: z.string().max(255).optional().nullable(),
   catalog: z.string().max(255).optional().nullable(),
   manufacturer: z.string().max(255).optional().nullable(),
@@ -117,10 +117,8 @@ const lotSchema = z.object({
   appearance_texture: z.string().max(64).optional().nullable(),
   appearance_texture_other: z.string().max(128).optional().nullable(),
   appearance_color: z.string().max(64).optional().nullable(),
-  label_content_value: z.union([z.number(), z.string()]).optional().nullable(),
-  label_content_unit: z.enum(["mg", "ug", ""]).optional().nullable(),
-  is_multi_component: z.boolean().optional().default(false),
-  components: z.array(lineItemComponentSchema).max(20).optional().default([]),
+  /** Every compound in the product, 1..N. No primary/secondary. */
+  components: z.array(lineItemComponentSchema).min(1).max(20),
   bottle_size: z.string().max(128).optional().nullable(),
   liquid_volume_ml: z.union([z.number(), z.string()]).optional().nullable(),
   label_content_basis: z.enum(["per_ml", "per_bottle", ""]).optional().nullable(),
@@ -193,11 +191,19 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       const appearance = composeAppearance(
         lot.physical_form, lot.appearance_color, lot.appearance_texture, lot.appearance_texture_other,
       );
-      const labelContentNum = (() => {
-        if (lot.label_content_value == null || lot.label_content_value === "") return null;
-        const n = Number(lot.label_content_value);
-        return isNaN(n) ? null : n;
-      })();
+      // All three derived from the components list rather than entered
+      // separately: the product's name, whether it's a blend, and its total
+      // label content (the SUM of every compound's amount -- previously this
+      // took only the first compound's mass, understating every blend).
+      const uiComponents = lot.components.map((c) => ({
+        compound: c.compound ?? "",
+        label_content_value: c.label_content_value == null ? "" : String(c.label_content_value),
+        label_content_unit: (c.label_content_unit ?? "") as "" | "mg" | "ug",
+      }));
+      const productName = lotDisplayName(lot.display_name, uiComponents);
+      const isBlend = lot.components.length > 1;
+      const labelContentNum = totalLabelContentMg(uiComponents);
+      const primaryCompoundId = lot.components.find((c) => c.compound_id)?.compound_id ?? null;
 
       const { data: lotRow, error: lotErr } = await supabase
         .from("sample_lots")
@@ -207,18 +213,18 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           lot_no: lotNo,
           lot_code: lotCode(data.sample_id, lotNo),
           customer_lot: lot.customer_lot || null,
-          compound: lot.compound,
-          compound_id: lot.compound_id ?? null,
+          compound: productName,
+          compound_id: primaryCompoundId,
           partner_reported_compound_name: lot.partner_reported_name || null,
-          is_multi_component: !!lot.is_multi_component,
-          components: (lot.is_multi_component ? (lot.components ?? []) : []) as never,
+          is_multi_component: isBlend,
+          components: lot.components as never,
           physical_form: lot.physical_form || null,
           appearance_texture: lot.appearance_texture || null,
           appearance_color: lot.appearance_color || null,
           physical_description: appearance || null,
           container_size: lot.container_size || null,
           label_content_value: labelContentNum,
-          label_content_unit: lot.label_content_unit || null,
+          label_content_unit: labelContentNum != null ? "mg" : null,
           manufacture_date: lot.manufacture_date?.trim() ? lot.manufacture_date.slice(0, 10) : null,
           client_received_date: lot.client_received_date?.trim() ? lot.client_received_date.slice(0, 10) : null,
           notes: lot.notes || null,
@@ -233,10 +239,13 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       // lot-level, so nothing is lost by the three-level split.
       const derived = deriveReceivedFields({
         ...lot,
+        compound: productName,
         vial_count: lot.vials.length,
         requested_tests: [],
         lot: lot.customer_lot ?? null,
         physical_description: appearance,
+        label_content_value: labelContentNum,
+        label_content_unit: "mg",
       } as unknown as z.infer<typeof lineItemSchema>);
 
       const physicalFormDetails: Record<string, string | number | null | undefined> | null = (() => {
@@ -251,9 +260,9 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
         return null;
       })();
 
-      const methodGroupId = lot.compound_id
-        ? (methodGroupByCompoundId.get(lot.compound_id) ?? null)
-        : (methodGroupByCompoundName.get(lot.compound.trim().toLowerCase()) ?? null);
+      const methodGroupId = primaryCompoundId
+        ? (methodGroupByCompoundId.get(primaryCompoundId) ?? null)
+        : (methodGroupByCompoundName.get(productName.trim().toLowerCase()) ?? null);
 
       const vialRows = lot.vials.map((v, vialIdx) => {
         const vialNo = vialIdx + 1;
@@ -273,8 +282,8 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           notes: v.notes || lot.notes || (lot.catalog ? `Catalog: ${lot.catalog}` : null),
           coc_id: coc.id,
           coc_line_no: vialNo,
-          compound: lot.compound,
-          compound_id: lot.compound_id ?? null,
+          compound: productName,
+          compound_id: primaryCompoundId,
           partner_reported_compound_name: lot.partner_reported_name || null,
           // The partner's per-vial lot, verbatim -- their export lookups
           // depend on it. Falls back to the lot's base customer lot for
@@ -298,9 +307,9 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           received_purity_percent: null,
           physical_form: lot.physical_form || null,
           label_content_value: labelContentNum,
-          label_content_unit: lot.label_content_unit || null,
-          is_multi_component: !!lot.is_multi_component,
-          components: (lot.is_multi_component ? (lot.components ?? []) : []) as never,
+          label_content_unit: labelContentNum != null ? "mg" : null,
+          is_multi_component: isBlend,
+          components: lot.components as never,
           physical_form_details: physicalFormDetails as never,
         };
       });
@@ -332,7 +341,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       project: headerProject,
       sampleId: data.sample_id,
       sampleCount: createdSamples.length,
-      compounds: Array.from(new Set(data.lots.map((l) => l.compound).filter(Boolean))),
+      compounds: Array.from(new Set(data.lots.flatMap((l) => l.components.map((c) => c.compound)).filter(Boolean))),
     });
 
     await syncVialPhotosForNewSamples(
