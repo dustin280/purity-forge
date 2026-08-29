@@ -133,6 +133,11 @@ export const qk = {
     list: () => ["coc_fields"] as const,
   },
 
+  cocDraftRegistry: {
+    all: ["coc_draft_registry"] as const,
+    list: () => ["coc_draft_registry"] as const,
+  },
+
   cocRecords: {
     all: ["coc_records"] as const,
     list: () => ["coc_records"] as const,

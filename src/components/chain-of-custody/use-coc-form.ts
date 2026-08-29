@@ -17,6 +17,8 @@ import {
   getCocDraft, saveCocDraft, deleteCocDraft, newDraftId,
 } from "@/lib/coc-drafts";
 import { saveDraftFiles, getDraftFiles, deleteDraftFiles } from "@/lib/coc-draft-files";
+import { upsertCocDraftRegistry, deleteCocDraftRegistry } from "@/lib/lims.functions";
+import { deviceLabel } from "@/lib/device-label";
 import { qk } from "@/lib/query-keys";
 import { emptyLot, type CocField, type CocRecord, type LotRow } from "./types";
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
@@ -59,6 +61,8 @@ export function useCocForm({
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
   const releaseId = useServerFn(releaseSampleId);
+  const registerDraft = useServerFn(upsertCocDraftRegistry);
+  const unregisterDraft = useServerFn(deleteCocDraftRegistry);
   const recordAttachment = useServerFn(recordCocAttachment);
   const listAttachments = useServerFn(listCocAttachments);
   const deleteAttachment = useServerFn(deleteCocAttachment);
@@ -314,7 +318,12 @@ export function useCocForm({
       qc.invalidateQueries({ queryKey: qk.clients.all });
       qc.invalidateQueries({ queryKey: ["pending_orders"] });
       if (!recordId) signalWorkflowEvent("coc-submitted");
-      if (draftId) { deleteCocDraft(draftId); void deleteDraftFiles(draftId); }
+      if (draftId) {
+        deleteCocDraft(draftId);
+        void deleteDraftFiles(draftId);
+        // Submitted -- stop advertising it as in progress.
+        void unregisterDraft({ data: { draft_id: draftId } }).catch(() => {});
+      }
       setIsDirty(false);
       setPendingFiles([]);
       setPendingByLine({});
@@ -383,7 +392,24 @@ export function useCocForm({
       pendingOrderId: pendingOrderId ?? null,
     });
     if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine, pendingByVial });
-  }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, pendingByVial, recordId, pendingOrderId]);
+
+    // Announce the draft so the other machines in the lab can see that this
+    // Sample ID is already being worked. Only metadata leaves this browser --
+    // the draft and its photos stay here. Best-effort: losing the network
+    // must never cost someone their in-progress receipt.
+    const photoCount = pendingFiles.length
+      + Object.values(pendingByLine).reduce((n, a) => n + a.length, 0)
+      + Object.values(pendingByVial).reduce((n, a) => n + a.length, 0);
+    void registerDraft({ data: {
+      draft_id: draftId,
+      sample_id: invoice || null,
+      pending_order_id: pendingOrderId ?? null,
+      record_id: recordId ?? null,
+      summary: summaryParts.join(" · ") || null,
+      device_label: deviceLabel(),
+      photo_count: photoCount,
+    } }).catch(() => { /* offline or blocked -- the local draft is what matters */ });
+  }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, pendingByVial, recordId, pendingOrderId, registerDraft]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };

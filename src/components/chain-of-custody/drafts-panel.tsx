@@ -10,6 +10,7 @@ import { ClipboardList, Trash2 } from "lucide-react";
 import { deleteCocDraft, type CocDraft } from "@/lib/coc-drafts";
 import { useServerFn } from "@tanstack/react-start";
 import { releaseSampleId } from "@/lib/lims/coc/coc-records.functions";
+import { deleteCocDraftRegistry } from "@/lib/lims.functions";
 import { deleteDraftFiles } from "@/lib/coc-draft-files";
 
 export function DraftsPanel({
@@ -19,6 +20,7 @@ export function DraftsPanel({
   onResume: (d: CocDraft) => void;
 }) {
   const releaseId = useServerFn(releaseSampleId);
+  const unregisterDraft = useServerFn(deleteCocDraftRegistry);
   if (drafts.length === 0) return null;
   return (
     <Card className="mb-4 border-dashed border-primary/40 bg-primary/[0.03]">
@@ -54,6 +56,7 @@ export function DraftsPanel({
                 }
                 deleteCocDraft(d.draftId);
                 void deleteDraftFiles(d.draftId);
+                void unregisterDraft({ data: { draft_id: d.draftId } }).catch(() => {});
               }}
               className="text-muted-foreground hover:text-destructive"
             >

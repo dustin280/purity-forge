@@ -3,6 +3,7 @@
  */
 export * from "./lims/dashboard.functions";
 export * from "./lims/samples.functions";
+export * from "./lims/coc/coc-draft-registry.functions";
 export * from "./lims/settings.functions";
 export * from "./lims/users.functions";
 export * from "./lims/parameters.functions";

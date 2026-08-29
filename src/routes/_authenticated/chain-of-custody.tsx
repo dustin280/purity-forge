@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
 import { CocViewDialog } from "@/components/chain-of-custody/coc-view-dialog";
 import { DraftsPanel } from "@/components/chain-of-custody/drafts-panel";
+import { RemoteDraftsPanel } from "@/components/chain-of-custody/remote-drafts-panel";
 import { RecordsList } from "@/components/chain-of-custody/records-list";
 import { PageHeader } from "@/components/chain-of-custody/page-header";
 import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
@@ -90,6 +91,7 @@ function CocPage() {
           instead — that's where they were started, and where "Resume"
           naturally belongs (see pending-orders/index.tsx). */}
       <DraftsPanel drafts={drafts.filter(d => !d.pendingOrderId)} onResume={openDraft} />
+      <RemoteDraftsPanel localDraftIds={drafts.map(d => d.draftId)} />
 
       <RecordsList
         records={records}

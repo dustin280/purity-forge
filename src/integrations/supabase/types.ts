@@ -448,6 +448,45 @@ export type Database = {
           },
         ]
       }
+      coc_draft_registry: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          device_label: string | null
+          draft_id: string
+          pending_order_id: string | null
+          photo_count: number
+          record_id: string | null
+          sample_id: string | null
+          summary: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          device_label?: string | null
+          draft_id: string
+          pending_order_id?: string | null
+          photo_count?: number
+          record_id?: string | null
+          sample_id?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          device_label?: string | null
+          draft_id?: string
+          pending_order_id?: string | null
+          photo_count?: number
+          record_id?: string | null
+          sample_id?: string | null
+          summary?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chain_of_custody_fields: {
         Row: {
           created_at: string
