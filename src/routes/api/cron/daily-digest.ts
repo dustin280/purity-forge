@@ -17,9 +17,13 @@ export const Route = createFileRoute("/api/cron/daily-digest")({
         if (!settings?.cron_secret || !provided || provided !== settings.cron_secret) {
           return new Response("Unauthorized", { status: 401 });
         }
-        const dryRun = new URL(request.url).searchParams.get("dryRun") === "1";
+        const url = new URL(request.url);
+        const dryRun = url.searchParams.get("dryRun") === "1";
+        // ?only=<email> restricts a REAL send to one subscribed address, so
+        // the mail path can be verified without mailing the whole lab.
+        const only = url.searchParams.get("only") ?? undefined;
         try {
-          const result = await runDailyDigest(supabaseAdmin, { dryRun });
+          const result = await runDailyDigest(supabaseAdmin, { dryRun, only });
           return new Response(JSON.stringify({ ok: true, ...result }), {
             status: 200, headers: { "Content-Type": "application/json" },
           });

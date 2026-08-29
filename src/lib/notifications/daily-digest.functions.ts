@@ -191,9 +191,13 @@ export type DigestRunResult = {
 
 export async function runDailyDigest(
   supabase: SupabaseClient,
-  opts?: { dryRun?: boolean },
+  opts?: { dryRun?: boolean; only?: string },
 ): Promise<DigestRunResult> {
   const today = todayISO();
+  // `only` sends to a single subscribed address. Verifying that mail
+  // actually goes out otherwise means mailing the whole lab, which is not a
+  // thing to do casually just to test a key.
+  const onlyEmail = opts?.only?.trim().toLowerCase() || null;
 
   const [
     samplesReceived, samplesDue, dueTodayGeneral,
@@ -223,7 +227,8 @@ export async function runDailyDigest(
   const { data: recipientsRaw } = await supabase.from("notification_recipients")
     .select("id, name, email, is_active, digest_samples_received, digest_samples_due, digest_due_today, digest_sterility_readout, digest_endotoxin_due, digest_heavy_metals")
     .eq("is_active", true).not("email", "is", null);
-  const recipients = (recipientsRaw ?? []) as RecipientRow[];
+  const recipients = ((recipientsRaw ?? []) as RecipientRow[])
+    .filter((r) => !onlyEmail || (r.email ?? "").trim().toLowerCase() === onlyEmail);
 
   const result: DigestRunResult = { date: today, recipients: [], sent: 0, skipped: 0, failed: 0 };
 
