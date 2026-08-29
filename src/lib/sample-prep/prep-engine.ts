@@ -195,7 +195,10 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
       ordinal: 1,
       fromLabel: input.analyteName,
       toLabel: stockLabel,
-      instruction: `Dissolve ${mass} mg of ${input.analyteName} in ${fmtVol(vol)} of ${input.reconstitution.solventName} → ${fmtConc(stockMgPerMl)}.`,
+      // Nothing is ever weighed out. The vial holds what its label says and
+      // the entire contents get reconstituted, so the mass is stated as the
+      // label's declared content, not as something to measure.
+      instruction: `Reconstitute the entire vial (${mass} mg ${input.analyteName} per label) in ${fmtVol(vol)} of ${input.reconstitution.solventName} → ${fmtConc(stockMgPerMl)}.`,
       finalVolumeUl: vol,
       resultingMgPerMl: stockMgPerMl,
       diluentUl: vol,
@@ -428,7 +431,10 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
 
   steps.push({
     kind: "reconstitute", ordinal: 1, fromLabel: input.analyteName, toLabel: "Reconstituted stock",
-    instruction: `Dissolve ${totalMassMg} mg of ${input.analyteName} (${input.components.map(c => `${c.name} ${c.massMg} mg`).join(" + ")}) in ${fmtVol(vol)} of ${input.reconstitution.solventName}.`,
+    // Same here, and the per-component breakdown is the label's, so the
+    // sheet shows what each compound's stock concentration becomes rather
+    // than implying anything is measured out separately.
+    instruction: `Reconstitute the entire vial in ${fmtVol(vol)} of ${input.reconstitution.solventName} — ${totalMassMg} mg total per label (${input.components.map(c => `${c.name} ${c.massMg} mg → ${fmtConc(c.massMg / (vol / 1000))}`).join("; ")}).`,
     finalVolumeUl: vol, diluentUl: vol,
   });
 

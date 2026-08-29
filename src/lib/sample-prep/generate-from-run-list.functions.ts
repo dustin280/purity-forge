@@ -95,6 +95,37 @@ export interface SampleCtx {
   received_quantity_unit: string | null;
   received_purity_percent: number | null;
   container_size: string | null;
+  /**
+   * Per-compound breakdown captured at Sample Receipt. This is the truth
+   * about what is in the vial, and it is the ONLY starting amount there is
+   * -- nothing gets weighed, so the label's per-compound mg is what the
+   * whole plan has to be built from.
+   */
+  components?: SampleComponent[] | null;
+  is_multi_component?: boolean | null;
+}
+
+export type SampleComponent = {
+  compound?: string | null;
+  compound_id?: string | null;
+  label_content_value?: string | number | null;
+  label_content_unit?: string | null;
+};
+
+/** A component's mass in mg, or null when it wasn't recorded. */
+export function componentMassMg(c: SampleComponent): number | null {
+  const raw = c.label_content_value;
+  if (raw == null || raw === "") return null;
+  const v = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(v)) return null;
+  return (c.label_content_unit ?? "mg").toLowerCase() === "ug" ? v / 1000 : v;
+}
+
+/** Components with a real compound name and a real mass. */
+export function usableComponents(sample: SampleCtx): SampleComponent[] {
+  return (sample.components ?? []).filter(
+    (c) => (c.compound ?? "").trim() !== "" && componentMassMg(c) != null,
+  );
 }
 
 /**
@@ -164,6 +195,14 @@ export interface ResolvedBlendComponentCtx {
   calibrationLevel: number | null;
   calMinMgPerMl: number | null;
   calMaxMgPerMl: number | null;
+  /**
+   * The compound's whole calibration ladder. Needed because the target
+   * level is not fixed: an analyst working by hand tries L3, sees it puts
+   * another component's response too low, and bumps to L4 or L5 until the
+   * whole blend sits somewhere sensible. Replicating that search needs
+   * every level, not just the configured default.
+   */
+  levels?: Array<{ level: number; concMgPerMl: number }>;
 }
 
 export interface ResolvedBlendCtx {
@@ -235,11 +274,14 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
 }> {
   const byCompoundLower = new Map<string, ResolvedRevisionCtx | ResolvedBlendCtx | { reason: NeedsInputReason; message: string }>();
 
-  const units = new Map<string, string>(); // key -> display label
+  // key -> a representative sample. The sample itself is needed, not just
+  // its label: a receipt-defined blend carries its component list on the
+  // row, and that list is what the plan must be built from.
+  const units = new Map<string, SampleCtx>();
   for (const s of samples) {
     const key = resolutionKeyFor(s);
     if (!key) continue;
-    if (!units.has(key)) units.set(key, (s.compound ?? "").trim() || key);
+    if (!units.has(key)) units.set(key, s);
   }
   if (!units.size) return { byCompoundLower };
 
@@ -288,6 +330,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
         calibrationLevel: target?.level ?? null,
         calMinMgPerMl: calVals.length ? Math.min(...calVals) : settings.defaultCalMinMgPerMl,
         calMaxMgPerMl: calVals.length ? Math.max(...calVals) : settings.defaultCalMaxMgPerMl,
+        levels: numericLevels.map(l => ({ level: l.level, concMgPerMl: l.v })),
       };
     });
     return {
@@ -299,6 +342,53 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
       // parsed from the sample's own text.
       blendName: match.name.split("(")[0].trim() || match.name,
       diluentName: match.default_diluent_name ?? settings.diluentName,
+      rules: {
+        absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
+        preferredMinPipetteUl: settings.preferredMinPipetteUl,
+        maxDilutionSteps: settings.maxDilutionSteps,
+        preferredFinalVolumeUl: settings.finalVolumeUl,
+        preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
+      },
+      components,
+    };
+  }
+
+  /**
+   * Builds a blend context straight from the receipt's component list.
+   * Each component is looked up in the registry for its own calibration
+   * ladder; a component with no registry match still takes part in the
+   * plan (its mass is real and it dilutes along with everything else) but
+   * carries no range of its own to satisfy.
+   */
+  function resolveBlendFromComponents(own: SampleComponent[], label: string): ResolvedBlendCtx {
+    const components: ResolvedBlendComponentCtx[] = own.map((c) => {
+      const rawName = (c.compound ?? "").trim();
+      const match = (c.compound_id ? byId.get(c.compound_id) : null) ?? findByName(rawName);
+      const levels = match
+        ? [match.cal_l1_mg_per_ml, match.cal_l2_mg_per_ml, match.cal_l3_mg_per_ml, match.cal_l4_mg_per_ml, match.cal_l5_mg_per_ml, match.cal_l6_mg_per_ml]
+        : [];
+      const numericLevels = levels
+        .map((v, i) => ({ level: i + 1, v }))
+        .filter((l): l is { level: number; v: number } => l.v != null);
+      const target = numericLevels.find(l => l.level === settings.defaultTargetLevel)
+        ?? numericLevels[Math.floor(numericLevels.length / 2)]
+        ?? null;
+      const calVals = numericLevels.map(l => l.v);
+      return {
+        // Keep the receipt's own wording so the bench sheet matches the vial.
+        name: rawName || match?.name || "Unknown component",
+        compoundId: match?.id ?? c.compound_id ?? null,
+        targetConcMgPerMl: target?.v ?? (settings.defaultCalMinMgPerMl + settings.defaultCalMaxMgPerMl) / 2,
+        calibrationLevel: target?.level ?? null,
+        calMinMgPerMl: calVals.length ? Math.min(...calVals) : null,
+        calMaxMgPerMl: calVals.length ? Math.max(...calVals) : null,
+        levels: numericLevels.map(l => ({ level: l.level, concMgPerMl: l.v })),
+      };
+    });
+    return {
+      kind: "blend",
+      blendName: label,
+      diluentName: settings.diluentName,
       rules: {
         absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
         preferredMinPipetteUl: settings.preferredMinPipetteUl,
@@ -355,15 +445,60 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
     // picking the short one just because it happens to have calibration
     // data would silently mis-resolve a blend to one of its components.
     // Calibration-data presence only breaks a genuine tie in specificity.
-    candidates.sort((a, b) => b.name.length - a.name.length || (b.cal_l1_mg_per_ml != null ? 1 : 0) - (a.cal_l1_mg_per_ml != null ? 1 : 0));
+    // A blend row that matches outranks everything, before length is even
+    // considered. "KLOW (GHK-Cu 50mg + KPV 10mg + ...)" matches both the
+    // KLOW blend and its own component GHK-Cu, and on length alone GHK-Cu
+    // (6) beat KLOW (4) -- so the sample resolved to one of its ingredients
+    // and that ingredient was handed the whole vial's 80 mg.
+    candidates.sort((a, b) =>
+      (b.is_blend ? 1 : 0) - (a.is_blend ? 1 : 0)
+      || b.name.length - a.name.length
+      || (b.cal_l1_mg_per_ml != null ? 1 : 0) - (a.cal_l1_mg_per_ml != null ? 1 : 0));
     return candidates[0];
   };
 
-  for (const [key, label] of units) {
+  for (const [key, repSample] of units) {
+    const label = (repSample.compound ?? "").trim() || key;
+
+    // A receipt-defined blend wins over anything name-matching could infer.
+    // Substring-matching a constructed name like "GHK-Cu_KPV" against the
+    // registry used to pick the longest-named component that happened to
+    // appear in it and then hand that one compound the WHOLE vial's mass --
+    // "Dissolve 170 mg of MOTS-C" for a vial holding 10 mg of it. The
+    // component list on the row says exactly what is in there.
+    const own = usableComponents(repSample);
+    if (own.length > 1) {
+      byCompoundLower.set(key, resolveBlendFromComponents(own, label));
+      continue;
+    }
+
     const match = key.startsWith("id:") ? byId.get(key.slice(3)) ?? null : findByName(label);
 
     if (match?.is_blend) {
-      byCompoundLower.set(key, resolveBlend(match));
+      const fromRegistry = resolveBlend(match);
+      if (fromRegistry.components.length > 0) {
+        byCompoundLower.set(key, fromRegistry);
+        continue;
+      }
+      // A blend row whose components were never defined in the registry
+      // (KLOW has none) would otherwise resolve to an empty recipe. The
+      // sample's own text already spells the recipe out, so use that rather
+      // than depending on the registry being complete -- previously this
+      // case was hidden because the blend lost the name match to one of its
+      // own ingredients and quietly planned as that single compound.
+      const parsed = repSample.compound ? parseBlendMassBreakdown(repSample.compound) : null;
+      if (parsed && parsed.length > 1) {
+        const asComponents: SampleComponent[] = parsed.map(b => ({
+          compound: b.name, compound_id: null,
+          label_content_value: b.massMg, label_content_unit: "mg",
+        }));
+        byCompoundLower.set(key, {
+          ...resolveBlendFromComponents(asComponents, match.name.split("(")[0].trim() || match.name),
+          diluentName: match.default_diluent_name ?? settings.diluentName,
+        });
+        continue;
+      }
+      byCompoundLower.set(key, fromRegistry);
       continue;
     }
 
@@ -518,6 +653,43 @@ export function buildBlendPlanInput(
   sample: SampleCtx,
   ctx: ResolvedBlendCtx,
 ): { ok: true; input: BlendPlanInput; droppedComponents: string[] } | { ok: false; reason: NeedsInputReason; message: string } {
+  // The receipt's structured component list is authoritative when present.
+  // Parsing masses back out of the compound TEXT is only for older rows
+  // whose recipe was never captured as data.
+  const own = usableComponents(sample);
+  if (own.length > 1) {
+    const components: BlendPlanInput["components"] = [];
+    const droppedComponents: string[] = [];
+    for (const c of own) {
+      const rawName = (c.compound ?? "").trim();
+      const massMg = componentMassMg(c);
+      if (massMg == null) { droppedComponents.push(rawName); continue; }
+      const known = ctx.components.find(k => componentNamesMatch(k.name, rawName))
+        ?? ctx.components.find(k => k.compoundId && k.compoundId === c.compound_id);
+      components.push({
+        name: known?.name ?? rawName,
+        massMg,
+        targetConcMgPerMl: known?.targetConcMgPerMl ?? 0,
+        calibrationLevel: known?.calibrationLevel ?? null,
+        calMinMgPerMl: known?.calMinMgPerMl ?? null,
+        calMaxMgPerMl: known?.calMaxMgPerMl ?? null,
+      });
+    }
+    if (components.length > 0) {
+      return {
+        ok: true,
+        droppedComponents,
+        input: {
+          analyteName: ctx.blendName,
+          reconstitution: { volumeUl: ctx.rules.preferredInitialReconstitutionUl, solventName: ctx.diluentName },
+          finalVolumeUl: ctx.rules.preferredFinalVolumeUl,
+          components,
+          rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl },
+        },
+      };
+    }
+  }
+
   const breakdown = sample.compound ? parseBlendMassBreakdown(sample.compound) : null;
   if (!breakdown) {
     return { ok: false, reason: "missing_as_received_data", message: `Could not parse a per-compound mg breakdown from "${sample.compound ?? ""}" — this blend has no named-recipe lookup, so the sample's own text must spell out each compound's mg.` };
@@ -707,8 +879,9 @@ export function reconstitutionCandidatesUl(containerSize: string | null | undefi
   if (!m) return null;
   const vialMl = Math.round(parseFloat(m[1]));
   if (!Number.isFinite(vialMl) || vialMl < 3) return null;
-  if (vialMl === 3) return [1000, 2000];
-  const maxMl = vialMl - 1;
+  // Confirmed with Dustin 2026-08-29: a 3 mL vial can take the full 3 mL;
+  // larger vials keep 1 mL of headroom (5 mL -> up to 4, 10 mL -> up to 9).
+  const maxMl = vialMl === 3 ? 3 : vialMl - 1;
   return Array.from({ length: maxMl }, (_, i) => (i + 1) * 1000);
 }
 
@@ -746,18 +919,60 @@ export async function planAndPersistForSample(
     const candidates = reconstitutionCandidatesUl(sample.container_size);
     if (!candidates) return VIAL_SIZE_NEEDS_INPUT(sample.container_size);
 
+    // Replicates how this is done by hand: add a volume of diluent, aim at
+    // the middle standard, and if that puts another component's response too
+    // low, bump the aim to L4 or L5 until the whole blend sits somewhere
+    // usable. So the search is over BOTH the reconstitution volume and which
+    // calibration level is being aimed at -- not one fixed target that
+    // either works or hard-fails.
+    //
+    // Landing every component inside its own calibration range dominates
+    // everything else; among plans that manage it, the one sitting closest
+    // to the aimed level wins. A blend whose component ratio is wider than
+    // the calibration window has no such plan at any level, and that is a
+    // real fact about the vial rather than a computation failure -- the
+    // closest plan is returned with each out-of-range component named.
+    const aimedLevels = Array.from(
+      new Set(built.input.components.flatMap(c => {
+        const ctxComp = resolved.components.find(k => k.name === c.name);
+        return (ctxComp?.levels ?? []).map(l => l.level);
+      })),
+    ).sort((a, b) => a - b);
+    const levelsToTry = aimedLevels.length ? aimedLevels : [null];
+
     let best: BlendPlan | null = null;
     let bestScore = Infinity;
     let lastError: string | undefined;
     for (const volumeUl of candidates) {
-      const attempt = planBlendPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
-      if (!attempt.ok) { lastError = attempt.error; continue; }
-      let score = 0;
-      for (const c of attempt.components) {
-        const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
-        score += Math.abs(c.resultingConcMgPerMl - c.targetConcMgPerMl) / range;
+      for (const level of levelsToTry) {
+        const componentsAtLevel = built.input.components.map(c => {
+          if (level == null) return c;
+          const ctxComp = resolved.components.find(k => k.name === c.name);
+          const atLevel = ctxComp?.levels?.find(l => l.level === level);
+          return atLevel
+            ? { ...c, targetConcMgPerMl: atLevel.concMgPerMl, calibrationLevel: level }
+            : c;
+        });
+        const attempt = planBlendPreparation({
+          ...built.input,
+          components: componentsAtLevel,
+          reconstitution: { ...built.input.reconstitution, volumeUl },
+        });
+        if (!attempt.ok) { lastError = attempt.error; continue; }
+
+        let outOfRange = 0;
+        let deviation = 0;
+        for (const c of attempt.components) {
+          if (c.withinRange === false) outOfRange++;
+          const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl
+            ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
+          deviation += Math.abs(c.resultingConcMgPerMl - c.targetConcMgPerMl) / range;
+        }
+        // In-range count dominates; deviation only breaks ties among plans
+        // that put the same number of components in range.
+        const score = outOfRange * 1000 + deviation;
+        if (score < bestScore) { bestScore = score; best = attempt; }
       }
-      if (score < bestScore) { bestScore = score; best = attempt; }
     }
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a blend plan for any valid reconstitution volume." };
 
@@ -834,7 +1049,7 @@ async function loadUnlinkedSampleRows(supabase: SB, runListId: string): Promise<
   const unlinked = rows.filter(r => r.sample_id && !r.sp_preparation_record_id);
   const sampleIds = Array.from(new Set(unlinked.map(r => r.sample_id))) as string[];
   const { data: sampleRows } = sampleIds.length
-    ? await supabase.from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size").in("id", sampleIds)
+    ? await supabase.from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size, components, is_multi_component").in("id", sampleIds)
     : { data: [] };
   const samples = new Map(((sampleRows ?? []) as SampleCtx[]).map(s => [s.id, s] as const));
   return {
@@ -901,7 +1116,7 @@ export const recomputeSamplePrepForItem = createServerFn({ method: "POST" })
     if (!item.sample_id) throw new Error("Row has no sample.");
 
     const { data: sampleRow, error: sErr } = await context.supabase
-      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size")
+      .from("samples").select("id, batch_id, compound, compound_id, concentration, received_form, received_quantity, received_quantity_unit, received_purity_percent, container_size, components, is_multi_component")
       .eq("id", item.sample_id).single();
     if (sErr) throw sErr;
     const sample = sampleRow as SampleCtx;

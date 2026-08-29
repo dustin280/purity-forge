@@ -191,6 +191,8 @@ function PrepQueuePage() {
                     <div className="text-[10px] text-muted-foreground mb-1.5">
                       {row.reason === "missing_as_received_data"
                         ? "Filled in from receipt — supply whatever is still blank."
+                        : row.reason === "no_calibration_data" || row.reason === "no_compound"
+                        ? "From receipt — the vial data is fine. What's missing is compound/calibration setup in the library."
                         // A plan_error is not a data-entry problem. The receipt
                         // values are what the vial actually is, and telling
                         // someone to "change what's wrong" when nothing is
