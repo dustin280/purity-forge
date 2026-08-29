@@ -31,3 +31,6 @@ dist-ssr
 *.sln
 *.sw?
 supabase/.temp/
+
+# scratch calibration analysis scripts
+cal*.cjs
