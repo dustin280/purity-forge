@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -3750,9 +3750,9 @@ export type Database = {
           appearance_texture: string | null
           client_received_date: string | null
           coc_id: string | null
+          components: Json
           compound: string | null
           compound_id: string | null
-          components: Json
           container_size: string | null
           created_at: string
           created_by: string | null
@@ -3776,9 +3776,9 @@ export type Database = {
           appearance_texture?: string | null
           client_received_date?: string | null
           coc_id?: string | null
+          components?: Json
           compound?: string | null
           compound_id?: string | null
-          components?: Json
           container_size?: string | null
           created_at?: string
           created_by?: string | null
@@ -3802,9 +3802,9 @@ export type Database = {
           appearance_texture?: string | null
           client_received_date?: string | null
           coc_id?: string | null
+          components?: Json
           compound?: string | null
           compound_id?: string | null
-          components?: Json
           container_size?: string | null
           created_at?: string
           created_by?: string | null
@@ -3855,8 +3855,6 @@ export type Database = {
           coc_id: string | null
           coc_line_no: number | null
           components: Json
-          lot_id: string | null
-          vial_no: number | null
           compound: string | null
           compound_id: string | null
           concentration: string | null
@@ -3870,6 +3868,7 @@ export type Database = {
           label_content_value: number | null
           line_item_index: number | null
           lot: string | null
+          lot_id: string | null
           manufacture_date: string | null
           method_group_id: string | null
           notes: string | null
@@ -3895,6 +3894,7 @@ export type Database = {
           status: Database["public"]["Enums"]["sample_status"]
           temperature_c: number | null
           updated_at: string
+          vial_no: number | null
         }
         Insert: {
           actual_completion_date?: string | null
@@ -3902,8 +3902,6 @@ export type Database = {
           appearance_texture?: string | null
           assigned_analysis_date?: string | null
           assigned_test_type?: Database["public"]["Enums"]["test_type"] | null
-          lot_id?: string | null
-          vial_no?: number | null
           batch_id: string
           catalog?: string | null
           client: string
@@ -3925,6 +3923,7 @@ export type Database = {
           label_content_value?: number | null
           line_item_index?: number | null
           lot?: string | null
+          lot_id?: string | null
           manufacture_date?: string | null
           method_group_id?: string | null
           notes?: string | null
@@ -3950,6 +3949,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["sample_status"]
           temperature_c?: number | null
           updated_at?: string
+          vial_no?: number | null
         }
         Update: {
           actual_completion_date?: string | null
@@ -3957,8 +3957,6 @@ export type Database = {
           appearance_texture?: string | null
           assigned_analysis_date?: string | null
           assigned_test_type?: Database["public"]["Enums"]["test_type"] | null
-          lot_id?: string | null
-          vial_no?: number | null
           batch_id?: string
           catalog?: string | null
           client?: string
@@ -3980,6 +3978,7 @@ export type Database = {
           label_content_value?: number | null
           line_item_index?: number | null
           lot?: string | null
+          lot_id?: string | null
           manufacture_date?: string | null
           method_group_id?: string | null
           notes?: string | null
@@ -4005,6 +4004,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["sample_status"]
           temperature_c?: number | null
           updated_at?: string
+          vial_no?: number | null
         }
         Relationships: [
           {
@@ -4026,6 +4026,13 @@ export type Database = {
             columns: ["compound_id"]
             isOneToOne: false
             referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "samples_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "sample_lots"
             referencedColumns: ["id"]
           },
           {
@@ -6234,6 +6241,7 @@ export type Database = {
       }
       sp_child_writable: { Args: { _rev: string }; Returns: boolean }
       trigger_cal_qc_watcher: { Args: never; Returns: undefined }
+      trigger_daily_digest: { Args: never; Returns: undefined }
       trigger_incubation_watcher: { Args: never; Returns: undefined }
       trigger_pressure_log_watcher: { Args: never; Returns: undefined }
       trigger_report_reconciliation: { Args: never; Returns: undefined }
