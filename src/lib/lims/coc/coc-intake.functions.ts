@@ -209,7 +209,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
 
     const { data: candidateCompounds } = await supabase
       .from("compounds")
-      .select("id,name,method_group_id,aliases");
+      .select("id,name,method_group_id,aliases,is_active");
     const methodGroupByCompoundId = new Map(
       (candidateCompounds ?? []).map((c) => [c.id as string, c.method_group_id as string | null]),
     );
@@ -237,7 +237,11 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       const name = (c.compound ?? "").trim();
       if (!name) return null;
       const lower = name.toLowerCase();
-      const pool = candidateCompounds ?? [];
+      // Retired entries stay in the table for reference (full-length
+      // Thymosin Beta 4, for instance) but must never be what an incoming
+      // label resolves to -- they're deactivated precisely because a label
+      // can't distinguish them.
+      const pool = (candidateCompounds ?? []).filter((cp) => cp.is_active !== false);
 
       // Exact on the canonical name wins outright.
       const exact = pool.find((cp) => cp.name.trim().toLowerCase() === lower);
@@ -490,7 +494,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
     // the picker existed).
     const { data: candidateCompounds } = await supabase
       .from("compounds")
-      .select("id,name,method_group_id,aliases");
+      .select("id,name,method_group_id,aliases,is_active");
     const methodGroupByCompoundId = new Map(
       (candidateCompounds ?? []).map((c) => [c.id as string, c.method_group_id as string | null]),
     );
