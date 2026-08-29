@@ -189,7 +189,14 @@ function PrepQueuePage() {
                   </div>
                   {row.known?.received_form && (
                     <div className="text-[10px] text-muted-foreground mb-1.5">
-                      Pre-filled from receipt — change only what's wrong.
+                      {row.reason === "missing_as_received_data"
+                        ? "Filled in from receipt — supply whatever is still blank."
+                        // A plan_error is not a data-entry problem. The receipt
+                        // values are what the vial actually is, and telling
+                        // someone to "change what's wrong" when nothing is
+                        // wrong sends them editing facts to satisfy the
+                        // planner. What failed is the dilution scheme.
+                        : "From receipt — these describe the vial and are not the problem here. This plan failed on the dilution scheme itself."}
                     </div>
                   )}
                   {(row.reason === "missing_as_received_data" || row.reason === "plan_error") && (
