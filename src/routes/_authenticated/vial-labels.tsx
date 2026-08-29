@@ -35,12 +35,19 @@ function VialLabelsPage() {
       // sessionStorage, with a return link back to where it came from.
       const handoffId = new URLSearchParams(window.location.search).get("handoff");
       if (handoffId) {
-        const key = `vial-labels-handoff:${handoffId}`;
-        const payload = localStorage.getItem(key);
-        localStorage.removeItem(key);
+        // Deliberately does NOT delete the key. Consuming it here made the
+        // labels arrive empty: this effect can run on a mount whose state is
+        // then thrown away (StrictMode's double-invoke, a router remount),
+        // and the instance that survives finds the key already gone. Leaving
+        // it also means a refresh of this tab still has its labels. The
+        // sender sweeps stale handoff keys before writing a new one.
+        const payload = localStorage.getItem(`vial-labels-handoff:${handoffId}`);
         if (payload) {
           setRaw(payload);
-          toast.success(`Loaded ${payload.split(/\r?\n/).filter(Boolean).length} labels`);
+          // Stable toast id so a re-run doesn't stack a duplicate.
+          toast.success(`Loaded ${payload.split(/\r?\n/).filter(Boolean).length} labels`, {
+            id: `vial-labels-handoff-${handoffId}`,
+          });
         }
         return;
       }

@@ -48,15 +48,23 @@ export function CocLabelPrint({
     const handoffId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const key = `vial-labels-handoff:${handoffId}`;
     try {
+      // The reader leaves its key in place (so a refresh of the labels tab
+      // still works), so sweeping here is what keeps them from accumulating.
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k?.startsWith("vial-labels-handoff:")) localStorage.removeItem(k);
+      }
       localStorage.setItem(key, lines.join("\n"));
     } catch {
       toast.error("Could not stage labels for printing");
       return;
     }
-    const win = window.open(`/vial-labels?handoff=${handoffId}`, "_blank", "noopener");
+    // No "noopener" in the features string: per spec window.open returns null
+    // whenever noopener is set, success or not, so there'd be no way to tell a
+    // blocked popup from a working one. Same-origin page of our own app, so an
+    // opener reference costs nothing.
+    const win = window.open(`/vial-labels?handoff=${handoffId}`, "_blank");
     if (!win) {
-      // Popup blocked -- don't leave the payload orphaned in storage.
-      try { localStorage.removeItem(key); } catch { /* ignore */ }
       toast.error("Your browser blocked the new tab. Allow pop-ups for this site to print labels.");
     }
   }
