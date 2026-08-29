@@ -111,14 +111,22 @@ async function findVialPhotoAttachment(
   supabase: SupabaseClient,
   cocId: string,
   lineItemIndex: number | null,
+  vialNo: number | null,
 ): Promise<{ file_path: string; content_type: string | null } | null> {
   const { data: rows } = await supabase
     .from("coc_attachments")
-    .select("file_path, content_type, line_item_index")
+    .select("file_path, content_type, line_item_index, vial_no")
     .eq("coc_id", cocId);
   if (!rows || rows.length === 0) return null;
-  const exact = rows.find((r) => r.line_item_index === lineItemIndex);
-  if (exact) return exact;
+  // Most specific wins: this vial's own photo, then a lot-wide one, then a
+  // whole-package one. Without the vial_no step every vial in a lot
+  // resolved to the same image.
+  if (vialNo != null) {
+    const perVial = rows.find((r) => r.line_item_index === lineItemIndex && r.vial_no === vialNo);
+    if (perVial) return perVial;
+  }
+  const perLot = rows.find((r) => r.line_item_index === lineItemIndex && r.vial_no == null);
+  if (perLot) return perLot;
   return rows.find((r) => r.line_item_index === null) ?? null;
 }
 
@@ -142,7 +150,7 @@ export interface VialPhotoSyncResult {
 
 export async function pushVialPhotoToReportsDrive(
   supabase: SupabaseClient,
-  sample: { batch_id: string; coc_id: string | null; line_item_index: number | null },
+  sample: { batch_id: string; coc_id: string | null; line_item_index: number | null; vial_no?: number | null },
 ): Promise<VialPhotoSyncResult> {
   try {
     if (!sample.coc_id) return { ok: false, reason: "sample has no coc_id" };
@@ -150,6 +158,7 @@ export async function pushVialPhotoToReportsDrive(
       supabase,
       sample.coc_id,
       sample.line_item_index,
+      sample.vial_no ?? null,
     );
     if (!attachment) return { ok: false, reason: "no vial photo found for this sample" };
 
@@ -190,7 +199,7 @@ const SYNC_CONCURRENCY = 3;
 
 export async function syncVialPhotosForNewSamples(
   supabase: SupabaseClient,
-  samples: Array<{ batch_id: string; coc_id: string | null; line_item_index: number | null }>,
+  samples: Array<{ batch_id: string; coc_id: string | null; line_item_index: number | null; vial_no?: number | null }>,
 ): Promise<void> {
   try {
     for (let i = 0; i < samples.length; i += SYNC_CONCURRENCY) {

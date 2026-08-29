@@ -32,6 +32,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
     lots, setLotsDirty,
     pendingFiles, setPendingFiles, setIsDirty,
     pendingByLine, setPendingByLine,
+    pendingByVial, setPendingByVial,
     saveMut, attemptClose,
     openExistingAttachment, deleteExistingAttachment,
     registerNewClient, setRegisterNewClient, applyClient,
@@ -174,6 +175,9 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
             setLotsDirty={setLotsDirty}
             compoundOptions={compoundOptions}
             onCreateCompound={createCompoundOption}
+            pendingByVial={pendingByVial}
+            setPendingByVial={setPendingByVial}
+            setIsDirty={setIsDirty}
           />
 
           <DialogFooter className="sm:col-span-2 mt-2">

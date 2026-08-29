@@ -14,6 +14,7 @@ type RecordAttachmentFn = (args: {
     content_type: string | null;
     size_bytes: number;
     line_item_index: number | null;
+    vial_no?: number | null;
   };
 }) => Promise<unknown>;
 
@@ -22,6 +23,7 @@ export async function uploadCocFile(
   file: File,
   lineIdx: number | null,
   recordAttachment: RecordAttachmentFn,
+  vialNo: number | null = null,
 ) {
   assertUploadable(file, DOCUMENT_MIME_ALLOWLIST);
   const safe = file.name.replace(/[^\w.\-]+/g, "_");
@@ -36,6 +38,7 @@ export async function uploadCocFile(
       content_type: file.type || null,
       size_bytes: file.size,
       line_item_index: lineIdx,
+      vial_no: vialNo,
     },
   });
 }
@@ -45,6 +48,8 @@ export async function uploadPendingCocAttachments(
   topLevel: File[],
   byLine: Record<number, File[]>,
   recordAttachment: RecordAttachmentFn,
+  /** Per-vial photos, keyed "lotIndex:vialIndex" (both 0-based). */
+  byVial: Record<string, File[]> = {},
 ) {
   for (const file of topLevel) {
     await uploadCocFile(cocId, file, null, recordAttachment);
@@ -52,5 +57,11 @@ export async function uploadPendingCocAttachments(
   for (const [idx, files] of Object.entries(byLine)) {
     const i = Number(idx);
     for (const file of files) await uploadCocFile(cocId, file, i, recordAttachment);
+  }
+  for (const [key, files] of Object.entries(byVial)) {
+    const [lotIdx, vialIdx] = key.split(":").map(Number);
+    if (!Number.isFinite(lotIdx) || !Number.isFinite(vialIdx)) continue;
+    // vial_no is 1-based on samples, the UI index is 0-based.
+    for (const file of files) await uploadCocFile(cocId, file, lotIdx, recordAttachment, vialIdx + 1);
   }
 }

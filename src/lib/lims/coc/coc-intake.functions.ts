@@ -198,7 +198,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       .single();
     if (cocErr) throw cocErr;
 
-    const createdSamples: Array<{ id: string; batch_id: string; test_type: string; coc_id: string; line_item_index: number; physical_form: string | null }> = [];
+    const createdSamples: Array<{ id: string; batch_id: string; test_type: string; coc_id: string; line_item_index: number; vial_no: number; physical_form: string | null }> = [];
 
     for (const [lotIdx, lot] of data.lots.entries()) {
       const lotNo = lotIdx + 1;
@@ -338,7 +338,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       for (const [i, row] of (inserted ?? []).entries()) {
         createdSamples.push({
           id: row.id, batch_id: row.batch_id, test_type: orderedVials[i].test_type,
-          coc_id: coc.id, line_item_index: lotIdx, physical_form: row.physical_form,
+          coc_id: coc.id, line_item_index: lotIdx, vial_no: i + 1, physical_form: row.physical_form,
         });
       }
     }
@@ -365,7 +365,9 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
 
     await syncVialPhotosForNewSamples(
       supabase,
-      createdSamples.map((s) => ({ batch_id: s.batch_id, coc_id: s.coc_id, line_item_index: s.line_item_index })),
+      // vial_no included so each vial resolves to ITS OWN photo rather
+      // than every vial in a lot sharing the line item's one image.
+      createdSamples.map((s) => ({ batch_id: s.batch_id, coc_id: s.coc_id, line_item_index: s.line_item_index, vial_no: s.vial_no })),
     );
     await assignStorageForNewSamples(
       supabase,

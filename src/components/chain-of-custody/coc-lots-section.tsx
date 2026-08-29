@@ -18,6 +18,9 @@ export function CocLotsSection({
   setLotsDirty,
   compoundOptions,
   onCreateCompound,
+  pendingByVial,
+  setPendingByVial,
+  setIsDirty,
 }: {
   recordId: string | null;
   shipmentId: string;
@@ -25,6 +28,10 @@ export function CocLotsSection({
   setLotsDirty: (updater: (prev: LotRow[]) => LotRow[]) => void;
   compoundOptions: CompoundOption[];
   onCreateCompound: (name: string) => Promise<CompoundOption>;
+  /** Pending vial photos across all lots, keyed "lotIndex:vialIndex". */
+  pendingByVial: Record<string, File[]>;
+  setPendingByVial: (updater: (prev: Record<string, File[]>) => Record<string, File[]>) => void;
+  setIsDirty: (v: boolean) => void;
 }) {
   const addLot = () => setLotsDirty((prev) => [...prev, emptyLot()]);
   const totalVials = lots.reduce((n, l) => n + l.vials.length, 0);
@@ -59,6 +66,19 @@ export function CocLotsSection({
             canRemove={lots.length > 1}
             onChange={(patch) => setLotsDirty((prev) => prev.map((x, i) => (i === idx ? { ...x, ...patch } : x)))}
             onRemove={() => setLotsDirty((prev) => prev.filter((_, i) => i !== idx))}
+            photosByVial={Object.fromEntries(
+              Object.entries(pendingByVial)
+                .filter(([k]) => Number(k.split(":")[0]) === idx)
+                .map(([k, v]) => [Number(k.split(":")[1]), v]),
+            )}
+            onAddVialPhotos={(vialIdx, files) => {
+              setIsDirty(true);
+              setPendingByVial((prev) => ({ ...prev, [`${idx}:${vialIdx}`]: [...(prev[`${idx}:${vialIdx}`] ?? []), ...files] }));
+            }}
+            onRemoveVialPhoto={(vialIdx, fileIdx) => {
+              setIsDirty(true);
+              setPendingByVial((prev) => ({ ...prev, [`${idx}:${vialIdx}`]: (prev[`${idx}:${vialIdx}`] ?? []).filter((_, i) => i !== fileIdx) }));
+            }}
           />
         ))}
       </div>

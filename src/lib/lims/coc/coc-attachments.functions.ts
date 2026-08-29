@@ -12,6 +12,8 @@ export const recordCocAttachment = createServerFn({ method: "POST" })
       content_type: z.string().max(127).nullable().optional(),
       size_bytes: z.number().int().nonnegative().nullable().optional(),
       line_item_index: z.number().int().nullable().optional(),
+      /** Which vial within the line item, for per-vial photos. */
+      vial_no: z.number().int().nullable().optional(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -23,6 +25,7 @@ export const recordCocAttachment = createServerFn({ method: "POST" })
       content_type: data.content_type ?? null,
       size_bytes: data.size_bytes ?? null,
       line_item_index: data.line_item_index ?? null,
+      vial_no: data.vial_no ?? null,
       uploaded_by: userId,
     }).select().single();
     if (error) throw error;

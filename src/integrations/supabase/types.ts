@@ -614,6 +614,7 @@ export type Database = {
           file_path: string
           id: string
           line_item_index: number | null
+          vial_no: number | null
           size_bytes: number | null
           uploaded_at: string
           uploaded_by: string | null
@@ -625,6 +626,7 @@ export type Database = {
           file_path: string
           id?: string
           line_item_index?: number | null
+          vial_no?: number | null
           size_bytes?: number | null
           uploaded_at?: string
           uploaded_by?: string | null
@@ -636,6 +638,7 @@ export type Database = {
           file_path?: string
           id?: string
           line_item_index?: number | null
+          vial_no?: number | null
           size_bytes?: number | null
           uploaded_at?: string
           uploaded_by?: string | null

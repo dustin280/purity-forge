@@ -108,6 +108,8 @@ export function useCocForm({
   const [isDirty, setIsDirty] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingByLine, setPendingByLine] = useState<Record<number, File[]>>({});
+  /** Per-vial photos, keyed "lotIndex:vialIndex" (both 0-based). */
+  const [pendingByVial, setPendingByVial] = useState<Record<string, File[]>>({});
   const [draftId, setDraftId] = useState<string | null>(null);
   const draftIdRef = useRef<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -193,6 +195,7 @@ export function useCocForm({
     setPendingFiles(initialFile ? [initialFile] : []);
     if (initialFile) setIsDirty(true);
     setPendingByLine({});
+    setPendingByVial({});
     if (!recordId && !resumed && !seed) {
       nextInvoice().then((r) => {
         const inv = (r as { invoice: string }).invoice;
@@ -215,7 +218,7 @@ export function useCocForm({
   }, [sig]);
 
   async function uploadAllPendingTo(cocId: string) {
-    await uploadPendingCocAttachments(cocId, pendingFiles, pendingByLine, recordAttachment);
+    await uploadPendingCocAttachments(cocId, pendingFiles, pendingByLine, recordAttachment, pendingByVial);
   }
 
   const saveMut = useMutation({
@@ -297,6 +300,7 @@ export function useCocForm({
       setIsDirty(false);
       setPendingFiles([]);
       setPendingByLine({});
+      setPendingByVial({});
       setRegisterNewClient(false);
       setPendingOrderId(null);
       onOpenChange(false);
@@ -308,6 +312,7 @@ export function useCocForm({
     setIsDirty(false);
     setPendingFiles([]);
     setPendingByLine({});
+    setPendingByVial({});
     if (draftId && getCocDraft(draftId)) {
       toast.info(pendingOrderId
         ? "Draft saved — resume it from this order on the Pending Orders page."
@@ -327,7 +332,9 @@ export function useCocForm({
     if (!isDirty) return;
     const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
     const hasLines = lots.some(l => l.components.some(c => c.compound.trim() !== "") || l.customer_lot.trim() !== "" || l.catalog.trim() !== "");
-    const hasPending = pendingFiles.length > 0 || Object.values(pendingByLine).some(arr => arr.length > 0);
+    const hasPending = pendingFiles.length > 0
+      || Object.values(pendingByLine).some(arr => arr.length > 0)
+      || Object.values(pendingByVial).some(arr => arr.length > 0);
     if (!hasValues && !hasLines && !hasPending) return;
     const summaryParts: string[] = [];
     const invoice = (values.sample_id as string)?.trim();
@@ -347,7 +354,7 @@ export function useCocForm({
       pendingOrderId: pendingOrderId ?? null,
     });
     if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine });
-  }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, recordId, pendingOrderId]);
+  }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, pendingByVial, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
@@ -367,6 +374,7 @@ export function useCocForm({
     lots, setLots, setLotsDirty,
     pendingFiles, setPendingFiles, setIsDirty, isDirty,
     pendingByLine, setPendingByLine,
+    pendingByVial, setPendingByVial,
     saveMut, attemptClose,
     openExistingAttachment, deleteExistingAttachment,
     registerNewClient, setRegisterNewClient, applyClient,

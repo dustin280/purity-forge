@@ -57,7 +57,7 @@ export function lotAccent(lotNo: number) {
 
 export function LotCard({
   lot, lotNo, shipmentId, disabled, onChange, onRemove, canRemove,
-  compoundOptions, onCreateCompound,
+  compoundOptions, onCreateCompound, photosByVial, onAddVialPhotos, onRemoveVialPhoto,
 }: {
   lot: LotRow;
   lotNo: number;
@@ -68,6 +68,10 @@ export function LotCard({
   canRemove: boolean;
   compoundOptions: CompoundOption[];
   onCreateCompound: (name: string) => Promise<CompoundOption>;
+  /** Pending per-vial photos for THIS lot, keyed by 0-based vial index. */
+  photosByVial: Record<number, File[]>;
+  onAddVialPhotos: (vialIdx: number, files: File[]) => void;
+  onRemoveVialPhoto: (vialIdx: number, fileIdx: number) => void;
 }) {
   const lotId = `${shipmentId}-${String(lotNo).padStart(2, "0")}`;
   const isLiquid = lot.physical_form === "liquid";
@@ -379,6 +383,9 @@ export function LotCard({
                 onChange={(patch) => updateVial(idx, patch)}
                 onRemove={() => onChange({ vials: lot.vials.filter((_, i) => i !== idx) })}
                 canRemove={lot.vials.length > 1}
+                photos={photosByVial[idx] ?? []}
+                onAddPhotos={(files) => onAddVialPhotos(idx, files)}
+                onRemovePhoto={(fileIdx) => onRemoveVialPhoto(idx, fileIdx)}
               />
             ))}
           </div>
