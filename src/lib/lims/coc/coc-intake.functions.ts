@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
-import { provisionTestsForSample } from "@/lib/lims/test-provisioning";
+import { provisionTestsForSample, provisionTestForVial } from "@/lib/lims/test-provisioning";
 import { syncVialPhotosForNewSamples } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 import { assignStorageForNewSamples } from "@/lib/lims/storage-assignment.functions";
+import { lotCode, vialBatchId, composeAppearance } from "@/lib/lims/sample-hierarchy";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -85,6 +86,266 @@ function deriveReceivedFields(li: z.infer<typeof lineItemSchema>): {
     concentration: null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Three-level intake (shipment -> lot -> vial). See sample-hierarchy.ts.
+// ---------------------------------------------------------------------------
+
+const vialSchema = z.object({
+  test_type: z.enum(["purity", "sterility", "endotoxin", "heavy_metals"]),
+  /** The partner's OWN per-vial lot string. Stored verbatim on samples.lot
+   *  because the partner export API is polled by exactly this value -- it
+   *  has to keep resolving to this individual vial. Blank for vials we
+   *  added ourselves (e.g. a heavy-metals vial absent from their manifest),
+   *  which fall back to the lot's base customer lot. */
+  partner_lot: z.string().max(255).optional().nullable(),
+  physical_description: z.string().max(2000).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+});
+
+const lotSchema = z.object({
+  customer_lot: z.string().max(255).optional().nullable(),
+  compound: z.string().min(1).max(255),
+  compound_id: z.string().uuid().optional().nullable(),
+  partner_reported_name: z.string().max(255).optional().nullable(),
+  catalog: z.string().max(255).optional().nullable(),
+  manufacturer: z.string().max(255).optional().nullable(),
+  container_size: z.string().max(128).optional().nullable(),
+  client_received_date: z.string().max(32).optional().nullable(),
+  manufacture_date: z.string().max(32).optional().nullable(),
+  physical_form: z.enum(["solid", "liquid", "capsule", ""]).optional().nullable(),
+  appearance_texture: z.string().max(64).optional().nullable(),
+  appearance_texture_other: z.string().max(128).optional().nullable(),
+  appearance_color: z.string().max(64).optional().nullable(),
+  label_content_value: z.union([z.number(), z.string()]).optional().nullable(),
+  label_content_unit: z.enum(["mg", "ug", ""]).optional().nullable(),
+  is_multi_component: z.boolean().optional().default(false),
+  components: z.array(lineItemComponentSchema).max(20).optional().default([]),
+  bottle_size: z.string().max(128).optional().nullable(),
+  liquid_volume_ml: z.union([z.number(), z.string()]).optional().nullable(),
+  label_content_basis: z.enum(["per_ml", "per_bottle", ""]).optional().nullable(),
+  capsule_count: z.union([z.number(), z.string()]).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  vials: z.array(vialSchema).min(1).max(99),
+});
+
+export const submitCocWithLots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        sample_id: z.string().min(1).max(128),
+        data: z.record(
+          z.string(),
+          z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string())]),
+        ),
+        lots: z.array(lotSchema).min(1).max(200),
+        pending_order_id: z.string().uuid().optional().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const headerClient =
+      (typeof data.data.client_company === "string" ? data.data.client_company : "") || "Unknown";
+    const headerProject = typeof data.data.project === "string" ? data.data.project : null;
+    const receiptRaw =
+      (typeof data.data.date_received === "string" ? data.data.date_received : "") ||
+      (typeof data.data.client_received_date === "string" ? data.data.client_received_date : "") ||
+      new Date().toISOString().slice(0, 10);
+    const receiptDate = receiptRaw.slice(0, 10);
+
+    const { data: candidateClients } = await supabase.from("clients").select("id,company_name");
+    const matchedClient =
+      (candidateClients ?? []).find(
+        (c) => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase(),
+      ) ?? null;
+
+    const { data: candidateCompounds } = await supabase
+      .from("compounds")
+      .select("id,name,method_group_id");
+    const methodGroupByCompoundId = new Map(
+      (candidateCompounds ?? []).map((c) => [c.id as string, c.method_group_id as string | null]),
+    );
+    const methodGroupByCompoundName = new Map(
+      (candidateCompounds ?? []).map((c) => [
+        c.name.trim().toLowerCase(),
+        c.method_group_id as string | null,
+      ]),
+    );
+
+    const { data: coc, error: cocErr } = await supabase
+      .from("chain_of_custody_records")
+      .insert({
+        sample_id: data.sample_id,
+        data: data.data,
+        line_items: data.lots as never,
+        created_by: userId,
+      })
+      .select()
+      .single();
+    if (cocErr) throw cocErr;
+
+    const createdSamples: Array<{ id: string; batch_id: string; test_type: string; coc_id: string; line_item_index: number; physical_form: string | null }> = [];
+
+    for (const [lotIdx, lot] of data.lots.entries()) {
+      const lotNo = lotIdx + 1;
+      const appearance = composeAppearance(
+        lot.physical_form, lot.appearance_color, lot.appearance_texture, lot.appearance_texture_other,
+      );
+      const labelContentNum = (() => {
+        if (lot.label_content_value == null || lot.label_content_value === "") return null;
+        const n = Number(lot.label_content_value);
+        return isNaN(n) ? null : n;
+      })();
+
+      const { data: lotRow, error: lotErr } = await supabase
+        .from("sample_lots")
+        .insert({
+          coc_id: coc.id,
+          shipment_id: data.sample_id,
+          lot_no: lotNo,
+          lot_code: lotCode(data.sample_id, lotNo),
+          customer_lot: lot.customer_lot || null,
+          compound: lot.compound,
+          compound_id: lot.compound_id ?? null,
+          partner_reported_compound_name: lot.partner_reported_name || null,
+          is_multi_component: !!lot.is_multi_component,
+          components: (lot.is_multi_component ? (lot.components ?? []) : []) as never,
+          physical_form: lot.physical_form || null,
+          appearance_texture: lot.appearance_texture || null,
+          appearance_color: lot.appearance_color || null,
+          physical_description: appearance || null,
+          container_size: lot.container_size || null,
+          label_content_value: labelContentNum,
+          label_content_unit: lot.label_content_unit || null,
+          manufacture_date: lot.manufacture_date?.trim() ? lot.manufacture_date.slice(0, 10) : null,
+          client_received_date: lot.client_received_date?.trim() ? lot.client_received_date.slice(0, 10) : null,
+          notes: lot.notes || null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (lotErr) throw lotErr;
+
+      // Reuse the existing solid/liquid derivation by handing it a
+      // line-item-shaped view of the lot -- the fields it reads are all
+      // lot-level, so nothing is lost by the three-level split.
+      const derived = deriveReceivedFields({
+        ...lot,
+        vial_count: lot.vials.length,
+        requested_tests: [],
+        lot: lot.customer_lot ?? null,
+        physical_description: appearance,
+      } as unknown as z.infer<typeof lineItemSchema>);
+
+      const physicalFormDetails: Record<string, string | number | null | undefined> | null = (() => {
+        if (lot.physical_form === "liquid") {
+          return {
+            bottle_size: lot.bottle_size || null,
+            liquid_volume_ml: lot.liquid_volume_ml || null,
+            label_content_basis: lot.label_content_basis || null,
+          };
+        }
+        if (lot.physical_form === "capsule") return { capsule_count: lot.capsule_count || null };
+        return null;
+      })();
+
+      const methodGroupId = lot.compound_id
+        ? (methodGroupByCompoundId.get(lot.compound_id) ?? null)
+        : (methodGroupByCompoundName.get(lot.compound.trim().toLowerCase()) ?? null);
+
+      const vialRows = lot.vials.map((v, vialIdx) => {
+        const vialNo = vialIdx + 1;
+        return {
+          batch_id: vialBatchId(data.sample_id, lotNo, vialNo),
+          lot_id: lotRow.id,
+          vial_no: vialNo,
+          assigned_test_type: v.test_type,
+          client: headerClient,
+          client_id: matchedClient?.id ?? null,
+          project: headerProject,
+          receipt_date: receiptDate,
+          // parameters stays populated so existing queue/queries that read
+          // it keep behaving; the authoritative per-vial test is
+          // assigned_test_type above.
+          parameters: [v.test_type],
+          notes: v.notes || lot.notes || (lot.catalog ? `Catalog: ${lot.catalog}` : null),
+          coc_id: coc.id,
+          coc_line_no: vialNo,
+          compound: lot.compound,
+          compound_id: lot.compound_id ?? null,
+          partner_reported_compound_name: lot.partner_reported_name || null,
+          // The partner's per-vial lot, verbatim -- their export lookups
+          // depend on it. Falls back to the lot's base customer lot for
+          // vials we added that never came from them.
+          lot: v.partner_lot || lot.customer_lot || null,
+          catalog: lot.catalog ?? null,
+          container_size: lot.container_size ?? null,
+          concentration: derived.concentration,
+          line_item_index: lotIdx,
+          client_received_date: lot.client_received_date?.trim() ? lot.client_received_date.slice(0, 10) : null,
+          manufacture_date: lot.manufacture_date?.trim() ? lot.manufacture_date.slice(0, 10) : null,
+          physical_description: v.physical_description?.trim() ? v.physical_description : (appearance || null),
+          appearance_texture: lot.appearance_texture || null,
+          appearance_color: lot.appearance_color || null,
+          created_by: userId,
+          status: "received" as const,
+          method_group_id: methodGroupId,
+          received_form: derived.received_form,
+          received_quantity: derived.received_quantity,
+          received_quantity_unit: derived.received_quantity_unit,
+          received_purity_percent: null,
+          physical_form: lot.physical_form || null,
+          label_content_value: labelContentNum,
+          label_content_unit: lot.label_content_unit || null,
+          is_multi_component: !!lot.is_multi_component,
+          components: (lot.is_multi_component ? (lot.components ?? []) : []) as never,
+          physical_form_details: physicalFormDetails as never,
+        };
+      });
+
+      const { data: inserted, error: sErr } = await supabase.from("samples").insert(vialRows).select();
+      if (sErr) throw sErr;
+      for (const [i, row] of (inserted ?? []).entries()) {
+        createdSamples.push({
+          id: row.id, batch_id: row.batch_id, test_type: lot.vials[i].test_type,
+          coc_id: coc.id, line_item_index: lotIdx, physical_form: row.physical_form,
+        });
+      }
+    }
+
+    if (data.pending_order_id) {
+      await supabase
+        .from("pending_orders")
+        .update({
+          status: "received",
+          received_at: new Date().toISOString(),
+          received_by: userId,
+          linked_coc_id: coc.id,
+        })
+        .eq("id", data.pending_order_id);
+    }
+
+    await notifyNewIntake(supabase, {
+      client: headerClient,
+      project: headerProject,
+      sampleId: data.sample_id,
+      sampleCount: createdSamples.length,
+      compounds: Array.from(new Set(data.lots.map((l) => l.compound).filter(Boolean))),
+    });
+
+    await syncVialPhotosForNewSamples(
+      supabase,
+      createdSamples.map((s) => ({ batch_id: s.batch_id, coc_id: s.coc_id, line_item_index: s.line_item_index })),
+    );
+    await assignStorageForNewSamples(
+      supabase,
+      createdSamples.map((s) => ({ id: s.id, batch_id: s.batch_id, physical_form: s.physical_form })),
+    );
+
+    return { coc, samples: createdSamples };
+  });
 
 export const submitCocWithSamples = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -22,6 +22,35 @@ const LABEL_CONTENT_UNITS = [
   { value: "ug", label: "µg" },
 ] as const;
 
+/**
+ * Parses "Name1 Nmg + Name2 Nmg + Name3 Nmg" style blend product names
+ * (the convention already used everywhere in this lab's own compound
+ * naming, e.g. "Cartalax 20mg + TB-500 / TB-4 10mg + BPC-157 10mg") into
+ * per-compound name/amount/unit tuples. "/" inside a segment (an
+ * alt-name pair like "TB-500 / TB-4") is left alone -- only "+" splits
+ * components. Best-effort: a segment that doesn't end in a recognized
+ * amount+unit is silently dropped rather than guessed at.
+ */
+function parseBlendString(raw: string): Array<{ name: string; value: string; unit: "mg" | "ug" }> {
+  let stripped = raw.replace(/\s*\[[^\]]*\]\s*$/, "").trim();
+  // "SUMMIT (Cartalax 20mg + ... + KPV 10mg)" -- the nickname outside the
+  // parens isn't a component, and the trailing ")" would otherwise break
+  // the last segment's amount match below.
+  const parenMatch = stripped.match(/^[^()]*\(([\s\S]+)\)\s*$/);
+  if (parenMatch) stripped = parenMatch[1].trim();
+  const segments = stripped.split(/\s*\+\s*/).map((s) => s.trim()).filter(Boolean);
+  const parsed: Array<{ name: string; value: string; unit: "mg" | "ug" }> = [];
+  for (const seg of segments) {
+    const m = seg.match(/^(.*?)\s+(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug)\s*$/i);
+    if (!m) continue;
+    const name = m[1].trim();
+    if (!name) continue;
+    const unit = m[3].toLowerCase() === "mg" ? "mg" : "ug";
+    parsed.push({ name, value: m[2], unit });
+  }
+  return parsed;
+}
+
 export function LineItemRow({
   li, disabled, onChange, testOptions, compoundOptions, onCreateCompound, pendingFiles, onAddFiles, onRemoveFile,
 }: {
@@ -63,6 +92,24 @@ export function LineItemRow({
     onChange({
       is_multi_component: v,
       components: v ? (li.components.length ? li.components : [emptyLineComponent()]) : [],
+    });
+  }
+
+  const splitCandidate = !li.is_multi_component ? parseBlendString(li.compound) : [];
+  function handleSplitCompound() {
+    if (splitCandidate.length < 2) return;
+    const [first, ...rest] = splitCandidate;
+    const matchId = (name: string) => compoundOptions.find((o) => o.name.toLowerCase() === name.toLowerCase())?.id ?? null;
+    onChange({
+      compound: first.name,
+      compound_id: matchId(first.name),
+      label_content_value: first.value,
+      label_content_unit: first.unit,
+      is_multi_component: true,
+      components: rest.map((r) => ({
+        compound_id: matchId(r.name), compound: r.name,
+        label_content_value: r.value, label_content_unit: r.unit,
+      })),
     });
   }
 
@@ -132,6 +179,11 @@ export function LineItemRow({
               <p className="text-[10px] text-amber-600 mt-1">
                 Partner said: &ldquo;{li.partner_reported_name}&rdquo;
               </p>
+            )}
+            {!disabled && splitCandidate.length >= 2 && (
+              <Button type="button" size="sm" variant="outline" className="mt-1.5 h-7 text-xs" onClick={handleSplitCompound}>
+                <Plus className="size-3 mr-1" /> Split into {splitCandidate.length} compounds
+              </Button>
             )}
           </div>
         </div>

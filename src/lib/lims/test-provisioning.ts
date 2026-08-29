@@ -26,6 +26,51 @@ const FLAG_TEST_DEFAULTS: Record<NonPurityType, { method_name: string; instrumen
 // already computed from tat_days.
 const NON_CHROM_TAT_DAYS = 14;
 
+const PURITY_TEST_DEFAULTS = { method_name: "Peptide Purity HPLC-DAD", instrument: "Agilent 1290 DAD" };
+
+/**
+ * Provisions exactly ONE test for a level-3 vial (see sample-hierarchy.ts).
+ *
+ * Distinct from provisionTestsForSample below, which always adds a purity
+ * test on top of whatever else was flagged. That blanket behaviour is
+ * wrong under the three-level scheme: a vial submitted purely for
+ * endotoxin would get a purity test it will never run, which is exactly
+ * why such vials previously needed the manual `purity_waived` escape hatch
+ * to reach "approved" -- and why several were invisible to the partner
+ * export until that flag was set by hand. A vial exists for one test, so
+ * it gets one test.
+ */
+export async function provisionTestForVial(
+  supabase: SupabaseClient,
+  sample: { id: string; batch_id: string },
+  testType: "purity" | NonPurityType,
+  userId: string | null,
+  receiptDate: string,
+): Promise<void> {
+  const { data: existing } = await supabase.from("tests").select("id").eq("sample_id", sample.id).eq("test_type", testType);
+  if (existing?.length) return;
+
+  if (testType === "purity") {
+    await supabase.from("tests").insert({
+      sample_id: sample.id, test_type: "purity",
+      method_name: PURITY_TEST_DEFAULTS.method_name, instrument: PURITY_TEST_DEFAULTS.instrument,
+      assigned_tech: userId,
+    });
+    return;
+  }
+
+  const cfg = FLAG_TEST_DEFAULTS[testType];
+  await supabase.from("tests").insert({
+    sample_id: sample.id, test_type: testType,
+    method_name: cfg.method_name, instrument: cfg.instrument, assigned_tech: userId,
+    sub_id: `${sample.batch_id}-${cfg.suffix}`,
+  });
+  // Non-chrom turnaround doesn't ride the HPLC schedule -- same 14-day rule
+  // as provisionTestsForSample, but applied per-vial now that a vial maps
+  // to a single test rather than a bundle.
+  await supabase.from("samples").update({ due_date: addDays(receiptDate, NON_CHROM_TAT_DAYS) }).eq("id", sample.id);
+}
+
 export async function provisionTestsForSample(
   supabase: SupabaseClient,
   sample: { id: string; batch_id: string },

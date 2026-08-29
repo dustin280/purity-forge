@@ -49,8 +49,14 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// The boundary must exclude a following HYPHEN as well as a digit. With
+// only (?!\d), the 3-level vial ids (SYX-000010-01-03) would let a
+// 2-segment sample "SYX-000010-01" prefix-match a file named
+// "SYX-000010-01-03.xlsx" -- and Tier 1 below auto-applies results
+// unattended, so that would silently write a vial's result onto the wrong
+// sample.
 function batchIdMatches(filename: string, batchId: string): boolean {
-  return new RegExp(`${escapeRegex(batchId)}(?!\\d)`).test(filename);
+  return new RegExp(`${escapeRegex(batchId)}(?![-\\d])`).test(filename);
 }
 
 function newest(files: FileEntry[]): FileEntry {

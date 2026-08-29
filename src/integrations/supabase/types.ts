@@ -3744,10 +3744,109 @@ export type Database = {
           },
         ]
       }
+      sample_lots: {
+        Row: {
+          appearance_color: string | null
+          appearance_texture: string | null
+          client_received_date: string | null
+          coc_id: string | null
+          compound: string | null
+          compound_id: string | null
+          components: Json
+          container_size: string | null
+          created_at: string
+          created_by: string | null
+          customer_lot: string | null
+          id: string
+          is_multi_component: boolean
+          label_content_unit: string | null
+          label_content_value: number | null
+          lot_code: string
+          lot_no: number
+          manufacture_date: string | null
+          notes: string | null
+          partner_reported_compound_name: string | null
+          physical_description: string | null
+          physical_form: string | null
+          shipment_id: string
+          updated_at: string
+        }
+        Insert: {
+          appearance_color?: string | null
+          appearance_texture?: string | null
+          client_received_date?: string | null
+          coc_id?: string | null
+          compound?: string | null
+          compound_id?: string | null
+          components?: Json
+          container_size?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_lot?: string | null
+          id?: string
+          is_multi_component?: boolean
+          label_content_unit?: string | null
+          label_content_value?: number | null
+          lot_code: string
+          lot_no: number
+          manufacture_date?: string | null
+          notes?: string | null
+          partner_reported_compound_name?: string | null
+          physical_description?: string | null
+          physical_form?: string | null
+          shipment_id: string
+          updated_at?: string
+        }
+        Update: {
+          appearance_color?: string | null
+          appearance_texture?: string | null
+          client_received_date?: string | null
+          coc_id?: string | null
+          compound?: string | null
+          compound_id?: string | null
+          components?: Json
+          container_size?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_lot?: string | null
+          id?: string
+          is_multi_component?: boolean
+          label_content_unit?: string | null
+          label_content_value?: number | null
+          lot_code?: string
+          lot_no?: number
+          manufacture_date?: string | null
+          notes?: string | null
+          partner_reported_compound_name?: string | null
+          physical_description?: string | null
+          physical_form?: string | null
+          shipment_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sample_lots_coc_id_fkey"
+            columns: ["coc_id"]
+            isOneToOne: false
+            referencedRelation: "chain_of_custody_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sample_lots_compound_id_fkey"
+            columns: ["compound_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       samples: {
         Row: {
           actual_completion_date: string | null
+          appearance_color: string | null
+          appearance_texture: string | null
           assigned_analysis_date: string | null
+          assigned_test_type: Database["public"]["Enums"]["test_type"] | null
           batch_id: string
           catalog: string | null
           client: string
@@ -3756,6 +3855,8 @@ export type Database = {
           coc_id: string | null
           coc_line_no: number | null
           components: Json
+          lot_id: string | null
+          vial_no: number | null
           compound: string | null
           compound_id: string | null
           concentration: string | null
@@ -3797,7 +3898,12 @@ export type Database = {
         }
         Insert: {
           actual_completion_date?: string | null
+          appearance_color?: string | null
+          appearance_texture?: string | null
           assigned_analysis_date?: string | null
+          assigned_test_type?: Database["public"]["Enums"]["test_type"] | null
+          lot_id?: string | null
+          vial_no?: number | null
           batch_id: string
           catalog?: string | null
           client: string
@@ -3847,7 +3953,12 @@ export type Database = {
         }
         Update: {
           actual_completion_date?: string | null
+          appearance_color?: string | null
+          appearance_texture?: string | null
           assigned_analysis_date?: string | null
+          assigned_test_type?: Database["public"]["Enums"]["test_type"] | null
+          lot_id?: string | null
+          vial_no?: number | null
           batch_id?: string
           catalog?: string | null
           client?: string
