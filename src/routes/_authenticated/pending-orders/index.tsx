@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, Tags, ClipboardList, Trash2 } from "lucide-react";
+import { Inbox, ExternalLink, CheckCircle2, XCircle, FileJson, Pencil, ClipboardList, Trash2 } from "lucide-react";
 import {
   listPendingOrders, getPendingOrder, cancelPendingOrder, reserveSampleIdForOrder,
 } from "@/lib/pending-orders.functions";
@@ -22,7 +22,7 @@ import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { emptyLot, emptyVial, type LotRow } from "@/components/chain-of-custody/types";
-import { baseLot, partnerTestType, stripVialTag, vialBatchId, sortVialsByTest } from "@/lib/lims/sample-hierarchy";
+import { baseLot, partnerTestType, stripVialTag, sortVialsByTest } from "@/lib/lims/sample-hierarchy";
 
 /** The shape the partner posts to /api/public/orders/intake, per sample. */
 type PartnerRawSample = {
@@ -81,7 +81,6 @@ function PendingOrdersPage() {
   const [cocOpen, setCocOpen] = useState(false);
   const [resumeDraftId, setResumeDraftId] = useState<string | null>(null);
   const [seed, setSeed] = useState<CocFormSeed | null>(null);
-  const [printingId, setPrintingId] = useState<string | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["pending_orders", "list", status],
@@ -198,43 +197,6 @@ function PendingOrdersPage() {
     }
   }
 
-  async function handlePrintLabels(order: PendingOrder) {
-    setPrintingId(order.id);
-    try {
-      const [detail, reserved] = await Promise.all([
-        getOne({ data: { id: order.id } }) as Promise<{ order: PendingOrder; samples: PendingOrderSample[] }>,
-        reserveId({ data: { id: order.id } }),
-      ]);
-      // Must mirror the intake numbering exactly (lot -> vial), or the
-      // printed labels won't match the ids the receive flow assigns.
-      const labelLotOrder: string[] = [];
-      const labelVialsByLot = new Map<string, { lotBatch: string | null }[]>();
-      for (const sm of detail.samples) {
-        const base = baseLot(sm.lot_batch) || sm.product_name;
-        if (!labelVialsByLot.has(base)) { labelVialsByLot.set(base, []); labelLotOrder.push(base); }
-        for (let i = 0; i < Math.max(1, sm.quantity ?? 1); i++) {
-          labelVialsByLot.get(base)!.push({ lotBatch: sm.lot_batch });
-        }
-      }
-      const lines = labelLotOrder.flatMap((base, lotIdx) =>
-        (labelVialsByLot.get(base) ?? []).map((v, vialIdx) => {
-          const id = vialBatchId(reserved.reserved_sample_id, lotIdx + 1, vialIdx + 1);
-          return v.lotBatch ? `${id} / Lot ${v.lotBatch}` : id;
-        }));
-      if (lines.length === 0) {
-        toast.info("No sample lines to label on this order.");
-        return;
-      }
-      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
-      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
-      navigate({ to: "/vial-labels" });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to prepare labels");
-    } finally {
-      setPrintingId(null);
-    }
-  }
-
   async function handleCancel(order: PendingOrder) {
     if (!confirm(`Cancel order ${order.external_order_id}? Its raw payload is retained for audit.`)) return;
     try {
@@ -301,11 +263,6 @@ function PendingOrdersPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {o.status === "pending" && (
-                    <Button size="sm" variant="outline" onClick={() => handlePrintLabels(o)} disabled={printingId === o.id}>
-                      <Tags className="size-3.5 mr-1" /> {printingId === o.id ? "Preparing…" : "Print Labels"}
-                    </Button>
-                  )}
                   <Button size="sm" variant="ghost" onClick={() => setPayloadId(o.id)}>
                     <FileJson className="size-3.5 mr-1" /> Payload
                   </Button>

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { AttachmentsSection } from "./attachments-section";
 import { MultiselectField } from "./coc-multiselect-field";
 import { CocLotsSection } from "./coc-lots-section";
+import { CocLabelPrint } from "./coc-label-print";
 import { useCocForm, type CocFormSeed } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
@@ -178,6 +179,12 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
             pendingByVial={pendingByVial}
             setPendingByVial={setPendingByVial}
             setIsDirty={setIsDirty}
+          />
+
+          <CocLabelPrint
+            shipmentId={(values.sample_id as string) ?? ""}
+            lots={lots}
+            disabled={!!recordId}
           />
 
           <DialogFooter className="sm:col-span-2 mt-2">
