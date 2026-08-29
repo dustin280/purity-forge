@@ -104,7 +104,11 @@ function PrepQueuePage() {
       setNeedsInput(r.needsInput);
       seedOverrides(r.needsInput);
       if (!r.created.length && !r.needsInput.length) toast.info("Nothing to compute — no checked-out samples.");
-      else toast.success(`${r.created.length} plan${r.created.length === 1 ? "" : "s"} computed${r.needsInput.length ? `, ${r.needsInput.length} need input` : ""}`);
+      else toast.success(
+        `${r.created.length} plan${r.created.length === 1 ? "" : "s"} computed`
+        + (r.started ? ` · ${r.started} moved to In Progress` : "")
+        + (r.needsInput.length ? `, ${r.needsInput.length} need input` : ""),
+      );
     },
     onError: (e: Error) => toast.error(e.message),
   });

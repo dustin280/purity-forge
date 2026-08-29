@@ -13,6 +13,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { transitionSampleStatus } from "@/lib/lims/samples.functions";
 import {
   type SampleCtx, type GeneratedRow, type NeedsInputRow,
   resolutionKeyFor, resolveCompoundContexts, loadGlobalPrepSettings, loadLabAssets, knownFrom,
@@ -39,6 +40,7 @@ export const generateSamplePrepForSamples = createServerFn({ method: "POST" })
     const samples = await loadSamples(context.supabase, data.sample_ids);
     const created: GeneratedRow[] = [];
     const needsInput: NeedsInputRow[] = [];
+    const startedIds: string[] = [];
 
     const settings = await loadGlobalPrepSettings(context.supabase);
     const [{ byCompoundLower }, assets] = await Promise.all([
@@ -65,9 +67,25 @@ export const generateSamplePrepForSamples = createServerFn({ method: "POST" })
         continue;
       }
       created.push({ run_list_item_id: sample.id, ...result.row });
+      startedIds.push(sample.id);
     }
 
-    return { created, needsInput };
+    // Computing a prep plan IS starting work on the sample, so the status
+    // moves with it. Clicking "Start Work" by hand was the only way to make
+    // this transition, and it read as a no-op because prep and in_progress
+    // both display as "In Progress" -- so it was easy to skip, leaving the
+    // raw status stale for the queues and dashboards that do read it.
+    // Best-effort per sample: a sample already past this point simply fails
+    // its transition check, which is not a reason to fail the generation.
+    let started = 0;
+    for (const id of startedIds) {
+      try {
+        await transitionSampleStatus(context.supabase, context.userId, id, "in_progress");
+        started++;
+      } catch { /* already in_progress or beyond -- nothing to do */ }
+    }
+
+    return { created, needsInput, started };
   });
 
 export const recomputeSamplePrepForSample = createServerFn({ method: "POST" })

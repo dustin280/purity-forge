@@ -141,7 +141,7 @@ const SAMPLE_STATUS_TRANSITIONS: Record<SampleStatusValue, SampleStatusValue[]> 
  * transition that isn't ready block the review/approval that already
  * succeeded — the header's manual buttons remain the fallback either way.
  */
-async function transitionSampleStatus(
+export async function transitionSampleStatus(
   supabase: import("@supabase/supabase-js").SupabaseClient,
   userId: string,
   sampleId: string,

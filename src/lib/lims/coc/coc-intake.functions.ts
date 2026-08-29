@@ -209,7 +209,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
 
     const { data: candidateCompounds } = await supabase
       .from("compounds")
-      .select("id,name,method_group_id");
+      .select("id,name,method_group_id,aliases");
     const methodGroupByCompoundId = new Map(
       (candidateCompounds ?? []).map((c) => [c.id as string, c.method_group_id as string | null]),
     );
@@ -223,23 +223,38 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
     // names with no compound_id, so nothing downstream could resolve them:
     // no method group, and no calibration target at prep time. Names are
     // matched back to the library here rather than left unlinked.
-    const compoundIdByName = new Map(
-      (candidateCompounds ?? []).map((c) => [c.name.trim().toLowerCase(), c.id as string]),
-    );
+    //
+    // compounds.aliases is the lab's own record of what a compound gets
+    // called ("NAD+" for "NAD (NAD+)", "TB-500 / TB-4" for the TB500 row).
+    // It was already maintained in the compound admin screen and simply
+    // never consulted, which is why well-known compounds looked unmatchable.
+    const loosen = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const namesFor = (c: { name: string; aliases?: string[] | null }) =>
+      [c.name, ...(c.aliases ?? [])].map((n) => (n ?? "").trim()).filter(Boolean);
+
     const linkComponentId = (c: { compound?: string | null; compound_id?: string | null }) => {
       if (c.compound_id) return c.compound_id;
       const name = (c.compound ?? "").trim();
       if (!name) return null;
-      const exact = compoundIdByName.get(name.toLowerCase());
-      if (exact) return exact;
-      // Punctuation and spacing are noise ("5-Amino-1MQ" vs "5 Amino 1MQ").
-      // Only accept a normalised hit when exactly one compound matches --
-      // "BPC-157" against three different salts is a real distinction and
-      // must stay unlinked for a person to resolve, not be guessed at.
-      const loosen = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const lower = name.toLowerCase();
+      const pool = candidateCompounds ?? [];
+
+      // Exact on the canonical name wins outright.
+      const exact = pool.find((cp) => cp.name.trim().toLowerCase() === lower);
+      if (exact) return exact.id as string;
+
+      // Then exact on an alias, then punctuation/spacing-insensitive across
+      // names and aliases alike ("5-Amino-1MQ" vs "5 Amino 1MQ"). Each step
+      // only accepts an unambiguous hit -- two compounds answering to the
+      // same name is a real distinction to escalate, not to guess at.
+      const byAlias = pool.filter((cp) =>
+        (cp.aliases ?? []).some((a) => (a ?? "").trim().toLowerCase() === lower));
+      if (byAlias.length === 1) return byAlias[0].id as string;
+      if (byAlias.length > 1) return null;
+
       const target = loosen(name);
       if (!target) return null;
-      const near = (candidateCompounds ?? []).filter((cp) => loosen(cp.name) === target);
+      const near = pool.filter((cp) => namesFor(cp).some((n) => loosen(n) === target));
       return near.length === 1 ? (near[0].id as string) : null;
     };
 
@@ -475,7 +490,7 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
     // the picker existed).
     const { data: candidateCompounds } = await supabase
       .from("compounds")
-      .select("id,name,method_group_id");
+      .select("id,name,method_group_id,aliases");
     const methodGroupByCompoundId = new Map(
       (candidateCompounds ?? []).map((c) => [c.id as string, c.method_group_id as string | null]),
     );
