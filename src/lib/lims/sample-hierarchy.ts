@@ -40,7 +40,7 @@ export type AppearanceTexture = (typeof APPEARANCE_TEXTURES)[number];
 
 /** White first: nearly every peptide the lab sees is a white cake. */
 export const APPEARANCE_COLORS = [
-  "White", "Off-white", "Yellow", "Tan/Beige", "Blue",
+  "White", "Off-white", "Yellow", "Orange", "Tan/Beige", "Blue",
   "Red", "Pink", "Green", "Clear", "Other",
 ] as const;
 export type AppearanceColor = (typeof APPEARANCE_COLORS)[number];
@@ -147,6 +147,21 @@ export function baseLot(lotBatch: string | null | undefined): string {
 /** Strips a trailing "[... vial]" tag from a partner product name. */
 export function stripVialTag(productName: string | null | undefined): string {
   return (productName ?? "").replace(/\s*\[[^\]]*\]\s*$/, "").trim();
+}
+
+/**
+ * Canonical test order. Vials within a lot are always numbered in this
+ * sequence, so a lot's purity vials are a contiguous run (-01/-02/-03) and
+ * never end up split around another test (-03 and -05 with an endotoxin
+ * -04 between them). Applies wherever vials are created, reordered, or
+ * written -- the displayed id has to match the id that gets saved.
+ */
+export const TEST_ORDER: TestType[] = ["purity", "endotoxin", "sterility", "heavy_metals"];
+
+export function sortVialsByTest<T extends { test_type: TestType }>(vials: T[]): T[] {
+  return [...vials].sort(
+    (a, b) => TEST_ORDER.indexOf(a.test_type) - TEST_ORDER.indexOf(b.test_type),
+  );
 }
 
 export const TEST_TYPE_LABEL: Record<TestType, string> = {

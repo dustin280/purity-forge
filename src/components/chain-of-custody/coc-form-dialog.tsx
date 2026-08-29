@@ -74,6 +74,17 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
       value: v,
       placeholder: field.placeholder ?? "",
       required: field.is_required,
+      // Browser autofill has to be off across this whole form. These are
+      // lab-record fields, not the operator's own contact details -- the
+      // receiver IS the lab and the client is the sender, so Chrome's
+      // contact heuristics were filling Client Company Name from the same
+      // profile the moment a person's name was typed into Receiver's Full
+      // Name. A unique unrecognised token per field is used rather than
+      // "off", which Chrome ignores on fields it thinks it recognises, and
+      // the uniqueness stops it grouping fields into one fill unit.
+      autoComplete: `off-${field.field_key}`,
+      "data-1p-ignore": true,
+      "data-lpignore": "true",
       onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => set(e.target.value),
     };
     if (field.field_type === "textarea") return <Textarea rows={3} {...common} />;
@@ -120,6 +131,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
           </DialogDescription>
         </DialogHeader>
         <form
+          autoComplete="off"
           onSubmit={(e) => { e.preventDefault(); saveMut.mutate(); }}
           className="grid gap-4 py-2 sm:grid-cols-2"
         >

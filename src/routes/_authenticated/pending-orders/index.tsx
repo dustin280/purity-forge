@@ -21,7 +21,7 @@ import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
 import { emptyLot, emptyVial, type LotRow } from "@/components/chain-of-custody/types";
-import { baseLot, partnerTestType, stripVialTag, vialBatchId } from "@/lib/lims/sample-hierarchy";
+import { baseLot, partnerTestType, stripVialTag, vialBatchId, sortVialsByTest } from "@/lib/lims/sample-hierarchy";
 
 /** The shape the partner posts to /api/public/orders/intake, per sample. */
 type PartnerRawSample = {
@@ -177,8 +177,13 @@ function PendingOrdersPage() {
           });
         }
       }
-      const lineItems = Array.from(lotsByBase.values()).map(l =>
-        l.vials.length ? l : { ...l, vials: [emptyVial("purity")] });
+      const lineItems = Array.from(lotsByBase.values()).map(l => ({
+        ...l,
+        // Canonical test order, not the order the partner happened to list
+        // them in -- their entries arrive base/-ST/-EN, which would number
+        // sterility before endotoxin.
+        vials: sortVialsByTest(l.vials.length ? l.vials : [emptyVial("purity")]),
+      }));
       // Hand the pre-fill to the dialog in memory rather than persisting a
       // draft up front. Opening the form to look at an order shouldn't
       // leave a draft behind -- the autosave writes one as soon as

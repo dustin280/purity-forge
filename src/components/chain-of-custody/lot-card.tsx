@@ -19,7 +19,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
 import {
   APPEARANCE_COLORS, APPEARANCE_TEXTURES, TEST_TYPE_LABEL,
-  composeAppearance, vialBatchId, lotDisplayName, totalLabelContentMg, type TestType,
+  composeAppearance, vialBatchId, lotDisplayName, totalLabelContentMg,
+  sortVialsByTest, TEST_ORDER, type TestType,
 } from "@/lib/lims/sample-hierarchy";
 import { emptyLineComponent, emptyVial, type LotRow, type LineItemComponent, type VialRow } from "./types";
 import { VialRowEditor } from "./vial-row";
@@ -29,7 +30,9 @@ const LABEL_CONTENT_UNITS = [
   { value: "mg", label: "mg" },
   { value: "ug", label: "µg" },
 ] as const;
-const TEST_TYPES: TestType[] = ["purity", "sterility", "endotoxin", "heavy_metals"];
+// Rendered in canonical order so the counters read the same way the
+// vials end up numbered.
+const TEST_TYPES: TestType[] = TEST_ORDER;
 
 /**
  * Each lot in a shipment gets its own accent, cycling through this list.
@@ -81,7 +84,9 @@ export function LotCard({
     onChange({ components: lot.components.map((c, i) => (i === idx ? { ...c, ...patch } : c)) });
   }
   function updateVial(idx: number, patch: Partial<VialRow>) {
-    onChange({ vials: lot.vials.map((v, i) => (i === idx ? { ...v, ...patch } : v)) });
+    const next = lot.vials.map((v, i) => (i === idx ? { ...v, ...patch } : v));
+    // Re-sort on a test change so numbering stays grouped by test.
+    onChange({ vials: patch.test_type ? sortVialsByTest(next) : next });
   }
 
   /** Count of vials currently assigned to a given test. */
@@ -96,7 +101,7 @@ export function LotCard({
     const current = countFor(t);
     if (next === current) return;
     if (next > current) {
-      onChange({ vials: [...lot.vials, ...Array.from({ length: next - current }, () => emptyVial(t))] });
+      onChange({ vials: sortVialsByTest([...lot.vials, ...Array.from({ length: next - current }, () => emptyVial(t))]) });
       return;
     }
     let toDrop = current - next;
@@ -107,7 +112,7 @@ export function LotCard({
       if (v.test_type === t && toDrop > 0) { toDrop--; continue; }
       kept.unshift(v);
     }
-    onChange({ vials: kept });
+    onChange({ vials: sortVialsByTest(kept) });
   }
 
   const labelContentField = (

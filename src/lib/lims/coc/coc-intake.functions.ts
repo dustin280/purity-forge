@@ -5,7 +5,7 @@ import { notifyNewIntake } from "@/lib/notifications/notifications.functions";
 import { provisionTestsForSample, provisionTestForVial } from "@/lib/lims/test-provisioning";
 import { syncVialPhotosForNewSamples } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 import { assignStorageForNewSamples } from "@/lib/lims/storage-assignment.functions";
-import { lotCode, vialBatchId, composeAppearance, lotDisplayName, totalLabelContentMg } from "@/lib/lims/sample-hierarchy";
+import { lotCode, vialBatchId, composeAppearance, lotDisplayName, totalLabelContentMg, sortVialsByTest } from "@/lib/lims/sample-hierarchy";
 
 const lineItemComponentSchema = z.object({
   compound_id: z.string().uuid().optional().nullable(),
@@ -159,6 +159,20 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
         (c) => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase(),
       ) ?? null;
 
+    // samples.parameters holds the admin-facing test_parameters DISPLAY
+    // names ("Endotoxin"), not the internal test_type enum ("endotoxin") --
+    // the Verify Intake checkboxes match on name, so writing the enum here
+    // left every add-on vial looking like nothing was requested. Purity has
+    // no parameter row at all (it's the implicit default test), so a purity
+    // vial correctly ends up with an empty list.
+    const { data: paramRows } = await supabase
+      .from("test_parameters")
+      .select("name, maps_to_test_type")
+      .not("maps_to_test_type", "is", null);
+    const paramNameByTestType = new Map(
+      (paramRows ?? []).map((r) => [r.maps_to_test_type as string, r.name as string]),
+    );
+
     const { data: candidateCompounds } = await supabase
       .from("compounds")
       .select("id,name,method_group_id");
@@ -264,7 +278,10 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
         ? (methodGroupByCompoundId.get(primaryCompoundId) ?? null)
         : (methodGroupByCompoundName.get(productName.trim().toLowerCase()) ?? null);
 
-      const vialRows = lot.vials.map((v, vialIdx) => {
+      // Numbered in canonical test order regardless of the order they
+      // arrived in, so purity is always a contiguous run.
+      const orderedVials = sortVialsByTest(lot.vials);
+      const vialRows = orderedVials.map((v, vialIdx) => {
         const vialNo = vialIdx + 1;
         return {
           batch_id: vialBatchId(data.sample_id, lotNo, vialNo),
@@ -275,10 +292,12 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
           client_id: matchedClient?.id ?? null,
           project: headerProject,
           receipt_date: receiptDate,
-          // parameters stays populated so existing queue/queries that read
-          // it keep behaving; the authoritative per-vial test is
-          // assigned_test_type above.
-          parameters: [v.test_type],
+          // Display name, not the enum -- see paramNameByTestType above.
+          // The authoritative per-vial test is assigned_test_type.
+          parameters: (() => {
+            const n = paramNameByTestType.get(v.test_type);
+            return n ? [n] : [];
+          })(),
           notes: v.notes || lot.notes || (lot.catalog ? `Catalog: ${lot.catalog}` : null),
           coc_id: coc.id,
           coc_line_no: vialNo,
@@ -318,7 +337,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
       if (sErr) throw sErr;
       for (const [i, row] of (inserted ?? []).entries()) {
         createdSamples.push({
-          id: row.id, batch_id: row.batch_id, test_type: lot.vials[i].test_type,
+          id: row.id, batch_id: row.batch_id, test_type: orderedVials[i].test_type,
           coc_id: coc.id, line_item_index: lotIdx, physical_form: row.physical_form,
         });
       }
