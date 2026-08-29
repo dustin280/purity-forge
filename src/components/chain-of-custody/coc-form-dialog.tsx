@@ -13,17 +13,18 @@ import { Label } from "@/components/ui/label";
 import { AttachmentsSection } from "./attachments-section";
 import { MultiselectField } from "./coc-multiselect-field";
 import { CocLotsSection } from "./coc-lots-section";
-import { useCocForm } from "./use-coc-form";
+import { useCocForm, type CocFormSeed } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
 import type { CocField } from "./types";
 
-export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, initialFile }: {
+export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, initialFile, seed }: {
   open: boolean; onOpenChange: (v: boolean) => void; recordId: string | null;
   resumeDraftId: string | null;
   initialFile?: File | null;
+  seed?: CocFormSeed | null;
 }) {
-  const f = useCocForm({ open, recordId, resumeDraftId, onOpenChange, initialFile: initialFile ?? null });
+  const f = useCocForm({ open, recordId, resumeDraftId, onOpenChange, initialFile: initialFile ?? null, seed: seed ?? null });
   const {
     activeFields, activeParams, attachments,
     compoundOptions, createCompoundOption,

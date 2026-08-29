@@ -30,14 +30,26 @@ export type CocAttachment = {
   id: string; file_path: string; file_name: string; content_type: string | null;
 };
 
+export type CocFormSeed = {
+  values: Record<string, string | string[]>;
+  lots: LotRow[];
+  pendingOrderId: string | null;
+  /** Stable key so re-opening a DIFFERENT order re-hydrates the form. */
+  seedKey: string;
+};
+
 export function useCocForm({
-  open, recordId, resumeDraftId, onOpenChange, initialFile,
+  open, recordId, resumeDraftId, onOpenChange, initialFile, seed,
 }: {
   open: boolean;
   recordId: string | null;
   resumeDraftId: string | null;
   onOpenChange: (v: boolean) => void;
   initialFile?: File | null;
+  /** Pre-fill supplied in memory (e.g. receiving a partner order) rather
+   *  than via a persisted draft -- so merely opening the form doesn't
+   *  leave a draft behind if it's closed without any edits. */
+  seed?: CocFormSeed | null;
 }) {
   const qc = useQueryClient();
   const signalWorkflowEvent = useWorkflowSignal();
@@ -120,7 +132,7 @@ export function useCocForm({
   }
 
   // Hydration signature — re-runs init when relevant inputs change.
-  const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${resumeDraftId ?? ""}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
+  const sig = `${open ? "1" : "0"}|${recordId ?? "new"}|${resumeDraftId ?? ""}|${seed?.seedKey ?? ""}|${activeFields.map(f => f.field_key).join(",")}|${existing?.id ?? ""}`;
   useEffect(() => {
     if (!open) return;
     setHydrated(false);
@@ -129,7 +141,7 @@ export function useCocForm({
     const id = resumed?.draftId ?? newDraftId(recordId ? `edit-${recordId.slice(0, 8)}` : "new");
     setDraftId(id);
     draftIdRef.current = id;
-    setPendingOrderId(resumed?.pendingOrderId ?? null);
+    setPendingOrderId(resumed?.pendingOrderId ?? seed?.pendingOrderId ?? null);
 
     const init: Record<string, string | string[]> = {};
     activeFields.forEach(f => {
@@ -149,7 +161,7 @@ export function useCocForm({
     if (recordId && existing?.sample_id) {
       init.sample_id = existing.sample_id;
     }
-    const merged: Record<string, string | string[]> = { ...init, ...(resumed?.values ?? {}) };
+    const merged: Record<string, string | string[]> = { ...init, ...(resumed?.values ?? seed?.values ?? {}) };
     // Resumed drafts can carry values saved before normalization existed.
     activeFields.forEach(f => {
       if (f.field_type === "datetime") {
@@ -172,6 +184,8 @@ export function useCocForm({
       setLots(resumedLots.map(l => ({ ...emptyLot(), ...l })));
     } else if (existingLots && existingLots.length) {
       setLots(existingLots.map(l => ({ ...emptyLot(), ...l })));
+    } else if (seed?.lots?.length) {
+      setLots(seed.lots.map(l => ({ ...emptyLot(), ...l })));
     } else {
       setLots([emptyLot()]);
     }
@@ -179,7 +193,7 @@ export function useCocForm({
     setPendingFiles(initialFile ? [initialFile] : []);
     if (initialFile) setIsDirty(true);
     setPendingByLine({});
-    if (!recordId && !resumed) {
+    if (!recordId && !resumed && !seed) {
       nextInvoice().then((r) => {
         const inv = (r as { invoice: string }).invoice;
         setValues(prev => (prev.sample_id ? prev : { ...prev, sample_id: inv }));
@@ -303,6 +317,11 @@ export function useCocForm({
   // every change (skip empty/initial state).
   useEffect(() => {
     if (!open || !hydrated || !draftId) return;
+    // Only persist once something has actually been changed. A form opened
+    // and closed without edits (e.g. clicking Receive just to look at an
+    // order) must not leave a draft behind -- that's what stuck the
+    // "Resume Draft" button on permanently.
+    if (!isDirty) return;
     const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
     const hasLines = lots.some(l => l.compound.trim() !== "" || l.customer_lot.trim() !== "" || l.catalog.trim() !== "");
     const hasPending = pendingFiles.length > 0 || Object.values(pendingByLine).some(arr => arr.length > 0);
@@ -325,7 +344,7 @@ export function useCocForm({
       pendingOrderId: pendingOrderId ?? null,
     });
     if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine });
-  }, [open, hydrated, draftId, values, lots, pendingFiles, pendingByLine, recordId, pendingOrderId]);
+  }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };

@@ -13,8 +13,9 @@ import {
   listPendingOrders, getPendingOrder, cancelPendingOrder, reserveSampleIdForOrder,
 } from "@/lib/pending-orders.functions";
 import { CocFormDialog } from "@/components/chain-of-custody/coc-form-dialog";
+import type { CocFormSeed } from "@/components/chain-of-custody/use-coc-form";
 import { EditPendingOrderDialog } from "@/components/pending-orders/edit-order-dialog";
-import { saveCocDraft, newDraftId, deleteCocDraft } from "@/lib/coc-drafts";
+import { deleteCocDraft } from "@/lib/coc-drafts";
 import { deleteDraftFiles } from "@/lib/coc-draft-files";
 import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
@@ -77,6 +78,7 @@ function PendingOrdersPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [cocOpen, setCocOpen] = useState(false);
   const [resumeDraftId, setResumeDraftId] = useState<string | null>(null);
+  const [seed, setSeed] = useState<CocFormSeed | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
@@ -100,6 +102,7 @@ function PendingOrdersPage() {
     // repeated clicks.
     const existing = draftByOrderId.get(order.id);
     if (existing) {
+      setSeed(null);
       setResumeDraftId(existing.draftId);
       setCocOpen(true);
       return;
@@ -170,18 +173,12 @@ function PendingOrdersPage() {
       }
       const lineItems = Array.from(lotsByBase.values()).map(l =>
         l.vials.length ? l : { ...l, vials: [emptyVial("purity")] });
-      const draftId = newDraftId(`pending-${order.id.slice(0, 8)}`);
-      saveCocDraft({
-        draftId,
-        recordId: null,
-        values,
-        lineItems,
-        pendingFileNames: [],
-        updatedAt: new Date().toISOString(),
-        summary: `From order ${order.external_order_id}${order.customer_company ? ` · ${order.customer_company}` : ""}`,
-        pendingOrderId: order.id,
-      });
-      setResumeDraftId(draftId);
+      // Hand the pre-fill to the dialog in memory rather than persisting a
+      // draft up front. Opening the form to look at an order shouldn't
+      // leave a draft behind -- the autosave writes one as soon as
+      // anything is actually edited.
+      setResumeDraftId(null);
+      setSeed({ values, lots: lineItems, pendingOrderId: order.id, seedKey: order.id });
       setCocOpen(true);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to open order");
@@ -358,11 +355,13 @@ function PendingOrdersPage() {
           setCocOpen(v);
           if (!v) {
             setResumeDraftId(null);
+            setSeed(null);
             qc.invalidateQueries({ queryKey: ["pending_orders"] });
           }
         }}
         recordId={null}
         resumeDraftId={resumeDraftId}
+        seed={seed}
       />
     </div>
   );
