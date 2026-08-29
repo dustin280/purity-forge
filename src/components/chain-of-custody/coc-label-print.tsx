@@ -10,8 +10,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Tags } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+import { Tags, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { vialBatchId, TEST_TYPE_SHORT } from "@/lib/lims/sample-hierarchy";
 import { lotAccent } from "./lot-card";
@@ -24,8 +23,6 @@ export function CocLabelPrint({
   lots: LotRow[];
   disabled: boolean;
 }) {
-  const navigate = useNavigate();
-
   // Recomputed on every render from current form state -- add a vial, drop
   // one, or switch a test and this list follows immediately.
   const entries = lots.flatMap((lot, lotIdx) =>
@@ -44,14 +41,24 @@ export function CocLabelPrint({
       return;
     }
     const lines = entries.map((e) => (e.lotCode ? `${e.id} / Lot ${e.lotCode}` : e.id));
+    // Opens in a new tab so the half-finished receipt stays exactly as it
+    // is behind it. The payload rides localStorage under a one-shot key
+    // rather than sessionStorage, which is per-tab -- the labels page
+    // consumes and deletes that key on load.
+    const handoffId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const key = `vial-labels-handoff:${handoffId}`;
     try {
-      sessionStorage.setItem("vial-labels-pending", lines.join("\n"));
-      sessionStorage.setItem("vial-labels-return-to", `${window.location.pathname}${window.location.search}`);
+      localStorage.setItem(key, lines.join("\n"));
     } catch {
       toast.error("Could not stage labels for printing");
       return;
     }
-    void navigate({ to: "/vial-labels" });
+    const win = window.open(`/vial-labels?handoff=${handoffId}`, "_blank", "noopener");
+    if (!win) {
+      // Popup blocked -- don't leave the payload orphaned in storage.
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
+      toast.error("Your browser blocked the new tab. Allow pop-ups for this site to print labels.");
+    }
   }
 
   return (
@@ -67,6 +74,7 @@ export function CocLabelPrint({
         </div>
         <Button type="button" variant="outline" onClick={print} disabled={disabled || entries.length === 0}>
           <Tags className="size-4 mr-1" /> Print Labels
+          <ExternalLink className="size-3 ml-1 opacity-60" />
         </Button>
       </div>
 
@@ -89,7 +97,7 @@ export function CocLabelPrint({
 
       {entries.length > 0 && (
         <p className="text-[10px] text-muted-foreground mt-2">
-          Printing leaves this form. Your work is saved as a draft and can be resumed from where you started it.
+          Opens in a new tab — this receipt stays open and unchanged.
         </p>
       )}
     </div>

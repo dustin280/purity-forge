@@ -27,6 +27,24 @@ function VialLabelsPage() {
 
   useEffect(() => {
     try {
+      // Two handoff routes. `?handoff=` is used by callers that open this
+      // page in a NEW TAB (currently the intake form, which has to stay
+      // open behind it) -- it goes via localStorage because sessionStorage
+      // is per-tab and its inheritance into a new tab isn't something to
+      // rely on quietly. Everything else still navigates in place and uses
+      // sessionStorage, with a return link back to where it came from.
+      const handoffId = new URLSearchParams(window.location.search).get("handoff");
+      if (handoffId) {
+        const key = `vial-labels-handoff:${handoffId}`;
+        const payload = localStorage.getItem(key);
+        localStorage.removeItem(key);
+        if (payload) {
+          setRaw(payload);
+          toast.success(`Loaded ${payload.split(/\r?\n/).filter(Boolean).length} labels`);
+        }
+        return;
+      }
+
       const pending = sessionStorage.getItem("vial-labels-pending");
       if (pending) {
         setRaw(pending);
