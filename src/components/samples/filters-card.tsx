@@ -32,7 +32,7 @@ export function SamplesFiltersCard({
             data-guide="samples-search"
           />
         </div>
-        <div className="flex gap-1.5 text-xs">
+        <div className="flex flex-wrap gap-1.5 text-xs">
           {(["all", ...Object.keys(DISPLAY_STATUS_LABEL)] as const).map(f => (
             <button
               key={f}

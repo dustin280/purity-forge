@@ -66,6 +66,7 @@ export function UsersTable({
 
   return (
     <Card className="border-border overflow-hidden">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
@@ -159,6 +160,7 @@ export function UsersTable({
           })}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }

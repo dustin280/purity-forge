@@ -196,6 +196,7 @@ function ReportReconciliationAdmin() {
 
           {activeCategory && (activeCategory === "no_coc" || activeCategory === "orphan_files") && (
             <Card className="border-border overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr><th className="text-left px-3 py-2">{CATEGORY_LABEL[activeCategory]}</th></tr>
@@ -209,11 +210,13 @@ function ReportReconciliationAdmin() {
                   )}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
 
           {activeCategory === "already_resolved" && (
             <Card className="border-border overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -237,6 +240,7 @@ function ReportReconciliationAdmin() {
                   )}
                 </tbody>
               </table>
+              </div>
               <p className="text-xs text-muted-foreground px-3 py-2 border-t border-border">
                 These files match a known sample that already has a saved result — reruns, do-overs, or the sample's own
                 already-applied file. Nothing to do here; shown for reference.
@@ -246,6 +250,7 @@ function ReportReconciliationAdmin() {
 
           {activeCategory && (activeCategory === "batch_id" || activeCategory === "lot_code" || activeCategory === "ambiguous" || activeCategory === "not_run") && (
             <Card className="border-border overflow-hidden">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
                   <tr>
@@ -296,6 +301,7 @@ function ReportReconciliationAdmin() {
                   )}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
 

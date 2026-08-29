@@ -47,6 +47,7 @@ export function QueueWorkTable({
   const allSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
   return (
     <Card className="border-border overflow-hidden">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
           <tr>
@@ -98,6 +99,7 @@ export function QueueWorkTable({
           ))}
         </tbody>
       </table>
+      </div>
     </Card>
   );
 }
