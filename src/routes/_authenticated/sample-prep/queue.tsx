@@ -272,6 +272,33 @@ function PrepQueuePage() {
                     <ol className="text-xs space-y-1 pl-4 list-decimal">
                       {row.steps.map((s, i) => <li key={i}>{s}</li>)}
                     </ol>
+                    {(row.calibrationReference?.length ?? 0) > 0 && (
+                      // The standards this prep will be read against. Stated on
+                      // the sheet so the analyst doesn't have to go looking, and
+                      // so standard prep and sample prep quote the same figures.
+                      <div className="mt-2 rounded border border-border bg-muted/30 p-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                          Recommended calibration range for these compounds
+                        </div>
+                        <table className="text-[11px] w-full">
+                          <tbody>
+                            {row.calibrationReference!.map((c, i) => (
+                              <tr key={i}>
+                                <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
+                                <td className="py-0.5 font-mono text-muted-foreground">
+                                  {c.levels.map(v => v.toFixed(3)).join(" · ")} mg/mL
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="text-[10px] text-muted-foreground mt-1">
+                          L1–L6, each a whole 5&nbsp;µL of 1&nbsp;mg/mL stock per 1&nbsp;mL. Targets 100–1800&nbsp;mAU peak height.
+                        </div>
+                      </div>
+                    )}
+                    <ol className="hidden">
+                    </ol>
                   </td>
                   <td className="px-4 py-3 font-semibold whitespace-nowrap">
                     {isBlend ? (

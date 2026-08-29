@@ -48,6 +48,13 @@ export interface GeneratedRow {
   totalDilutionFactor: number | null;
   stockConcentrationMgPerMl: number | null;
   components?: BlendComponentResult[];
+  /**
+   * The recommended calibration ladder for every compound in this prep, so
+   * the bench sheet states which standards the result will be read against.
+   * Derived from measured peak height (100-1800 mAU) and every level is a
+   * whole 5 uL from a 1 mg/mL stock. Standard prep reads the same figures.
+   */
+  calibrationReference?: Array<{ name: string; levels: number[] }>;
 }
 
 export interface NeedsInputRow {
@@ -216,6 +223,8 @@ export interface ResolvedBlendCtx {
 export interface ResolvedRevisionCtx {
   kind: "single";
   analyteName: string;
+  /** Full calibration ladder, for the reference note on the prep sheet. */
+  levels?: Array<{ level: number; concMgPerMl: number }>;
   rules: {
     absoluteMinPipetteUl: number;
     preferredMinPipetteUl: number;
@@ -518,6 +527,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
     byCompoundLower.set(key, {
       kind: "single",
       analyteName: match?.name ?? label,
+      levels: numericLevels.map(l => ({ level: l.level, concMgPerMl: l.v })),
       rules: {
         absoluteMinPipetteUl: settings.absoluteMinPipetteUl,
         preferredMinPipetteUl: settings.preferredMinPipetteUl,
@@ -991,6 +1001,9 @@ export async function planAndPersistForSample(
         totalDilutionFactor: plan.totalDilutionFactor,
         stockConcentrationMgPerMl: primary?.stockConcMgPerMl ?? null,
         components: plan.components,
+        calibrationReference: resolved.components
+          .filter(c => (c.levels ?? []).length > 0)
+          .map(c => ({ name: c.name, levels: (c.levels ?? []).map(l => l.concMgPerMl) })),
       },
     };
   }
@@ -1030,6 +1043,9 @@ export async function planAndPersistForSample(
       warnings: plan.warnings.map(w => w.message), steps: plan.steps.map(s => s.instruction),
       targetConcentrationMgPerMl: plan.targetConcentrationMgPerMl, calibrationLevel: resolved.calibrationLevel,
       totalDilutionFactor: plan.totalDilutionFactor, stockConcentrationMgPerMl: plan.stockConcentrationMgPerMl,
+      calibrationReference: (resolved.levels ?? []).length
+        ? [{ name: resolved.analyteName, levels: (resolved.levels ?? []).map(l => l.concMgPerMl) }]
+        : undefined,
     },
   };
 }

@@ -116,7 +116,9 @@ export function CompoundDetailPanel({
             {CAL_KEYS.map((k, i) => (
               <div key={k} className="space-y-1">
                 <Label className="text-[10px] text-muted-foreground">L{i + 1}</Label>
-                <Input className="h-8 text-xs" type="number" step="0.05" defaultValue={compound[k] ?? ""}
+                {/* 0.005 mg/mL = 5 uL of 1 mg/mL stock per 1 mL prep -- the
+                    finest increment the bench can actually pipette to. */}
+                <Input className="h-8 text-xs" type="number" step="0.005" min="0.05" defaultValue={compound[k] ?? ""}
                   onBlur={(e) => onPatch({ [k]: num(e.target.value) })} />
               </div>
             ))}
