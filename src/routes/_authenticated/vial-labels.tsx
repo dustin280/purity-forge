@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Upload, Printer, Tags, X, ArrowLeft, FileDown } from "lucide-react";
+import { Upload, Printer, Tags, X, ArrowLeft, FileDown, FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { parseListFile } from "@/components/vial-labels/parse-list";
 import { LABELS_PER_SHEET, LabelSheets, chunkSheets } from "@/components/vial-labels/label-sheet";
+import { buildLabelPdf } from "@/components/vial-labels/label-pdf";
 import { buildOneOffSequenceCsv, oneOffFilename } from "@/lib/vial-labels/one-off-csv";
 
 export const Route = createFileRoute("/_authenticated/vial-labels")({
@@ -67,7 +68,7 @@ function VialLabelsPage() {
   const [endOffset, setEndOffset] = useState(LABELS_PER_SHEET - 1);
   // Tracks which end of the range the next click should set.
   const [clickMode, setClickMode] = useState<"start" | "end">("start");
-  const [fontSize, setFontSize] = useState(8);
+  const [fontSize, setFontSize] = useState(7);
   const [showFooter, setShowFooter] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
   const [hAlign, setHAlign] = useState<"left" | "center" | "right">("center");
@@ -132,6 +133,33 @@ function VialLabelsPage() {
     window.print();
     if (returnTo) {
       setShowReturnPrompt(true);
+    }
+  }
+
+  /**
+   * Browser printing of the HTML sheet is exact on desktop but not on a
+   * phone, where the browser applies its own page margins and scales the
+   * sheet down to fit -- which is how labels ended up clipped at the top.
+   * A PDF carries its own page geometry, so there is nothing left for the
+   * phone's print path to reinterpret.
+   */
+  function handleDownloadPdf() {
+    if (items.length === 0) {
+      toast.error("Add at least one label first.");
+      return;
+    }
+    try {
+      const doc = buildLabelPdf(sheets, {
+        fontSizePt: fontSize,
+        bold, wrap, hAlign, vAlign,
+        showFooter,
+        footerText: fileName ?? undefined,
+      });
+      const name = `vial-labels-${items.length}.pdf`;
+      doc.save(name);
+      toast.success(`${name} — open it and print at 100% / actual size`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not build the label PDF");
     }
   }
 
@@ -291,7 +319,7 @@ function VialLabelsPage() {
                   value={fontSize}
                   onChange={e => setFontSize(Math.max(4, Math.min(14, Number(e.target.value) || 8)))}
                 />
-                <p className="text-xs text-muted-foreground mt-1">Default 8pt. Lower for long text.</p>
+                <p className="text-xs text-muted-foreground mt-1">Default 7pt — fits the 16-character three-level IDs. Raise for short text.</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -344,6 +372,9 @@ function VialLabelsPage() {
               <Button onClick={handlePrint} className="w-full" size="lg">
                 <Printer className="size-4" /> Preview & Print
               </Button>
+              <Button onClick={handleDownloadPdf} variant="outline" className="w-full">
+                <FileText className="size-4" /> Download PDF (use this on a phone)
+              </Button>
               <div className="pt-2 border-t">
                 <Label htmlFor="vl-start-vial" className="text-xs uppercase tracking-widest text-muted-foreground">
                   1 Off sequence
@@ -366,6 +397,7 @@ function VialLabelsPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 The browser print dialog acts as the preview. Set margins to <strong>None</strong> and scaling to <strong>100%</strong> for accurate alignment.
+                On a phone, print the PDF instead — mobile browsers force their own margins onto a printed web page, which shifts the sheet and clips the top row.
               </p>
             </div>
           </Card>

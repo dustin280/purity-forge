@@ -451,6 +451,7 @@ export type Database = {
       chain_of_custody_fields: {
         Row: {
           created_at: string
+          default_value: string | null
           field_key: string
           field_type: Database["public"]["Enums"]["coc_field_type"]
           id: string
@@ -464,6 +465,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_value?: string | null
           field_key: string
           field_type?: Database["public"]["Enums"]["coc_field_type"]
           id?: string
@@ -477,6 +479,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_value?: string | null
           field_key?: string
           field_type?: Database["public"]["Enums"]["coc_field_type"]
           id?: string

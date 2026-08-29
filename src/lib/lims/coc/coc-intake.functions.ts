@@ -127,6 +127,43 @@ const lotSchema = z.object({
   vials: z.array(vialSchema).min(1).max(99),
 });
 
+/**
+ * Resolves the client row a receipt belongs to.
+ *
+ * Order matters. The CoC form now sends the id of the client actually picked,
+ * and that is authoritative. Name matching is only a fallback, and it is
+ * deliberately fuzzy at the last step: matching on the exact string meant
+ * "Peptide Supply Co" typed by hand never matched the "Peptide Supply Co."
+ * row, so client_id landed NULL and Verify Intake asked for the client all
+ * over again. Punctuation and spacing are noise here; two names that differ
+ * only by those are the same company.
+ *
+ * A brand-new client registered in the same submission (created only after
+ * the insert, see use-coc-form.ts) legitimately matches nothing and is left
+ * NULL rather than guessed at.
+ */
+function resolveClient(
+  candidates: Array<{ id: string; company_name: string }>,
+  explicitId: unknown,
+  headerClient: string,
+): { id: string; company_name: string } | null {
+  const wanted = typeof explicitId === "string" ? explicitId.trim() : "";
+  if (wanted) {
+    const byId = candidates.find((c) => c.id === wanted);
+    if (byId) return byId;
+  }
+  const target = headerClient.trim().toLowerCase();
+  const exact = candidates.find((c) => c.company_name.trim().toLowerCase() === target);
+  if (exact) return exact;
+  const loosen = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const loose = loosen(headerClient);
+  if (!loose) return null;
+  const near = candidates.filter((c) => loosen(c.company_name) === loose);
+  // Only when it is unambiguous -- two clients that normalise to the same
+  // string are a real distinction we must not collapse.
+  return near.length === 1 ? near[0] : null;
+}
+
 export const submitCocWithLots = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
@@ -154,10 +191,7 @@ export const submitCocWithLots = createServerFn({ method: "POST" })
     const receiptDate = receiptRaw.slice(0, 10);
 
     const { data: candidateClients } = await supabase.from("clients").select("id,company_name");
-    const matchedClient =
-      (candidateClients ?? []).find(
-        (c) => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase(),
-      ) ?? null;
+    const matchedClient = resolveClient(candidateClients ?? [], data.data.client_id, headerClient);
 
     // samples.parameters holds the admin-facing test_parameters DISPLAY
     // names ("Endotoxin"), not the internal test_type enum ("endotoxin") --
@@ -403,16 +437,8 @@ export const submitCocWithSamples = createServerFn({ method: "POST" })
       new Date().toISOString().slice(0, 10);
     const receiptDate = receiptRaw.slice(0, 10);
 
-    // Best-effort link to an existing client row by exact (case-insensitive)
-    // company name — the CoC form's client picker normally guarantees a
-    // match; a brand-new client registered in the same submission (created
-    // only after this insert, see use-coc-form.ts) legitimately won't match
-    // yet and is left NULL rather than guessed at.
     const { data: candidateClients } = await supabase.from("clients").select("id,company_name");
-    const matchedClient =
-      (candidateClients ?? []).find(
-        (c) => c.company_name.trim().toLowerCase() === headerClient.trim().toLowerCase(),
-      ) ?? null;
+    const matchedClient = resolveClient(candidateClients ?? [], data.data.client_id, headerClient);
 
     // Link to the compound library's assigned method group. The CoC form's
     // compound picker sets compound_id directly on every line item now, so

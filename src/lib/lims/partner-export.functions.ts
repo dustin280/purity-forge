@@ -8,7 +8,7 @@
  * genuine "see what Wayne sees" debugging tool for partner-facing issues.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { findVialPhotoDataUri } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
+import { findVialPhotoDataUriForSample } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 
 type ExportConfig = {
   include_lcs: boolean;
@@ -20,6 +20,8 @@ type ExportConfig = {
 type SampleRow = {
   id: string; batch_id: string; client: string; project: string | null;
   receipt_date: string; status: string; notes: string | null; physical_description: string | null;
+  /** Needed to resolve THIS vial's photo from its intake attachment. */
+  coc_id?: string | null; line_item_index?: number | null; vial_no?: number | null;
 };
 
 export type PartnerExportPayload = {
@@ -91,7 +93,12 @@ export async function buildPartnerExportPayload(
   if (cfg.include_method_blank) extras.method_blank_spectra = null;
   if (cfg.include_calibration) extras.calibration_data = latestPurityResult?.calibration_data ?? null;
 
-  const vialPhoto = await findVialPhotoDataUri(supabase, sample.batch_id);
+  const vialPhoto = await findVialPhotoDataUriForSample(supabase, {
+    batch_id: sample.batch_id,
+    coc_id: sample.coc_id ?? null,
+    line_item_index: sample.line_item_index ?? null,
+    vial_no: sample.vial_no ?? null,
+  });
 
   return {
     batch_id: sample.batch_id,

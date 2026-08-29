@@ -13,6 +13,8 @@ export type CocField = {
   is_active: boolean;
   sort_order: number;
   placeholder: string | null;
+  /** Pre-fills this field on a new receipt. Configured per field in admin. */
+  default_value: string | null;
 };
 
 export type CocRecord = {

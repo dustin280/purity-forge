@@ -13,6 +13,11 @@ const STORE = "files";
 export type DraftFiles = {
   pendingFiles: File[];
   pendingByLine: Record<number, File[]>;
+  /**
+   * Per-vial photos, keyed "lotIndex:vialIndex" (both 0-based). Optional
+   * because drafts written before per-vial photos existed don't carry it.
+   */
+  pendingByVial?: Record<string, File[]>;
 };
 
 function openDb(): Promise<IDBDatabase> {

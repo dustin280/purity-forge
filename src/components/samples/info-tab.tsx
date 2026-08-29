@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InfoRow } from "@/components/samples/info-row";
+import { EditSampleInfoDialog } from "@/components/samples/edit-sample-info-dialog";
+import { Pencil } from "lucide-react";
 import { updateTestSpec } from "@/lib/lims.functions";
 import { syncVialPhotoToReportsDrive } from "@/lib/lims/coc/vial-photo-drive-sync.functions";
 import {
@@ -18,6 +20,7 @@ import { qk } from "@/lib/query-keys";
 type Sample = {
   id: string;
   client: string;
+  client_id?: string | null;
   project: string | null;
   receipt_date: string;
   created_at: string;
@@ -63,6 +66,7 @@ export function SampleInfoTab({
   const [specMax, setSpecMax] = useState(test?.spec_max?.toString() ?? "");
   const [saving, setSaving] = useState(false);
   const [syncingPhoto, setSyncingPhoto] = useState(false);
+  const [editingInfo, setEditingInfo] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   async function syncVialPhoto() {
@@ -105,7 +109,18 @@ export function SampleInfoTab({
   return (
     <div className="grid md:grid-cols-2 gap-4">
       <Card className="p-5 border-border">
-        <h3 className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Sample</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs uppercase tracking-wider text-muted-foreground">Sample</h3>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditingInfo(true)}>
+            <Pencil className="size-3 mr-1" /> Edit
+          </Button>
+        </div>
+        <EditSampleInfoDialog
+          open={editingInfo}
+          onOpenChange={setEditingInfo}
+          sample={sample}
+          batchId={batchId}
+        />
         <dl className="space-y-2 text-sm">
           <InfoRow k="Client" v={sample.client} />
           <InfoRow k="Project" v={sample.project ?? "—"} />

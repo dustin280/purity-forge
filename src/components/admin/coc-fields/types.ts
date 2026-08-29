@@ -9,6 +9,8 @@ export type CocField = {
   is_active: boolean;
   sort_order: number;
   placeholder: string | null;
+  /** Seeds a NEW blank receipt only; never overwrites a draft or record. */
+  default_value: string | null;
 };
 
 export const TYPE_OPTIONS: { value: FieldType; label: string }[] = [

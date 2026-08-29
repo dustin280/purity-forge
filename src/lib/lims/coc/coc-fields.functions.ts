@@ -22,6 +22,7 @@ export const createCocField = createServerFn({ method: "POST" })
       field_type: cocFieldType.default("text"),
       is_required: z.boolean().default(false),
       placeholder: z.string().max(255).optional().nullable(),
+      default_value: z.string().max(255).optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {
@@ -45,6 +46,7 @@ export const updateCocField = createServerFn({ method: "POST" })
       is_active: z.boolean().optional(),
       sort_order: z.number().int().optional(),
       placeholder: z.string().max(255).optional().nullable(),
+      default_value: z.string().max(255).optional().nullable(),
     }).parse(d)
   )
   .handler(async ({ context, data }) => {

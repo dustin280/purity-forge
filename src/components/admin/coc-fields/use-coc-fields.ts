@@ -34,7 +34,7 @@ export function useCocFields() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to add"),
   });
   const updateMut = useMutation({
-    mutationFn: (v: { id: string; label?: string; field_type?: FieldType; is_required?: boolean; is_active?: boolean; sort_order?: number }) =>
+    mutationFn: (v: { id: string; label?: string; field_type?: FieldType; is_required?: boolean; is_active?: boolean; sort_order?: number; default_value?: string | null }) =>
       update({ data: v }),
     onSuccess: invalidate,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed to update"),

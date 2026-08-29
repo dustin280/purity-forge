@@ -59,7 +59,15 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
       );
     }
     const v = (values[field.field_key] as string) ?? "";
-    const set = (val: string) => setValuesDirty(prev => ({ ...prev, [field.field_key]: val }));
+    const set = (val: string) => setValuesDirty(prev => {
+      const next = { ...prev, [field.field_key]: val };
+      // Typing over a picked company breaks the link to that client row, so
+      // drop the id rather than letting a stale one ride along to intake.
+      if (field.field_key === "client_company" && val.trim() !== (prev.client_company as string ?? "").trim()) {
+        delete next.client_id;
+      }
+      return next;
+    });
     if (field.field_key === "sample_id") {
       return (
         <Input

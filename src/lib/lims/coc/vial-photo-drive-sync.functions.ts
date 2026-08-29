@@ -240,6 +240,47 @@ const MIME_BY_EXT: Record<string, string> = Object.fromEntries(
  * existing shape rather than requiring a schema change). Returns null on any
  * miss or Drive hiccup — never throws, must not break the export response.
  */
+/**
+ * The vial photo as a data URI, straight from the image captured at intake.
+ *
+ * This is the authoritative copy: `coc_attachments` + Supabase Storage is
+ * where the photo lands the moment it's taken on the receipt form. The Drive
+ * lookup below it only finds a photo that someone has since pushed there by
+ * hand, which meant the partner payload silently carried `vial_photo: null`
+ * for any sample nobody had clicked "Sync Vial Photo to Drive" on. Drive
+ * stays as the fallback so samples photographed before intake stored them
+ * still resolve.
+ */
+export async function findVialPhotoDataUriForSample(
+  supabase: SupabaseClient,
+  sample: {
+    batch_id: string;
+    coc_id: string | null;
+    line_item_index: number | null;
+    vial_no: number | null;
+  },
+): Promise<string | null> {
+  if (sample.coc_id) {
+    try {
+      const attachment = await findVialPhotoAttachment(
+        supabase, sample.coc_id, sample.line_item_index, sample.vial_no,
+      );
+      if (attachment) {
+        const { data: file } = await supabase.storage
+          .from("coc-attachments").download(attachment.file_path);
+        if (file) {
+          const mime = attachment.content_type ?? "image/jpeg";
+          const bytes = await file.arrayBuffer();
+          return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
+        }
+      }
+    } catch {
+      /* fall through to Drive */
+    }
+  }
+  return findVialPhotoDataUri(supabase, sample.batch_id);
+}
+
 export async function findVialPhotoDataUri(
   supabase: SupabaseClient,
   batchId: string,
@@ -281,7 +322,9 @@ export const syncVialPhotoToReportsDrive = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<VialPhotoSyncResult> => {
     const { data: sample, error } = await context.supabase
       .from("samples")
-      .select("batch_id, coc_id, line_item_index")
+      // vial_no is what makes findVialPhotoAttachment pick THIS vial's photo
+      // rather than falling back to a lot-wide one shared by every vial.
+      .select("batch_id, coc_id, line_item_index, vial_no")
       .eq("id", data.sample_id)
       .maybeSingle();
     if (error || !sample) return { ok: false, reason: "sample not found" };

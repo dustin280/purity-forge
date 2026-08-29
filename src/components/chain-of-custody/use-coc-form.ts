@@ -125,6 +125,12 @@ export function useCocForm({
   function applyClient(c: ClientRow) {
     setValuesDirty(prev => ({
       ...prev,
+      // Carried through to intake so samples link to THIS client row.
+      // Intake used to re-derive the link from the company name alone, and
+      // an exact-string miss ("Peptide Supply Co" vs "Peptide Supply Co.")
+      // silently produced a null client_id -- which is what made Verify
+      // Intake ask for the client all over again.
+      client_id: c.id,
       client_company: c.company_name ?? "",
       client_contact_name: c.primary_contact_name ?? "",
       client_contact_email: c.primary_contact_email ?? "",
@@ -158,7 +164,11 @@ export function useCocForm({
       } else if (f.field_type === "date") {
         init[f.field_key] = toDateInput(v == null ? "" : String(v));
       } else {
-        init[f.field_key] = v == null ? "" : String(v);
+        // A field's configured default seeds a NEW blank receipt only. An
+        // existing record's blank stays blank -- someone cleared it on
+        // purpose, and quietly refilling it would be a silent edit.
+        const fallback = recordId ? "" : (f.default_value ?? "");
+        init[f.field_key] = v == null ? fallback : String(v);
       }
     });
     if (recordId && existing?.sample_id) {
@@ -212,6 +222,9 @@ export function useCocForm({
         if (!files || draftIdRef.current !== id) return;
         if (files.pendingFiles.length) setPendingFiles(files.pendingFiles);
         if (Object.keys(files.pendingByLine).length) setPendingByLine(files.pendingByLine);
+        if (files.pendingByVial && Object.keys(files.pendingByVial).length) {
+          setPendingByVial(files.pendingByVial);
+        }
       }).catch(() => { /* leave empty on failure */ });
     }
     setTimeout(() => setHydrated(true), 0);
@@ -250,6 +263,10 @@ export function useCocForm({
           data[f.field_key] = raw;
         }
       });
+      // Not an admin-configurable field, so it isn't in activeFields -- but
+      // it's the authoritative client link, so it has to ride along.
+      const pickedClientId = (values.client_id as string | undefined)?.trim();
+      if (pickedClientId) data.client_id = pickedClientId;
       if (recordId) {
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
         await uploadAllPendingTo(recordId);
@@ -365,7 +382,7 @@ export function useCocForm({
       summary: summaryParts.join(" · ") || (recordId ? "Editing existing record" : "New chain of custody"),
       pendingOrderId: pendingOrderId ?? null,
     });
-    if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine });
+    if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine, pendingByVial });
   }, [open, hydrated, isDirty, draftId, values, lots, pendingFiles, pendingByLine, pendingByVial, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {

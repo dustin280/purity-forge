@@ -224,6 +224,104 @@ export const updateSampleAppearance = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Corrects the descriptive fields of an already-received sample.
+ *
+ * Everything here is enterable at intake, and until now a mistake made there
+ * was permanent from the UI's point of view -- picking the wrong client on a
+ * vial left no way to fix it short of a hand-written SQL update.
+ *
+ * `scope: "receipt"` applies the change to every vial on the same chain of
+ * custody. Client is a fact about the shipment, not about one vial, so a
+ * per-vial-only correction is how a single receipt ends up with three
+ * spellings of the same company across its vials. Status, results and ids
+ * are untouched -- this fixes labels, not the sample's lifecycle.
+ */
+export const updateSampleInfo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      sampleId: z.string().uuid(),
+      scope: z.enum(["vial", "receipt"]).default("vial"),
+      client_id: z.string().uuid().nullable().optional(),
+      project: z.string().max(255).nullable().optional(),
+      lot: z.string().max(255).nullable().optional(),
+      notes: z.string().max(4000).nullable().optional(),
+    }).parse(d)
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: prior, error: readErr } = await supabase
+      .from("samples")
+      .select("id, batch_id, coc_id, client, client_id, project, lot, notes")
+      .eq("id", data.sampleId)
+      .single();
+    if (readErr) throw readErr;
+
+    const patch: {
+      client?: string; client_id?: string | null;
+      project?: string | null; lot?: string | null; notes?: string | null;
+    } = {};
+    if (data.client_id !== undefined) {
+      if (data.client_id === null) {
+        patch.client_id = null;
+      } else {
+        // Denormalised `client` name has to move with the id or the two
+        // disagree -- exactly the drift this function exists to clean up.
+        const { data: client, error: cErr } = await supabase
+          .from("clients").select("id, company_name").eq("id", data.client_id).single();
+        if (cErr || !client) throw new Error("Client not found");
+        patch.client_id = client.id;
+        patch.client = client.company_name;
+      }
+    }
+    if (data.project !== undefined) patch.project = data.project;
+    if (data.lot !== undefined) patch.lot = data.lot;
+    if (data.notes !== undefined) patch.notes = data.notes;
+    if (Object.keys(patch).length === 0) return { ok: true, updated: 0 };
+
+    // `lot` is the partner's own per-vial string (…-EN, …-ST) and is the key
+    // their export looks up by, so it is never spread across a receipt.
+    const receiptWide = { ...patch };
+    delete receiptWide.lot;
+
+    let updated = 1;
+    const { error } = await supabase.from("samples").update(patch).eq("id", data.sampleId);
+    if (error) throw error;
+
+    if (data.scope === "receipt" && prior.coc_id && Object.keys(receiptWide).length > 0) {
+      const { data: siblings, error: sibErr } = await supabase
+        .from("samples").update(receiptWide)
+        .eq("coc_id", prior.coc_id).neq("id", data.sampleId).select("id");
+      if (sibErr) throw sibErr;
+      updated += siblings?.length ?? 0;
+
+      // Keep the receipt header in step, so re-opening the CoC doesn't show
+      // the name we just corrected away from.
+      if (patch.client !== undefined) {
+        const { data: coc } = await supabase
+          .from("chain_of_custody_records").select("data").eq("id", prior.coc_id).maybeSingle();
+        if (coc?.data && typeof coc.data === "object") {
+          await supabase.from("chain_of_custody_records")
+            .update({ data: { ...(coc.data as Record<string, unknown>), client_company: patch.client, client_id: patch.client_id } })
+            .eq("id", prior.coc_id);
+        }
+      }
+    }
+
+    await supabase.from("audit_log").insert({
+      action: "sample_info_updated",
+      table_name: "samples", record_id: data.sampleId, changed_by: userId,
+      diff: {
+        scope: data.scope,
+        vials_updated: updated,
+        from: { client: prior.client, client_id: prior.client_id, project: prior.project, lot: prior.lot, notes: prior.notes },
+        to: patch,
+      },
+    });
+    return { ok: true, updated };
+  });
+
 export const setPurityWaived = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>

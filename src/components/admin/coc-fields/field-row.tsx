@@ -23,7 +23,7 @@ export function FieldRow({
   onDelete: (id: string, label: string) => void;
 }) {
   return (
-    <li className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto_auto_auto_auto] items-center gap-3 px-4 py-2.5">
+    <li className="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] items-center gap-3 px-4 py-2.5">
       <div className="flex flex-col">
         <Button size="icon" variant="ghost" className="size-6"
           disabled={idx === 0} onClick={() => onMove(idx, -1)}>
@@ -53,6 +53,22 @@ export function FieldRow({
           ))}
         </SelectContent>
       </Select>
+      {f.field_type === "multiselect" ? (
+        <div className="w-[150px]" />
+      ) : (
+        <div className="w-[150px]">
+          <Input
+            defaultValue={f.default_value ?? ""}
+            placeholder="Default value"
+            title="Pre-fills this field on a new receipt. Leave blank for none."
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v !== (f.default_value ?? "")) onUpdate(f.id, { default_value: v || null });
+            }}
+            className="h-8 text-xs"
+          />
+        </div>
+      )}
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Switch checked={f.is_required}
           onCheckedChange={(v) => onUpdate(f.id, { is_required: v })} />
