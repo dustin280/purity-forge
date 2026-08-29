@@ -19,6 +19,16 @@ import { deleteDraftFiles } from "@/lib/coc-draft-files";
 import { useCocDrafts } from "@/components/chain-of-custody/use-coc-drafts";
 import { useAuth } from "@/hooks/use-auth";
 import type { Tables } from "@/integrations/supabase/types";
+import { emptyLot, emptyVial, type LotRow } from "@/components/chain-of-custody/types";
+import { baseLot, partnerTestType, stripVialTag, vialBatchId } from "@/lib/lims/sample-hierarchy";
+
+/** The shape the partner posts to /api/public/orders/intake, per sample. */
+type PartnerRawSample = {
+  lotBatch?: string | null;
+  productName?: string | null;
+  quantity?: number | null;
+  components?: Array<{ compound?: string | null; mg?: number | null }>;
+};
 
 type PendingOrder = Tables<"pending_orders">;
 type PendingOrderSample = Tables<"pending_order_samples">;
@@ -111,27 +121,55 @@ function PendingOrdersPage() {
         receipt_datetime: new Date().toISOString().slice(0, 16),
         comments: order.special_instructions ?? "",
       };
-      const lineItems = s.map((sm) => ({
-        compound: sm.product_name,
-        partner_reported_name: sm.product_name,
-        lot: sm.lot_batch ?? "",
-        catalog: "",
-        manufacturer: "",
-        quantity: "",
-        quantity_unit: "",
-        container_size: "",
-        concentration: "",
-        vial_count: Math.max(1, sm.quantity ?? 1),
-        temperature_c: "",
-        storage: "",
-        requested_tests: [],
-        client_received_date: "",
-        manufacture_date: "",
-        // Was pre-filled from sm.notes (the customer's order note) -- left
-        // blank now so it can't silently become the printed appearance;
-        // auto-fills from the compound's default once a compound is picked.
-        physical_description: "",
-      }));
+      // The partner sends one flat entry per physical vial, each tagged with
+      // its test via BOTH a lot suffix (-EN/-ST/-HM) and a product-name
+      // bracket tag. Fold those back into the lot -> vial hierarchy: group
+      // by base lot, and turn each of their entries into a typed vial.
+      const rawSamples = (detail.order.raw_payload as { samples?: PartnerRawSample[] } | null)?.samples ?? [];
+      const rawByLotBatch = new Map(rawSamples.filter(r => r.lotBatch).map(r => [r.lotBatch as string, r]));
+
+      const lotsByBase = new Map<string, LotRow>();
+      for (const sm of s) {
+        const base = baseLot(sm.lot_batch) || sm.product_name;
+        const raw = sm.lot_batch ? rawByLotBatch.get(sm.lot_batch) : undefined;
+        let lot = lotsByBase.get(base);
+        if (!lot) {
+          // Their `components` array is already structured ({compound, mg}),
+          // so compounds and masses come across directly -- no parsing of
+          // the concatenated product name needed for partner orders.
+          const comps = raw?.components ?? [];
+          const [primary, ...rest] = comps;
+          lot = {
+            ...emptyLot(),
+            compound: primary?.compound ?? stripVialTag(sm.product_name),
+            partner_reported_name: sm.product_name,
+            customer_lot: base,
+            physical_form: "solid",
+            label_content_value: primary?.mg != null ? String(primary.mg) : "",
+            label_content_unit: primary?.mg != null ? "mg" : "",
+            is_multi_component: comps.length > 1,
+            components: rest.map((c) => ({
+              compound_id: null,
+              compound: c.compound ?? "",
+              label_content_value: c.mg != null ? String(c.mg) : "",
+              label_content_unit: c.mg != null ? "mg" : "",
+            })),
+            vials: [],
+          };
+          lotsByBase.set(base, lot);
+        }
+        const testType = partnerTestType(sm.lot_batch, sm.product_name) ?? "purity";
+        // One vial per unit they sent, each keeping their exact per-vial lot
+        // string -- their export API is polled by that value.
+        for (let i = 0; i < Math.max(1, sm.quantity ?? 1); i++) {
+          lot.vials.push({
+            ...emptyVial(testType),
+            partner_lot: sm.lot_batch ?? "",
+          });
+        }
+      }
+      const lineItems = Array.from(lotsByBase.values()).map(l =>
+        l.vials.length ? l : { ...l, vials: [emptyVial("purity")] });
       const draftId = newDraftId(`pending-${order.id.slice(0, 8)}`);
       saveCocDraft({
         draftId,
@@ -157,15 +195,22 @@ function PendingOrdersPage() {
         getOne({ data: { id: order.id } }) as Promise<{ order: PendingOrder; samples: PendingOrderSample[] }>,
         reserveId({ data: { id: order.id } }),
       ]);
-      let seq = 0;
-      const lines = detail.samples.flatMap((sm) => {
-        const vials = Math.max(1, sm.quantity ?? 1);
-        return Array.from({ length: vials }, () => {
-          seq += 1;
-          const id = `${reserved.reserved_sample_id}-${String(seq).padStart(2, "0")}`;
-          return sm.lot_batch ? `${id} / Lot ${sm.lot_batch}` : id;
-        });
-      });
+      // Must mirror the intake numbering exactly (lot -> vial), or the
+      // printed labels won't match the ids the receive flow assigns.
+      const labelLotOrder: string[] = [];
+      const labelVialsByLot = new Map<string, { lotBatch: string | null }[]>();
+      for (const sm of detail.samples) {
+        const base = baseLot(sm.lot_batch) || sm.product_name;
+        if (!labelVialsByLot.has(base)) { labelVialsByLot.set(base, []); labelLotOrder.push(base); }
+        for (let i = 0; i < Math.max(1, sm.quantity ?? 1); i++) {
+          labelVialsByLot.get(base)!.push({ lotBatch: sm.lot_batch });
+        }
+      }
+      const lines = labelLotOrder.flatMap((base, lotIdx) =>
+        (labelVialsByLot.get(base) ?? []).map((v, vialIdx) => {
+          const id = vialBatchId(reserved.reserved_sample_id, lotIdx + 1, vialIdx + 1);
+          return v.lotBatch ? `${id} / Lot ${v.lotBatch}` : id;
+        }));
       if (lines.length === 0) {
         toast.info("No sample lines to label on this order.");
         return;

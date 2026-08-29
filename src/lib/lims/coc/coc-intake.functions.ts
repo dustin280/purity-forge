@@ -630,7 +630,7 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
         status: "prep",
       })
       .eq("id", data.sampleId)
-      .select("id,batch_id,receipt_date")
+      .select("id,batch_id,receipt_date,assigned_test_type")
       .single();
     if (error) throw error;
     await supabase.from("audit_log").insert({
@@ -640,6 +640,14 @@ export const verifySampleIntake = createServerFn({ method: "POST" })
       changed_by: userId,
       diff: { status: "prep" },
     });
-    await provisionTestsForSample(supabase, updated, data.parameters, userId, updated.receipt_date);
+    // A three-level vial exists for exactly one test, so provision only
+    // that one. The older flat path keeps the bundle behaviour (always a
+    // purity test plus whatever else was flagged) since a pre-hierarchy
+    // sample really did cover several tests at once.
+    if (updated.assigned_test_type) {
+      await provisionTestForVial(supabase, updated, updated.assigned_test_type, userId, updated.receipt_date);
+    } else {
+      await provisionTestsForSample(supabase, updated, data.parameters, userId, updated.receipt_date);
+    }
     return { ok: true };
   });

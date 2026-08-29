@@ -72,6 +72,70 @@ export const emptyLineComponent = (): LineItemComponent => ({
   compound_id: null, compound: "", label_content_value: "", label_content_unit: "",
 });
 
+// ---------------------------------------------------------------------------
+// Three-level intake shape (see src/lib/lims/sample-hierarchy.ts):
+//   shipment (the CoC record) -> LotRow (a product) -> VialRow (one test vial)
+// LineItem above is the older flat shape, still used by the legacy
+// submitCocWithSamples path and by edit mode on existing records.
+// ---------------------------------------------------------------------------
+
+import type { TestType } from "@/lib/lims/sample-hierarchy";
+
+/** One physical vial, assigned to exactly one test. Becomes a `samples` row. */
+export type VialRow = {
+  test_type: TestType;
+  /** The partner's own per-vial lot string, preserved verbatim -- their
+   *  export API is polled by this exact value. Blank for vials we added
+   *  ourselves, which fall back to the lot's base customer lot. */
+  partner_lot: string;
+  /** Per-vial appearance override; blank means "inherit the lot's". */
+  physical_description: string;
+  notes: string;
+};
+
+/** One product/lot within a shipment. Becomes a `sample_lots` row. */
+export type LotRow = {
+  customer_lot: string;
+  compound: string;
+  compound_id: string | null;
+  partner_reported_name: string;
+  catalog: string;
+  manufacturer: string;
+  container_size: string;
+  client_received_date: string;
+  manufacture_date: string;
+  physical_form: "" | "solid" | "liquid" | "capsule";
+  appearance_texture: string;
+  appearance_texture_other: string;
+  appearance_color: string;
+  label_content_value: string;
+  label_content_unit: "" | "mg" | "ug";
+  is_multi_component: boolean;
+  components: LineItemComponent[];
+  bottle_size: string;
+  liquid_volume_ml: string;
+  label_content_basis: "" | "per_ml" | "per_bottle";
+  capsule_count: string;
+  notes: string;
+  vials: VialRow[];
+};
+
+export const emptyVial = (test_type: TestType = "purity"): VialRow => ({
+  test_type, partner_lot: "", physical_description: "", notes: "",
+});
+
+export const emptyLot = (): LotRow => ({
+  customer_lot: "", compound: "", compound_id: null, partner_reported_name: "",
+  catalog: "", manufacturer: "", container_size: "",
+  client_received_date: "", manufacture_date: "",
+  physical_form: "", appearance_texture: "", appearance_texture_other: "", appearance_color: "",
+  label_content_value: "", label_content_unit: "",
+  is_multi_component: false, components: [],
+  bottle_size: "", liquid_volume_ml: "", label_content_basis: "", capsule_count: "",
+  notes: "",
+  vials: [emptyVial("purity")],
+});
+
 export const emptyLine = (): LineItem => ({
   compound: "", compound_id: null, lot: "", catalog: "", manufacturer: "",
   partner_reported_name: "",

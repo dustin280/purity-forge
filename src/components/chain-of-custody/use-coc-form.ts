@@ -9,7 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  listCocFields, getCocRecord, updateCocRecord, submitCocWithSamples,
+  listCocFields, getCocRecord, updateCocRecord, submitCocWithLots,
   listParameters, nextCocInvoiceNumber,
   recordCocAttachment, listCocAttachments, deleteCocAttachment, signedCocAttachmentUrl,
 } from "@/lib/lims.functions";
@@ -18,7 +18,7 @@ import {
 } from "@/lib/coc-drafts";
 import { saveDraftFiles, getDraftFiles, deleteDraftFiles } from "@/lib/coc-draft-files";
 import { qk } from "@/lib/query-keys";
-import { emptyLine, type CocField, type CocRecord, type LineItem } from "./types";
+import { emptyLot, type CocField, type CocRecord, type LotRow } from "./types";
 import { uploadPendingCocAttachments } from "./coc-form-uploads";
 import { createClient as createClientFn, type ClientRow } from "@/lib/clients.functions";
 import { listCompounds, createCompound as createCompoundFn } from "@/lib/compounds.functions";
@@ -43,7 +43,7 @@ export function useCocForm({
   const signalWorkflowEvent = useWorkflowSignal();
   const listFields = useServerFn(listCocFields);
   const getRec = useServerFn(getCocRecord);
-  const submit = useServerFn(submitCocWithSamples);
+  const submit = useServerFn(submitCocWithLots);
   const update = useServerFn(updateCocRecord);
   const nextInvoice = useServerFn(nextCocInvoiceNumber);
   const recordAttachment = useServerFn(recordCocAttachment);
@@ -92,7 +92,7 @@ export function useCocForm({
   }
 
   const [values, setValues] = useState<Record<string, string | string[]>>({});
-  const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
+  const [lots, setLots] = useState<LotRow[]>([emptyLot()]);
   const [isDirty, setIsDirty] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [pendingByLine, setPendingByLine] = useState<Record<number, File[]>>({});
@@ -104,7 +104,7 @@ export function useCocForm({
   const createClient = useServerFn(createClientFn);
 
   const setValuesDirty: typeof setValues = (v) => { setIsDirty(true); setValues(v); };
-  const setLineItemsDirty: typeof setLineItems = (v) => { setIsDirty(true); setLineItems(v); };
+  const setLotsDirty: typeof setLots = (v) => { setIsDirty(true); setLots(v); };
 
   /** Apply a selected client to the form's client info fields. */
   function applyClient(c: ClientRow) {
@@ -160,16 +160,20 @@ export function useCocForm({
     });
     setValues(merged);
 
-    const resumedLines = (resumed?.lineItems as LineItem[] | undefined);
-    const existingItems = (existing as unknown as { line_items?: LineItem[] } | undefined)?.line_items;
-    if (resumedLines && resumedLines.length) {
-      setLineItems(resumedLines.map(li => ({ ...emptyLine(), ...li })));
-    } else if (existingItems && existingItems.length) {
-      // Spread over emptyLine() defaults so records saved before a field
-      // existed (e.g. pre-multi-compound-rework) still hydrate cleanly.
-      setLineItems(existingItems.map(li => ({ ...emptyLine(), ...li })));
+    // Only rows already in the three-level shape (they carry `vials`) can
+    // hydrate here. A draft or record saved in the older flat line-item
+    // shape is ignored rather than half-converted -- silently mangling a
+    // saved intake would be worse than starting the lot list fresh.
+    const isLotShaped = (r: unknown): r is LotRow =>
+      !!r && typeof r === "object" && Array.isArray((r as LotRow).vials);
+    const resumedLots = (resumed?.lineItems as unknown[] | undefined)?.filter(isLotShaped);
+    const existingLots = (existing as unknown as { line_items?: unknown[] } | undefined)?.line_items?.filter(isLotShaped);
+    if (resumedLots && resumedLots.length) {
+      setLots(resumedLots.map(l => ({ ...emptyLot(), ...l })));
+    } else if (existingLots && existingLots.length) {
+      setLots(existingLots.map(l => ({ ...emptyLot(), ...l })));
     } else {
-      setLineItems([emptyLine()]);
+      setLots([emptyLot()]);
     }
     setIsDirty(!!resumed);
     setPendingFiles(initialFile ? [initialFile] : []);
@@ -232,12 +236,12 @@ export function useCocForm({
         await update({ data: { id: recordId, sample_id: sampleIdVal, data } });
         await uploadAllPendingTo(recordId);
       } else {
-        const cleaned = lineItems
-          .map(li => ({ ...li, compound: li.compound.trim() }))
-          .filter(li => li.compound.length > 0);
-        if (cleaned.length === 0) throw new Error("Add at least one compound / line item");
+        const cleaned = lots
+          .map(l => ({ ...l, compound: l.compound.trim() }))
+          .filter(l => l.compound.length > 0 && l.vials.length > 0);
+        if (cleaned.length === 0) throw new Error("Add at least one lot with a compound and one vial");
         const res = await submit({ data: {
-          sample_id: sampleIdVal, data, line_items: cleaned,
+          sample_id: sampleIdVal, data, lots: cleaned,
           pending_order_id: pendingOrderId ?? undefined,
         } }) as { coc: { id: string } };
         if (res?.coc?.id) await uploadAllPendingTo(res.coc.id);
@@ -300,13 +304,13 @@ export function useCocForm({
   useEffect(() => {
     if (!open || !hydrated || !draftId) return;
     const hasValues = Object.values(values).some(v => Array.isArray(v) ? v.length > 0 : (typeof v === "string" && v.trim() !== ""));
-    const hasLines = lineItems.some(li => li.compound.trim() !== "" || li.lot.trim() !== "" || li.catalog.trim() !== "");
+    const hasLines = lots.some(l => l.compound.trim() !== "" || l.customer_lot.trim() !== "" || l.catalog.trim() !== "");
     const hasPending = pendingFiles.length > 0 || Object.values(pendingByLine).some(arr => arr.length > 0);
     if (!hasValues && !hasLines && !hasPending) return;
     const summaryParts: string[] = [];
     const invoice = (values.sample_id as string)?.trim();
     if (invoice) summaryParts.push(invoice);
-    const firstCompound = lineItems.find(li => li.compound.trim() !== "")?.compound.trim();
+    const firstCompound = lots.find(l => l.compound.trim() !== "")?.compound.trim();
     if (firstCompound) summaryParts.push(firstCompound);
     const client = (values.client_company as string)?.trim();
     if (client) summaryParts.push(client);
@@ -314,14 +318,14 @@ export function useCocForm({
       draftId,
       recordId: recordId ?? null,
       values,
-      lineItems,
+      lineItems: lots,
       pendingFileNames: pendingFiles.map(f => f.name),
       updatedAt: new Date().toISOString(),
       summary: summaryParts.join(" · ") || (recordId ? "Editing existing record" : "New chain of custody"),
       pendingOrderId: pendingOrderId ?? null,
     });
     if (hasPending) void saveDraftFiles(draftId, { pendingFiles, pendingByLine });
-  }, [open, hydrated, draftId, values, lineItems, pendingFiles, pendingByLine, recordId, pendingOrderId]);
+  }, [open, hydrated, draftId, values, lots, pendingFiles, pendingByLine, recordId, pendingOrderId]);
 
   async function openExistingAttachment(path: string) {
     const r = await signAttachmentUrl({ data: { file_path: path, expires_in: 600 } }) as { url: string };
@@ -338,7 +342,7 @@ export function useCocForm({
     activeFields, activeParams, attachments,
     compoundOptions, createCompoundOption,
     values, setValues, setValuesDirty,
-    lineItems, setLineItems, setLineItemsDirty,
+    lots, setLots, setLotsDirty,
     pendingFiles, setPendingFiles, setIsDirty, isDirty,
     pendingByLine, setPendingByLine,
     saveMut, attemptClose,

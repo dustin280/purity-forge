@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AttachmentsSection } from "./attachments-section";
 import { MultiselectField } from "./coc-multiselect-field";
-import { CocLineItemsSection } from "./coc-line-items-section";
+import { CocLotsSection } from "./coc-lots-section";
 import { useCocForm } from "./use-coc-form";
 import { ClientPicker } from "./client-picker";
 import { nowDatetimeInput, toDateInput, toLocalDatetimeInput } from "@/lib/date-input";
@@ -28,7 +28,7 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
     activeFields, activeParams, attachments,
     compoundOptions, createCompoundOption,
     values, setValuesDirty,
-    lineItems, setLineItemsDirty,
+    lots, setLotsDirty,
     pendingFiles, setPendingFiles, setIsDirty,
     pendingByLine, setPendingByLine,
     saveMut, attemptClose,
@@ -154,16 +154,13 @@ export function CocFormDialog({ open, onOpenChange, recordId, resumeDraftId, ini
               </React.Fragment>
             ))}
 
-          <CocLineItemsSection
+          <CocLotsSection
             recordId={recordId}
-            lineItems={lineItems}
-            setLineItemsDirty={setLineItemsDirty}
-            activeParams={activeParams}
+            shipmentId={(values.sample_id as string) ?? ""}
+            lots={lots}
+            setLotsDirty={setLotsDirty}
             compoundOptions={compoundOptions}
             onCreateCompound={createCompoundOption}
-            pendingByLine={pendingByLine}
-            setPendingByLine={setPendingByLine}
-            setIsDirty={setIsDirty}
           />
 
           <DialogFooter className="sm:col-span-2 mt-2">

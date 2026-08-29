@@ -163,10 +163,15 @@ export const releaseInstrumentPositions = createServerFn({ method: "POST" })
 function buildRunListName(batchIds: string[], date: Date): string {
   const groups = new Map<number, number[]>();
   for (const batchId of batchIds) {
-    const m = batchId.match(/^SYX-(\d+)-(\d+)/i);
+    // Handles both id shapes: the legacy flat SYX-000006-08 and the
+    // three-level SYX-000010-01-03. For the latter the vial number is what
+    // varies within a shipment, so range it on the LAST segment -- keying
+    // on the middle one would collapse every vial of a lot to one number
+    // and lose the range entirely.
+    const m = batchId.match(/^SYX-(\d+)-(\d+)(?:-(\d+))?/i);
     if (!m) continue;
     const prefix = parseInt(m[1], 10);
-    const suffix = parseInt(m[2], 10);
+    const suffix = parseInt(m[3] ?? m[2], 10);
     const arr = groups.get(prefix) ?? [];
     arr.push(suffix);
     groups.set(prefix, arr);

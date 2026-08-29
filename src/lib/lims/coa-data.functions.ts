@@ -101,18 +101,37 @@ export const getCoaData = createServerFn({ method: "GET" })
     const siblings = cocSiblings ?? [sample];
 
     type SampleRow = (typeof siblings)[number];
-    const sameGroup = (s: SampleRow) => base != null && lotBase(s.lot) === base;
-    const isAddOnVial = (s: SampleRow) => /\[[^\]]*vial\]\s*$/i.test(s.compound ?? "");
 
-    const mainVials = siblings
-      .filter((s) => sameGroup(s) && stripVialTag(s.compound) === untaggedCompound && !isAddOnVial(s))
-      .sort((a, b) => (a.coc_line_no ?? 0) - (b.coc_line_no ?? 0));
-    const finalMainVials = mainVials.length ? mainVials : [sample];
+    let finalMainVials: SampleRow[];
+    let sterilitySample: SampleRow | undefined;
+    let endotoxinSample: SampleRow | undefined;
 
-    const addOnFor = (tag: RegExp) =>
-      siblings.find((s) => sameGroup(s) && stripVialTag(s.compound) === untaggedCompound && tag.test(s.compound ?? ""));
-    const sterilitySample = addOnFor(/\[Sterility/i);
-    const endotoxinSample = addOnFor(/\[Endotoxin/i);
+    if (sample.lot_id) {
+      // Three-level intake: the lot is an explicit column, so grouping is a
+      // lookup rather than the string heuristics below. Purity vials are
+      // the report's rows; the non-chrom vials supply the summary boxes.
+      const lotVials = siblings
+        .filter((s) => s.lot_id === sample.lot_id)
+        .sort((a, b) => (a.vial_no ?? 0) - (b.vial_no ?? 0));
+      const purity = lotVials.filter((s) => s.assigned_test_type === "purity");
+      finalMainVials = purity.length ? purity : [sample];
+      sterilitySample = lotVials.find((s) => s.assigned_test_type === "sterility");
+      endotoxinSample = lotVials.find((s) => s.assigned_test_type === "endotoxin");
+    } else {
+      // Legacy flat intake (pre-hierarchy rows, never migrated): fall back
+      // to matching on the customer lot's base prefix and the compound name
+      // with its "[... vial]" tag stripped.
+      const sameGroup = (s: SampleRow) => base != null && lotBase(s.lot) === base;
+      const isAddOnVial = (s: SampleRow) => /\[[^\]]*vial\]\s*$/i.test(s.compound ?? "");
+      const mainVials = siblings
+        .filter((s) => sameGroup(s) && stripVialTag(s.compound) === untaggedCompound && !isAddOnVial(s))
+        .sort((a, b) => (a.coc_line_no ?? 0) - (b.coc_line_no ?? 0));
+      finalMainVials = mainVials.length ? mainVials : [sample];
+      const addOnFor = (tag: RegExp) =>
+        siblings.find((s) => sameGroup(s) && stripVialTag(s.compound) === untaggedCompound && tag.test(s.compound ?? ""));
+      sterilitySample = addOnFor(/\[Sterility/i);
+      endotoxinSample = addOnFor(/\[Endotoxin/i);
+    }
 
     const { data: cfgRow } = await supabase.from("export_config")
       .select("include_lcs, include_ccv, include_method_blank, include_calibration").limit(1).maybeSingle();
