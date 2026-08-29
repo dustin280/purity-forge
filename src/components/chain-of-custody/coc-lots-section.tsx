@@ -46,7 +46,7 @@ export function CocLotsSection({
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-6">
         {lots.map((lot, idx) => (
           <LotCard
             key={idx}

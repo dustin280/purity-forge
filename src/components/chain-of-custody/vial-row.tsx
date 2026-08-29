@@ -34,7 +34,7 @@ export function VialRowEditor({
   lotAppearance: string;
 }) {
   return (
-    <div className="rounded-md border border-border/60 bg-background/40 px-3 py-2.5">
+    <div className="rounded-md border border-border bg-background px-3 py-2.5 shadow-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[11px] font-semibold text-foreground/90">{vialId}</span>
         <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${TEST_TONE[vial.test_type]}`}>

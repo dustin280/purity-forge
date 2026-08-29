@@ -31,6 +31,27 @@ const LABEL_CONTENT_UNITS = [
 ] as const;
 const TEST_TYPES: TestType[] = ["purity", "sterility", "endotoxin", "heavy_metals"];
 
+/**
+ * Each lot in a shipment gets its own accent, cycling through this list.
+ * The colour carries one meaning only -- "which product am I looking at" --
+ * so that scanning a long receipt you can tell where one compound's block
+ * ends and the next begins without reading anything. Applied structurally
+ * (thick left spine + header band), which keeps it distinct from the small
+ * per-test pills inside the vial rows.
+ */
+const LOT_ACCENTS = [
+  { spine: "bg-sky-400",     band: "bg-sky-400/15",     ring: "border-sky-400/45",     ink: "text-sky-200" },
+  { spine: "bg-emerald-400", band: "bg-emerald-400/15", ring: "border-emerald-400/45", ink: "text-emerald-200" },
+  { spine: "bg-fuchsia-400", band: "bg-fuchsia-400/15", ring: "border-fuchsia-400/45", ink: "text-fuchsia-200" },
+  { spine: "bg-orange-400",  band: "bg-orange-400/15",  ring: "border-orange-400/45",  ink: "text-orange-200" },
+  { spine: "bg-cyan-400",    band: "bg-cyan-400/15",    ring: "border-cyan-400/45",    ink: "text-cyan-200" },
+  { spine: "bg-lime-400",    band: "bg-lime-400/15",    ring: "border-lime-400/45",    ink: "text-lime-200" },
+] as const;
+
+export function lotAccent(lotNo: number) {
+  return LOT_ACCENTS[(lotNo - 1) % LOT_ACCENTS.length];
+}
+
 export function LotCard({
   lot, lotNo, shipmentId, disabled, onChange, onRemove, canRemove,
   compoundOptions, onCreateCompound,
@@ -101,17 +122,24 @@ export function LotCard({
     </div>
   );
 
+  const accent = lotAccent(lotNo);
+
   return (
-    <div className="rounded-lg border-2 border-primary/25 bg-primary/[0.03] overflow-hidden">
+    <div className={`relative rounded-lg border-2 ${accent.ring} bg-card shadow-sm overflow-hidden`}>
+      {/* Thick colour spine down the whole card -- the main "this block is
+          one product" cue when scanning a long receipt. */}
+      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${accent.spine}`} aria-hidden />
+
       {/* Level-2 header */}
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-primary/10 border-b border-primary/20">
-        <span className="font-mono text-xs font-bold">{lotId}</span>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Lot / Product</span>
+      <div className={`flex flex-wrap items-center gap-2 pl-5 pr-3 py-2.5 ${accent.band} border-b-2 ${accent.ring}`}>
+        <span className={`font-mono text-sm font-bold ${accent.ink}`}>{lotId}</span>
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground">Lot {lotNo}</span>
+        {lot.compound && <span className="text-xs font-semibold">· {lot.compound}</span>}
         {lot.customer_lot && (
           <span className="font-mono text-[11px] text-muted-foreground">· {lot.customer_lot}</span>
         )}
         <div className="flex-1" />
-        <span className="text-[10px] text-muted-foreground">
+        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${accent.band} ${accent.ink} border ${accent.ring}`}>
           {lot.vials.length} vial{lot.vials.length === 1 ? "" : "s"}
         </span>
         {!disabled && canRemove && (
@@ -121,7 +149,7 @@ export function LotCard({
         )}
       </div>
 
-      <div className="p-3 space-y-3">
+      <div className="p-3 pl-5 space-y-3">
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Physical Form *</Label>
@@ -218,7 +246,7 @@ export function LotCard({
         </div>
 
         {/* Appearance -- entered once, applies to every vial below */}
-        <div className="rounded-md border border-border bg-muted/20 p-2.5">
+        <div className="rounded-md border border-border bg-muted/40 p-2.5">
           <div className="flex items-center justify-between mb-2">
             <Label className="text-[10px] uppercase text-muted-foreground">Appearance (applies to all vials in this lot)</Label>
             {appearance && <span className="text-xs font-medium">{appearance}</span>}
@@ -306,9 +334,12 @@ export function LotCard({
             onChange={(e) => onChange({ notes: e.target.value })} />
         </div>
 
-        {/* Level 3 -- how many vials of each test, then the vials themselves */}
-        <div className="rounded-md border border-border bg-background/30 p-2.5 space-y-2.5">
-          <Label className="text-[10px] uppercase text-muted-foreground">Test Vials</Label>
+        {/* Level 3 -- how many vials of each test, then the vials themselves.
+            Inset and darker so the vials clearly sit INSIDE this lot. */}
+        <div className={`rounded-md border-l-4 ${accent.ring} border-y border-r border-border bg-muted/60 p-2.5 space-y-2.5`}>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Test Vials <span className="normal-case tracking-normal">— belong to {lotId}</span>
+          </Label>
           <div className="flex flex-wrap gap-3">
             {TEST_TYPES.map((t) => (
               <div key={t} className="flex items-center gap-1.5">
