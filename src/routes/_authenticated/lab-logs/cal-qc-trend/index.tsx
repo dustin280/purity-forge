@@ -118,11 +118,35 @@ function CalQcTrendPage() {
           </p>
         </div>
         {isAdmin && (
-          <Button variant="outline" size="sm" disabled={runWatcherMut.isPending} onClick={() => runWatcherMut.mutate()}>
+          <Button
+            variant="outline" size="sm" disabled={runWatcherMut.isPending}
+            onClick={() => {
+              // The scheduled job is deliberately paused while acquisition and
+              // processing methods are being finalised -- importing early fills
+              // the log with runs that cannot be compared with each other. The
+              // manual button would quietly bypass that, so it asks first.
+              const ok = window.confirm(
+                "The scheduled Cal/QC import is paused while acquisition and processing methods are being finalised.
+
+"
+                + "Importing now will log readings from methods that may still change, and peak metrics from different "
+                + "acquisition methods cannot be compared with each other.
+
+Run the import anyway?",
+              );
+              if (ok) runWatcherMut.mutate();
+            }}
+          >
             <RefreshCw className={`size-4 mr-1.5 ${runWatcherMut.isPending ? "animate-spin" : ""}`} />
             {runWatcherMut.isPending ? "Running…" : "Run watcher now"}
           </Button>
         )}
+      </div>
+
+      <div className="mb-4 rounded border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-amber-800 dark:text-amber-200">
+        Scheduled import is <span className="font-medium">paused</span> until acquisition and processing methods are
+        finalised. Peak metrics are only comparable within a single acquisition method, so this chart shows one
+        method at a time.
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3 items-end">
