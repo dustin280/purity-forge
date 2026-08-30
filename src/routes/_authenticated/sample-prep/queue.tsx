@@ -189,16 +189,19 @@ function PrepQueuePage() {
                   </div>
                   {row.known?.received_form && (
                     <div className="text-[10px] text-muted-foreground mb-1.5">
+                      {/* The right advice differs completely by reason, and
+                          getting it wrong sends an analyst editing facts to
+                          satisfy the planner. A stock-weaker-than-target
+                          failure usually IS a receipt error (mg entered as
+                          ug); a blend that won't fit its calibration window
+                          usually is not. */}
                       {row.reason === "missing_as_received_data"
                         ? "Filled in from receipt — supply whatever is still blank."
                         : row.reason === "no_calibration_data" || row.reason === "no_compound"
-                        ? "From receipt — the vial data is fine. What's missing is compound/calibration setup in the library."
-                        // A plan_error is not a data-entry problem. The receipt
-                        // values are what the vial actually is, and telling
-                        // someone to "change what's wrong" when nothing is
-                        // wrong sends them editing facts to satisfy the
-                        // planner. What failed is the dilution scheme.
-                        : "From receipt — these describe the vial and are not the problem here. This plan failed on the dilution scheme itself."}
+                        ? "From receipt — the vial data looks fine. What's missing is the compound or its calibration levels in the library."
+                        : /weaker than|not lower than/.test(row.message)
+                        ? "From receipt — check the amount and unit below first. A vial recorded in µg that was really mg reconstitutes 1000× too weak."
+                        : "From receipt — these describe the vial. If they match the label, the dilution scheme is what failed, not the data."}
                     </div>
                   )}
                   {(row.reason === "missing_as_received_data" || row.reason === "plan_error") && (
@@ -213,7 +216,19 @@ function PrepQueuePage() {
                         </Select>
                       </div>
                       <Input className="h-8 w-24 text-xs" placeholder="Qty" value={o.quantity ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], quantity: e.target.value } }))} />
-                      <Input className="h-8 w-20 text-xs" placeholder="Unit" value={o.unit ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], unit: e.target.value } }))} />
+                      <div className="w-24">
+                        <Select
+                          value={o.unit ?? ""}
+                          onValueChange={(v) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], unit: v } }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Unit" /></SelectTrigger>
+                          <SelectContent>
+                            {(o.form ?? row.known?.received_form) === "solution"
+                              ? ["mL", "µL"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)
+                              : ["mg", "µg", "g"].map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       {(o.form ?? row.known?.received_form) === "lyophilized" && (
                         <Input className="h-8 w-24 text-xs" placeholder="Purity %" value={o.purity ?? ""} onChange={(e) => setOverrides((p) => ({ ...p, [row.sample_id]: { ...p[row.sample_id], purity: e.target.value } }))} />
                       )}

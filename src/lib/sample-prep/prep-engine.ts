@@ -225,7 +225,23 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
       totalDilutionFactor: null,
       targetConcentrationMgPerMl: target,
       finalVolumeUl: input.target.finalVolumeUl,
-      error: `Target concentration (${fmtConc(target)}) is not lower than stock (${fmtConc(stockMgPerMl)}). Increase reconstitution volume or lower the target.`,
+      // "Increase reconstitution volume" was backwards: more diluent makes
+      // the stock weaker still. Nothing can be diluted UP, so when the vial
+      // reconstitutes below its own target the cause is upstream -- almost
+      // always a wrong amount or unit at receipt (a 10 mg vial recorded as
+      // 10 ug reconstitutes 1000x too weak), otherwise a compound whose
+      // calibration range is out of reach for the amount actually supplied.
+      error: (() => {
+        const needMl = input.source.form === "lyophilized" && input.source.availableMassMg
+          ? input.source.availableMassMg / target
+          : null;
+        const reachable = needMl != null && needMl >= 0.5
+          ? ` The whole vial would need to go into ${needMl.toFixed(2)} mL to reach it.`
+          : needMl != null
+            ? ` Even the entire vial in 0.5 mL would not reach it (${needMl.toFixed(3)} mL needed).`
+            : "";
+        return `Reconstituted stock (${fmtConc(stockMgPerMl)}) is weaker than the ${fmtConc(target)} target, and nothing can be diluted upward.${reachable} Check the amount and unit recorded at receipt first -- mg entered as ug is the usual cause -- then whether this compound's calibration range suits the amount supplied.`;
+      })(),
     };
   }
 

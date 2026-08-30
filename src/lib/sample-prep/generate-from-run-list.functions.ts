@@ -146,9 +146,49 @@ export function resolutionKeyFor(sample: Pick<SampleCtx, "compound_id" | "compou
   return name ? `name:${name.toLowerCase()}` : null;
 }
 
-/** Mirrors dilution.ts's own unit tables — kept local since those aren't exported. */
-const MASS_TO_MG: Record<string, number> = { g: 1000, mg: 1, ug: 0.001, µg: 0.001 };
-const VOL_TO_UL: Record<string, number> = { ml: 1000, mL: 1000, ul: 1, uL: 1, µl: 1, µL: 1 };
+/**
+ * Unit conversion, normalised first so spelling can't change the answer.
+ *
+ * The previous tables were keyed on exact strings and every lookup fell back
+ * to `?? 1` -- so any unit they didn't happen to list was silently treated as
+ * MILLIGRAMS. "mcg" is the live example: parseBlendMassBreakdown's regex
+ * explicitly accepts it, the table had no entry for it, and a 10 mcg
+ * component therefore planned as 10 mg. A thousandfold error, no warning.
+ *
+ * Both micro signs (U+00B5 and Greek U+03BC) and the "mc" spelling now
+ * normalise to one key, and an unrecognised unit returns null so the caller
+ * has to deal with it rather than inheriting a wrong factor.
+ */
+function normalizeUnit(raw: string | null | undefined): string {
+  return String(raw ?? "")
+    .trim().toLowerCase()
+    .replace(/[µμ]/g, "u")   // micro sign and Greek mu -> u
+    .replace(/^mc/, "u")                // mcg -> ug, mcl -> ul
+    .replace(/[.\s]/g, "");
+}
+
+const MASS_TO_MG_BY_UNIT: Record<string, number> = {
+  kg: 1e6, g: 1000, mg: 1, ug: 0.001, ng: 1e-6,
+  gram: 1000, grams: 1000, milligram: 1, milligrams: 1,
+  microgram: 0.001, micrograms: 0.001,
+};
+const VOL_TO_UL_BY_UNIT: Record<string, number> = {
+  l: 1e6, ml: 1000, ul: 1, cc: 1000,
+  liter: 1e6, litre: 1e6, milliliter: 1000, millilitre: 1000,
+  microliter: 1, microlitre: 1,
+};
+
+/** mg for a mass, or null when the unit isn't recognised. Never guesses. */
+export function massToMg(value: number, unit: string | null | undefined): number | null {
+  const f = MASS_TO_MG_BY_UNIT[normalizeUnit(unit)];
+  return f == null ? null : value * f;
+}
+
+/** µL for a volume, or null when the unit isn't recognised. Never guesses. */
+export function volumeToUl(value: number, unit: string | null | undefined): number | null {
+  const f = VOL_TO_UL_BY_UNIT[normalizeUnit(unit)];
+  return f == null ? null : value * f;
+}
 
 /** Mirrors optimizer.ts's private parseConcentrationMgPerMl — kept local since that one isn't exported. */
 function parseConcentrationMgPerMl(v: string | null | undefined): number | null {
@@ -187,7 +227,7 @@ export function parseBlendMassBreakdown(compoundText: string): Array<{ name: str
     if (!m) return null; // any segment that doesn't parse invalidates the whole breakdown
     const [, rawName, amountStr, unit] = m;
     const amount = parseFloat(amountStr);
-    const massMg = amount * (MASS_TO_MG[unit.toLowerCase()] ?? 1);
+    const massMg = massToMg(amount, unit) ?? NaN;
     const name = rawName.trim();
     if (!name || !Number.isFinite(massMg) || massMg <= 0) return null;
     items.push({ name, massMg });
@@ -590,20 +630,34 @@ export function buildPlanInput(
   const source: PrepPlanInput["source"] = form === "lyophilized"
     ? {
       form: "lyophilized",
-      availableMassMg: qty != null ? qty * (MASS_TO_MG[qtyUnit] ?? 1) : null,
+      availableMassMg: qty != null ? massToMg(qty, qtyUnit) : null,
       purityFraction: purityPct != null ? purityPct / 100 : 1,
     }
     : {
       form: "solution",
       stockConcentrationMgPerMl: parseConcentrationMgPerMl(sample.concentration),
-      availableVolumeUl: qty != null ? qty * (VOL_TO_UL[qtyUnit] ?? 1) : null,
+      availableVolumeUl: qty != null ? volumeToUl(qty, qtyUnit) : null,
     };
 
+  // An unrecognised unit is a different problem from a missing quantity, and
+  // used to be indistinguishable because both ended as a null mass. Say which.
   if (form === "lyophilized" && !source.availableMassMg) {
-    return { ok: false, reason: "missing_as_received_data", message: "As-received mass is missing." };
+    const unitUnknown = qty != null && massToMg(qty, qtyUnit) == null;
+    return {
+      ok: false, reason: "missing_as_received_data",
+      message: unitUnknown
+        ? `As-received amount has an unrecognised unit ("${sample.received_quantity_unit ?? ""}"). Use mg, µg or g so it isn't guessed at.`
+        : "As-received mass is missing — record how much the vial holds.",
+    };
   }
   if (form === "solution" && (!source.stockConcentrationMgPerMl || !source.availableVolumeUl)) {
-    return { ok: false, reason: "missing_as_received_data", message: "As-received concentration or volume is missing/unparseable." };
+    const unitUnknown = qty != null && volumeToUl(qty, qtyUnit) == null;
+    return {
+      ok: false, reason: "missing_as_received_data",
+      message: unitUnknown
+        ? `As-received volume has an unrecognised unit ("${sample.received_quantity_unit ?? ""}"). Use mL or µL.`
+        : "As-received concentration or volume is missing/unparseable.",
+    };
   }
 
   return {
