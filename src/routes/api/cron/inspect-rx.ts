@@ -48,13 +48,16 @@ function attributeNames(xml: string): string[] {
 /**
  * Full outer XML of the nth occurrence of an element, children included.
  *
- * The tag boundary is `(?![A-Za-z])` rather than a backslash escape on
- * purpose: inside a template literal `\s` collapses to a literal "s" and
- * `\b` to BACKSPACE, so an earlier version of this asking for "Peak"
- * silently matched "<Peaks>" instead. A lookahead needs no escaping.
+ * The tag boundary is a lookahead rather than a backslash escape on purpose:
+ * inside a template literal `\s` collapses to a literal "s" and `\b` to
+ * BACKSPACE, so an earlier version of this asking for "Peak" silently
+ * matched "<Peaks>" instead. A lookahead needs no escaping.
+ *
+ * It excludes digits and "_" as well as letters, so that asking for "Method"
+ * cannot match the `<Method_ID>` cross-reference that sits in the same file.
  */
 function elementAt(xml: string, name: string, index: number): string | null {
-  const open = new RegExp(`<${name}(?![A-Za-z])`, "g");
+  const open = new RegExp(`<${name}(?![A-Za-z0-9_])`, "g");
   let m: RegExpExecArray | null;
   let seen = 0;
   while ((m = open.exec(xml))) {
@@ -62,7 +65,7 @@ function elementAt(xml: string, name: string, index: number): string | null {
     const start = m.index;
     const tagEnd = xml.indexOf(">", start);
     if (tagEnd > -1 && xml[tagEnd - 1] === "/") return xml.slice(start, tagEnd + 1);
-    const scan = new RegExp(`<${name}(?![A-Za-z])|</${name}>`, "g");
+    const scan = new RegExp(`<${name}(?![A-Za-z0-9_])|</${name}>`, "g");
     scan.lastIndex = start;
     let depth = 0;
     let t: RegExpExecArray | null;
@@ -136,7 +139,7 @@ export const Route = createFileRoute("/api/cron/inspect-rx")({
 
           const tag = url.searchParams.get("tag");
           const tagHits = tag
-            ? [...xml.matchAll(new RegExp(`<${tag}(?![A-Za-z])[^>]*>[^<]*</${tag}>|<${tag}(?![A-Za-z])[^>]*/>`, "g"))]
+            ? [...xml.matchAll(new RegExp(`<${tag}(?![A-Za-z0-9_])[^>]*>[^<]*</${tag}>|<${tag}(?![A-Za-z0-9_])[^>]*/>`, "g"))]
                 .slice(0, 40).map((m) => m[0])
             : undefined;
 

@@ -148,12 +148,19 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
         const rxFiles = await driveListByExt(seqFolder.id, "rx");
         const rxByName = new Map(rxFiles.map((f) => [f.name, f]));
 
-        // The processing method is a .pmx alongside the results. A folder
-        // holding more than one means the sequence was processed more than
-        // one way, and naming a single method would be a guess -- so record
-        // nothing rather than pick.
+        // Fallback only. Each `.rx` names its own processing method (see
+        // extractProcessingMethodName), which is both per-injection and
+        // authoritative; this folder-level guess just covers a file that
+        // somehow carries no method element.
+        //
+        // The guess is genuinely unsafe on its own: GHK-Cu's folder holds a
+        // stray `BPC-157 AC 6 Cal 8-6-26.pmx` next to its own, so picking one
+        // would be a coin flip, and NAD+'s folder would look unambiguous
+        // while being wrong -- its injections were really processed with
+        // TB500's method. A folder holding more than one method stays null
+        // rather than guessing.
         const pmxFiles = await driveListByExt(seqFolder.id, "pmx");
-        const processingMethodName = pmxFiles.length === 1
+        const folderProcessingMethodName = pmxFiles.length === 1
           ? pmxFiles[0].name.replace(/\.pmx$/i, "")
           : null;
 
@@ -211,7 +218,7 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
               // comparable within one acquisition method, so a reading that
               // doesn't know which method produced it is not usable evidence.
               acq_method_name: inj.acqMethodName,
-              processing_method_name: processingMethodName,
+              processing_method_name: result.processingMethodName ?? folderProcessingMethodName,
               processing_state: result.processingState,
               reading_at: inj.acqDateTime ?? new Date().toISOString(),
               sequence_name: manifest.sequenceName ?? inj.sequenceName,

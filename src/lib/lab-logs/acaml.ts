@@ -104,9 +104,64 @@ export interface AcamlInjectionResult {
    * "PassedWithWarning" is not the same evidence as "Passed".
    */
   processingState: string | null;
+  /**
+   * Processing method (`.pmx`) this injection was integrated with, as the
+   * instrument itself recorded it. Null when the run carries no method at
+   * all -- a `NoMethodProvided` result genuinely has none.
+   */
+  processingMethodName: string | null;
 }
 
 const NOT_INTEGRATED_STATES = ["nomethodprovided", "failed"];
+
+/**
+ * Name of the processing method that produced this result.
+ *
+ * How OpenLab links a `.pmx` to a `.rslt` was not obvious. The answer is a
+ * single `<Method>` element inside `Base/InjectionACAML`, a SIBLING of
+ * `<Resources>` rather than a child of it, carrying both the `.pmx` filename
+ * (under `<BinaryData>`) and the method's bare name. It is easy to conclude
+ * it isn't there: an element histogram sorted by frequency buries a
+ * count-of-one tag far beneath the 91 peaks and 273 timestamps of a real
+ * injection, so a truncated listing shows no method element anywhere.
+ *
+ * `sequence.acaml` uses the SAME element shape for the ACQUISITION method,
+ * differing only in that its `<BinaryData>` names an `.amx`. Shape and
+ * position therefore cannot tell the two apart -- the file extension is the
+ * only honest discriminator, so a `<Method>` naming an `.amx` is deliberately
+ * rejected here rather than mislabelled as a processing method.
+ *
+ * Verified 2026-08-30 against real cal sets across nine compounds. It is also
+ * the only place a MIS-processed run admits to it: NAD+'s calibration reports
+ * `TB500 6 Cal 8-6-26.pmx`, which is exactly the known fault that made it
+ * identify nothing. Guessing from the `.pmx` files sitting in the folder
+ * cannot see that, and in GHK-Cu's folder -- which also holds a stray
+ * `BPC-157 AC 6 Cal 8-6-26.pmx` -- guessing would be a coin flip.
+ */
+function extractProcessingMethodName(xml: string): string | null {
+  // Exactly one <Method> per .rx -- confirmed across nine cal sets -- so the
+  // first match is the right one.
+  //
+  // The boundary excludes digits and "_" as well as letters, unlike the
+  // `(?![A-Za-z])` convention used elsewhere in this file, because the same
+  // document also carries a `<Method_ID>` cross-reference that shares the
+  // prefix. On the real files this is belt-and-braces rather than a fix: the
+  // cross-reference is written after `<Method>` and has nothing method-shaped
+  // between them, so the looser boundary happens to read correctly too. The
+  // tighter one just removes the dependence on that layout.
+  const block = xml.match(/<Method(?![A-Za-z0-9_])[^>]*>([\s\S]*?)<\/Method>/)?.[1];
+  if (!block) return null;
+
+  // Require a .pmx: an .amx here means this is the acquisition method.
+  const file = block.match(/<(Name|OriginalFilePath|Path)>([^<]*\.pmx)<\/\1>/i)?.[2];
+  if (!file) return null;
+
+  // The method's own <Name> sits outside <BinaryData>; the <Name> inside is
+  // the filename. Drop the binary block before reading it.
+  const outer = block.replace(/<BinaryData>[\s\S]*?<\/BinaryData>/, "");
+  const name = outer.match(/<Name>([^<]*)<\/Name>/)?.[1]?.trim();
+  return name || file.replace(/\.pmx$/i, "").trim() || null;
+}
 
 /** ACAML numbers are attributes and can be negative or exponential. */
 const NUM = String.raw`(-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)`;
@@ -157,8 +212,11 @@ export function parseInjectionResult(xml: string): AcamlInjectionResult {
   const stateMatch = xml.match(/<TransformationChainState>([^<]*)<\/TransformationChainState>/);
   const processingState = stateMatch?.[1]?.trim() || null;
   const state = (processingState ?? "").toLowerCase();
+  // Read the method before the early return: which method a failed or
+  // unintegrated run was pointed at is exactly what makes it diagnosable.
+  const processingMethodName = extractProcessingMethodName(xml);
   if (NOT_INTEGRATED_STATES.some((s) => state.includes(s))) {
-    return { integrated: false, peaks: [], processingState };
+    return { integrated: false, peaks: [], processingState, processingMethodName };
   }
 
   // Chromatographic peaks, keyed by id so compounds can point at them.
@@ -212,5 +270,5 @@ export function parseInjectionResult(xml: string): AcamlInjectionResult {
     });
   }
 
-  return { integrated: peaks.length > 0, peaks, processingState };
+  return { integrated: peaks.length > 0, peaks, processingState, processingMethodName };
 }
