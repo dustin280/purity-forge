@@ -44,6 +44,12 @@ function RecordsList() {
   const methodsQ = useQuery({ queryKey: ["sp-methods"], queryFn: () => methods() });
 
   const analyteName = (id: string) => analytesQ.data?.find(a => a.id === id)?.canonical_name ?? "—";
+  /** Registered analyte if there is one, else the sample's own compound. */
+  const analyteLabel = (r: { analyte_id?: string | null; sample_compound?: string | null }) => {
+    const named = r.analyte_id ? analyteName(r.analyte_id) : "—";
+    if (named !== "—") return named;
+    return r.sample_compound?.trim() || "—";
+  };
   const methodName = (revId: string) => {
     const rev = methodsQ.data?.revisions.find(r => r.id === revId);
     if (!rev) return "—";
@@ -88,7 +94,7 @@ function RecordsList() {
                       {r.prep_number}
                     </Link>
                   </td>
-                  <td className="p-3">{analyteName(r.analyte_id ?? "")}</td>
+                  <td className="p-3">{analyteLabel(r)}</td>
                   <td className="p-3">{methodName(r.method_revision_id ?? "")}</td>
 
                   <td className="p-3">

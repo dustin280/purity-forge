@@ -135,7 +135,26 @@ export const listRecords = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw error;
-    return data ?? [];
+    const rows = data ?? [];
+
+    // Every queue-generated record has a null analyte_id -- those plans are
+    // computed from the sample's own compound and calibration, not from an
+    // sp_analyte -- so the Analyte column was a dash on every row and the
+    // list gave no clue what any record was for. Fall back to the linked
+    // sample's compound, which is what an analyst is actually looking for.
+    const batchIds = Array.from(new Set(rows.map(r => r.sample_id).filter((v): v is string => !!v)));
+    const compoundByBatch = new Map<string, string>();
+    if (batchIds.length) {
+      const { data: samples } = await context.supabase
+        .from("samples").select("batch_id, compound").in("batch_id", batchIds);
+      for (const s of samples ?? []) {
+        if (s.batch_id && s.compound) compoundByBatch.set(s.batch_id, s.compound);
+      }
+    }
+    return rows.map(r => ({
+      ...r,
+      sample_compound: r.sample_id ? (compoundByBatch.get(r.sample_id) ?? null) : null,
+    }));
   });
 
 export const getRecord = createServerFn({ method: "GET" })
