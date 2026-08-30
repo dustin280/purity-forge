@@ -189,6 +189,15 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
               rt: peak.rt,
               area: peak.area,
               amount: peak.amount,
+              // Height in mAU is what calibration ranges are actually set
+              // from; calibration_amount is the nominal level it belongs to.
+              height_mau: peak.height,
+              height_percent: peak.heightPercent,
+              area_percent: peak.areaPercent,
+              symmetry: peak.symmetry,
+              response_factor: peak.responseFactor,
+              calibration_amount: peak.calibrationAmount,
+              identification_type: peak.identificationType,
               reading_at: inj.acqDateTime ?? new Date().toISOString(),
               sequence_name: manifest.sequenceName ?? inj.sequenceName,
               injection_id: inj.injectionId,

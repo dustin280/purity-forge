@@ -382,6 +382,13 @@ export type Database = {
       }
       cal_qc_peak_log: {
         Row: {
+          area_percent: number | null
+          calibration_amount: number | null
+          height_mau: number | null
+          height_percent: number | null
+          response_factor: number | null
+          symmetry: number | null
+          identification_type: string | null
           amount: number | null
           area: number | null
           calibration_level: number | null
@@ -401,6 +408,13 @@ export type Database = {
           source_result_file_id: string
         }
         Insert: {
+          area_percent?: number | null
+          calibration_amount?: number | null
+          height_mau?: number | null
+          height_percent?: number | null
+          response_factor?: number | null
+          symmetry?: number | null
+          identification_type?: string | null
           amount?: number | null
           area?: number | null
           calibration_level?: number | null
@@ -420,6 +434,13 @@ export type Database = {
           source_result_file_id: string
         }
         Update: {
+          area_percent?: number | null
+          calibration_amount?: number | null
+          height_mau?: number | null
+          height_percent?: number | null
+          response_factor?: number | null
+          symmetry?: number | null
+          identification_type?: string | null
           amount?: number | null
           area?: number | null
           calibration_level?: number | null
