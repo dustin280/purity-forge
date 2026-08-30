@@ -55,9 +55,28 @@ function CalQcTrendPage() {
     enabled: !!effectiveCompoundId,
   });
 
+  // Peak metrics are NOT comparable across acquisition methods, so the chart
+  // is scoped to one. Filtering by compound alone drew a single "drift" line
+  // through runs from different methods -- a confident-looking trend built
+  // from measurements that have nothing to do with each other.
+  const methodOptions = useMemo(() => {
+    const set = new Set(
+      rows.filter((r) => r.compound_id === effectiveCompoundId)
+        .map((r) => r.acq_method_name ?? "")
+    );
+    return [...set].sort();
+  }, [rows, effectiveCompoundId]);
+
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const effectiveMethod = selectedMethod ?? methodOptions[0] ?? null;
+
   const compoundRows = useMemo(
-    () => (effectiveCompoundId ? rows.filter((r) => r.compound_id === effectiveCompoundId) : []),
-    [rows, effectiveCompoundId],
+    () => (effectiveCompoundId
+      ? rows.filter((r) =>
+          r.compound_id === effectiveCompoundId
+          && (r.acq_method_name ?? "") === (effectiveMethod ?? ""))
+      : []),
+    [rows, effectiveCompoundId, effectiveMethod],
   );
 
   const runWatcherMut = useMutation({
@@ -106,20 +125,52 @@ function CalQcTrendPage() {
         )}
       </div>
 
-      <div className="mb-4 max-w-xs">
-        <Select value={effectiveCompoundId ?? undefined} onValueChange={setSelectedCompoundId}>
-          <SelectTrigger>
-            <SelectValue placeholder={compoundOptions.length ? "Select a compound…" : "No tracked compounds yet"} />
-          </SelectTrigger>
-          <SelectContent>
-            {compoundOptions.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="mb-4 flex flex-wrap gap-3 items-end">
+        <div className="max-w-xs flex-1 min-w-[200px]">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Compound</div>
+          <Select
+            value={effectiveCompoundId ?? undefined}
+            onValueChange={(v) => { setSelectedCompoundId(v); setSelectedMethod(null); }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={compoundOptions.length ? "Select a compound…" : "No tracked compounds yet"} />
+            </SelectTrigger>
+            <SelectContent>
+              {compoundOptions.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* One method at a time, always. Charting a compound across methods
+            would draw drift that isn't there. */}
+        <div className="max-w-xs flex-1 min-w-[200px]">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Acquisition method</div>
+          <Select value={effectiveMethod ?? undefined} onValueChange={setSelectedMethod}>
+            <SelectTrigger>
+              <SelectValue placeholder={methodOptions.length ? "Select a method…" : "No readings yet"} />
+            </SelectTrigger>
+            <SelectContent>
+              {methodOptions.map((m) => (
+                <SelectItem key={m || "none"} value={m}>
+                  {m || "(no method recorded)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
+
+      {methodOptions.length > 1 && (
+        <div className="mb-4 rounded border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-amber-800 dark:text-amber-200">
+          This compound has readings from {methodOptions.length} acquisition methods. Only the selected
+          method is charted — peak metrics from different acquisition methods are not comparable, so they
+          are never combined into one trend.
+        </div>
+      )}
 
       {effectiveCompoundId ? (
         <QcTrendChart rows={compoundRows} isLoading={isLoading} rtBand={rtBand} />

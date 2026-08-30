@@ -65,6 +65,7 @@ import { Route as AuthenticatedMaintenanceTroubleshootingRouteImport } from './r
 import { Route as AuthenticatedMaintenancePartPickerRouteImport } from './routes/_authenticated/maintenance/part-picker'
 import { Route as AuthenticatedMaintenanceKnowledgeBaseRouteImport } from './routes/_authenticated/maintenance/knowledge-base'
 import { Route as AuthenticatedMaintenanceHplcColumnsRouteImport } from './routes/_authenticated/maintenance/hplc-columns'
+import { Route as AuthenticatedLabLogsCalQcMonitorRouteImport } from './routes/_authenticated/lab-logs/cal-qc-monitor'
 import { Route as AuthenticatedInventoryNewRouteImport } from './routes/_authenticated/inventory/new'
 import { Route as AuthenticatedInventoryInstrumentsRouteImport } from './routes/_authenticated/inventory/instruments'
 import { Route as AuthenticatedInventoryIdRouteImport } from './routes/_authenticated/inventory/$id'
@@ -437,6 +438,12 @@ const AuthenticatedMaintenanceHplcColumnsRoute =
     path: '/maintenance/hplc-columns',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsCalQcMonitorRoute =
+  AuthenticatedLabLogsCalQcMonitorRouteImport.update({
+    id: '/lab-logs/cal-qc-monitor',
+    path: '/lab-logs/cal-qc-monitor',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInventoryNewRoute =
   AuthenticatedInventoryNewRouteImport.update({
     id: '/inventory/new',
@@ -799,6 +806,7 @@ export interface FileRoutesByFullPath {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
+  '/lab-logs/cal-qc-monitor': typeof AuthenticatedLabLogsCalQcMonitorRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
@@ -911,6 +919,7 @@ export interface FileRoutesByTo {
   '/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/inventory/new': typeof AuthenticatedInventoryNewRoute
+  '/lab-logs/cal-qc-monitor': typeof AuthenticatedLabLogsCalQcMonitorRoute
   '/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
@@ -1025,6 +1034,7 @@ export interface FileRoutesById {
   '/_authenticated/inventory/$id': typeof AuthenticatedInventoryIdRoute
   '/_authenticated/inventory/instruments': typeof AuthenticatedInventoryInstrumentsRoute
   '/_authenticated/inventory/new': typeof AuthenticatedInventoryNewRoute
+  '/_authenticated/lab-logs/cal-qc-monitor': typeof AuthenticatedLabLogsCalQcMonitorRoute
   '/_authenticated/maintenance/hplc-columns': typeof AuthenticatedMaintenanceHplcColumnsRoute
   '/_authenticated/maintenance/knowledge-base': typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   '/_authenticated/maintenance/part-picker': typeof AuthenticatedMaintenancePartPickerRoute
@@ -1139,6 +1149,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/instruments'
     | '/inventory/new'
+    | '/lab-logs/cal-qc-monitor'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
     | '/maintenance/part-picker'
@@ -1251,6 +1262,7 @@ export interface FileRouteTypes {
     | '/inventory/$id'
     | '/inventory/instruments'
     | '/inventory/new'
+    | '/lab-logs/cal-qc-monitor'
     | '/maintenance/hplc-columns'
     | '/maintenance/knowledge-base'
     | '/maintenance/part-picker'
@@ -1364,6 +1376,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inventory/$id'
     | '/_authenticated/inventory/instruments'
     | '/_authenticated/inventory/new'
+    | '/_authenticated/lab-logs/cal-qc-monitor'
     | '/_authenticated/maintenance/hplc-columns'
     | '/_authenticated/maintenance/knowledge-base'
     | '/_authenticated/maintenance/part-picker'
@@ -1854,6 +1867,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMaintenanceHplcColumnsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/cal-qc-monitor': {
+      id: '/_authenticated/lab-logs/cal-qc-monitor'
+      path: '/lab-logs/cal-qc-monitor'
+      fullPath: '/lab-logs/cal-qc-monitor'
+      preLoaderRoute: typeof AuthenticatedLabLogsCalQcMonitorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/inventory/new': {
       id: '/_authenticated/inventory/new'
       path: '/inventory/new'
@@ -2305,6 +2325,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInventoryIdRoute: typeof AuthenticatedInventoryIdRoute
   AuthenticatedInventoryInstrumentsRoute: typeof AuthenticatedInventoryInstrumentsRoute
   AuthenticatedInventoryNewRoute: typeof AuthenticatedInventoryNewRoute
+  AuthenticatedLabLogsCalQcMonitorRoute: typeof AuthenticatedLabLogsCalQcMonitorRoute
   AuthenticatedMaintenanceHplcColumnsRoute: typeof AuthenticatedMaintenanceHplcColumnsRoute
   AuthenticatedMaintenanceKnowledgeBaseRoute: typeof AuthenticatedMaintenanceKnowledgeBaseRoute
   AuthenticatedMaintenancePartPickerRoute: typeof AuthenticatedMaintenancePartPickerRoute
@@ -2406,6 +2427,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInventoryInstrumentsRoute:
     AuthenticatedInventoryInstrumentsRoute,
   AuthenticatedInventoryNewRoute: AuthenticatedInventoryNewRoute,
+  AuthenticatedLabLogsCalQcMonitorRoute: AuthenticatedLabLogsCalQcMonitorRoute,
   AuthenticatedMaintenanceHplcColumnsRoute:
     AuthenticatedMaintenanceHplcColumnsRoute,
   AuthenticatedMaintenanceKnowledgeBaseRoute:

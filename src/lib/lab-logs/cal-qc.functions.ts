@@ -24,6 +24,12 @@ export interface CalQcPeakRow {
   injection_id: string;
   source_result_file_id: string;
   created_at: string;
+  /** Hard partition — never compare metrics across different values here. */
+  acq_method_name: string | null;
+  processing_method_name: string | null;
+  processing_state: string | null;
+  height_mau: number | null;
+  calibration_amount: number | null;
 }
 
 export const listCalQcPeakLog = createServerFn({ method: "GET" })

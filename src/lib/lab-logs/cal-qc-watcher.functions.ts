@@ -148,6 +148,15 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
         const rxFiles = await driveListByExt(seqFolder.id, "rx");
         const rxByName = new Map(rxFiles.map((f) => [f.name, f]));
 
+        // The processing method is a .pmx alongside the results. A folder
+        // holding more than one means the sequence was processed more than
+        // one way, and naming a single method would be a guess -- so record
+        // nothing rather than pick.
+        const pmxFiles = await driveListByExt(seqFolder.id, "pmx");
+        const processingMethodName = pmxFiles.length === 1
+          ? pmxFiles[0].name.replace(/\.pmx$/i, "")
+          : null;
+
         for (const inj of pendingInjections) {
           const sampleType = classifySampleType(inj.sampleType);
           if (!sampleType) {
@@ -198,6 +207,12 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
               response_factor: peak.responseFactor,
               calibration_amount: peak.calibrationAmount,
               identification_type: peak.identificationType,
+              // Method identity travels with every row. Peak metrics are only
+              // comparable within one acquisition method, so a reading that
+              // doesn't know which method produced it is not usable evidence.
+              acq_method_name: inj.acqMethodName,
+              processing_method_name: processingMethodName,
+              processing_state: result.processingState,
               reading_at: inj.acqDateTime ?? new Date().toISOString(),
               sequence_name: manifest.sequenceName ?? inj.sequenceName,
               injection_id: inj.injectionId,

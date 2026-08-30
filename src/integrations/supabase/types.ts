@@ -382,6 +382,9 @@ export type Database = {
       }
       cal_qc_peak_log: {
         Row: {
+          acq_method_name: string | null
+          processing_method_name: string | null
+          processing_state: string | null
           area_percent: number | null
           calibration_amount: number | null
           height_mau: number | null
@@ -408,6 +411,9 @@ export type Database = {
           source_result_file_id: string
         }
         Insert: {
+          acq_method_name?: string | null
+          processing_method_name?: string | null
+          processing_state?: string | null
           area_percent?: number | null
           calibration_amount?: number | null
           height_mau?: number | null
@@ -434,6 +440,9 @@ export type Database = {
           source_result_file_id: string
         }
         Update: {
+          acq_method_name?: string | null
+          processing_method_name?: string | null
+          processing_state?: string | null
           area_percent?: number | null
           calibration_amount?: number | null
           height_mau?: number | null

@@ -98,6 +98,12 @@ export interface AcamlPeak {
 export interface AcamlInjectionResult {
   integrated: boolean;
   peaks: AcamlPeak[];
+  /**
+   * Raw TransformationChainState, kept verbatim. A run that was never fully
+   * processed has to be visibly excluded rather than quietly averaged in --
+   * "PassedWithWarning" is not the same evidence as "Passed".
+   */
+  processingState: string | null;
 }
 
 const NOT_INTEGRATED_STATES = ["nomethodprovided", "failed"];
@@ -149,9 +155,10 @@ function elText(block: string, tag: string): string | null {
  */
 export function parseInjectionResult(xml: string): AcamlInjectionResult {
   const stateMatch = xml.match(/<TransformationChainState>([^<]*)<\/TransformationChainState>/);
-  const state = (stateMatch?.[1] ?? "").toLowerCase();
+  const processingState = stateMatch?.[1]?.trim() || null;
+  const state = (processingState ?? "").toLowerCase();
   if (NOT_INTEGRATED_STATES.some((s) => state.includes(s))) {
-    return { integrated: false, peaks: [] };
+    return { integrated: false, peaks: [], processingState };
   }
 
   // Chromatographic peaks, keyed by id so compounds can point at them.
@@ -205,5 +212,5 @@ export function parseInjectionResult(xml: string): AcamlInjectionResult {
     });
   }
 
-  return { integrated: peaks.length > 0, peaks };
+  return { integrated: peaks.length > 0, peaks, processingState };
 }
