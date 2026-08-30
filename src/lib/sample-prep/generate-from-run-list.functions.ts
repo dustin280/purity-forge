@@ -1030,10 +1030,22 @@ export async function planAndPersistForSample(
           if (c.withinRange === false) outOfRange++;
           const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl
             ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
-          deviation += Math.abs(c.resultingConcMgPerMl - c.targetConcMgPerMl) / range;
+          // Measured against the compound's DEFAULT-level target (L3), which
+          // is fixed, and NOT against `c.targetConcMgPerMl` -- that moves
+          // with whichever level this candidate is aiming at, which made
+          // scores incomparable between candidates. A plan aiming at L1 and
+          // hitting it exactly scored better than one aiming at L3 and
+          // landing slightly off, so the level search always collapsed onto
+          // the lowest aim: SUMMIT planned at 40 uL with Cartalax 1.6% up
+          // its own range, when 85 uL puts it mid-curve and is easier to
+          // pipette. Anchoring the yardstick restores "aim mid-curve, and
+          // only climb when a component would otherwise fall out of range".
+          const anchor = resolved.components.find(k => k.name === c.name)?.targetConcMgPerMl
+            ?? c.targetConcMgPerMl;
+          deviation += Math.abs(c.resultingConcMgPerMl - anchor) / range;
         }
-        // In-range count dominates; deviation only breaks ties among plans
-        // that put the same number of components in range.
+        // In-range count still dominates; deviation only breaks ties among
+        // plans that put the same number of components in range.
         const score = outOfRange * 1000 + deviation;
         if (score < bestScore) { bestScore = score; best = attempt; }
       }

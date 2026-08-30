@@ -26,7 +26,19 @@ export interface CutSheetComponent {
   name: string;
   targetConcMgPerMl: number;
   resultingConcMgPerMl: number;
-  withinRange?: boolean;
+  /**
+   * Which calibration level the shared dilution was aimed at. A blend can't
+   * hit every component's mid-curve at once, so the sheet has to say what it
+   * was aiming for -- otherwise "Target 0.255" reads as the compound's L3
+   * when it is really its L1.
+   */
+  calibrationLevel?: number | null;
+  /**
+   * true / false / null, where **null means no calibration range was known
+   * for this compound, so nothing was checked**. Rendering null as "yes"
+   * would vouch for the one component nobody verified.
+   */
+  withinRange?: boolean | null;
 }
 
 export interface CutSheetSample {

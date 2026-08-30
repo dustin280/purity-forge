@@ -144,17 +144,34 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
       y += 0.08;
       autoTable(doc, {
         startY: y,
-        head: [["Component", "Target", "Resulting", "In range"]],
+        head: [["Component", "Target", "Actual", "In range"]],
         body: sample.components.map(c => [
-          c.name, fmtConc(c.targetConcMgPerMl), fmtConc(c.resultingConcMgPerMl),
-          c.withinRange === false ? "OUTSIDE RANGE" : "yes",
+          c.name,
+          // The level is part of the target: on a blend the shared dilution
+          // often can't sit at every compound's mid-curve, and "0.255 mg/mL"
+          // alone doesn't reveal whether that was L3 or the bottom of the
+          // ladder.
+          c.calibrationLevel != null
+            ? `${fmtConc(c.targetConcMgPerMl)} (L${c.calibrationLevel})`
+            : fmtConc(c.targetConcMgPerMl),
+          fmtConc(c.resultingConcMgPerMl),
+          // null is "never checked", not "passed" -- see CutSheetComponent.
+          c.withinRange === false ? "OUTSIDE RANGE"
+            : c.withinRange === true ? "yes"
+              : "no range on file",
         ]),
         styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
         headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 6.8 },
         bodyStyles: { textColor: 40 },
         didParseCell: (hook) => {
-          if (hook.section === "body" && hook.column.index === 3 && hook.cell.raw === "OUTSIDE RANGE") {
+          if (hook.section !== "body" || hook.column.index !== 3) return;
+          if (hook.cell.raw === "OUTSIDE RANGE") {
             hook.cell.styles.textColor = [185, 28, 28];
+            hook.cell.styles.fontStyle = "bold";
+          } else if (hook.cell.raw === "no range on file") {
+            // Amber, not red: this isn't a failed check, it's an absent one,
+            // and the analyst needs to see the difference at a glance.
+            hook.cell.styles.textColor = [180, 83, 9];
             hook.cell.styles.fontStyle = "bold";
           }
         },

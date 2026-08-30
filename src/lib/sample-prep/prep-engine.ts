@@ -300,7 +300,13 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
   let prevLabel = stockLabel;
   dr.steps.forEach((s, i) => {
     const isFinal = i === dr.steps.length - 1;
-    const toLabel = isFinal ? "Working standard" : `Intermediate ${i + 1}`;
+    // "Working sample", not "Working standard" -- this engine only ever
+    // plans SAMPLES. A standard is a certified reference material and goes
+    // through the separate standard-preparations flow, so putting the word
+    // "standard" on a sample's vial label invites exactly the mix-up that
+    // matters most at the bench, where both sit in the same run. Matches the
+    // blend branch below, which already says "Working sample".
+    const toLabel = isFinal ? "Working sample" : `Intermediate ${i + 1}`;
     steps.push({
       kind: isFinal && dr.steps.length === 1 ? "dilute" : "dilute",
       ordinal: steps.length + 1,
