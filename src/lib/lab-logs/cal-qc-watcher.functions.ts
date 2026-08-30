@@ -79,7 +79,24 @@ export interface CalQcWatcherResult {
   skippedNoResultFile: number;
   skippedOtherSampleType: number;
   errors: string[];
+  /** True when the run stopped on its budget with folders still unscanned. */
+  moreWorkPending: boolean;
+  sequenceFoldersScanned: number;
+  elapsedMs: number;
 }
+
+/**
+ * How long one run may spend before stopping cleanly.
+ *
+ * This walks every .rslt folder in Drive and downloads a manifest (and each
+ * pending .rx) for all of them. Triggered by hand it ran past 300 s without
+ * finishing, and pg_cron calls it through net.http_post -- so it was being
+ * cut off mid-flight every hour, importing nothing and leaving
+ * cal_qc_peak_log empty. Stopping deliberately and reporting progress beats
+ * being killed: already-imported injections are skipped by injection_id, so
+ * the next run resumes where this one left off.
+ */
+const RUN_BUDGET_MS = 45_000;
 
 export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLike }): Promise<CalQcWatcherResult> {
   const [calFolderId, qcFolderId] = await Promise.all([loadCalStdFolderId(supabase), loadQcFolderId(supabase)]);
@@ -96,8 +113,11 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
   let skippedOtherSampleType = 0;
   const errors: string[] = [];
   const scannedSequenceFolders = new Set<string>();
+  const startedAt = Date.now();
+  let outOfTime = false;
 
   for (const topFolderId of topFolderIds) {
+    if (outOfTime) break;
     let sequenceFolders;
     try {
       sequenceFolders = await driveListFolders(topFolderId);
@@ -106,7 +126,13 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
       continue;
     }
 
+    // Newest sequences first: if the budget runs out, the runs someone is
+    // most likely waiting on are the ones already imported.
+    sequenceFolders = [...sequenceFolders].sort((a, b) =>
+      String(b.modifiedTime ?? "").localeCompare(String(a.modifiedTime ?? "")));
+
     for (const seqFolder of sequenceFolders) {
+      if (Date.now() - startedAt > RUN_BUDGET_MS) { outOfTime = true; break; }
       if (scannedSequenceFolders.has(seqFolder.id)) continue;
       scannedSequenceFolders.add(seqFolder.id);
 
@@ -179,7 +205,12 @@ export async function runCalQcWatcher({ supabase }: { supabase: SupabaseClientLi
     }
   }
 
-  return { imported, skippedNotIntegrated, skippedNoResultFile, skippedOtherSampleType, errors };
+  return {
+    imported, skippedNotIntegrated, skippedNoResultFile, skippedOtherSampleType, errors,
+    moreWorkPending: outOfTime,
+    sequenceFoldersScanned: scannedSequenceFolders.size,
+    elapsedMs: Date.now() - startedAt,
+  };
 }
 
 export const runCalQcWatcherNow = createServerFn({ method: "POST" })
