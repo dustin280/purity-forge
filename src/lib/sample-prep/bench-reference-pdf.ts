@@ -144,7 +144,7 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
       y += 0.08;
       autoTable(doc, {
         startY: y,
-        head: [["Component", "Target", "Actual", "In range"]],
+        head: [["Component", "Target", "Actual", "In range", "UV conf."]],
         body: sample.components.map(c => [
           c.name,
           // The level is part of the target: on a blend the shared dilution
@@ -159,12 +159,24 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
           c.withinRange === false ? "OUTSIDE RANGE"
             : c.withinRange === true ? "yes"
               : "no range on file",
+          // Quantitation and identity are different questions -- a component
+          // can be perfectly quantifiable and still be too far from L3 for
+          // its UV spectrum to match the reference extracted there.
+          c.withinSpectralWindow === false ? "OFF L3"
+            : c.withinSpectralWindow === true ? "ok"
+              : "—",
         ]),
         styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
         headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 6.8 },
         bodyStyles: { textColor: 40 },
         didParseCell: (hook) => {
-          if (hook.section !== "body" || hook.column.index !== 3) return;
+          if (hook.section !== "body") return;
+          if (hook.column.index === 4 && hook.cell.raw === "OFF L3") {
+            hook.cell.styles.textColor = [180, 83, 9];
+            hook.cell.styles.fontStyle = "bold";
+            return;
+          }
+          if (hook.column.index !== 3) return;
           if (hook.cell.raw === "OUTSIDE RANGE") {
             hook.cell.styles.textColor = [185, 28, 28];
             hook.cell.styles.fontStyle = "bold";

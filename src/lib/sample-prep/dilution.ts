@@ -14,29 +14,33 @@ const MASS_TO_MG: Record<MassUnit, number> = { g: 1000, mg: 1, ug: 0.001 };
 const VOL_TO_UL: Record<VolUnit, number> = { mL: 1000, uL: 1 };
 
 /**
- * Electronic pipettors can only be set in practical increments of 0.05 mL
- * (50 µL) -- but that's a large-volume-scale constraint (diluent additions,
- * final volumes), not a real limit on small aliquots, which have their own
- * much finer practical resolution (a dedicated low-volume pipette). Below
- * COARSE_GRID_THRESHOLD_UL, round to the nearest 5 µL instead; at or above
- * it, use the 50 µL grid. Confirmed 2026-08-25: a 20 µL SUMMIT aliquot
- * forced onto the 50 µL grid unmodified would round up to 50 µL -- a 150%
- * distortion that pushed one blend compound's resulting concentration all
- * the way to its calibration ceiling -- but the fine grid still has to be
- * 5 µL, not 1 µL: this is high-precision quant work and ugly values (13 µL,
- * 0.47 mL) are themselves a problem Dustin needs to avoid at a glance, on
- * top of not being reliably pipettable below the lab's real absolute
- * minimum. Rounding shifts the achieved concentration slightly off the
- * theoretical target either way; callers recompute the real resulting
- * concentration from the rounded volume rather than reporting the
- * pre-rounding theoretical one.
+ * **Every pipetted volume is a multiple of 5 µL. That is the rule.**
+ * Dustin, 2026-08-30: "divisible by 5 is first rule, maybe only rule...
+ * absolutely nothing can be rounded, there is no close enough, this is high
+ * precision work."
+ *
+ * One grid at every scale now. The old 50 µL coarse grid above 200 µL was a
+ * second, needlessly blunt rule: 50 is itself divisible by 5, so it never
+ * bought anything the 5 µL grid didn't, and it actively cost accuracy --
+ * a 255 µL aliquot got dragged to 250.
+ *
+ * What this grid CANNOT do on its own is stop an ugly resulting
+ * concentration, and it's worth being explicit about why, because it looks
+ * like it should. 130 µL is a legal setting, but 20 mg reconstituted in
+ * 3 mL is 6.666… mg/mL, so 130 µL of it is 0.8666… mg/mL -- a repeating
+ * fraction inherited from the reconstitution, not from the aliquot. The fix
+ * lives in the reconstitution-volume search (planAndPersistForSample), which
+ * now prefers a volume that makes every resulting concentration an exact
+ * decimal: the same 20 mg in 2 mL is 10.000 mg/mL, and 85 µL of that is
+ * exactly 0.85.
+ *
+ * Callers recompute the achieved concentration from the volume actually
+ * used, never from the pre-grid theoretical one.
  */
-const FINE_GRID_UL = 5;
-const COARSE_GRID_UL = 50;
-const COARSE_GRID_THRESHOLD_UL = 200;
+const GRID_UL = 5;
 
-function gridFor(uL: number): number {
-  return uL < COARSE_GRID_THRESHOLD_UL ? FINE_GRID_UL : COARSE_GRID_UL;
+function gridFor(_uL: number): number {
+  return GRID_UL;
 }
 
 export function roundToVolumeGrid(uL: number, floorUl = 0): number {

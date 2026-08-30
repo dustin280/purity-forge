@@ -83,6 +83,7 @@ export type WarningCode =
   | "exceeds-max-steps"
   | "outside-vessel-working-volume"
   | "target-outside-calibration-range"
+  | "outside-spectral-window"
   | "insufficient-source"
   | "reconstitution-outside-rule"
   | "invalid-input";
@@ -386,6 +387,14 @@ export interface BlendPlanInput {
 
 export interface BlendComponentResult {
   name: string;
+  /**
+   * Whether this component lands inside the L3 spectral window. Null when no
+   * L3 is known. Distinct from withinRange: the calibration range says
+   * whether the peak can be QUANTIFIED, this says whether its UV spectrum can
+   * be MATCHED -- see the note on spectralWindowPct in
+   * generate-from-run-list.functions.ts.
+   */
+  withinSpectralWindow?: boolean | null;
   stockConcMgPerMl: number;
   targetConcMgPerMl: number;
   calibrationLevel: number | null;

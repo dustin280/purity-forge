@@ -39,6 +39,13 @@ export interface CutSheetComponent {
    * would vouch for the one component nobody verified.
    */
   withinRange?: boolean | null;
+  /**
+   * Whether this component sits inside the L3 spectral window. Null when no
+   * L3 is on file. Separate from withinRange on purpose: range is about
+   * QUANTITATION, this is about whether UV confirmation against the L3
+   * reference spectrum is valid at this signal level.
+   */
+  withinSpectralWindow?: boolean | null;
 }
 
 export interface CutSheetSample {

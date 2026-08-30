@@ -271,6 +271,8 @@ export interface ResolvedRevisionCtx {
     maxDilutionSteps: number;
     preferredFinalVolumeUl: number;
     preferredInitialReconstitutionUl: number;
+    /** L3 spectral window, percent either side. See GlobalPrepSettings. */
+    spectralWindowPct: number;
   };
   diluentName: string;
   targetConcMgPerMl: number;
@@ -289,6 +291,39 @@ interface GlobalPrepSettings {
   defaultCalMinMgPerMl: number;
   defaultCalMaxMgPerMl: number;
   defaultTargetLevel: number;
+  /**
+   * How far either side of L3 a prepared sample may land, in percent.
+   *
+   * This is NOT an accuracy preference and it is NOT the calibration range.
+   * The lab extracts its reference UV spectra from the L3 standard, so
+   * spectral matching / UV confirmation is only valid while the sample sits
+   * near L3 -- too far either way and the spectrum is distorted by having
+   * materially more or less signal than the reference it is matched against
+   * (Dustin, 2026-08-30). The calibration range says whether a peak can be
+   * QUANTIFIED; this window says whether its identity can be CONFIRMED.
+   *
+   * Blends get +/-50% rather than +/-20%: one shared dilution has to serve
+   * every component at once, and at 20% a product like SUMMIT (whose
+   * Cartalax is exactly 2x its other three) has no feasible plan at all --
+   * the per-component bands don't intersect.
+   */
+  spectralWindowPct: number;
+  spectralWindowBlendPct: number;
+}
+
+/**
+ * True when a concentration is an exact decimal to 4 dp rather than a
+ * repeating fraction. 20 mg reconstituted in 3 mL is 6.666... mg/mL, so
+ * every legal aliquot of it inherits the repeat (130 uL -> 0.86666...); the
+ * same 20 mg in 2 mL is 10.000 and 85 uL of that is exactly 0.85. The volume
+ * grid can't fix this -- 130 is a perfectly legal 5 uL setting -- so the
+ * reconstitution-volume search has to prefer the volume that divides
+ * cleanly. Dustin, 2026-08-30: "absolutely nothing can be rounded, there is
+ * no close enough, this is high precision work."
+ */
+function landsOnExactDecimal(mgPerMl: number): boolean {
+  const scaled = mgPerMl * 10_000;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-6;
 }
 
 export async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSettings> {
@@ -304,6 +339,11 @@ export async function loadGlobalPrepSettings(supabase: SB): Promise<GlobalPrepSe
     defaultCalMinMgPerMl: Number(s.default_cal_min_mg_per_ml ?? 0.1),
     defaultCalMaxMgPerMl: Number(s.default_cal_max_mg_per_ml ?? 0.2),
     defaultTargetLevel: Number(s.default_target_level ?? 3),
+    // Read from sp_settings when present so this becomes configurable
+    // without a code change; loadGlobalPrepSettings selects "*", so an
+    // absent column simply falls back to the lab's standing numbers.
+    spectralWindowPct: Number(s.max_concentration_deviation_pct ?? 20),
+    spectralWindowBlendPct: Number(s.max_concentration_deviation_blend_pct ?? 50),
   };
 }
 
@@ -408,6 +448,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
         maxDilutionSteps: settings.maxDilutionSteps,
         preferredFinalVolumeUl: settings.finalVolumeUl,
         preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
+        spectralWindowPct: settings.spectralWindowBlendPct,
       },
       components,
     };
@@ -455,6 +496,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
         maxDilutionSteps: settings.maxDilutionSteps,
         preferredFinalVolumeUl: settings.finalVolumeUl,
         preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
+        spectralWindowPct: settings.spectralWindowBlendPct,
       },
       components,
     };
@@ -596,6 +638,7 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
         maxDilutionSteps: settings.maxDilutionSteps,
         preferredFinalVolumeUl: settings.finalVolumeUl,
         preferredInitialReconstitutionUl: settings.reconstitutionVolumeUl,
+        spectralWindowPct: settings.spectralWindowPct,
       },
       diluentName: match?.default_diluent_name ?? settings.diluentName,
       targetConcMgPerMl,
@@ -1026,6 +1069,7 @@ export async function planAndPersistForSample(
     ).sort((a, b) => a - b);
     const levelsToTry = aimedLevels.length ? aimedLevels : [null];
 
+    const windowFrac = resolved.rules.spectralWindowPct / 100;
     let best: BlendPlan | null = null;
     let bestScore = Infinity;
     let bestAliquotUl = 0;
@@ -1048,9 +1092,12 @@ export async function planAndPersistForSample(
         if (!attempt.ok) { lastError = attempt.error; continue; }
 
         let outOfRange = 0;
+        let outOfWindow = 0;
+        let inexact = 0;
         let deviation = 0;
         for (const c of attempt.components) {
           if (c.withinRange === false) outOfRange++;
+          if (!landsOnExactDecimal(c.resultingConcMgPerMl)) inexact++;
           const range = c.calMaxMgPerMl != null && c.calMinMgPerMl != null && c.calMaxMgPerMl > c.calMinMgPerMl
             ? c.calMaxMgPerMl - c.calMinMgPerMl : 1;
           // Measured against the compound's DEFAULT-level target (L3), which
@@ -1066,10 +1113,16 @@ export async function planAndPersistForSample(
           const anchor = resolved.components.find(k => k.name === c.name)?.targetConcMgPerMl
             ?? c.targetConcMgPerMl;
           deviation += Math.abs(c.resultingConcMgPerMl - anchor) / range;
+          // Spectral window is centred on L3 ALWAYS -- that is the standard
+          // the reference spectra were extracted from -- never on whichever
+          // level this candidate happens to be aiming at.
+          if (anchor > 0 && Math.abs(c.resultingConcMgPerMl - anchor) / anchor > windowFrac) outOfWindow++;
         }
-        // In-range count still dominates; deviation only breaks ties among
-        // plans that put the same number of components in range.
-        const score = outOfRange * 1000 + deviation;
+        // Strict precedence, worst problem first: a component that cannot be
+        // quantified at all beats one that cannot be spectrally confirmed,
+        // which beats an un-representable number, which beats being a little
+        // off L3.
+        const score = outOfRange * 1_000_000 + outOfWindow * 10_000 + inexact * 100 + deviation;
         // Reconstitution volume and aliquot trade off exactly, so several
         // candidates are routinely IDENTICAL chemistry -- SUMMIT lands the
         // same 0.7/0.35/0.35/0.35 at 1 mL/35 µL, 2 mL/70 µL and 3 mL/105 µL.
@@ -1089,6 +1142,23 @@ export async function planAndPersistForSample(
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a blend plan for any valid reconstitution volume." };
 
     const plan = best;
+    // Record, per component, whether UV confirmation is actually usable --
+    // and say why when it isn't. Distinct from the calibration-range warning
+    // above: that one means the peak can't be quantified, this one means it
+    // can be quantified but its spectrum can't be matched against the L3
+    // reference it was extracted from.
+    for (const c of plan.components) {
+      const anchor = resolved.components.find(k => k.name === c.name)?.targetConcMgPerMl ?? null;
+      if (anchor == null || anchor <= 0) { c.withinSpectralWindow = null; continue; }
+      const offBy = Math.abs(c.resultingConcMgPerMl - anchor) / anchor;
+      c.withinSpectralWindow = offBy <= windowFrac;
+      if (!c.withinSpectralWindow) {
+        plan.warnings.push({
+          code: "outside-spectral-window",
+          message: `${c.name} lands ${(offBy * 100).toFixed(0)}% from its Level 3 (${anchor} mg/mL), outside the ±${resolved.rules.spectralWindowPct}% window. It can still be quantified, but UV spectral confirmation against the L3 reference spectrum will be distorted at this signal level.`,
+        });
+      }
+    }
     const { prep_id, prep_number } = await persistBlendPlan(supabase, userId, sample, resolved, plan, source);
     const primary = plan.components[0];
     const droppedWarnings = built.droppedComponents.map(n => `"${n}" from the sample's text didn't match a known component of ${resolved.blendName} — skipped.`);
@@ -1128,7 +1198,13 @@ export async function planAndPersistForSample(
       const attempt = planPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
       if (!attempt.ok) { lastError = attempt.error; continue; }
       const achieved = attempt.steps[attempt.steps.length - 1]?.resultingMgPerMl ?? attempt.targetConcentrationMgPerMl;
-      const score = Math.abs(achieved - resolved.targetConcMgPerMl) / range;
+      // Same precedence as the blend search: spectral window first, then a
+      // representable number, then closeness to L3.
+      const anchor = resolved.targetConcMgPerMl;
+      const offBy = anchor > 0 ? Math.abs(achieved - anchor) / anchor : 0;
+      const outOfWindow = offBy > resolved.rules.spectralWindowPct / 100 ? 1 : 0;
+      const inexact = landsOnExactDecimal(achieved) ? 0 : 1;
+      const score = outOfWindow * 10_000 + inexact * 100 + Math.abs(achieved - resolved.targetConcMgPerMl) / range;
       // Same exact-tie rule as the blend search above: reconstitution volume
       // and aliquot trade off, so candidates are often chemically identical
       // (Semaglutide reaches 0.425 at both 1 mL/85 µL and 2 mL/170 µL), and
@@ -1141,6 +1217,17 @@ export async function planAndPersistForSample(
     }
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a plan for any valid reconstitution volume." };
     plan = best;
+    const achievedFinal = plan.steps[plan.steps.length - 1]?.resultingMgPerMl ?? plan.targetConcentrationMgPerMl;
+    const anchorFinal = resolved.targetConcMgPerMl;
+    if (anchorFinal > 0) {
+      const offBy = Math.abs(achievedFinal - anchorFinal) / anchorFinal;
+      if (offBy > resolved.rules.spectralWindowPct / 100) {
+        plan.warnings.push({
+          code: "outside-spectral-window",
+          message: `Lands ${(offBy * 100).toFixed(0)}% from Level 3 (${anchorFinal} mg/mL), outside the ±${resolved.rules.spectralWindowPct}% window. Quantitation is unaffected, but UV spectral confirmation against the L3 reference spectrum will be distorted at this signal level.`,
+        });
+      }
+    }
   } else {
     plan = planPreparation(built.input);
     if (!plan.ok) return { ok: false, reason: "plan_error", message: plan.error ?? "Could not compute a plan." };
