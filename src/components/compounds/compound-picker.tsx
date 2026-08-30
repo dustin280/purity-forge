@@ -20,6 +20,9 @@ export interface CompoundOption {
   id: string;
   name: string;
   default_appearance?: string | null;
+  /** Lowest/highest calibration level, used to sanity-check a vial at receipt. */
+  cal_min_mg_per_ml?: number | null;
+  cal_max_mg_per_ml?: number | null;
 }
 
 interface CompoundPickerProps {

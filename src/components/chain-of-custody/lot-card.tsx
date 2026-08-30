@@ -55,6 +55,42 @@ export function lotAccent(lotNo: number) {
   return LOT_ACCENTS[(lotNo - 1) % LOT_ACCENTS.length];
 }
 
+/**
+ * Flags a component whose declared amount could never reach its own
+ * calibration range, which in practice means the unit is wrong.
+ *
+ * The whole vial goes into the diluent -- nothing is weighed -- so the
+ * strongest solution obtainable is the entire content in the smallest
+ * practical volume (1 mL). If even that lands under the compound's lowest
+ * standard, the sample cannot be run as recorded. HGH 191-AA entered as
+ * 10 µg reconstitutes to 0.01 mg/mL against a 0.055 floor; it was recorded
+ * at intake, passed silently, and only failed days later in the prep queue
+ * where the cause was no longer obvious.
+ */
+const SMALLEST_RECONSTITUTION_ML = 1;
+
+function componentAmountWarning(
+  c: { compound: string; compound_id: string | null; label_content_value: string; label_content_unit: "" | "mg" | "ug" },
+  options: CompoundOption[],
+): string | null {
+  const raw = (c.label_content_value ?? "").trim();
+  if (raw === "") return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const match = options.find(o => (c.compound_id && o.id === c.compound_id))
+    ?? options.find(o => o.name.trim().toLowerCase() === (c.compound ?? "").trim().toLowerCase());
+  const floor = match?.cal_min_mg_per_ml;
+  if (match == null || floor == null || !Number.isFinite(floor)) return null;
+
+  const mg = c.label_content_unit === "ug" ? value / 1000 : value;
+  const strongest = mg / SMALLEST_RECONSTITUTION_ML;
+  if (strongest >= floor) return null;
+
+  const asMg = c.label_content_unit === "ug" ? `${value} µg` : `${value} mg`;
+  const alt = c.label_content_unit === "ug" ? ` If this is really ${value} mg, change the unit.` : "";
+  return `${asMg} in 1 mL is ${strongest.toPrecision(2)} mg/mL — below ${match.name}'s lowest standard (${floor} mg/mL), so it can't be run as entered.${alt}`;
+}
+
 export function LotCard({
   lot, lotNo, shipmentId, disabled, onChange, onRemove, canRemove,
   compoundOptions, onCreateCompound, photosByVial, onAddVialPhotos, onRemoveVialPhoto,
@@ -301,6 +337,14 @@ export function LotCard({
               )}
             </div>
           ))}
+          {lot.components.map((c, idx) => {
+            const warn = componentAmountWarning(c, compoundOptions);
+            return warn ? (
+              <div key={`warn-${idx}`} className="text-[11px] text-amber-700 dark:text-amber-300 -mt-1">
+                {warn}
+              </div>
+            ) : null;
+          })}
         </div>
 
         {/* Appearance -- entered once, applies to every vial below */}

@@ -101,7 +101,17 @@ export function useCocForm({
   });
   const compoundOptions: CompoundOption[] = compoundRows
     .filter((c) => c.is_active)
-    .map((c) => ({ id: c.id, name: c.name, default_appearance: c.default_appearance }));
+    .map((c) => {
+      const levels = [c.cal_l1_mg_per_ml, c.cal_l2_mg_per_ml, c.cal_l3_mg_per_ml,
+                      c.cal_l4_mg_per_ml, c.cal_l5_mg_per_ml, c.cal_l6_mg_per_ml]
+        .map((v) => (v == null ? NaN : Number(v)))
+        .filter((v) => Number.isFinite(v));
+      return {
+        id: c.id, name: c.name, default_appearance: c.default_appearance,
+        cal_min_mg_per_ml: levels.length ? Math.min(...levels) : null,
+        cal_max_mg_per_ml: levels.length ? Math.max(...levels) : null,
+      };
+    });
   async function createCompoundOption(name: string): Promise<CompoundOption> {
     const row = await createCompoundFnCall({ data: { name } });
     qc.invalidateQueries({ queryKey: qk.compounds.all });
