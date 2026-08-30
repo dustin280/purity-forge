@@ -40,6 +40,40 @@ function attributeNames(xml: string): string[] {
   return [...set].sort();
 }
 
+/**
+ * Returns the full outer XML of the nth occurrence of an element, children
+ * included, by scanning for the matching close tag rather than assuming the
+ * element has no nested content. This is what makes real nesting visible --
+ * a regex that stops at the first `<` shows nothing for a container element.
+ */
+function elementAt(xml: string, name: string, index: number): string | null {
+  const open = new RegExp(`<${name}(?=[\s/>])`, "g");
+  let m: RegExpExecArray | null;
+  let seen = 0;
+  while ((m = open.exec(xml))) {
+    if (seen++ !== index) continue;
+    const start = m.index;
+    // Self-closing?
+    const tagEnd = xml.indexOf(">", start);
+    if (tagEnd > -1 && xml[tagEnd - 1] === "/") return xml.slice(start, tagEnd + 1);
+    // Walk nested opens/closes to the matching close.
+    const scan = new RegExp(`<${name}(?=[\s/>])|</${name}>`, "g");
+    scan.lastIndex = start;
+    let depth = 0;
+    let t: RegExpExecArray | null;
+    while ((t = scan.exec(xml))) {
+      if (t[0].startsWith("</")) {
+        if (--depth === 0) return xml.slice(start, t.index + t[0].length);
+      } else {
+        const te = xml.indexOf(">", t.index);
+        if (!(te > -1 && xml[te - 1] === "/")) depth++;
+      }
+    }
+    return xml.slice(start, Math.min(start + 4000, xml.length));
+  }
+  return null;
+}
+
 export const Route = createFileRoute("/api/cron/inspect-rx")({
   server: {
     handlers: {
@@ -96,6 +130,22 @@ export const Route = createFileRoute("/api/cron/inspect-rx")({
             signalCandidates: elementHistogram(xml)
               .filter((e) => /height|area|amount|response|signal|conc/i.test(e.tag)),
             tagHits,
+            // ?element=Peak&index=0 -> that element's full outer XML.
+            element: (() => {
+              const name = url.searchParams.get("element");
+              if (!name) return undefined;
+              const idx = Number(url.searchParams.get("index") ?? "0") || 0;
+              return elementAt(xml, name, idx);
+            })(),
+            // ?find=<substring>&window=<chars> -> the XML around it.
+            find: (() => {
+              const needle = url.searchParams.get("find");
+              if (!needle) return undefined;
+              const w = Math.min(Number(url.searchParams.get("window") ?? "2500") || 2500, 20000);
+              const at = xml.indexOf(needle);
+              if (at < 0) return { found: false };
+              return { found: true, at, text: xml.slice(Math.max(0, at - 300), at + w) };
+            })(),
             rawHead: url.searchParams.get("raw") === "1" ? xml.slice(0, 6000) : undefined,
           });
         } catch (err) {
