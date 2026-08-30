@@ -1028,6 +1028,7 @@ export async function planAndPersistForSample(
 
     let best: BlendPlan | null = null;
     let bestScore = Infinity;
+    let bestAliquotUl = 0;
     let lastError: string | undefined;
     for (const volumeUl of candidates) {
       for (const level of levelsToTry) {
@@ -1069,7 +1070,20 @@ export async function planAndPersistForSample(
         // In-range count still dominates; deviation only breaks ties among
         // plans that put the same number of components in range.
         const score = outOfRange * 1000 + deviation;
-        if (score < bestScore) { bestScore = score; best = attempt; }
+        // Reconstitution volume and aliquot trade off exactly, so several
+        // candidates are routinely IDENTICAL chemistry -- SUMMIT lands the
+        // same 0.7/0.35/0.35/0.35 at 1 mL/35 µL, 2 mL/70 µL and 3 mL/105 µL.
+        // Taking the first meant taking 35 µL: under the preferred 50 µL
+        // minimum and 15 µL off the absolute floor, with roughly three times
+        // the relative volumetric error of the 105 µL that measures the same
+        // thing. On a true tie the bigger, more accurately pipettable
+        // aliquot wins. Only exact ties -- never trade real accuracy for a
+        // rounder volume.
+        const aliquotUl = attempt.steps[attempt.steps.length - 1]?.aliquotUl ?? 0;
+        const tied = Math.abs(score - bestScore) <= 1e-9;
+        if (score < bestScore - 1e-9 || (tied && aliquotUl > bestAliquotUl)) {
+          bestScore = score; best = attempt; bestAliquotUl = aliquotUl;
+        }
       }
     }
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a blend plan for any valid reconstitution volume." };
@@ -1108,13 +1122,22 @@ export async function planAndPersistForSample(
 
     let best: PrepPlan | null = null;
     let bestScore = Infinity;
+    let bestAliquotUl = 0;
     let lastError: string | undefined;
     for (const volumeUl of candidates) {
       const attempt = planPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
       if (!attempt.ok) { lastError = attempt.error; continue; }
       const achieved = attempt.steps[attempt.steps.length - 1]?.resultingMgPerMl ?? attempt.targetConcentrationMgPerMl;
       const score = Math.abs(achieved - resolved.targetConcMgPerMl) / range;
-      if (score < bestScore) { bestScore = score; best = attempt; }
+      // Same exact-tie rule as the blend search above: reconstitution volume
+      // and aliquot trade off, so candidates are often chemically identical
+      // (Semaglutide reaches 0.425 at both 1 mL/85 µL and 2 mL/170 µL), and
+      // the bigger aliquot is the more accurately pipettable one.
+      const aliquotUl = attempt.steps[attempt.steps.length - 1]?.aliquotUl ?? 0;
+      const tied = Math.abs(score - bestScore) <= 1e-9;
+      if (score < bestScore - 1e-9 || (tied && aliquotUl > bestAliquotUl)) {
+        bestScore = score; best = attempt; bestAliquotUl = aliquotUl;
+      }
     }
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a plan for any valid reconstitution volume." };
     plan = best;
