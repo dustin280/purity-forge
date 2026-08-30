@@ -336,14 +336,25 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
 
   const { data: compoundRows } = await supabase
     .from("compounds")
-    .select("id, name, is_blend, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, default_diluent_name");
+    .select("id, name, is_blend, is_active, aliases, cal_l1_mg_per_ml, cal_l2_mg_per_ml, cal_l3_mg_per_ml, cal_l4_mg_per_ml, cal_l5_mg_per_ml, cal_l6_mg_per_ml, default_diluent_name");
   type CompoundRow = {
-    id: string; name: string; is_blend: boolean; default_diluent_name: string | null;
+    id: string; name: string; is_blend: boolean; is_active: boolean; aliases: string[] | null;
+    default_diluent_name: string | null;
     cal_l1_mg_per_ml: number | null; cal_l2_mg_per_ml: number | null; cal_l3_mg_per_ml: number | null;
     cal_l4_mg_per_ml: number | null; cal_l5_mg_per_ml: number | null; cal_l6_mg_per_ml: number | null;
   };
-  const compounds = (compoundRows ?? []) as CompoundRow[];
-  const byId = new Map(compounds.map(c => [c.id, c] as const));
+  const allCompounds = (compoundRows ?? []) as CompoundRow[];
+  // An explicit compound_id is a deliberate choice and still resolves to
+  // whatever it points at, retired or not. NAME matching, which is guesswork
+  // by comparison, only ever considers active rows -- otherwise a compound
+  // that was deliberately taken out of service can still be handed a sample
+  // and lend it its calibration range. Real case: "Thymosin Beta 4 (full-
+  // length 43-aa)" is is_active=false, but it is the ONLY row whose name
+  // contains "thymosin beta 4" (the active row spells it "β4"), so that text
+  // resolved to the retired 43-aa row and its 0.25-0.5 range instead of the
+  // fragment's 0.08-1.0.
+  const byId = new Map(allCompounds.map(c => [c.id, c] as const));
+  const compounds = allCompounds.filter(c => c.is_active);
 
   type BlendComponentRow = {
     blend_id: string; component_id: string;
@@ -475,6 +486,17 @@ export async function resolveCompoundContexts(supabase: SB, samples: SampleCtx[]
       const found = compounds.find(c => c.name === aliased);
       if (found) return found;
     }
+    // `compounds.aliases` is the lab's own curated list of the spellings a
+    // vial actually arrives with, and it was not consulted here at all --
+    // which is why "TB-500 / TB-4" matched nothing and silently fell through
+    // to a global-default target with no calibration range, exempting it
+    // from every range check. That exact string is IN the TB500 row's
+    // aliases. Curated data beats the substring heuristic below, so it is
+    // checked first; a name claimed by more than one active row is genuinely
+    // ambiguous and falls through rather than being guessed at.
+    const aliasHits = compounds.filter(c =>
+      (c.aliases ?? []).some(a => cleanForMatch(a).toLowerCase() === lower));
+    if (aliasHits.length === 1) return aliasHits[0];
     // A blend name (e.g. "SUMMIT (Cartalax + ... + BPC-157 + KPV)") lists
     // its own component compounds inside its name -- letting a short query
     // like "BPC-157" match it just because the blend's name *contains*
