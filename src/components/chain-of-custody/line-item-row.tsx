@@ -15,8 +15,11 @@ import { Camera, Upload, X, ImageIcon, Plus, Trash2 } from "lucide-react";
 import { CompoundPicker, type CompoundOption } from "@/components/compounds/compound-picker";
 import { looksLikeAddOnVialShorthand } from "@/lib/lims-utils";
 import { emptyLineComponent, type LineItem, type LineItemComponent } from "./types";
+import { containerSizeOptions } from "./lot-card";
 
-export const CONTAINER_SIZES = ["2 mL", "3 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
+// 3 mL is the lab's smallest real vial and the prep engine's hard floor --
+// see the fuller note in lot-card.tsx, which owns the shared helper.
+export const CONTAINER_SIZES = ["3 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
 const LABEL_CONTENT_UNITS = [
   { value: "mg", label: "mg" },
   { value: "ug", label: "µg" },
@@ -121,7 +124,7 @@ export function LineItemRow({
     <div className="flex gap-1">
       <Input type="number" step="0.01" min={0} className="h-8" value={value} disabled={disabled}
         placeholder={placeholder ?? "Amount"} onChange={e => onValue(e.target.value)} />
-      <Select value={unit || undefined} disabled={disabled} onValueChange={(v) => onUnit(v as LineItem["label_content_unit"])}>
+      <Select value={unit ?? ""} disabled={disabled} onValueChange={(v) => onUnit(v as LineItem["label_content_unit"])}>
         <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Unit" /></SelectTrigger>
         <SelectContent>
           {LABEL_CONTENT_UNITS.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
@@ -136,7 +139,7 @@ export function LineItemRow({
         <div>
           <Label className="text-[10px] uppercase text-muted-foreground">Physical Form *</Label>
           <Select
-            value={li.physical_form || undefined}
+            value={li.physical_form ?? ""}
             disabled={disabled}
             onValueChange={(v) => onChange({ physical_form: v as LineItem["physical_form"] })}
           >
@@ -232,11 +235,15 @@ export function LineItemRow({
           <>
             <div>
               <Label className="text-[10px] uppercase text-muted-foreground">Container size</Label>
-              <Select value={li.container_size || undefined} disabled={disabled}
+              <Select value={li.container_size ?? ""} disabled={disabled}
                 onValueChange={(v) => onChange({ container_size: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>
-                  {CONTAINER_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {containerSizeOptions(li.container_size).map(s => (
+                    <SelectItem key={s} value={s}>
+                      {s}{(CONTAINER_SIZES as readonly string[]).includes(s) ? "" : " (no longer offered)"}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -275,7 +282,7 @@ export function LineItemRow({
                   (v) => onChange({ label_content_unit: v }),
                   "e.g. 5",
                 )}
-                <Select value={li.label_content_basis || undefined} disabled={disabled}
+                <Select value={li.label_content_basis ?? ""} disabled={disabled}
                   onValueChange={(v) => onChange({ label_content_basis: v as LineItem["label_content_basis"] })}>
                   <SelectTrigger className="h-8 w-28"><SelectValue placeholder="Per…" /></SelectTrigger>
                   <SelectContent>

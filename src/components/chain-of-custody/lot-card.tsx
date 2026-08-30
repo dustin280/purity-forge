@@ -25,7 +25,28 @@ import {
 import { emptyLineComponent, emptyVial, type LotRow, type LineItemComponent, type VialRow } from "./types";
 import { VialRowEditor } from "./vial-row";
 
-export const CONTAINER_SIZES = ["2 mL", "3 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
+/**
+ * 3 mL is the smallest vial the lab actually uses -- confirmed by Dustin
+ * 2026-08-30, and the prep engine enforces it: reconstitutionCandidatesUl()
+ * returns null under 3 mL, so a 2 mL vial can be received and then never
+ * planned. "2 mL" was offered here until now, which is where the six real
+ * 2 mL rows came from ("anomalies from an earlier version").
+ */
+export const CONTAINER_SIZES = ["3 mL", "5 mL", "10 mL", "20 mL", "30 mL"] as const;
+
+/**
+ * A Radix Select whose value isn't among its items renders BLANK, so simply
+ * deleting "2 mL" would wipe the size off those existing rows the moment
+ * anyone opened one for an unrelated edit. Keep whatever a row already holds
+ * as an extra, explicitly-labelled option -- new receipts can't pick it,
+ * existing ones can't lose it.
+ */
+export function containerSizeOptions(current: string | null | undefined): string[] {
+  const sizes = [...CONTAINER_SIZES];
+  return current && !sizes.includes(current as (typeof CONTAINER_SIZES)[number])
+    ? [current, ...sizes]
+    : sizes;
+}
 const LABEL_CONTENT_UNITS = [
   { value: "mg", label: "mg" },
   { value: "ug", label: "µg" },
@@ -163,7 +184,7 @@ export function LotCard({
     <div className="flex gap-1">
       <Input type="number" step="0.01" min={0} className="h-8" value={value} disabled={disabled}
         placeholder={placeholder ?? "Amount"} onChange={(e) => onValue(e.target.value)} />
-      <Select value={unit || undefined} disabled={disabled} onValueChange={(v) => onUnit(v as LineItemComponent["label_content_unit"])}>
+      <Select value={unit ?? ""} disabled={disabled} onValueChange={(v) => onUnit(v as LineItemComponent["label_content_unit"])}>
         <SelectTrigger className="h-8 w-20"><SelectValue placeholder="Unit" /></SelectTrigger>
         <SelectContent>
           {LABEL_CONTENT_UNITS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
@@ -203,7 +224,7 @@ export function LotCard({
         <div className="flex flex-wrap items-end gap-4">
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Physical Form *</Label>
-            <Select value={lot.physical_form || undefined} disabled={disabled}
+            <Select value={lot.physical_form ?? ""} disabled={disabled}
               onValueChange={(v) => onChange({ physical_form: v as LotRow["physical_form"] })}>
               <SelectTrigger className="h-8 mt-1 w-36"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
@@ -267,11 +288,15 @@ export function LotCard({
           </div>
           <div>
             <Label className="text-[10px] uppercase text-muted-foreground">Container Size</Label>
-            <Select value={lot.container_size || undefined} disabled={disabled}
+            <Select value={lot.container_size ?? ""} disabled={disabled}
               onValueChange={(v) => onChange({ container_size: v })}>
               <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
               <SelectContent>
-                {CONTAINER_SIZES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                {containerSizeOptions(lot.container_size).map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}{(CONTAINER_SIZES as readonly string[]).includes(s) ? "" : " (no longer offered)"}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -356,7 +381,7 @@ export function LotCard({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <div>
               <Label className="text-[10px] uppercase text-muted-foreground">Color</Label>
-              <Select value={lot.appearance_color || undefined} disabled={disabled}
+              <Select value={lot.appearance_color ?? ""} disabled={disabled}
                 onValueChange={(v) => onChange({ appearance_color: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
                 <SelectContent>
@@ -368,7 +393,7 @@ export function LotCard({
             {!isLiquid && (
               <div>
                 <Label className="text-[10px] uppercase text-muted-foreground">Texture / Prep</Label>
-                <Select value={lot.appearance_texture || undefined} disabled={disabled}
+                <Select value={lot.appearance_texture ?? ""} disabled={disabled}
                   onValueChange={(v) => onChange({ appearance_texture: v })}>
                   <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="Select…" /></SelectTrigger>
                   <SelectContent>
