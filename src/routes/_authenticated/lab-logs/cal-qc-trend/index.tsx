@@ -126,13 +126,9 @@ function CalQcTrendPage() {
               // the log with runs that cannot be compared with each other. The
               // manual button would quietly bypass that, so it asks first.
               const ok = window.confirm(
-                "The scheduled Cal/QC import is paused while acquisition and processing methods are being finalised.
-
-"
-                + "Importing now will log readings from methods that may still change, and peak metrics from different "
-                + "acquisition methods cannot be compared with each other.
-
-Run the import anyway?",
+                "The scheduled Cal/QC import is paused while acquisition and processing methods are being finalised. "
+                + "Importing now will log readings from methods that may still change, and peak metrics from "
+                + "different acquisition methods cannot be compared with each other. Run the import anyway?",
               );
               if (ok) runWatcherMut.mutate();
             }}
