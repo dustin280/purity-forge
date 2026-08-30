@@ -128,10 +128,15 @@ export const bulkSetSamplePrepFlag = createServerFn({ method: "POST" })
 export const listPrepFlaggedSamples = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    // A sample that has finished analysis is not outstanding prep work, even
+    // if its flag was never cleared. Two approved samples had been sitting in
+    // the Prep Queue since August -- one of them showing as "needs input" --
+    // which makes a queue of finished work look like a queue of problems.
     const { data, error } = await context.supabase
       .from("samples")
       .select("id,batch_id,client,project,compound,lot,prep_flagged_at,receipt_date")
       .eq("prep_flag", true)
+      .not("status", "in", "(approved,complete,cancelled)")
       .order("prep_flagged_at", { ascending: true });
     if (error) throw error;
     return (data ?? []) as unknown as PrepFlaggedSample[];

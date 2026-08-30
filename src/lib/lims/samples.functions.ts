@@ -188,6 +188,15 @@ export async function transitionSampleStatus(
   if (status === "approved") {
     await releaseSampleFromInstrument(supabase, sampleId);
   }
+  // ...and drops it out of the Prep Queue. The flag means "checked out for
+  // prep"; once the sample is finished or cancelled that is no longer true,
+  // and a flag nobody clears leaves completed work sitting in the queue
+  // looking outstanding.
+  if (status === "approved" || status === "complete" || status === "cancelled") {
+    await supabase.from("samples")
+      .update({ prep_flag: false, prep_flagged_at: null, prep_flagged_by: null })
+      .eq("id", sampleId);
+  }
 }
 
 export const updateSampleStatus = createServerFn({ method: "POST" })
