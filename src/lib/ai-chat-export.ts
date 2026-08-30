@@ -1,3 +1,4 @@
+import { wrapPdf } from "@/lib/pdf-text";
 /**
  * PDF + print helpers for AI assistant conversations.
  * - buildChatPdf: generates and downloads a PDF using jsPDF.
@@ -42,7 +43,7 @@ export function assistantText(messages: UIMessage[]): string {
 
 export async function downloadChatPdf(title: string, messages: ChatExportMessage[]) {
   const { jsPDF } = await import("jspdf");
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const margin = 48;
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();

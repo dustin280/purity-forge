@@ -11,7 +11,8 @@
  * Geometry mirrors label-sheet.tsx exactly (template R001 / LS-0100F):
  * 8 x 20 cells of 1in x 0.5in, 0.5in top margin, 0.25in side margins.
  */
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import { COLS, ROWS } from "./label-sheet";
 
 const PAGE_W = 8.5;
@@ -34,7 +35,7 @@ export type LabelPdfOptions = {
 };
 
 export function buildLabelPdf(sheets: string[][], opts: LabelPdfOptions): jsPDF {
-  const doc = new jsPDF({ unit: "in", format: [PAGE_W, PAGE_H], orientation: "portrait" });
+  const doc = wrapPdf(new jsPDF({ unit: "in", format: [PAGE_W, PAGE_H], orientation: "portrait" }));
   doc.setFont("helvetica", opts.bold ? "bold" : "normal");
   doc.setFontSize(opts.fontSizePt);
   doc.setTextColor(0, 0, 0);

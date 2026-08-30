@@ -1,4 +1,5 @@
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import type { AccessLog, AccessLogsSummary } from "./types";
 
 export function downloadAccessLogsPdf(args: {
@@ -8,7 +9,7 @@ export function downloadAccessLogsPdf(args: {
   summary: AccessLogsSummary;
 }) {
   const { rows, from, to, summary } = args;
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;

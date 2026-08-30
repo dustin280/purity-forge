@@ -1,3 +1,4 @@
+import { wrapPdf } from "@/lib/pdf-text";
 import type { AccountingReportRow } from "./receipts-crud.functions";
 
 function csvEscape(v: string | number | null | undefined): string {
@@ -79,7 +80,7 @@ export async function downloadAccountingPdf(
 ) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "landscape", compress: true });
+  const doc = wrapPdf(new jsPDF({ orientation: "landscape", compress: true }));
 
   doc.setFontSize(16);
   doc.text("Material Receipts — Accounting Report", 14, 16);

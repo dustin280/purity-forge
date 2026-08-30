@@ -7,6 +7,7 @@
  * issues from this app's export API.
  */
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import autoTable from "jspdf-autotable";
 import type { Peak } from "./lims-utils";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
@@ -44,7 +45,7 @@ function rsdPct(vals: number[]): number | null {
 }
 
 export function generateCoaPdf(coa: CoaData): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
   const margin = 40;
   const usableW = W - margin * 2;

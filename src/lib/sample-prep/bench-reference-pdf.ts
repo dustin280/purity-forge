@@ -8,6 +8,7 @@
  * then the recipe steps and final concentration/DF below.
  */
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import autoTable from "jspdf-autotable";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 import type { CutSheetSample } from "./bench-reference.functions";
@@ -41,7 +42,7 @@ function pdfSafe(s: string): string {
 }
 
 export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetInput): jsPDF {
-  const doc = new jsPDF({ unit: "in", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "in", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const copies = Math.max(1, data.labelsPerStep);

@@ -5,6 +5,7 @@
  * a real jspdf-autotable sample table, and a two-column signature block.
  */
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import autoTable from "jspdf-autotable";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
@@ -40,7 +41,7 @@ export function exportAnalysisBatchPdf(
   details: SterilityDetails,
   names: { performedBy: string | null; reviewedBy: string | null },
 ) {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
   const margin = 40;
 

@@ -4,6 +4,7 @@
  * with page numbers, matching the look of the CoA/CoC documents.
  */
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export interface JournalPdfInput {
@@ -24,7 +25,7 @@ function fmt(iso: string) {
 }
 
 export function generateJournalPdf(data: JournalPdfInput): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const margin = 48;
@@ -132,7 +133,7 @@ export interface CombinedJournalPdfInput {
 }
 
 export function downloadCombinedJournalPdf(input: CombinedJournalPdfInput) {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const margin = 48;

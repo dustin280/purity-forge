@@ -1,3 +1,4 @@
+import { wrapPdf } from "@/lib/pdf-text";
 /**
  * CSV + PDF export helpers for timesheet entries. Both download client-side.
  * PDF uses the existing jspdf + jspdf-autotable stack (no new deps).
@@ -49,7 +50,7 @@ export async function downloadTimesheetPdf(
 ) {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
-  const doc = new jsPDF({ orientation: "landscape", compress: true });
+  const doc = wrapPdf(new jsPDF({ orientation: "landscape", compress: true }));
 
   doc.setFontSize(16);
   doc.text(opts.title, 14, 16);

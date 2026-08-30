@@ -9,6 +9,7 @@
  * so it looks like the rest of this app's professional documents.
  */
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import autoTable from "jspdf-autotable";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
@@ -50,7 +51,7 @@ function labelCellText(level: CutSheetLevel): string {
 }
 
 export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): jsPDF {
-  const doc = new jsPDF({ unit: "in", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "in", format: "letter", compress: true }));
   const W = doc.internal.pageSize.getWidth();
 
   // ---- Label row(s): real label-sheet grid, up to 8 per row ----

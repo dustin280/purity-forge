@@ -1,7 +1,8 @@
 /**
  * Client-side PDF generator for Chain-of-Custody (COC) documents. Renders the signed COC form with timestamps, custodian signatures, and configurable field layout.
  */
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 
 export type CocFieldLite = { field_key: string; label: string };
@@ -32,7 +33,7 @@ export type CocRecordLite = {
 };
 
 export function buildCocPdf(record: CocRecordLite, fields: CocFieldLite[]): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 48;

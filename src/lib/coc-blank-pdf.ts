@@ -4,12 +4,13 @@
  * + pricing block) with the branded letterhead and a pre-issued Lab Sample ID
  * stamped in the top-right corner.
  */
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import { SYNTHESYX_LOGO_PNG_BASE64 } from "@/assets/synthesyx-logo-base64";
 import type { CocFieldLite } from "@/lib/coc-pdf";
 
 export function buildBlankCocPdf(sampleId: string, fields: CocFieldLite[]): jsPDF {
-  const doc = new jsPDF({ unit: "pt", format: "letter", compress: true });
+  const doc = wrapPdf(new jsPDF({ unit: "pt", format: "letter", compress: true }));
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;

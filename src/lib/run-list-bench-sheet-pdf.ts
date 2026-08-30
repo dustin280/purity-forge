@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { wrapPdf } from "@/lib/pdf-text";
 import type { BenchSheet, BenchSheetRow } from "@/lib/run-lists/bench-sheet.functions";
 
 type ListHeader = { id: string; name: string; instrument_id: string | null; method_name: string | null; created_at: string };
@@ -15,7 +16,7 @@ export function exportBenchSheetPdf(
   rows: BenchSheetRow[],
   names: { performedBy: string | null; reviewedBy: string | null },
 ) {
-  const doc = new jsPDF({ compress: true });
+  const doc = wrapPdf(new jsPDF({ compress: true }));
   let y = 14;
   const line = (text: string, opts?: { bold?: boolean; size?: number }) => {
     doc.setFont("helvetica", opts?.bold ? "bold" : "normal");
