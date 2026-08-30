@@ -27,6 +27,9 @@ interface GridLevel {
   conc: Record<string, number | null>; // keyed by compoundId
 }
 
+/** Smallest volume the bench can deliver accurately (sp_settings mirrors this). */
+const MIN_PIPETTE_UL = 20;
+
 function defaultAbbrev(name: string): string {
   const compact = name.replace(/[^A-Za-z0-9]/g, "");
   return compact.slice(0, 3).toUpperCase() || "C";
@@ -59,6 +62,22 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
 
   const availableToAdd = allCompounds.filter(c => !compounds.some(gc => gc.compoundId === c.id));
 
+  /**
+   * Adding a compound seeds its column from the compound's own recommended
+   * calibration range instead of six empty cells. Those levels are derived
+   * from measured peak height (100-1800 mAU) and are already a whole 5 uL of
+   * 1 mg/mL stock each, so the common case becomes "check and submit" rather
+   * than "type 6 numbers per compound and hope they're the right ones".
+   * Everything stays editable -- this is a starting point, not a lock.
+   */
+  function recommendedLevels(c: { [k: string]: unknown }): Array<number | null> {
+    return [1, 2, 3, 4, 5, 6].map((n) => {
+      const v = c[`cal_l${n}_mg_per_ml`];
+      const num = typeof v === "number" ? v : v == null ? NaN : Number(v);
+      return Number.isFinite(num) ? num : null;
+    });
+  }
+
   function addCompound(id: string) {
     const c = allCompounds.find(x => x.id === id);
     if (!c) return;
@@ -66,6 +85,12 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       compoundId: c.id, name: c.name, abbrev: defaultAbbrev(c.name),
       stockConcMgPerMl: 1,
     }]);
+    const rec = recommendedLevels(c as unknown as { [k: string]: unknown });
+    if (rec.some(v => v != null)) {
+      setLevels(prev => prev.map((l, i) => (
+        rec[i] == null ? l : { ...l, conc: { ...l.conc, [c.id]: rec[i] } }
+      )));
+    }
   }
   function removeCompound(id: string) {
     setCompounds(prev => prev.filter(c => c.compoundId !== id));
@@ -85,9 +110,41 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     if (conc == null || !c.stockConcMgPerMl) return null;
     return (conc / c.stockConcMgPerMl) * batchUl;
   }
+  function stockUsedUl(level: GridLevel): number {
+    return compounds.reduce((sum, c) => sum + (stockUl(level, c) ?? 0), 0);
+  }
   function diluentUl(level: GridLevel): number {
-    const used = compounds.reduce((sum, c) => sum + (stockUl(level, c) ?? 0), 0);
-    return Math.max(0, batchUl - used);
+    return Math.max(0, batchUl - stockUsedUl(level));
+  }
+
+  /**
+   * Whether a level can actually be made at the bench.
+   *
+   * diluentUl clamps at zero, so a level demanding more stock than the batch
+   * volume used to display a tidy "0 µL diluent" and look finished -- an
+   * impossible prep that reads as a valid one. The pipette floor matters the
+   * same way: an aliquot under 20 µL cannot be delivered accurately, and a
+   * level that is essentially neat stock isn't a dilution at all.
+   */
+  function levelIssues(level: GridLevel): string[] {
+    const issues: string[] = [];
+    if (!batchUl) return issues;
+    const used = stockUsedUl(level);
+    const anyConc = compounds.some(c => level.conc[c.compoundId] != null);
+    if (!anyConc) return issues;
+
+    if (used > batchUl + 0.5) {
+      issues.push(`needs ${Math.round(used)} µL of stock but the batch is only ${Math.round(batchUl)} µL — raise the batch volume or use a stronger primary stock`);
+    } else if (used > batchUl * 0.9) {
+      issues.push(`${Math.round((used / batchUl) * 100)}% of this level is stock — barely a dilution; a stronger primary stock would give more room`);
+    }
+    for (const c of compounds) {
+      const v = stockUl(level, c);
+      if (v != null && v > 0 && v < MIN_PIPETTE_UL) {
+        issues.push(`${c.abbrev} aliquot is ${Math.round(v)} µL, below the ${MIN_PIPETTE_UL} µL minimum — raise the batch volume or dilute the stock first`);
+      }
+    }
+    return issues;
   }
 
   const createMut = useMutation({
@@ -214,6 +271,35 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
             <div className="text-sm font-medium">Levels — concentration (mg/mL) per compound</div>
             <Button size="sm" variant="outline" onClick={addLevel}><Plus className="size-3.5 mr-1" />Add level</Button>
           </div>
+
+          {/* States what the pre-filled numbers are and where they came from,
+              so an analyst can tell a recommendation from a decision. */}
+          <div className="rounded border border-border bg-muted/30 p-2">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+              Recommended calibration range for these compounds
+            </div>
+            <table className="text-[11px] w-full">
+              <tbody>
+                {compounds.map((c) => {
+                  const src = allCompounds.find(x => x.id === c.compoundId);
+                  const rec = src ? recommendedLevels(src as unknown as { [k: string]: unknown }) : [];
+                  const shown = rec.filter((v): v is number => v != null);
+                  return (
+                    <tr key={c.compoundId}>
+                      <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
+                      <td className="py-0.5 font-mono text-muted-foreground">
+                        {shown.length ? shown.map(v => v.toFixed(3)).join(" · ") + " mg/mL" : "no recommended range on file"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              Pre-filled below and fully editable. Derived from measured peak height targeting 100–1800&nbsp;mAU;
+              each level is a whole 5&nbsp;µL of 1&nbsp;mg/mL stock per 1&nbsp;mL.
+            </div>
+          </div>
           <table className="text-xs w-full min-w-[500px]">
             <thead>
               <tr className="text-left text-muted-foreground">
@@ -234,7 +320,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                   {compounds.map(c => (
                     <td key={c.compoundId} className="py-1 pr-2">
                       <Input
-                        className="h-7 w-20 text-xs" type="number" step="0.05"
+                        className="h-7 w-20 text-xs" type="number" step="0.005"
                         value={level.conc[c.compoundId] ?? ""}
                         onChange={e => {
                           const v = e.target.value === "" ? null : Number(e.target.value);
@@ -252,6 +338,24 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                   <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeLevel(li)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
                 </tr>
               ))}
+              {levels.some(l => levelIssues(l).length > 0) && (
+                <tr>
+                  <td colSpan={2 + compounds.length * 2} className="pt-2">
+                    <div className="rounded border border-amber-500/40 bg-amber-500/5 p-2 space-y-1">
+                      {levels.map((l, li) => {
+                        const issues = levelIssues(l);
+                        if (!issues.length) return null;
+                        return (
+                          <div key={li} className="text-[11px] text-amber-700 dark:text-amber-300">
+                            <span className="font-medium">{l.label || `L${li + 1}`}:</span>{" "}
+                            {issues.join("; ")}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </Card>
