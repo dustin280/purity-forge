@@ -145,6 +145,14 @@ export const getQueueOverview = createServerFn({ method: "GET" })
   });
 
 export type QueueWorkListRow = QueueSampleRow & {
+  /**
+   * Non-purity tests this sample is flagged for. Surfaced in the queue so an
+   * analyst can see at a glance which vials are sterility/endotoxin/heavy
+   * metals -- previously the only way to tell was to open each sample.
+   * Purity is deliberately omitted: it's the default and would badge almost
+   * every row, which tells you nothing.
+   */
+  non_purity_tests: string[];
   prep_flag: boolean | null;
   prep_flagged_at: string | null;
   prep_flagged_by: string | null;
@@ -167,6 +175,20 @@ export const listQueueWorkSamples = createServerFn({ method: "GET" })
       .neq("status", "cancelled")
       .order("due_date", { ascending: true });
     if (error) throw error;
+    // Test rows are the authoritative flag -- samples.assigned_test_type is
+    // null on every pre-hierarchy row, so it can't be used here.
+    const sampleIds = (rows ?? []).map((r) => r.id as string);
+    const testsBySample = new Map<string, string[]>();
+    if (sampleIds.length > 0) {
+      const { data: testRows } = await context.supabase
+        .from("tests").select("sample_id, test_type").in("sample_id", sampleIds).neq("test_type", "purity");
+      for (const t of testRows ?? []) {
+        const list = testsBySample.get(t.sample_id as string) ?? [];
+        if (!list.includes(t.test_type as string)) list.push(t.test_type as string);
+        testsBySample.set(t.sample_id as string, list);
+      }
+    }
+
     const flaggedByIds = [...new Set((rows ?? []).map((r) => r.prep_flagged_by as string | null).filter((v): v is string => Boolean(v)))];
     let nameById = new Map<string, string>();
     if (flaggedByIds.length > 0) {
@@ -175,6 +197,7 @@ export const listQueueWorkSamples = createServerFn({ method: "GET" })
     }
     return (rows ?? []).map((r) => ({
       ...r,
+      non_purity_tests: testsBySample.get(r.id as string) ?? [],
       prep_flagged_by_name: r.prep_flagged_by ? (nameById.get(r.prep_flagged_by as string) ?? null) : null,
     })) as unknown as QueueWorkListRow[];
   });

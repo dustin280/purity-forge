@@ -132,8 +132,8 @@ function AnalysisBatchDetail() {
                 <td className="px-3 py-2 font-mono">{r.batchId ?? "—"}</td>
                 <td className="px-3 py-2 text-muted-foreground">{r.compound ?? "—"}</td>
                 <td className="px-3 py-2 text-xs text-muted-foreground">{r.slotLabel ?? "—"}</td>
-                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day3" onChanged={invalidate} readOnly={batch.status === "reviewed"} /></td>
-                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day7" onChanged={invalidate} readOnly={batch.status === "reviewed"} /></td>
+                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day3" /></td>
+                <td className="px-3 py-2"><CheckCell row={r} checkpoint="day7" /></td>
               </tr>
             ))}
           </tbody>
@@ -145,7 +145,11 @@ function AnalysisBatchDetail() {
           <Button disabled={completeMut.isPending} onClick={() => completeMut.mutate()}>
             {completeMut.isPending ? "Completing…" : "Complete Batch"}
           </Button>
-          {!allChecked && <span className="text-xs text-muted-foreground">Day 3/7 checks can still be recorded after completing.</span>}
+          {!allChecked && (
+            <span className="text-xs text-muted-foreground">
+              Day 3/7 checks are now recorded under Non-HPLC Analysis Results → Sterility.
+            </span>
+          )}
         </div>
       )}
 
@@ -168,19 +172,19 @@ function AnalysisBatchDetail() {
   );
 }
 
-function CheckCell({ row, checkpoint, onChanged, readOnly }: {
-  row: AnalysisBatchRow; checkpoint: "day3" | "day7"; onChanged: () => void; readOnly: boolean;
+/**
+ * Historical display only. Day-3/day-7 observations are now recorded per TEST
+ * under Non-HPLC Analysis Results -> Sterility (sterility_observations), not
+ * per batch item -- recording an observation used to require the vial to be
+ * in a batch, and in practice it almost never was. Two live write paths for
+ * the same observation would be worse than either, so the entry buttons are
+ * gone; what an earlier batch already recorded still reads out here.
+ */
+function CheckCell({ row, checkpoint }: {
+  row: AnalysisBatchRow; checkpoint: "day3" | "day7";
 }) {
-  const checkFn = useServerFn(recordItemCheck);
   const status = checkpoint === "day3" ? row.day3Status : row.day7Status;
-  const due = checkpoint === "day3" ? row.day3Due : row.day7Due;
   const checkedAt = checkpoint === "day3" ? row.day3CheckedAt : row.day7CheckedAt;
-
-  const mut = useMutation({
-    mutationFn: (result: "clear" | "turbid") => checkFn({ data: { itemId: row.itemId, checkpoint, result } }),
-    onSuccess: () => onChanged(),
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   if (status !== "pending") {
     return (
@@ -192,12 +196,5 @@ function CheckCell({ row, checkpoint, onChanged, readOnly }: {
       </span>
     );
   }
-  if (readOnly) return <span className="text-xs text-muted-foreground">—</span>;
-  if (!due) return <span className="text-xs text-muted-foreground">Not due</span>;
-  return (
-    <div className="flex gap-1.5">
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={mut.isPending} onClick={() => mut.mutate("clear")}>Clear</Button>
-      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={mut.isPending} onClick={() => mut.mutate("turbid")}>Turbid</Button>
-    </div>
-  );
+  return <span className="text-xs text-muted-foreground">—</span>;
 }

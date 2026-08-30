@@ -7,6 +7,35 @@ import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { QueueWorkListRow } from "@/lib/queue.functions";
 
+/**
+ * Which non-HPLC tests a vial is flagged for, shown inline in the queue.
+ * Abbreviated because these sit under a sample id in a dense table -- the
+ * full words push the column too wide to scan. Colour carries the same
+ * meaning as the label so a glance down the column is enough.
+ */
+const NON_PURITY_BADGE: Record<string, { short: string; className: string }> = {
+  sterility: { short: "STER", className: "bg-violet-500/15 text-violet-700 dark:text-violet-300" },
+  endotoxin: { short: "ENDO", className: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
+  heavy_metals: { short: "HVYM", className: "bg-slate-500/15 text-slate-700 dark:text-slate-300" },
+};
+
+function NonPurityBadges({ types }: { types: string[] | undefined }) {
+  if (!types?.length) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {types.map((t) => {
+        const b = NON_PURITY_BADGE[t];
+        return (
+          <span key={t} title={t.replace("_", " ")}
+            className={cn("text-[9px] font-semibold tracking-wide px-1.5 py-0.5 rounded", b?.className ?? "bg-muted text-muted-foreground")}>
+            {b?.short ?? t.toUpperCase()}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export type QueueSortKey = "batch_id" | "compound" | "client" | "due_date" | "status" | "receipt_date";
 export type SortDir = "asc" | "desc";
 
@@ -83,6 +112,7 @@ export function QueueWorkTable({
                 <Link to="/samples/$batchId" params={{ batchId: s.batch_id }} className="font-mono font-semibold text-primary hover:underline">
                   {s.batch_id}
                 </Link>
+                <NonPurityBadges types={s.non_purity_tests} />
               </td>
               <td className="px-4 py-3">
                 <div>{s.compound ?? "—"}</div>

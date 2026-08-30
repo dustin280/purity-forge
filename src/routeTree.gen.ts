@@ -57,6 +57,9 @@ import { Route as AuthenticatedSamplePrepEquipmentRouteImport } from './routes/_
 import { Route as AuthenticatedSamplePrepAnalytesRouteImport } from './routes/_authenticated/sample-prep/analytes'
 import { Route as AuthenticatedRunListsGenerateRouteImport } from './routes/_authenticated/run-lists/generate'
 import { Route as AuthenticatedRunListsIdRouteImport } from './routes/_authenticated/run-lists/$id'
+import { Route as AuthenticatedNonHplcResultsSterilityRouteImport } from './routes/_authenticated/non-hplc-results/sterility'
+import { Route as AuthenticatedNonHplcResultsHeavyMetalsRouteImport } from './routes/_authenticated/non-hplc-results/heavy-metals'
+import { Route as AuthenticatedNonHplcResultsEndotoxinRouteImport } from './routes/_authenticated/non-hplc-results/endotoxin'
 import { Route as AuthenticatedNonConformityEvaluationIdRouteImport } from './routes/_authenticated/non-conformity/$evaluationId'
 import { Route as AuthenticatedMaterialReceiptsNewRouteImport } from './routes/_authenticated/material-receipts/new'
 import { Route as AuthenticatedMaterialReceiptsAccountingReportRouteImport } from './routes/_authenticated/material-receipts/accounting-report'
@@ -390,6 +393,24 @@ const AuthenticatedRunListsIdRoute = AuthenticatedRunListsIdRouteImport.update({
   path: '/run-lists/$id',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedNonHplcResultsSterilityRoute =
+  AuthenticatedNonHplcResultsSterilityRouteImport.update({
+    id: '/non-hplc-results/sterility',
+    path: '/non-hplc-results/sterility',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedNonHplcResultsHeavyMetalsRoute =
+  AuthenticatedNonHplcResultsHeavyMetalsRouteImport.update({
+    id: '/non-hplc-results/heavy-metals',
+    path: '/non-hplc-results/heavy-metals',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedNonHplcResultsEndotoxinRoute =
+  AuthenticatedNonHplcResultsEndotoxinRouteImport.update({
+    id: '/non-hplc-results/endotoxin',
+    path: '/non-hplc-results/endotoxin',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedNonConformityEvaluationIdRoute =
   AuthenticatedNonConformityEvaluationIdRouteImport.update({
     id: '/non-conformity/$evaluationId',
@@ -815,6 +836,9 @@ export interface FileRoutesByFullPath {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
+  '/non-hplc-results/endotoxin': typeof AuthenticatedNonHplcResultsEndotoxinRoute
+  '/non-hplc-results/heavy-metals': typeof AuthenticatedNonHplcResultsHeavyMetalsRoute
+  '/non-hplc-results/sterility': typeof AuthenticatedNonHplcResultsSterilityRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -928,6 +952,9 @@ export interface FileRoutesByTo {
   '/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
+  '/non-hplc-results/endotoxin': typeof AuthenticatedNonHplcResultsEndotoxinRoute
+  '/non-hplc-results/heavy-metals': typeof AuthenticatedNonHplcResultsHeavyMetalsRoute
+  '/non-hplc-results/sterility': typeof AuthenticatedNonHplcResultsSterilityRoute
   '/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -1043,6 +1070,9 @@ export interface FileRoutesById {
   '/_authenticated/material-receipts/accounting-report': typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   '/_authenticated/material-receipts/new': typeof AuthenticatedMaterialReceiptsNewRoute
   '/_authenticated/non-conformity/$evaluationId': typeof AuthenticatedNonConformityEvaluationIdRoute
+  '/_authenticated/non-hplc-results/endotoxin': typeof AuthenticatedNonHplcResultsEndotoxinRoute
+  '/_authenticated/non-hplc-results/heavy-metals': typeof AuthenticatedNonHplcResultsHeavyMetalsRoute
+  '/_authenticated/non-hplc-results/sterility': typeof AuthenticatedNonHplcResultsSterilityRoute
   '/_authenticated/run-lists/$id': typeof AuthenticatedRunListsIdRoute
   '/_authenticated/run-lists/generate': typeof AuthenticatedRunListsGenerateRoute
   '/_authenticated/sample-prep/analytes': typeof AuthenticatedSamplePrepAnalytesRoute
@@ -1158,6 +1188,9 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/non-conformity/$evaluationId'
+    | '/non-hplc-results/endotoxin'
+    | '/non-hplc-results/heavy-metals'
+    | '/non-hplc-results/sterility'
     | '/run-lists/$id'
     | '/run-lists/generate'
     | '/sample-prep/analytes'
@@ -1271,6 +1304,9 @@ export interface FileRouteTypes {
     | '/material-receipts/accounting-report'
     | '/material-receipts/new'
     | '/non-conformity/$evaluationId'
+    | '/non-hplc-results/endotoxin'
+    | '/non-hplc-results/heavy-metals'
+    | '/non-hplc-results/sterility'
     | '/run-lists/$id'
     | '/run-lists/generate'
     | '/sample-prep/analytes'
@@ -1385,6 +1421,9 @@ export interface FileRouteTypes {
     | '/_authenticated/material-receipts/accounting-report'
     | '/_authenticated/material-receipts/new'
     | '/_authenticated/non-conformity/$evaluationId'
+    | '/_authenticated/non-hplc-results/endotoxin'
+    | '/_authenticated/non-hplc-results/heavy-metals'
+    | '/_authenticated/non-hplc-results/sterility'
     | '/_authenticated/run-lists/$id'
     | '/_authenticated/run-lists/generate'
     | '/_authenticated/sample-prep/analytes'
@@ -1809,6 +1848,27 @@ declare module '@tanstack/react-router' {
       path: '/run-lists/$id'
       fullPath: '/run-lists/$id'
       preLoaderRoute: typeof AuthenticatedRunListsIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/non-hplc-results/sterility': {
+      id: '/_authenticated/non-hplc-results/sterility'
+      path: '/non-hplc-results/sterility'
+      fullPath: '/non-hplc-results/sterility'
+      preLoaderRoute: typeof AuthenticatedNonHplcResultsSterilityRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/non-hplc-results/heavy-metals': {
+      id: '/_authenticated/non-hplc-results/heavy-metals'
+      path: '/non-hplc-results/heavy-metals'
+      fullPath: '/non-hplc-results/heavy-metals'
+      preLoaderRoute: typeof AuthenticatedNonHplcResultsHeavyMetalsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/non-hplc-results/endotoxin': {
+      id: '/_authenticated/non-hplc-results/endotoxin'
+      path: '/non-hplc-results/endotoxin'
+      fullPath: '/non-hplc-results/endotoxin'
+      preLoaderRoute: typeof AuthenticatedNonHplcResultsEndotoxinRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/non-conformity/$evaluationId': {
@@ -2334,6 +2394,9 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMaterialReceiptsAccountingReportRoute: typeof AuthenticatedMaterialReceiptsAccountingReportRoute
   AuthenticatedMaterialReceiptsNewRoute: typeof AuthenticatedMaterialReceiptsNewRoute
   AuthenticatedNonConformityEvaluationIdRoute: typeof AuthenticatedNonConformityEvaluationIdRoute
+  AuthenticatedNonHplcResultsEndotoxinRoute: typeof AuthenticatedNonHplcResultsEndotoxinRoute
+  AuthenticatedNonHplcResultsHeavyMetalsRoute: typeof AuthenticatedNonHplcResultsHeavyMetalsRoute
+  AuthenticatedNonHplcResultsSterilityRoute: typeof AuthenticatedNonHplcResultsSterilityRoute
   AuthenticatedRunListsIdRoute: typeof AuthenticatedRunListsIdRoute
   AuthenticatedRunListsGenerateRoute: typeof AuthenticatedRunListsGenerateRoute
   AuthenticatedSamplePrepAnalytesRoute: typeof AuthenticatedSamplePrepAnalytesRoute
@@ -2442,6 +2505,12 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaterialReceiptsNewRoute: AuthenticatedMaterialReceiptsNewRoute,
   AuthenticatedNonConformityEvaluationIdRoute:
     AuthenticatedNonConformityEvaluationIdRoute,
+  AuthenticatedNonHplcResultsEndotoxinRoute:
+    AuthenticatedNonHplcResultsEndotoxinRoute,
+  AuthenticatedNonHplcResultsHeavyMetalsRoute:
+    AuthenticatedNonHplcResultsHeavyMetalsRoute,
+  AuthenticatedNonHplcResultsSterilityRoute:
+    AuthenticatedNonHplcResultsSterilityRoute,
   AuthenticatedRunListsIdRoute: AuthenticatedRunListsIdRoute,
   AuthenticatedRunListsGenerateRoute: AuthenticatedRunListsGenerateRoute,
   AuthenticatedSamplePrepAnalytesRoute: AuthenticatedSamplePrepAnalytesRoute,

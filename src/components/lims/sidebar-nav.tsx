@@ -2,7 +2,7 @@
  * Primary app navigation: persistent sidebar on desktop, slide-over sheet on mobile. Highlights the active route via TanStack Router state and gates admin links by role.
  */
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays, Cable, Building2, ListChecks, Tags, Wrench, Library, Boxes, PackageOpen, GaugeCircle, Beaker, ShieldAlert, Atom, TestTubes } from "lucide-react";
+import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays, Cable, Building2, ListChecks, Tags, Wrench, Library, Boxes, PackageOpen, GaugeCircle, Beaker, ShieldAlert, Atom, TestTubes, Microscope, Bug, Droplets } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -44,6 +44,14 @@ const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; 
       { to: "/sample-prep", label: "Sample Prep", icon: Beaker, tooltip: "Formulations, methods, equipment, and preparation records for sample and standard prep." },
       { to: "/instrument-comm", label: "Instrument Comm", icon: Cable, tooltip: "Synced method/sequence libraries and connection status for linked instruments." },
       { to: "/scheduler", label: "Scheduler", icon: CalendarDays, tooltip: "Calendar for booking and viewing instrument time by day, week, or month." },
+    ],
+  },
+  {
+    label: "Non-HPLC Analysis Results",
+    items: [
+      { to: "/non-hplc-results/sterility", label: "Sterility", icon: Microscope, tooltip: "Day-3, day-7 and final readout for samples flagged for sterility." },
+      { to: "/non-hplc-results/endotoxin", label: "Endotoxin", icon: Bug, tooltip: "Record endotoxin results for samples flagged for the test." },
+      { to: "/non-hplc-results/heavy-metals", label: "Heavy Metals", icon: Droplets, tooltip: "Transcribe the outsourced lab's reviewed heavy-metals result." },
     ],
   },
   {

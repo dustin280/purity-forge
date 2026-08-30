@@ -211,6 +211,11 @@ export const qk = {
     detail: (id: string) => ["inventory", "detail", id] as const,
   },
 
+  nonchromWorklist: {
+    all: ["nonchrom-worklist"] as const,
+    list: (testType: string) => ["nonchrom-worklist", testType] as const,
+  },
+
   queue: {
     all: ["queue"] as const,
     overview: () => ["queue", "overview"] as const,
