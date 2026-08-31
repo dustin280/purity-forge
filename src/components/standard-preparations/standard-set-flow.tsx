@@ -13,6 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { listCompounds } from "@/lib/compounds.functions";
 import { createStandardSet, getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
+import {
+  MULTI_COMPOUND_STANDARDS, POLAR_UNGROUPED, RUN_ALONE, MIN_RT_GAP_MIN,
+  standardSpread, resolveMember, type MultiCompoundStandard,
+} from "@/lib/standard-preparations/multi-compound-standards";
 import { qk } from "@/lib/query-keys";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
 
@@ -92,6 +96,40 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       )));
     }
   }
+  /**
+   * Loads a recommended grouping in one go: the compounds, their published
+   * abbreviations (Melanotan MT-I and MT-II share a standard and would both
+   * default to "MEL"), and each one's own calibration levels. Replaces the
+   * grid rather than appending -- the recommendations are only offered while
+   * it's empty, and a half-merged standard isn't a thing anyone wants.
+   */
+  function applyPreset(std: MultiCompoundStandard) {
+    const resolved = std.members
+      .map(m => ({ m, c: resolveMember(m, allCompounds) }))
+      .flatMap(({ m, c }) => (c ? [{ m, c }] : []));
+    if (!resolved.length) {
+      toast.error(`None of ${std.name}'s compounds are in the library yet.`);
+      return;
+    }
+    setCompounds(resolved.map(({ m, c }) => ({
+      compoundId: c.id, name: c.name, abbrev: m.abbrev, stockConcMgPerMl: 1,
+    })));
+    setLevels(prev => prev.map((level, i) => {
+      const conc: Record<string, number | null> = {};
+      for (const { c } of resolved) {
+        const rec = recommendedLevels(c as unknown as { [k: string]: unknown })[i];
+        if (rec != null) conc[c.id] = rec;
+      }
+      return { ...level, conc };
+    }));
+    if (!standardName.trim()) setStandardName(std.name);
+    const missing = std.members.length - resolved.length;
+    toast.success(
+      `Loaded ${std.name} — ${resolved.length} compound${resolved.length === 1 ? "" : "s"}`
+      + (missing ? `, ${missing} not in the library` : ""),
+    );
+  }
+
   function removeCompound(id: string) {
     setCompounds(prev => prev.filter(c => c.compoundId !== id));
     setLevels(prev => prev.map(l => { const { [id]: _drop, ...rest } = l.conc; return { ...l, conc: rest }; }));
@@ -242,7 +280,72 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
             </SelectContent>
           </Select>
         </div>
-        {compounds.length === 0 && <div className="text-xs text-muted-foreground">Add at least one compound to build the grid.</div>}
+        {compounds.length === 0 && (
+          <div className="space-y-2.5">
+            <div className="text-xs text-muted-foreground">
+              Add a compound above, or start from a recommended grouping. These pack every
+              calibrated compound on the main gradient into as few standards as possible,
+              keeping at least {MIN_RT_GAP_MIN.toFixed(2)} min between any two peaks sharing a vial.
+              Everything stays editable once loaded.
+            </div>
+            <div className="grid gap-2 lg:grid-cols-2">
+              {MULTI_COMPOUND_STANDARDS.map(std => {
+                const { firstRt, lastRt, closestGapMin } = standardSpread(std);
+                const rows = std.members.map(m => ({ m, c: resolveMember(m, allCompounds) }));
+                const missing = rows.filter(r => !r.c).length;
+                return (
+                  <div key={std.id} className="border rounded-md p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium">{std.name}</div>
+                        <div className="text-[11px] text-muted-foreground tabular-nums">
+                          {std.members.length} compounds · {firstRt.toFixed(2)}–{lastRt.toFixed(2)} min ·
+                          {" "}closest pair {closestGapMin.toFixed(2)} min
+                        </div>
+                      </div>
+                      <Button
+                        size="sm" variant="secondary" className="h-7 text-xs shrink-0"
+                        disabled={missing === std.members.length}
+                        onClick={() => applyPreset(std)}
+                      >
+                        Use this set
+                      </Button>
+                    </div>
+                    <div className="space-y-0.5">
+                      {rows.map(({ m, c }) => (
+                        <div
+                          key={m.name}
+                          className={`flex items-baseline justify-between gap-3 text-[11px] ${c ? "" : "opacity-50"}`}
+                        >
+                          <span className="truncate">
+                            {m.name}
+                            {!c && <span className="ml-1 italic">— not in library</span>}
+                          </span>
+                          <span className="tabular-nums text-muted-foreground shrink-0">{m.rtMin.toFixed(3)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {std.note && <div className="text-[11px] text-muted-foreground">{std.note}</div>}
+                    {std.caution && (
+                      <div className="text-[11px] text-amber-700 dark:text-amber-500">{std.caution}</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {POLAR_UNGROUPED.length} calibrated compounds eluting before 2 min aren't grouped: on this
+              method they stack up in the void volume — seven of them inside a single{" "}
+              {MIN_RT_GAP_MIN.toFixed(2)} min window — so any grouping built from these retention times
+              would put peaks in one vial that can't be told apart. They need retention times from the
+              aqueous method first.
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {RUN_ALONE.join(", ")} {RUN_ALONE.length === 1 ? "is" : "are"} calibrated but deliberately
+              left out — still under development, run alone.
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {compounds.map(c => (
             <div key={c.compoundId} className="flex items-center gap-1.5 border rounded-md px-2 py-1 text-xs">
