@@ -55,6 +55,140 @@ export function roundToVolumeGrid(uL: number, floorUl = 0): number {
   return rounded;
 }
 
+export interface DilutionChain {
+  /** One aliquot per transfer, in order. Every entry is >= minPipetteUl. */
+  aliquots: number[];
+  /** What those transfers actually achieve, not what was asked for. */
+  achievedDf: number;
+}
+
+/**
+ * Builds a dilution as a chain of transfers where **every aliquot is at or
+ * above the pipette floor** and on the volume grid.
+ *
+ * Dustin, 2026-08-30: nothing under 50 µL, ever -- "this magnifies error
+ * dramatically. Just do a serial dilution if <50ul would be called for."
+ * A single transfer into `finalVolUl` can only reach a factor of
+ * finalVolUl / minPipetteUl (20x at 1 mL and a 50 µL floor); anything beyond
+ * that has to be split across transfers rather than pipetted smaller.
+ *
+ * Replaces an earlier serial routine that required the total factor to be a
+ * whole number and refused outright otherwise -- unusable here, because a
+ * sample's factor is whatever its label mass and vial size make it
+ * (10 mg in 1 mL to 0.42 mg/mL is 23.81x, not an integer). Instead this
+ * enumerates the factors that are actually reachable on the grid and picks
+ * the closest, which always exists.
+ *
+ * Steps are added only when they earn their place: an extra transfer carries
+ * its own volumetric error, so the shortest chain that lands within TOL of
+ * the target factor wins. Up to four transfers are available when the factor
+ * genuinely needs them.
+ */
+export function bestChain(
+  targetDf: number, finalVolUl: number, minPipetteUl: number, maxSteps = 4,
+): DilutionChain | null {
+  if (!(targetDf > 0) || !(finalVolUl > 0)) return null;
+  const lo = Math.ceil(minPipetteUl / GRID_UL) * GRID_UL;
+  const grid: number[] = [];
+  for (let a = lo; a < finalVolUl; a += GRID_UL) grid.push(a);
+  if (!grid.length) return null;
+
+  // Error measured on the log of the factor: dilution is multiplicative, so
+  // being 2x high and 2x low are equally wrong.
+  const err = (df: number) => Math.abs(Math.log(df / targetDf));
+  // How close a single transfer has to get before a second one is worth its
+  // own volumetric error. Deliberately not tight: one transfer into 1 mL on
+  // a 5 µL grid can only resolve the factor to about 10% near the 50 µL
+  // floor (50 vs 55 µL is 20x vs 18.2x), so demanding 1% here would split
+  // almost every prep in two to chase precision the grid cannot deliver.
+  // The caller scores the concentration this actually achieves, so landing a
+  // few percent off is visible rather than hidden.
+  const TOL = Math.log(1.05);
+  const stepDf = (a: number) => finalVolUl / a;
+
+  // Among equally-accurate chains, prefer the balanced one. Splitting 23.8x
+  // as 20x then 1.19x means a second transfer of 840 µL into 160 µL, which
+  // is a transfer rather than a dilution and carries the first step's error
+  // untouched; 4.88x twice is the same factor with half the strain on each
+  // measurement.
+  const imbalance = (as: number[]) => {
+    const dfs = as.map(stepDf);
+    return Math.max(...dfs) / Math.min(...dfs);
+  };
+  const better = (a: DilutionChain, b: DilutionChain | null) => {
+    if (!b) return true;
+    const ea = err(a.achievedDf), eb = err(b.achievedDf);
+    if (Math.abs(ea - eb) > 1e-9) return ea < eb;
+    return imbalance(a.aliquots) < imbalance(b.aliquots);
+  };
+
+  // The last aliquot follows in closed form from whatever the earlier ones
+  // carried, so only its two grid neighbours need testing.
+  const finish = (prefix: number[], carried: number): DilutionChain | null => {
+    const need = targetDf / carried;
+    if (!(need > 0)) return null;
+    const ideal = finalVolUl / need;
+    let out: DilutionChain | null = null;
+    for (const snap of [Math.floor(ideal / GRID_UL) * GRID_UL, Math.ceil(ideal / GRID_UL) * GRID_UL]) {
+      if (snap < lo || snap >= finalVolUl) continue;
+      const cand = { aliquots: [...prefix, snap], achievedDf: carried * stepDf(snap) };
+      if (better(cand, out)) out = cand;
+    }
+    return out;
+  };
+
+  // The largest factor a single transfer can achieve: the smallest legal
+  // aliquot into the full final volume.
+  const maxPerStep = stepDf(lo);
+
+  // Best chain of exactly n transfers. Only the first n-1 aliquots are
+  // searched; the last one is closed-form, so this is a depth-(n-1) walk.
+  const bestOfLength = (n: number): DilutionChain | null => {
+    let best: DilutionChain | null = null;
+    const walk = (prefix: number[], carried: number) => {
+      const remaining = n - prefix.length;
+      if (remaining === 1) {
+        const c = finish(prefix, carried);
+        if (c && better(c, best)) best = c;
+        return;
+      }
+      for (const a of grid) {
+        const next = carried * stepDf(a);
+        // stepDf falls as the aliquot grows, so overshooting here just means
+        // this aliquot is still too small -- keep walking up the grid.
+        if (next > targetDf) continue;
+        // Past this point every remaining transfer contributes at most
+        // maxPerStep, so a prefix already too weak to reach the target is
+        // dead -- and so is every larger aliquot after it.
+        if (next * Math.pow(maxPerStep, remaining - 1) < targetDf) break;
+        walk([...prefix, a], next);
+      }
+    };
+    walk([], 1);
+    return best;
+  };
+
+  // Four transfers covers ~10^7 dilution off a 50 µL floor into 1 mL, which
+  // is far beyond anything a real prep asks for, and the search cost climbs
+  // steeply past it.
+  const cap = Math.max(1, Math.min(Math.floor(maxSteps), 4));
+
+  // Fewest transfers that lands within tolerance; otherwise whichever gets
+  // closest at all. Never fall back to a shorter chain just because a longer
+  // one wasn't found -- that is how a 500x request became a 20x plan.
+  //
+  // Searched shortest-first and returned on the first acceptable length: the
+  // 4-transfer walk is the expensive one, and an everyday factor like 11.76x
+  // is settled by a single transfer before it is ever reached.
+  const bySteps: (DilutionChain | null)[] = [];
+  for (let n = 1; n <= cap; n++) {
+    const c = bestOfLength(n);
+    bySteps[n] = c;
+    if (c && err(c.achievedDf) <= TOL) return c;
+  }
+  return bySteps.filter(Boolean).reduce<DilutionChain | null>((b, c) => (better(c!, b) ? c! : b), null);
+}
+
 function concToMgPerMl(conc: number, mass: MassUnit, vol: VolUnit): number {
   // (mass * MASS_TO_MG mg) / (vol * VOL_TO_UL/1000 mL) = mg/mL
   const mg = conc * MASS_TO_MG[mass];
@@ -150,41 +284,27 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     };
   }
 
-  // Serial dilution: every per-step factor must be a whole integer >= 2.
-  // Cap per-step factor by maxStepDf so aliquot stays >= minPipetteUl at v2Ul.
-  const maxStepDf = Math.floor(v2Ul / minPipetteUl);
-  if (maxStepDf < 2) {
+  // Serial dilution. Every transfer stays at or above the pipette floor --
+  // see bestChain, which enumerates the factors actually reachable on the
+  // grid instead of demanding a whole-number total factor the way this used
+  // to. A sample's factor is whatever its label mass and vial size make it,
+  // so the old integer requirement rejected ordinary preps outright.
+  if (v2Ul < minPipetteUl) {
     return {
       steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
-      error: `Final volume (${fmtVolUl(v2Ul)}) is too small to pipette ${minPipetteUl} µL. Increase the desired volume.`,
+      error: `Final volume (${fmtVolUl(v2Ul)}) is smaller than the ${minPipetteUl} µL pipette minimum. Increase the desired volume.`,
     };
   }
 
-  const dfRounded = Math.round(df);
-  if (Math.abs(df - dfRounded) > 1e-6 || dfRounded < 2) {
+  const chain = bestChain(df, v2Ul, minPipetteUl);
+  if (!chain) {
     return {
       steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
-      error: `Serial dilution requires a whole-number total dilution factor. Adjust target concentration or volume so C1/C2 is an integer (currently ${trim(df)}×).`,
+      error: `Cannot reach ${trim(df)}× at final volume ${fmtVolUl(v2Ul)} without pipetting under ${minPipetteUl} µL. Increase the final volume.`,
     };
   }
 
-  const factors = factorize(dfRounded, maxStepDf, 6);
-  if (!factors) {
-    return {
-      steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
-      error: `Cannot build a whole-number serial dilution for factor ${dfRounded}× at final volume ${fmtVolUl(v2Ul)}. Increase the final volume or adjust the target.`,
-    };
-  }
-
-  // Grid-round every step's aliquot to the same volume where the factor
-  // repeats (e.g. 10x10) so consecutive steps use the same pipette setting
-  // -- minimizes pipette volume changes across the plan, not just per-step.
-  const aliquotByFactor = new Map<number, number>();
-  for (const k of factors) {
-    if (!aliquotByFactor.has(k)) aliquotByFactor.set(k, roundToVolumeGrid(v2Ul / k, minPipetteUl));
-  }
-
-  const firstAliquotUl = aliquotByFactor.get(factors[0]) ?? roundToVolumeGrid(v2Ul / factors[0], minPipetteUl);
+  const firstAliquotUl = chain.aliquots[0];
   if (firstAliquotUl > availableUl) {
     warnings.push(`First aliquot (${fmtVolUl(firstAliquotUl)}) exceeds available stock (${fmtVolUl(availableUl)}).`);
   }
@@ -192,9 +312,8 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   const steps: DilutionStep[] = [];
   let prevConc = c1;
   let prevLabel = "Stock";
-  for (let i = 0; i < factors.length; i++) {
-    const k = factors[i];
-    const aliquotUl = aliquotByFactor.get(k) as number;
+  for (let i = 0; i < chain.aliquots.length; i++) {
+    const aliquotUl = chain.aliquots[i];
     const resulting = prevConc * (aliquotUl / v2Ul);
     const s = buildStep({
       fromLabel: prevLabel,
@@ -211,40 +330,14 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   const actualDf = c1 / prevConc;
   return {
     steps,
-    procedure: renderProcedure(steps, diluentName, minPipetteUl, actualDf, true, factors),
+    procedure: renderProcedure(steps, diluentName, minPipetteUl, actualDf, true,
+      chain.aliquots.map((a) => v2Ul / a)),
     dilutionFactor: actualDf,
     serial: true,
     warnings,
   };
 }
 
-/**
- * Decompose `total` into an ordered list of integer factors, each in [2, maxStep],
- * whose product equals `total`. Prefers 10× intermediates when 10 divides the
- * remainder and fits in maxStep. Returns null if no decomposition of length <= maxSteps exists.
- */
-function factorize(total: number, maxStep: number, maxSteps: number): number[] | null {
-  if (total <= maxStep) return [total];
-  const factors: number[] = [];
-  let remaining = total;
-  while (remaining > maxStep) {
-    if (factors.length >= maxSteps - 1) return null;
-    let k = 0;
-    if (maxStep >= 10 && remaining % 10 === 0) {
-      k = 10;
-    } else {
-      for (let cand = maxStep; cand >= 2; cand--) {
-        if (remaining % cand === 0) { k = cand; break; }
-      }
-    }
-    if (!k) return null;
-    factors.push(k);
-    remaining = remaining / k;
-  }
-  if (remaining < 2) return null;
-  factors.push(remaining);
-  return factors;
-}
 
 function buildStep(args: {
   fromLabel: string;
@@ -276,7 +369,7 @@ function renderProcedure(
 ): string {
   const lines: string[] = [];
   lines.push(serial
-    ? `Serial dilution — total factor ${trim(df)}× over ${steps.length} steps (${(factors ?? []).map(f => `${f}×`).join(" × ")}).`
+    ? `Serial dilution — total factor ${trim(df)}× over ${steps.length} steps (${(factors ?? []).map(f => `${trim(f)}×`).join(" × ")}).`
     : `Single-step dilution — factor ${trim(df)}×.`);
   lines.push(`Minimum pipette volume: ${minPipetteUl} µL.`);
   lines.push("");

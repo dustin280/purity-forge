@@ -813,7 +813,7 @@ export function buildBlendPlanInput(
           reconstitution: { volumeUl: ctx.rules.preferredInitialReconstitutionUl, solventName: ctx.diluentName },
           finalVolumeUl: ctx.rules.preferredFinalVolumeUl,
           components,
-          rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl },
+          rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl, maxDilutionSteps: ctx.rules.maxDilutionSteps },
         },
       };
     }
@@ -844,7 +844,7 @@ export function buildBlendPlanInput(
       reconstitution: { volumeUl: ctx.rules.preferredInitialReconstitutionUl, solventName: ctx.diluentName },
       finalVolumeUl: ctx.rules.preferredFinalVolumeUl,
       components,
-      rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl },
+      rules: { absoluteMinPipetteUl: ctx.rules.absoluteMinPipetteUl, preferredMinPipetteUl: ctx.rules.preferredMinPipetteUl, maxDilutionSteps: ctx.rules.maxDilutionSteps },
     },
   };
 }
@@ -1122,7 +1122,13 @@ export async function planAndPersistForSample(
         // quantified at all beats one that cannot be spectrally confirmed,
         // which beats an un-representable number, which beats being a little
         // off L3.
-        const score = outOfRange * 1_000_000 + outOfWindow * 10_000 + inexact * 100 + deviation;
+        // Each extra transfer is its own volumetric error, so it outranks a
+        // small deviation from L3: a one-step plan 1% off beats a two-step
+        // plan that is exact. Choosing the reconstitution volume that needs
+        // only one transfer is nearly always the better prep.
+        const transfers = Math.max(0, attempt.steps.filter(st => st.kind === "dilute").length - 1);
+        const score = outOfRange * 1_000_000 + outOfWindow * 10_000 + inexact * 100
+          + transfers * 10 + deviation;
         // Reconstitution volume and aliquot trade off exactly, so several
         // candidates are routinely IDENTICAL chemistry -- SUMMIT lands the
         // same 0.7/0.35/0.35/0.35 at 1 mL/35 µL, 2 mL/70 µL and 3 mL/105 µL.
@@ -1204,7 +1210,10 @@ export async function planAndPersistForSample(
       const offBy = anchor > 0 ? Math.abs(achieved - anchor) / anchor : 0;
       const outOfWindow = offBy > resolved.rules.spectralWindowPct / 100 ? 1 : 0;
       const inexact = landsOnExactDecimal(achieved) ? 0 : 1;
-      const score = outOfWindow * 10_000 + inexact * 100 + Math.abs(achieved - resolved.targetConcMgPerMl) / range;
+      // Same step penalty as the blend search above.
+      const transfers = Math.max(0, attempt.steps.filter(st => st.kind === "dilute").length - 1);
+      const score = outOfWindow * 10_000 + inexact * 100 + transfers * 10
+        + Math.abs(achieved - resolved.targetConcMgPerMl) / range;
       // Same exact-tie rule as the blend search above: reconstitution volume
       // and aliquot trade off, so candidates are often chemically identical
       // (Semaglutide reaches 0.425 at both 1 mL/85 µL and 2 mL/170 µL), and

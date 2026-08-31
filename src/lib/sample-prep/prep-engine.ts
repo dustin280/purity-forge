@@ -5,7 +5,7 @@
  * (reconstitute → optional serial dilutions → aliquot) with warnings.
  * No I/O; safe to import from both client and server.
  */
-import { computeDilution, roundToVolumeGrid, type MassUnit, type VolUnit } from "./dilution";
+import { bestChain, computeDilution, roundToVolumeGrid, type MassUnit, type VolUnit } from "./dilution";
 
 export interface PrepPlanInput {
   analyteName: string;
@@ -382,7 +382,7 @@ export interface BlendPlanInput {
   reconstitution: { volumeUl: number; solventName: string };
   finalVolumeUl: number;
   components: BlendComponentInput[];
-  rules: { absoluteMinPipetteUl: number; preferredMinPipetteUl: number };
+  rules: { absoluteMinPipetteUl: number; preferredMinPipetteUl: number; maxDilutionSteps?: number };
 }
 
 export interface BlendComponentResult {
@@ -470,13 +470,22 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
   });
 
   const minPipette = Math.max(1, input.rules.absoluteMinPipetteUl);
-  const rawAliquotUl = input.finalVolumeUl / idealDf;
-  if (rawAliquotUl <= 0) {
-    return { ok: false, steps, warnings, components: [], totalDilutionFactor: null, error: "Computed aliquot is not positive." };
+  if (!(idealDf > 0)) {
+    return { ok: false, steps, warnings, components: [], totalDilutionFactor: null, error: "Computed dilution factor is not positive." };
   }
-  const aliquotUl = roundToVolumeGrid(rawAliquotUl, minPipette);
-  const actualDf = input.finalVolumeUl / aliquotUl;
-  const diluentUl = Math.max(0, input.finalVolumeUl - aliquotUl);
+  // Blends previously got a single transfer, grid-rounded with the pipette
+  // floor as a clamp -- so an ideal 25 µL aliquot was silently RAISED to
+  // 50 µL and every component came out at twice its target, with no warning.
+  // A chain fixes it properly: when one transfer can't reach the factor
+  // without going under the floor, it becomes a serial dilution instead.
+  const chain = bestChain(idealDf, input.finalVolumeUl, minPipette, input.rules.maxDilutionSteps ?? 4);
+  if (!chain) {
+    return {
+      ok: false, steps, warnings, components: [], totalDilutionFactor: null,
+      error: `Cannot reach a ${idealDf.toFixed(1)}× dilution into ${fmtVol(input.finalVolumeUl)} without pipetting under ${minPipette} µL.`,
+    };
+  }
+  const actualDf = chain.achievedDf;
 
   const components: BlendComponentResult[] = input.components.map(c => {
     const stockConcMgPerMl = stockByName.get(c.name)!;
@@ -493,14 +502,31 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
     };
   });
 
-  steps.push({
-    kind: "dilute", ordinal: 2, fromLabel: "Reconstituted stock", toLabel: "Working sample",
-    instruction: `Pipette ${fmtVol(aliquotUl)} of Reconstituted stock into ${fmtVol(diluentUl)} of ${input.reconstitution.solventName} → ${fmtVol(input.finalVolumeUl)} total (${components.map(c => `${c.name} ${fmtConc(c.resultingConcMgPerMl)}`).join(", ")}).`,
-    aliquotUl, diluentUl, finalVolumeUl: input.finalVolumeUl,
+  // One bench step per transfer. Intermediates carry every component along
+  // together -- the blend never separates, so the whole mixture is what gets
+  // diluted at each stage.
+  let carried = 1;
+  chain.aliquots.forEach((aliquotUl: number, i: number) => {
+    const last = i === chain.aliquots.length - 1;
+    const diluentUl = Math.max(0, input.finalVolumeUl - aliquotUl);
+    carried *= input.finalVolumeUl / aliquotUl;
+    const fromLabel = i === 0 ? "Reconstituted stock" : `Intermediate ${i}`;
+    const toLabel = last ? "Working sample" : `Intermediate ${i + 1}`;
+    const at = last
+      ? ` (${components.map(c => `${c.name} ${fmtConc(c.resultingConcMgPerMl)}`).join(", ")})`
+      : ` (${fmtConc(input.components.reduce((s2, c) => s2 + c.massMg, 0) / (vol / 1000) / carried)} total peptide)`;
+    steps.push({
+      kind: "dilute", ordinal: i + 2, fromLabel, toLabel,
+      instruction: `Pipette ${fmtVol(aliquotUl)} of ${fromLabel} into ${fmtVol(diluentUl)} of ${input.reconstitution.solventName} → ${fmtVol(input.finalVolumeUl)} total${at}.`,
+      aliquotUl, diluentUl, finalVolumeUl: input.finalVolumeUl,
+    });
+    if (aliquotUl < input.rules.preferredMinPipetteUl) {
+      warnings.push({
+        code: aliquotUl < minPipette ? "below-absolute-pipette" : "below-preferred-pipette",
+        message: `Aliquot ${fmtVol(aliquotUl)} is below the ${input.rules.preferredMinPipetteUl} µL minimum.`,
+      });
+    }
   });
-  if (aliquotUl < input.rules.preferredMinPipetteUl) {
-    warnings.push({ code: aliquotUl < minPipette ? "below-absolute-pipette" : "below-preferred-pipette", message: `Aliquot ${fmtVol(aliquotUl)} is below preferred minimum ${input.rules.preferredMinPipetteUl} µL.` });
-  }
 
   return { ok: true, steps, warnings, components, totalDilutionFactor: actualDf };
 }
