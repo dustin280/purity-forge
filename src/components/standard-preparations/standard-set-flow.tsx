@@ -64,7 +64,8 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   const listCompoundsFn = useServerFn(listCompounds);
   const createFn = useServerFn(createStandardSet);
   const getSetFn = useServerFn(getStandardSet);
-  const { data: allCompounds = [] } = useQuery({ queryKey: qk.compounds.list(), queryFn: () => listCompoundsFn() });
+  const { data: allCompounds = [], isPending: compoundsLoading } =
+    useQuery({ queryKey: qk.compounds.list(), queryFn: () => listCompoundsFn() });
   const settingsQ = useQuery({ queryKey: ["sp-settings"], queryFn: () => getPrepSettings() });
   const signalWorkflowEvent = useWorkflowSignal();
 
@@ -255,7 +256,38 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     const used = stockUsedUl(levelIdx);
 
     if (used > batchUl + 0.5) {
-      issues.push(`needs ${Math.round(used)} µL of stock but the batch is only ${Math.round(batchUl)} µL — raise the batch volume or use a stronger primary stock`);
+      // Two different failures wear the same symptom, and they have opposite
+      // remedies -- so the advice has to branch on which one this is.
+      //
+      // Every draw straight from the primary: used is sum(conc/stockConc) *
+      // batch and the batch is batch, so both sides scale together and a
+      // bigger vessel changes nothing. Only a stronger primary or lower
+      // levels can fix it.
+      //
+      // Any draw coming off an intermediate: that volume is inflated by the
+      // intermediate's factor, and the factor exists only because the
+      // primary draw fell under the pipette floor. A bigger batch lifts it
+      // back over, the intermediate disappears, and the volume can drop by
+      // the whole factor. Here a bigger batch is exactly the fix.
+      const viaIntermediate = compounds.filter(c => drawFor(levelIdx, c.compoundId)?.fromFactor);
+      if (viaIntermediate.length) {
+        issues.push(
+          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch —`
+          + ` ${viaIntermediate.map(c => c.abbrev).join(", ")} draw${viaIntermediate.length === 1 ? "s" : ""}`
+          + ` from an intermediate, which multiplies the volume. Raise the batch volume so they can`
+          + ` come straight from the primary.`,
+        );
+      } else {
+        const ratio = compounds.reduce((sum, c) => {
+          const v = level.conc[c.compoundId];
+          return sum + (v != null && c.stockConcMgPerMl > 0 ? v / c.stockConcMgPerMl : 0);
+        }, 0);
+        issues.push(
+          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch`
+          + ` — a bigger batch won't help, both scale together. Use primaries at least`
+          + ` ${(Math.ceil(ratio * 100) / 100).toFixed(2)}× their current strength, or lower this level.`,
+        );
+      }
     } else if (used > batchUl * 0.9) {
       issues.push(`${Math.round((used / batchUl) * 100)}% of this level is stock — barely a dilution; a stronger primary stock would give more room`);
     }
@@ -407,7 +439,11 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
               {MULTI_COMPOUND_STANDARDS.map(std => {
                 const { firstRt, lastRt, closestGapMin } = standardSpread(std);
                 const rows = std.members.map(m => ({ m, c: resolveMember(m, allCompounds) }));
-                const missing = rows.filter(r => !r.c).length;
+                // While the library is still loading nothing resolves, and
+                // saying "not in library" then is a claim about the library
+                // rather than about the fetch -- it reads as "you don't own
+                // any of these", which is the opposite of true.
+                const missing = compoundsLoading ? 0 : rows.filter(r => !r.c).length;
                 return (
                   <div key={std.id} className="border rounded-md p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -420,7 +456,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                       </div>
                       <Button
                         size="sm" variant="secondary" className="h-7 text-xs shrink-0"
-                        disabled={missing === std.members.length}
+                        disabled={compoundsLoading || missing === std.members.length}
                         onClick={() => applyPreset(std)}
                       >
                         Use this set
@@ -430,11 +466,11 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                       {rows.map(({ m, c }) => (
                         <div
                           key={m.name}
-                          className={`flex items-baseline justify-between gap-3 text-[11px] ${c ? "" : "opacity-50"}`}
+                          className={`flex items-baseline justify-between gap-3 text-[11px] ${c || compoundsLoading ? "" : "opacity-50"}`}
                         >
                           <span className="truncate">
                             {m.name}
-                            {!c && <span className="ml-1 italic">— not in library</span>}
+                            {!c && !compoundsLoading && <span className="ml-1 italic">— not in library</span>}
                           </span>
                           <span className="tabular-nums text-muted-foreground shrink-0">{m.rtMin.toFixed(3)}</span>
                         </div>
