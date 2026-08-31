@@ -24,6 +24,24 @@ const componentSchema = z.object({
   abbrev: z.string().min(1).max(20),
   concentration_mg_per_ml: z.number().nullable().optional(),
   stock_volume_ul: z.number().nullable().optional(),
+  /** Which stock the aliquot comes from. Absent/null means the primary. */
+  source_label: z.string().max(60).nullable().optional(),
+});
+
+/**
+ * A weaker stock made up so the low levels can be pipetted at all. Ordered:
+ * a 1:100 is a dilution of the 1:10, so these are made top to bottom.
+ */
+const intermediateStepSchema = z.object({
+  compound_id: z.string().uuid().nullable().optional(),
+  compound_name: z.string().min(1).max(160),
+  label: z.string().min(1).max(60),
+  source_label: z.string().min(1).max(60),
+  factor: z.number().positive(),
+  concentration_mg_per_ml: z.number().nullable().optional(),
+  aliquot_ul: z.number().nullable().optional(),
+  diluent_ul: z.number().nullable().optional(),
+  volume_ul: z.number().nullable().optional(),
 });
 
 const levelSchema = z.object({
@@ -42,6 +60,7 @@ const createSchema = z.object({
   diluent_name: z.string().max(255),
   batch_volume_ml: z.number().positive(),
   levels: z.array(levelSchema).min(1).max(20),
+  intermediate_steps: z.array(intermediateStepSchema).max(60).optional(),
   range_reasoning: z.string().max(4000).nullable().optional(),
   storage_condition: z.string().max(500).nullable().optional(),
   storage_location: z.string().max(500).nullable().optional(),
@@ -79,7 +98,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
       final_volume: `${data.batch_volume_ml} mL each`,
       solvent: data.diluent_name,
       final_diluent: data.diluent_name,
-      preparation_steps: [],
+      preparation_steps: data.intermediate_steps ?? [],
       expiration_date: expirationDate,
       storage_condition: data.storage_condition ?? null,
       storage_location: data.storage_location ?? null,
@@ -135,6 +154,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
         compound_name: c.compound_name,
         concentration_mg_per_ml: c.concentration_mg_per_ml ?? null,
         stock_volume_ul: c.stock_volume_ul ?? null,
+        source_label: c.source_label ?? null,
         sort_order: i,
       }));
       if (level.diluent_volume_ul != null) {
@@ -144,6 +164,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
           compound_name: `${data.diluent_name} (diluent)`,
           concentration_mg_per_ml: null,
           stock_volume_ul: level.diluent_volume_ul,
+          source_label: null,
           sort_order: level.components.length,
         });
       }
@@ -164,6 +185,8 @@ export interface StandardSetLevel {
     compound_name: string;
     concentration_mg_per_ml: number | null;
     stock_volume_ul: number | null;
+    /** Which stock this aliquot came from. Null means the primary. */
+    source_label: string | null;
   }>;
   diluent_volume_ul: number | null;
   expected_note: string | null;
@@ -181,6 +204,19 @@ export interface StandardSetDetail {
   reviewer_name: string | null;
   approved_at: string | null;
   levels: StandardSetLevel[];
+  /** Weaker stocks made before the levels, in the order they're made. */
+  intermediateSteps: StandardSetIntermediate[];
+}
+
+export interface StandardSetIntermediate {
+  compound_name: string;
+  label: string;
+  source_label: string;
+  factor: number;
+  concentration_mg_per_ml: number | null;
+  aliquot_ul: number | null;
+  diluent_ul: number | null;
+  volume_ul: number | null;
 }
 
 export const getStandardSet = createServerFn({ method: "GET" })
@@ -189,7 +225,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
   .handler(async ({ context, data }): Promise<StandardSetDetail> => {
     const { data: log, error: logErr } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at")
+      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps")
       .eq("id", data.id)
       .single();
     if (logErr) throw logErr;
@@ -205,7 +241,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
     const { data: components, error: cErr } = targetIds.length
       ? await context.supabase
         .from("standard_preparation_target_components")
-        .select("target_id, compound_name, concentration_mg_per_ml, stock_volume_ul, sort_order")
+        .select("target_id, compound_name, concentration_mg_per_ml, stock_volume_ul, source_label, sort_order")
         .in("target_id", targetIds)
         .order("sort_order", { ascending: true })
       : { data: [], error: null };
@@ -223,11 +259,21 @@ export const getStandardSet = createServerFn({ method: "GET" })
           compound_name: c.compound_name,
           concentration_mg_per_ml: c.concentration_mg_per_ml,
           stock_volume_ul: c.stock_volume_ul,
+          source_label: c.source_label ?? null,
         })),
         diluent_volume_ul: diluentRow?.stock_volume_ul ?? null,
         expected_note: t.notes || null,
       };
     });
 
-    return { ...(log as Omit<StandardSetDetail, "levels">), levels };
+    // preparation_steps is jsonb and was an empty array for every set made
+    // before intermediate stocks existed, so an old record reads as "none".
+    const raw = (log as { preparation_steps?: unknown }).preparation_steps;
+    const intermediateSteps = (Array.isArray(raw) ? raw : []) as StandardSetIntermediate[];
+
+    return {
+      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps">),
+      levels,
+      intermediateSteps,
+    };
   });

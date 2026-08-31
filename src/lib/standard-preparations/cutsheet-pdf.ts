@@ -23,6 +23,21 @@ export interface CutSheetComponent {
   abbrev: string; // short label-line abbreviation, e.g. "CJC", "TB", "BP", "K"
   concMgPerMl: number | null;
   stockUl: number | null;
+  /** Which stock the aliquot is drawn from. Null/absent means the primary. */
+  sourceLabel?: string | null;
+  /** How much weaker that stock is than the primary: 10, 100. Null = primary. */
+  sourceFactor?: number | null;
+}
+
+/** A weaker stock made up before the levels, so the low ones are pipettable. */
+export interface CutSheetIntermediate {
+  compoundName: string;
+  label: string;
+  sourceLabel: string;
+  concMgPerMl: number | null;
+  aliquotUl: number | null;
+  diluentUl: number | null;
+  volumeUl: number | null;
 }
 
 export interface CutSheetLevel {
@@ -40,6 +55,7 @@ export interface StandardSetCutSheetInput {
   diluentName: string;
   batchVolumeMl: number;
   levels: CutSheetLevel[];
+  intermediates?: CutSheetIntermediate[];
   rangeReasoning: string;
   reviewerName?: string | null;
   approvedAt?: string | null;
@@ -133,6 +149,40 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
 
   // ---- Recipe table ----
   doc.setFontSize(8.5);
+  // ---- Intermediate stocks, made before anything else ----
+  const intermediates = data.intermediates ?? [];
+  if (intermediates.length) {
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 83, 45);
+    doc.text("MAKE FIRST — INTERMEDIATE STOCKS", MARGIN_LR, y);
+    y += 0.08;
+    autoTable(doc, {
+      startY: y,
+      head: [["Stock", "Compound", "From", "Aliquot µL", "Diluent µL", "Total µL", "Gives mg/mL"]],
+      body: intermediates.map(it => [
+        it.label, it.compoundName, it.sourceLabel,
+        it.aliquotUl?.toString() ?? "—",
+        it.diluentUl?.toString() ?? "—",
+        it.volumeUl?.toString() ?? "—",
+        it.concMgPerMl?.toString() ?? "—",
+      ]),
+      styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
+      headStyles: { fillColor: [7, 89, 133], textColor: 255, fontSize: 6.8 },
+      columnStyles: { 0: { fontStyle: "bold" } },
+      margin: { left: MARGIN_LR, right: MARGIN_LR },
+    });
+    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 0.1;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(90, 90, 90);
+    doc.text(
+      "Made in the order listed — each is a dilution of the stock named in \"From\". "
+      + "Levels drawing on one of these are marked with its ratio in the µL column below.",
+      MARGIN_LR, y,
+    );
+    y += 0.18;
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setTextColor(20, 83, 45);
   doc.text("RECIPE", MARGIN_LR, y);
@@ -140,10 +190,20 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
 
   const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.abbrev))));
   const batchUl = data.batchVolumeMl * 1000;
-  const dfText = (stockUl: number | null | undefined): string => {
-    if (!stockUl) return "—";
-    const df = batchUl / stockUl;
+  /**
+   * Dilution from the PRIMARY stock, which is what the number has to mean --
+   * an aliquot drawn from a 1:10 intermediate has already been diluted ten
+   * times before it was measured, so batchUl/stockUl alone understates it by
+   * exactly that factor.
+   */
+  const dfText = (c: CutSheetComponent | undefined): string => {
+    if (!c?.stockUl) return "—";
+    const df = (batchUl / c.stockUl) * (c.sourceFactor ?? 1);
     return `${Number.isInteger(df) ? df : df.toFixed(1)}×`;
+  };
+  const volText = (c: CutSheetComponent | undefined): string => {
+    if (c?.stockUl == null) return "—";
+    return c.sourceFactor ? `${c.stockUl} (1:${c.sourceFactor})` : `${c.stockUl}`;
   };
   const head = [
     "Level",
@@ -158,8 +218,8 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     return [
       l.label,
       ...compoundNames.map(n => byAbbrev.get(n)?.concMgPerMl?.toString() ?? "—"),
-      ...compoundNames.map(n => byAbbrev.get(n)?.stockUl?.toString() ?? "—"),
-      ...compoundNames.map(n => dfText(byAbbrev.get(n)?.stockUl)),
+      ...compoundNames.map(n => volText(byAbbrev.get(n))),
+      ...compoundNames.map(n => dfText(byAbbrev.get(n))),
       l.diluentUl?.toString() ?? "—",
       l.expectedNote ?? "",
     ];

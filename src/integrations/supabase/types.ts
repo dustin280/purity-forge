@@ -5619,6 +5619,7 @@ export type Database = {
           created_at: string
           id: string
           sort_order: number
+          source_label: string | null
           stock_volume_ul: number | null
           target_id: string
         }
@@ -5629,6 +5630,7 @@ export type Database = {
           created_at?: string
           id?: string
           sort_order?: number
+          source_label?: string | null
           stock_volume_ul?: number | null
           target_id: string
         }
@@ -5639,6 +5641,7 @@ export type Database = {
           created_at?: string
           id?: string
           sort_order?: number
+          source_label?: string | null
           stock_volume_ul?: number | null
           target_id?: string
         }
