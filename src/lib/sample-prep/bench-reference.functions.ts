@@ -11,6 +11,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { massToMg } from "./generate-from-run-list.functions";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,6 +25,8 @@ export interface CutSheetStep {
 
 export interface CutSheetComponent {
   name: string;
+  /** Label-declared mass for this component, mg. Null on older records. */
+  massMg?: number | null;
   targetConcMgPerMl: number;
   resultingConcMgPerMl: number;
   /**
@@ -50,6 +53,8 @@ export interface CutSheetComponent {
 
 export interface CutSheetSample {
   prepId: string;
+  /** Label-declared mass of the whole vial, mg. Null when not recorded. */
+  asReceivedMassMg?: number | null;
   prepNumber: string;
   batchId: string;
   compound: string | null;
@@ -80,6 +85,37 @@ export const getCutSheetData = createServerFn({ method: "POST" })
     if (recErr) throw recErr;
     if (stepErr) throw stepErr;
 
+    // What the label declared, read from the sample rather than the plan.
+    // The plan only started carrying component masses on 2026-08-31, and the
+    // sample row has held them all along -- sourcing here means every record
+    // ever generated gets the column, with no backfill.
+    const batchIds = Array.from(new Set(
+      ((records ?? []) as Array<{ sample_id: string | null }>).map(r => r.sample_id).filter((b): b is string => !!b),
+    ));
+    const { data: sampleRows, error: sampErr } = batchIds.length
+      ? await supabase.from("samples")
+        .select("batch_id, received_quantity, received_quantity_unit, components")
+        .in("batch_id", batchIds)
+      : { data: [], error: null };
+    if (sampErr) throw sampErr;
+
+    type RawComp = { compound?: string; label_content_value?: string | number | null; label_content_unit?: string | null };
+    const asReceived = new Map<string, { totalMg: number | null; byComponent: Map<string, number> }>();
+    for (const row of (sampleRows ?? []) as Array<{
+      batch_id: string; received_quantity: string | number | null;
+      received_quantity_unit: string | null; components: RawComp[] | null;
+    }>) {
+      const byComponent = new Map<string, number>();
+      for (const c of row.components ?? []) {
+        const mg = massToMg(Number(c.label_content_value), c.label_content_unit);
+        if (c.compound && mg != null && Number.isFinite(mg)) byComponent.set(c.compound.trim().toLowerCase(), mg);
+      }
+      asReceived.set(row.batch_id, {
+        totalMg: massToMg(Number(row.received_quantity), row.received_quantity_unit),
+        byComponent,
+      });
+    }
+
     const stepsByRecord = new Map<string, CutSheetStep[]>();
     for (const s of (steps ?? []) as Array<{ record_id: string; step_no: number; planned: { instruction?: string; label?: string } }>) {
       const list = stepsByRecord.get(s.record_id) ?? [];
@@ -97,6 +133,13 @@ export const getCutSheetData = createServerFn({ method: "POST" })
     }>).map((r) => {
       const plan = r.plan ?? {};
       const rawWarnings = plan.warnings ?? [];
+      const recv = r.sample_id ? asReceived.get(r.sample_id) : undefined;
+      // Plan value wins when present -- it is what the prep was actually
+      // computed from. The sample row fills in everything older.
+      const components = (plan.components ?? []).map(c => ({
+        ...c,
+        massMg: c.massMg ?? recv?.byComponent.get(c.name.trim().toLowerCase()) ?? null,
+      }));
       return {
         prepId: r.id,
         prepNumber: r.prep_number,
@@ -104,7 +147,8 @@ export const getCutSheetData = createServerFn({ method: "POST" })
         compound: r.sample_context?.compound ?? null,
         resolvedCompound: r.sample_context?.resolved_compound ?? null,
         isBlend: !!plan.isBlend,
-        components: plan.components ?? [],
+        components,
+        asReceivedMassMg: recv?.totalMg ?? null,
         targetConcentrationMgPerMl: r.planned_target_concentration_mg_per_ml,
         calibrationLevel: r.planned_calibration_level,
         totalDilutionFactor: r.total_dilution_factor,

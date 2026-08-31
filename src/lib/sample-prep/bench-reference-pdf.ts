@@ -19,6 +19,21 @@ const CELL_H = 0.5;
 const MARGIN_LR = 0.25;
 const MARGIN_TOP = 0.5;
 
+/**
+ * Border weight for the label cells, in inches.
+ *
+ * Set explicitly, and that is the whole point. jsPDF emits the CURRENT line
+ * width at the start of every page, and nothing here used to set one before
+ * drawing the grid -- so page 1 inherited the library default of 0.200025in
+ * (14.4pt) while every later page inherited the 0.01in left behind by the
+ * letterhead. Page one came out with a stroke a fifth of an inch wide, half
+ * of it sitting ABOVE the top row and into the printer's unprintable margin,
+ * which is what clipped the top edge and made the sheet look off-centre.
+ * Later pages came out with a 0.72pt hairline in light grey, which reads as
+ * no border at all. Neither was chosen; both were inherited.
+ */
+const LABEL_BORDER_IN = 0.008;
+
 export interface BenchReferenceCutSheetInput {
   samples: CutSheetSample[];
   analystName: string;
@@ -57,12 +72,15 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
     );
     const rows = Math.ceil(labels.length / LABEL_COLS) || 1;
     doc.setFont("helvetica", "bold");
+    // Every drawing property the grid depends on, set explicitly rather than
+    // inherited -- see LABEL_BORDER_IN.
+    doc.setLineWidth(LABEL_BORDER_IN);
     labels.forEach((text, i) => {
       const row = Math.floor(i / LABEL_COLS);
       const col = i % LABEL_COLS;
       const x = MARGIN_LR + col * CELL_W;
       const y = MARGIN_TOP + row * CELL_H;
-      doc.setDrawColor(184, 190, 196);
+      doc.setDrawColor(150, 157, 165);
       doc.rect(x, y, CELL_W, CELL_H);
       doc.setFontSize(6.5);
       const lines = doc.splitTextToSize(`${sample.batchId}\n${text}`, CELL_W - 0.1);
@@ -73,6 +91,7 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
       for (let col = usedInLastRow; col < LABEL_COLS; col++) {
         const x = MARGIN_LR + col * CELL_W;
         const y = MARGIN_TOP + (rows - 1) * CELL_H;
+        doc.setLineWidth(LABEL_BORDER_IN);
         doc.setDrawColor(210, 213, 217);
         doc.rect(x, y, CELL_W, CELL_H);
       }
@@ -117,6 +136,11 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
       ["Prepared", new Date(data.preparedAt).toLocaleString()],
       ["Final DF", sample.totalDilutionFactor != null ? `${sample.totalDilutionFactor.toPrecision(3)}×` : "—"],
     ];
+    if (sample.asReceivedMassMg != null) {
+      // Blends repeat this per component in the table below; singles have no
+      // table, so for them this line is the only place the label mass appears.
+      info.push(["As received", `${Number(sample.asReceivedMassMg.toPrecision(4))} mg on label`]);
+    }
     if (!sample.isBlend) {
       info.push([
         "Target",
@@ -144,9 +168,12 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
       y += 0.08;
       autoTable(doc, {
         startY: y,
-        head: [["Component", "Target", "Actual", "In range", "UV conf."]],
+        head: [["Component", "As received", "Target", "Actual", "In range", "UV conf."]],
         body: sample.components.map(c => [
           c.name,
+          // What the label declared, beside what was made from it. Older
+          // records predate this being carried through the plan.
+          c.massMg != null ? `${Number(c.massMg.toPrecision(4))} mg` : "—",
           // The level is part of the target: on a blend the shared dilution
           // often can't sit at every compound's mid-curve, and "0.255 mg/mL"
           // alone doesn't reveal whether that was L3 or the bottom of the
@@ -171,12 +198,12 @@ export function generateBenchReferenceCutSheetPdf(data: BenchReferenceCutSheetIn
         bodyStyles: { textColor: 40 },
         didParseCell: (hook) => {
           if (hook.section !== "body") return;
-          if (hook.column.index === 4 && hook.cell.raw === "OFF L3") {
+          if (hook.column.index === 5 && hook.cell.raw === "OFF L3") {
             hook.cell.styles.textColor = [180, 83, 9];
             hook.cell.styles.fontStyle = "bold";
             return;
           }
-          if (hook.column.index !== 3) return;
+          if (hook.column.index !== 4) return;
           if (hook.cell.raw === "OUTSIDE RANGE") {
             hook.cell.styles.textColor = [185, 28, 28];
             hook.cell.styles.fontStyle = "bold";

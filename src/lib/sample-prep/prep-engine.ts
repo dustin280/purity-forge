@@ -398,6 +398,15 @@ export interface BlendPlanInput {
 export interface BlendComponentResult {
   name: string;
   /**
+   * What the vial label declared for this component, mg. Carried through
+   * from the input because the bench sheet has to show what was received
+   * next to what was made -- an analyst checking a blend prep needs "10 mg
+   * KPV on the label" beside "0.25 mg/mL in the vial", and re-deriving it
+   * from concentration x volume is exactly the arithmetic the sheet exists
+   * to save. Optional: records planned before 2026-08-31 have no value.
+   */
+  massMg?: number | null;
+  /**
    * Whether this component lands inside the L3 spectral window. Null when no
    * L3 is known. Distinct from withinRange: the calibration range says
    * whether the peak can be QUANTIFIED, this says whether its UV spectrum can
@@ -511,7 +520,7 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
       warnings.push({ code: "target-outside-calibration-range", message: `${c.name} lands at ${fmtConc(resultingConcMgPerMl)}, outside its own calibration range (${fmtConc(c.calMinMgPerMl!)}–${fmtConc(c.calMaxMgPerMl!)}) -- no single shared dilution hits every compound.` });
     }
     return {
-      name: c.name, stockConcMgPerMl, targetConcMgPerMl: c.targetConcMgPerMl, calibrationLevel: c.calibrationLevel,
+      name: c.name, massMg: c.massMg, stockConcMgPerMl, targetConcMgPerMl: c.targetConcMgPerMl, calibrationLevel: c.calibrationLevel,
       resultingConcMgPerMl, calMinMgPerMl: c.calMinMgPerMl, calMaxMgPerMl: c.calMaxMgPerMl, withinRange,
     };
   });
