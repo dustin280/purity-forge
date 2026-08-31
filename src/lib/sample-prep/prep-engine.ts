@@ -5,7 +5,7 @@
  * (reconstitute → optional serial dilutions → aliquot) with warnings.
  * No I/O; safe to import from both client and server.
  */
-import { bestChain, computeDilution, roundToVolumeGrid, type MassUnit, type VolUnit } from "./dilution";
+import { bestChain, bestRatioChain, ratioName, computeDilution, roundToVolumeGrid, type MassUnit, type VolUnit } from "./dilution";
 
 export interface PrepPlanInput {
   analyteName: string;
@@ -35,6 +35,8 @@ export interface PrepPlanInput {
     preferredMinPipetteUl: number;
     maxPipetteUl?: number | null;
     maxDilutionSteps: number;
+    /** See DilutionInput.volumeMode -- restricts transfers to named ratios. */
+    volumeMode?: "palette" | "free";
     preferredFinalVolumeUl?: number | null;
     minInitialReconstitutionUl?: number | null;
     maxInitialReconstitutionUl?: number | null;
@@ -73,6 +75,8 @@ export interface PlanStep {
   diluentUl?: number;
   finalVolumeUl?: number;
   resultingMgPerMl?: number;
+  /** "1:10" when this transfer is one of the standard ratios. */
+  ratioLabel?: string;
   suggestedVesselId?: string | null;
   suggestedEquipmentId?: string | null;
 }
@@ -278,6 +282,8 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
     },
     diluentName: input.reconstitution.solventName,
     minPipetteUl: minPipette,
+    volumeMode: input.rules.volumeMode,
+    maxSteps: input.rules.maxDilutionSteps,
   });
 
   if (dr.error) {
@@ -313,11 +319,12 @@ export function planPreparation(input: PrepPlanInput): PrepPlan {
       ordinal: steps.length + 1,
       fromLabel: prevLabel,
       toLabel,
-      instruction: `Pipette ${s.aliquotDisplay} of ${prevLabel} into ${s.diluentDisplay} of ${input.reconstitution.solventName} → ${s.finalVolDisplay} at ${s.resultConcDisplay}.`,
+      instruction: `Pipette ${s.aliquotDisplay} of ${prevLabel} into ${s.diluentDisplay} of ${input.reconstitution.solventName} → ${s.finalVolDisplay}${s.ratioLabel ? ` — a ${s.ratioLabel}` : ""} at ${s.resultConcDisplay}.`,
       aliquotUl: s.aliquotUl,
       diluentUl: s.finalVolUl - s.aliquotUl,
       finalVolumeUl: s.finalVolUl,
       resultingMgPerMl: s.resultingMgPerMl,
+      ratioLabel: s.ratioLabel,
       suggestedVesselId: pickVessel(s.finalVolUl, input.vessels),
       suggestedEquipmentId: pickPipette(s.aliquotUl, input.equipment),
     });
@@ -382,7 +389,10 @@ export interface BlendPlanInput {
   reconstitution: { volumeUl: number; solventName: string };
   finalVolumeUl: number;
   components: BlendComponentInput[];
-  rules: { absoluteMinPipetteUl: number; preferredMinPipetteUl: number; maxDilutionSteps?: number };
+  rules: {
+    absoluteMinPipetteUl: number; preferredMinPipetteUl: number; maxDilutionSteps?: number;
+    volumeMode?: "palette" | "free";
+  };
 }
 
 export interface BlendComponentResult {
@@ -478,13 +488,17 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
   // 50 µL and every component came out at twice its target, with no warning.
   // A chain fixes it properly: when one transfer can't reach the factor
   // without going under the floor, it becomes a serial dilution instead.
-  const chain = bestChain(idealDf, input.finalVolumeUl, minPipette, input.rules.maxDilutionSteps ?? 4);
+  const maxSteps = input.rules.maxDilutionSteps ?? 4;
+  const chain = input.rules.volumeMode === "palette"
+    ? bestRatioChain(idealDf, input.finalVolumeUl, minPipette, maxSteps)
+    : bestChain(idealDf, input.finalVolumeUl, minPipette, maxSteps);
   if (!chain) {
     return {
       ok: false, steps, warnings, components: [], totalDilutionFactor: null,
       error: `Cannot reach a ${idealDf.toFixed(1)}× dilution into ${fmtVol(input.finalVolumeUl)} without pipetting under ${minPipette} µL.`,
     };
   }
+  const chainRatios = "ratios" in chain ? (chain as { ratios: number[] }).ratios : undefined;
   const actualDf = chain.achievedDf;
 
   const components: BlendComponentResult[] = input.components.map(c => {
@@ -515,10 +529,11 @@ export function planBlendPreparation(input: BlendPlanInput): BlendPlan {
     const at = last
       ? ` (${components.map(c => `${c.name} ${fmtConc(c.resultingConcMgPerMl)}`).join(", ")})`
       : ` (${fmtConc(input.components.reduce((s2, c) => s2 + c.massMg, 0) / (vol / 1000) / carried)} total peptide)`;
+    const ratio = chainRatios ? ratioName(chainRatios[i]) : undefined;
     steps.push({
       kind: "dilute", ordinal: i + 2, fromLabel, toLabel,
-      instruction: `Pipette ${fmtVol(aliquotUl)} of ${fromLabel} into ${fmtVol(diluentUl)} of ${input.reconstitution.solventName} → ${fmtVol(input.finalVolumeUl)} total${at}.`,
-      aliquotUl, diluentUl, finalVolumeUl: input.finalVolumeUl,
+      instruction: `Pipette ${fmtVol(aliquotUl)} of ${fromLabel} into ${fmtVol(diluentUl)} of ${input.reconstitution.solventName} → ${fmtVol(input.finalVolumeUl)} total${ratio ? ` — a ${ratio}` : ""}${at}.`,
+      aliquotUl, diluentUl, finalVolumeUl: input.finalVolumeUl, ratioLabel: ratio,
     });
     if (aliquotUl < input.rules.preferredMinPipetteUl) {
       warnings.push({

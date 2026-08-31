@@ -25,10 +25,19 @@
  * That is what makes it a serial dilution: once the 10x exists, the 100x is
  * a single further transfer rather than two fresh ones off the primary.
  */
-import { bestChain } from "@/lib/sample-prep/dilution";
+import { bestChain, ratioName, type RATIO_PALETTE } from "@/lib/sample-prep/dilution";
 
-/** Each intermediate is this much weaker than the one it's made from. */
-const DECADE = 10;
+/** Typed so the build fails if 10 ever leaves the palette. */
+type PaletteFactor = (typeof RATIO_PALETTE)[number]["factor"];
+
+/**
+ * Each intermediate is this much weaker than the one it's made from.
+ *
+ * 10 is deliberately one of the sample-prep ratios, so the whole lab speaks
+ * one vocabulary: a 1:10 here is the same transfer as a 1:10 on a sample
+ * cut sheet, off the same pipette setting.
+ */
+const DECADE: PaletteFactor = 10;
 
 /** Volumes an intermediate is made up to, smallest first, µL. */
 const INTERMEDIATE_VOLUMES_UL = [1000, 2000, 5000, 10000];
@@ -74,7 +83,7 @@ export function primaryLabel(abbrev: string): string {
   return `${abbrev} primary`;
 }
 function intermediateLabel(abbrev: string, factor: number): string {
-  return `${abbrev} 1:${factor}`;
+  return `${abbrev} ${ratioName(factor)}`;
 }
 
 /**

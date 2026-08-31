@@ -321,6 +321,30 @@ interface GlobalPrepSettings {
  * cleanly. Dustin, 2026-08-30: "absolutely nothing can be rounded, there is
  * no close enough, this is high precision work."
  */
+/**
+ * Both volume vocabularies, tried in the same sweep.
+ *
+ * "palette" builds every transfer from the ratios Dustin works in (1:1, 1:5,
+ * 1:10 and their compositions), so a whole run needs no pipette adjustment.
+ * It rarely hits the target factor exactly -- about 11% worst case in the
+ * 10-60x band -- which is placement rather than error, since the achieved
+ * concentration is what gets recorded and quantified against.
+ *
+ * "free" is the old 5 uL grid. It hits the factor almost exactly and is kept
+ * for the cases the palette cannot bring inside the calibration range or the
+ * spectral window at any reconstitution volume.
+ */
+const VOLUME_MODES = ["palette", "free"] as const;
+
+/**
+ * What a free-grid plan has to beat. Set above any in-window palette score
+ * (windowUse maxes at 100 per component, transfers at 40) and below the
+ * 10,000 an out-of-window plan carries, so the preference resolves as:
+ * an acceptable palette plan wins; a palette plan that falls out of range or
+ * out of the spectral window loses to a free-grid plan that doesn't.
+ */
+const FREE_VOLUME_PENALTY = 5_000;
+
 function landsOnExactDecimal(mgPerMl: number): boolean {
   const scaled = mgPerMl * 10_000;
   return Math.abs(scaled - Math.round(scaled)) < 1e-6;
@@ -1084,17 +1108,19 @@ export async function planAndPersistForSample(
             ? { ...c, targetConcMgPerMl: atLevel.concMgPerMl, calibrationLevel: level }
             : c;
         });
+        for (const volumeMode of VOLUME_MODES) {
         const attempt = planBlendPreparation({
           ...built.input,
           components: componentsAtLevel,
           reconstitution: { ...built.input.reconstitution, volumeUl },
+          rules: { ...built.input.rules, volumeMode },
         });
         if (!attempt.ok) { lastError = attempt.error; continue; }
 
         let outOfRange = 0;
         let outOfWindow = 0;
         let inexact = 0;
-        let deviation = 0;
+        let windowUse = 0;
         for (const c of attempt.components) {
           if (c.withinRange === false) outOfRange++;
           if (!landsOnExactDecimal(c.resultingConcMgPerMl)) inexact++;
@@ -1112,11 +1138,16 @@ export async function planAndPersistForSample(
           // only climb when a component would otherwise fall out of range".
           const anchor = resolved.components.find(k => k.name === c.name)?.targetConcMgPerMl
             ?? c.targetConcMgPerMl;
-          deviation += Math.abs(c.resultingConcMgPerMl - anchor) / range;
+          // Measured as a fraction of the spectral window rather than of the
+          // calibration range: the window is what closeness to L3 actually
+          // buys, and it makes the term directly comparable to the penalty
+          // for falling outside it.
+          const offByFrac = anchor > 0 ? Math.abs(c.resultingConcMgPerMl - anchor) / anchor : 0;
+          windowUse += windowFrac > 0 ? Math.min(1, offByFrac / windowFrac) : 0;
           // Spectral window is centred on L3 ALWAYS -- that is the standard
           // the reference spectra were extracted from -- never on whichever
           // level this candidate happens to be aiming at.
-          if (anchor > 0 && Math.abs(c.resultingConcMgPerMl - anchor) / anchor > windowFrac) outOfWindow++;
+          if (anchor > 0 && offByFrac > windowFrac) outOfWindow++;
         }
         // Strict precedence, worst problem first: a component that cannot be
         // quantified at all beats one that cannot be spectrally confirmed,
@@ -1127,8 +1158,16 @@ export async function planAndPersistForSample(
         // plan that is exact. Choosing the reconstitution volume that needs
         // only one transfer is nearly always the better prep.
         const transfers = Math.max(0, attempt.steps.filter(st => st.kind === "dilute").length - 1);
-        const score = outOfRange * 1_000_000 + outOfWindow * 10_000 + inexact * 100
-          + transfers * 10 + deviation;
+        // Closeness to L3 now outranks a tidy-looking number. It used to be
+        // the other way round, which was defensible when the volume grid
+        // could hit any factor to within a percent and an exact decimal cost
+        // nothing. Against a fixed ratio palette it is not: it would take a
+        // plan 18% off L3 because it reads 0.500, over one 2% off that reads
+        // 0.4167. The concentration is recorded either way -- where the
+        // sample sits on the curve is the part that matters.
+        const score = outOfRange * 1_000_000 + outOfWindow * 10_000
+          + (volumeMode === "free" ? FREE_VOLUME_PENALTY : 0)
+          + windowUse * 100 + transfers * 10 + inexact;
         // Reconstitution volume and aliquot trade off exactly, so several
         // candidates are routinely IDENTICAL chemistry -- SUMMIT lands the
         // same 0.7/0.35/0.35/0.35 at 1 mL/35 µL, 2 mL/70 µL and 3 mL/105 µL.
@@ -1142,6 +1181,7 @@ export async function planAndPersistForSample(
         const tied = Math.abs(score - bestScore) <= 1e-9;
         if (score < bestScore - 1e-9 || (tied && aliquotUl > bestAliquotUl)) {
           bestScore = score; best = attempt; bestAliquotUl = aliquotUl;
+        }
         }
       }
     }
@@ -1193,27 +1233,32 @@ export async function planAndPersistForSample(
   if (built.input.source.form === "lyophilized") {
     const candidates = reconstitutionCandidatesUl(sample.container_size);
     if (!candidates) return VIAL_SIZE_NEEDS_INPUT(sample.container_size);
-    const range = resolved.calMaxMgPerMl != null && resolved.calMinMgPerMl != null && resolved.calMaxMgPerMl > resolved.calMinMgPerMl
-      ? resolved.calMaxMgPerMl - resolved.calMinMgPerMl : 1;
-
     let best: PrepPlan | null = null;
     let bestScore = Infinity;
     let bestAliquotUl = 0;
     let lastError: string | undefined;
     for (const volumeUl of candidates) {
-      const attempt = planPreparation({ ...built.input, reconstitution: { ...built.input.reconstitution, volumeUl } });
+      for (const volumeMode of VOLUME_MODES) {
+      const attempt = planPreparation({
+        ...built.input,
+        reconstitution: { ...built.input.reconstitution, volumeUl },
+        rules: { ...built.input.rules, volumeMode },
+      });
       if (!attempt.ok) { lastError = attempt.error; continue; }
       const achieved = attempt.steps[attempt.steps.length - 1]?.resultingMgPerMl ?? attempt.targetConcentrationMgPerMl;
-      // Same precedence as the blend search: spectral window first, then a
-      // representable number, then closeness to L3.
+      // Same precedence as the blend search: standard ratios, then the
+      // spectral window, then closeness to L3, then a representable number.
       const anchor = resolved.targetConcMgPerMl;
+      const windowFrac = resolved.rules.spectralWindowPct / 100;
       const offBy = anchor > 0 ? Math.abs(achieved - anchor) / anchor : 0;
-      const outOfWindow = offBy > resolved.rules.spectralWindowPct / 100 ? 1 : 0;
+      const outOfWindow = offBy > windowFrac ? 1 : 0;
+      const windowUse = windowFrac > 0 ? Math.min(1, offBy / windowFrac) : 0;
       const inexact = landsOnExactDecimal(achieved) ? 0 : 1;
       // Same step penalty as the blend search above.
       const transfers = Math.max(0, attempt.steps.filter(st => st.kind === "dilute").length - 1);
-      const score = outOfWindow * 10_000 + inexact * 100 + transfers * 10
-        + Math.abs(achieved - resolved.targetConcMgPerMl) / range;
+      const score = outOfWindow * 10_000
+        + (volumeMode === "free" ? FREE_VOLUME_PENALTY : 0)
+        + windowUse * 100 + transfers * 10 + inexact;
       // Same exact-tie rule as the blend search above: reconstitution volume
       // and aliquot trade off, so candidates are often chemically identical
       // (Semaglutide reaches 0.425 at both 1 mL/85 µL and 2 mL/170 µL), and
@@ -1222,6 +1267,7 @@ export async function planAndPersistForSample(
       const tied = Math.abs(score - bestScore) <= 1e-9;
       if (score < bestScore - 1e-9 || (tied && aliquotUl > bestAliquotUl)) {
         bestScore = score; best = attempt; bestAliquotUl = aliquotUl;
+      }
       }
     }
     if (!best) return { ok: false, reason: "plan_error", message: lastError ?? "Could not compute a plan for any valid reconstitution volume." };

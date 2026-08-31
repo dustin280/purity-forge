@@ -221,6 +221,14 @@ export interface DilutionInput {
   target: { conc: number; massUnit: MassUnit; volUnit: VolUnit; finalVol: number; finalVolUnit: VolUnit };
   diluentName: string;
   minPipetteUl: number;
+  /**
+   * "palette" restricts every transfer to a named ratio (1:1/1:5/1:10 and
+   * their compositions) so no pipette setting ever changes mid-prep, at the
+   * cost of not hitting the factor exactly. "free" is the old 5 uL grid
+   * search, kept for the cases the palette cannot bring into range.
+   */
+  volumeMode?: "palette" | "free";
+  maxSteps?: number;
 }
 
 export interface DilutionStep {
@@ -232,6 +240,8 @@ export interface DilutionStep {
   aliquotUl: number;
   finalVolUl: number;
   resultingMgPerMl: number;
+  /** "1:10" when this transfer is a palette ratio, absent when it isn't. */
+  ratioLabel?: string;
 }
 
 export interface DilutionResult {
@@ -241,6 +251,8 @@ export interface DilutionResult {
   serial: boolean;
   warnings: string[];
   error?: string;
+  /** Per-transfer palette ratios, when the plan was built from them. */
+  ratios?: number[];
 }
 
 export function computeDilution(input: DilutionInput): DilutionResult {
@@ -261,7 +273,9 @@ export function computeDilution(input: DilutionInput): DilutionResult {
   const df = c1 / c2;
   const singleAliquotUlExact = v2Ul / df;
 
-  if (singleAliquotUlExact >= minPipetteUl) {
+  const paletteMode = input.volumeMode === "palette";
+
+  if (!paletteMode && singleAliquotUlExact >= minPipetteUl) {
     const singleAliquotUl = roundToVolumeGrid(singleAliquotUlExact, minPipetteUl);
     const actualConc = c1 * (singleAliquotUl / v2Ul);
     if (singleAliquotUl > availableUl) {
@@ -296,13 +310,18 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     };
   }
 
-  const chain = bestChain(df, v2Ul, minPipetteUl);
+  const chain = paletteMode
+    ? bestRatioChain(df, v2Ul, minPipetteUl, input.maxSteps ?? 4)
+    : bestChain(df, v2Ul, minPipetteUl, input.maxSteps ?? 4);
   if (!chain) {
     return {
       steps: [], procedure: "", dilutionFactor: df, serial: false, warnings: [],
-      error: `Cannot reach ${trim(df)}× at final volume ${fmtVolUl(v2Ul)} without pipetting under ${minPipetteUl} µL. Increase the final volume.`,
+      error: paletteMode
+        ? `Cannot reach ${trim(df)}× at final volume ${fmtVolUl(v2Ul)} from the standard ratios without pipetting under ${minPipetteUl} µL.`
+        : `Cannot reach ${trim(df)}× at final volume ${fmtVolUl(v2Ul)} without pipetting under ${minPipetteUl} µL. Increase the final volume.`,
     };
   }
+  const chainRatios = "ratios" in chain ? (chain as { ratios: number[] }).ratios : undefined;
 
   const firstAliquotUl = chain.aliquots[0];
   if (firstAliquotUl > availableUl) {
@@ -321,6 +340,7 @@ export function computeDilution(input: DilutionInput): DilutionResult {
       finalVolUl: v2Ul,
       resultingMgPerMl: resulting,
       diluentName,
+      ratioLabel: chainRatios ? ratioName(chainRatios[i]) : undefined,
     });
     steps.push(s);
     prevConc = resulting;
@@ -333,8 +353,9 @@ export function computeDilution(input: DilutionInput): DilutionResult {
     procedure: renderProcedure(steps, diluentName, minPipetteUl, actualDf, true,
       chain.aliquots.map((a) => v2Ul / a)),
     dilutionFactor: actualDf,
-    serial: true,
+    serial: steps.length > 1,
     warnings,
+    ratios: chainRatios,
   };
 }
 
@@ -345,6 +366,7 @@ function buildStep(args: {
   finalVolUl: number;
   resultingMgPerMl: number;
   diluentName: string;
+  ratioLabel?: string;
 }): DilutionStep {
   const diluentUl = Math.max(0, args.finalVolUl - args.aliquotUl);
   return {
@@ -352,6 +374,7 @@ function buildStep(args: {
     aliquotUl: args.aliquotUl,
     finalVolUl: args.finalVolUl,
     resultingMgPerMl: args.resultingMgPerMl,
+    ratioLabel: args.ratioLabel,
     aliquotDisplay: fmtVolUl(args.aliquotUl),
     diluentDisplay: fmtVolUl(diluentUl),
     finalVolDisplay: fmtVolUl(args.finalVolUl),
@@ -378,4 +401,98 @@ function renderProcedure(
     lines.push(`${i + 1}. ${label}: pipette ${s.aliquotDisplay} of ${s.fromLabel} into ${s.diluentDisplay} of ${diluentName} → ${s.finalVolDisplay} at ${s.resultConcDisplay}.`);
   });
   return lines.join("\n");
+}
+/**
+ * The ratios Dustin actually works in.
+ *
+ * 2026-08-31: "1:10 and 1:100 dilutions are great because humans can
+ * understand them at a glance... When I make my own dilutions by hand they
+ * are composed of these steps 100% of the time. And I can set 6 pipettors
+ * permanently to those measurements so there is no stop to change and
+ * recalibrate in between any steps."
+ *
+ * That last clause is the real constraint, and it is not one a free volume
+ * grid can satisfy. A plan reading "65 then 95 then 135 µL" silently assumes
+ * the pipette gets re-set three times; every one of those is an adjustment
+ * that can be misread, mis-set, or drift.
+ *
+ * Only three ratios appear here. The other three Dustin named are these
+ * composed: 1:25 is 1:5 twice, 1:50 is 1:5 then 1:10, 1:100 is 1:10 twice.
+ * Realising them directly would need a 40, 20 or 10 µL aliquot at a 1 mL
+ * working volume -- under the floor, and exactly the fine pipetting the
+ * floor exists to prevent. Composed, every aliquot is 100 µL or more.
+ *
+ * A ratio is scale-free, so the aliquot is finalVolume/factor: at 1 mL these
+ * are 500, 200 and 100 µL, and the matching diluent volumes are 500, 800 and
+ * 900 -- six settings, six pipettors, nothing to change mid-prep.
+ */
+export const RATIO_PALETTE = [
+  { factor: 2, label: "1:1" },
+  { factor: 5, label: "1:5" },
+  { factor: 10, label: "1:10" },
+] as const;
+
+/** Names a composed factor the way the bench says it, when it has a name. */
+const COMPOSED_RATIO_NAMES: Record<number, string> = {
+  2: "1:1", 5: "1:5", 10: "1:10", 25: "1:25", 50: "1:50", 100: "1:100",
+};
+export function ratioName(factor: number): string {
+  return COMPOSED_RATIO_NAMES[factor] ?? `1:${trim(factor)}`;
+}
+
+/**
+ * Like bestChain, but every transfer is one of the palette ratios.
+ *
+ * The achievable factors are the products of 2, 5 and 10, so the target is
+ * generally NOT hit exactly -- worst case about 14% anywhere, 11% in the
+ * 10-60x band real samples occupy. That miss is placement, not error: the
+ * caller recomputes the concentration actually achieved and quantifies
+ * against it. What is bought with it is that no pipette setting ever changes.
+ *
+ * Returns null when no combination lands within `maxSteps` transfers while
+ * keeping every aliquot at or above the floor.
+ */
+export function bestRatioChain(
+  targetDf: number, finalVolUl: number, minPipetteUl: number, maxSteps = 4,
+): (DilutionChain & { ratios: number[] }) | null {
+  if (!(targetDf > 0) || !(finalVolUl > 0)) return null;
+  const usable = RATIO_PALETTE
+    .filter(r => finalVolUl / r.factor >= minPipetteUl)
+    .map(r => r.factor);
+  if (!usable.length) return null;
+
+  const err = (df: number) => Math.abs(Math.log(df / targetDf));
+  const cap = Math.max(1, Math.min(Math.floor(maxSteps), 5));
+  let best: (DilutionChain & { ratios: number[] }) | null = null;
+
+  const consider = (ratios: number[]) => {
+    const df = ratios.reduce((a, b) => a * b, 1);
+    const aliquots = ratios.map(r => finalVolUl / r);
+    if (aliquots.some(a => a < minPipetteUl)) return;
+    const cand = { aliquots, achievedDf: df, ratios };
+    if (!best) { best = cand; return; }
+    const ea = err(df), eb = err(best.achievedDf);
+    // Closest first; among equals the shorter chain, then the gentler one --
+    // 1:5 twice strains each transfer less than 1:10 then 1:1 for the same
+    // factor, and leaves the sample less concentrated at the halfway point.
+    if (Math.abs(ea - eb) > 1e-12) { if (ea < eb) best = cand; return; }
+    if (ratios.length !== best.ratios.length) {
+      if (ratios.length < best.ratios.length) best = cand;
+      return;
+    }
+    if (Math.max(...ratios) < Math.max(...best.ratios)) best = cand;
+  };
+
+  const walk = (prefix: number[]) => {
+    if (prefix.length) consider(prefix);
+    if (prefix.length >= cap) return;
+    for (const f of usable) {
+      // Non-decreasing keeps each multiset visited once; order of transfers
+      // does not change the product.
+      if (prefix.length && f < prefix[prefix.length - 1]) continue;
+      walk([...prefix, f]);
+    }
+  };
+  walk([]);
+  return best;
 }
