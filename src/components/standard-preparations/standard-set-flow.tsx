@@ -21,6 +21,7 @@ import {
   planCompoundStocks, primaryLabel,
   type CompoundPlan, type LevelDraw,
 } from "@/lib/standard-preparations/intermediate-stocks";
+import { benchGrid, snapLadder, worstShift } from "@/lib/standard-preparations/level-grid";
 import { getPrepSettings } from "@/lib/sample-prep/master-data.functions";
 import { qk } from "@/lib/query-keys";
 import { useWorkflowSignal } from "@/contexts/workflow-guide-context";
@@ -186,6 +187,48 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   }
   function diluentUl(levelIdx: number): number {
     return Math.max(0, batchUl - stockUsedUl(levelIdx));
+  }
+
+  /**
+   * What each compound's ladder becomes on the fixed-pipettor grid, and how
+   * far it has to move to get there. Null when no strictly increasing
+   * assignment exists for that compound.
+   */
+  const snapPreview = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof snapLadder>>();
+    for (const c of compounds) {
+      const grid = benchGrid(c.stockConcMgPerMl, batchUl, floorUl);
+      map.set(c.compoundId, snapLadder(levels.map(l => l.conc[c.compoundId] ?? null), grid));
+    }
+    return map;
+  }, [compounds, levels, batchUl, floorUl]);
+
+  const snapIsUseful = compounds.some(c => {
+    const s = snapPreview.get(c.compoundId);
+    return s != null && s.some(x => Math.abs(x.shift) > 1e-9);
+  });
+
+  /**
+   * Rewrites every compound's levels onto the grid. Only the levels that
+   * actually exist move; a blank cell stays blank.
+   */
+  function snapAllToGrid() {
+    const next = levels.map(l => ({ ...l, conc: { ...l.conc } }));
+    let moved = 0;
+    for (const c of compounds) {
+      const snapped = snapPreview.get(c.compoundId);
+      if (!snapped) continue;
+      let k = 0;
+      for (let i = 0; i < next.length; i++) {
+        if (next[i].conc[c.compoundId] == null) continue;
+        const s = snapped[k++];
+        if (!s) break;
+        if (Math.abs(s.shift) > 1e-9) moved++;
+        next[i].conc[c.compoundId] = Number(s.point.concMgPerMl.toPrecision(6));
+      }
+    }
+    setLevels(next);
+    toast.success(moved ? `Moved ${moved} level${moved === 1 ? "" : "s"} onto the bench grid` : "Every level was already on the grid");
   }
 
   /** Every intermediate that has to exist before the levels can be made. */
@@ -516,6 +559,51 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
               Pre-filled below and fully editable. Derived from measured peak height targeting 100–1800&nbsp;mAU;
               each level is a whole 5&nbsp;µL of 1&nbsp;mg/mL stock per 1&nbsp;mL.
             </div>
+            {snapIsUseful && (
+              <div className="mt-2 pt-2 border-t border-border space-y-1.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-[11px] text-muted-foreground">
+                    These levels can be moved onto the <strong>bench grid</strong> — the concentrations the
+                    fixed-volume pipettors make without changing a setting. Nothing else about the set changes,
+                    and no extra standard is consumed.
+                  </div>
+                  <Button size="sm" variant="secondary" className="h-7 text-xs shrink-0" onClick={snapAllToGrid}>
+                    Snap to bench grid
+                  </Button>
+                </div>
+                <table className="text-[11px] w-full">
+                  <tbody>
+                    {compounds.map(c => {
+                      const snapped = snapPreview.get(c.compoundId);
+                      if (!snapped) {
+                        return (
+                          <tr key={c.compoundId}>
+                            <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
+                            <td className="py-0.5 text-amber-700 dark:text-amber-500">
+                              no strictly increasing fit on the grid — leave this one as typed
+                            </td>
+                          </tr>
+                        );
+                      }
+                      const w = worstShift(snapped);
+                      return (
+                        <tr key={c.compoundId}>
+                          <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
+                          <td className="py-0.5 font-mono text-muted-foreground tabular-nums">
+                            {snapped.map(x => x.point.concMgPerMl.toPrecision(3)).join(" · ")}
+                          </td>
+                          <td className="py-0.5 pl-3 text-right tabular-nums whitespace-nowrap">
+                            <span className={w > 0.06 ? "text-amber-700 dark:text-amber-500" : "text-muted-foreground"}>
+                              worst {(w * 100).toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
           <table className="text-xs w-full min-w-[500px]">
             <thead>
