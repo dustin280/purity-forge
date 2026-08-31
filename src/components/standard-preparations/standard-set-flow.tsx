@@ -44,6 +44,17 @@ interface GridLevel {
  */
 const FALLBACK_MIN_PIPETTE_UL = 50;
 
+/**
+ * Primary strength a multi-compound standard is made from.
+ *
+ * Not a preference: the sum of a level's concentrations is exactly the
+ * primary strength needed to fit it in the vial, and Standard 1 sums to
+ * 3.69 mg/mL at L6. A bigger batch does not help -- required stock and batch
+ * scale together. 4.10 is the bare minimum at a 90% fill; 5 leaves margin
+ * for a level revised upward, which is the only direction they move.
+ */
+const MULTI_COMPOUND_STOCK_MG_PER_ML = 5;
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -127,8 +138,14 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       toast.error(`None of ${std.name}'s compounds are in the library yet.`);
       return;
     }
+    // 1 mg/mL cannot make these. The sum of a standard's level
+    // concentrations IS the primary strength it needs -- at L6 that is 1.9
+    // to 3.7 mg/mL across the six recommended standards -- and no batch
+    // volume changes it, since required stock and batch scale together.
+    // 5 clears every one of them with room for a level revised upward.
     setCompounds(resolved.map(({ m, c }) => ({
-      compoundId: c.id, name: c.name, abbrev: m.abbrev, stockConcMgPerMl: 1,
+      compoundId: c.id, name: c.name, abbrev: m.abbrev,
+      stockConcMgPerMl: MULTI_COMPOUND_STOCK_MG_PER_ML,
     })));
     setLevels(prev => prev.map((level, i) => {
       const conc: Record<string, number | null> = {};
@@ -230,6 +247,34 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     }
     setLevels(next);
     toast.success(moved ? `Moved ${moved} level${moved === 1 ? "" : "s"} onto the bench grid` : "Every level was already on the grid");
+  }
+
+  /**
+   * How much PRIMARY stock this compound's whole ladder consumes.
+   *
+   * Dustin, 2026-08-31: "I do not make multiple stocks, I make 1 per 6
+   * standard cal set. The stock has to cover all 6 standards made at 1ml
+   * each." So the number that matters is not what one level draws, it is
+   * what the entire set draws before the stock is thrown away.
+   *
+   * Two parts, and the second is easy to forget: the levels drawn straight
+   * from the primary, plus the aliquot spent MAKING the first intermediate.
+   * That aliquot is charged in full -- a single-use stock gets no credit for
+   * the intermediate it leaves behind. Deeper decades come off the decade
+   * above, so they cost primary only through that first aliquot.
+   */
+  function primaryNeededUl(compoundId: string): number {
+    const plan = plans.get(compoundId);
+    if (!plan) return 0;
+    let direct = 0;
+    for (const d of plan.draws.values()) if (!d.fromFactor) direct += d.volumeUl;
+    return direct + (plan.intermediates[0]?.aliquotUl ?? 0);
+  }
+
+  /** Rounded up to something you'd actually make, with slack for dead volume. */
+  function stockToMakeUl(compoundId: string): number {
+    const need = primaryNeededUl(compoundId);
+    return need > 0 ? Math.ceil((need * 1.15) / 50) * 50 : 0;
   }
 
   /** Every intermediate that has to exist before the levels can be made. */
@@ -427,6 +472,15 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
             </SelectContent>
           </Select>
         </div>
+        {compounds.length > 0 && (
+          <div className="text-[11px] text-muted-foreground">
+            One stock per compound, made fresh for this set and covering all{" "}
+            {levels.filter(l => compounds.some(c => l.conc[c.compoundId] != null)).length} levels at{" "}
+            {batchVolumeMl} mL each. The figure on each chip includes the aliquot spent making its
+            first intermediate — a single-use stock gets no credit for what it leaves behind — plus
+            15% for dead volume.
+          </div>
+        )}
         {compounds.length === 0 && (
           <div className="space-y-2.5">
             <div className="text-xs text-muted-foreground">
@@ -511,6 +565,17 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                 onChange={e => setCompounds(prev => prev.map(x => x.compoundId === c.compoundId ? { ...x, stockConcMgPerMl: Number(e.target.value) || 1 } : x))}
               />
               <span className="text-muted-foreground">mg/mL</span>
+              {stockToMakeUl(c.compoundId) > 0 && (
+                <span
+                  className="text-[10px] rounded bg-muted px-1 py-px tabular-nums whitespace-nowrap"
+                  title="Primary stock this compound's whole ladder consumes, including the aliquot spent making its first intermediate, plus 15% for dead volume."
+                >
+                  make {stockToMakeUl(c.compoundId)} µL
+                  <span className="text-muted-foreground">
+                    {" "}= {((stockToMakeUl(c.compoundId) * c.stockConcMgPerMl) / 1000).toFixed(2)} mg
+                  </span>
+                </span>
+              )}
               <Button size="icon" variant="ghost" className="size-5" onClick={() => removeCompound(c.compoundId)}>
                 <Trash2 className="size-3 text-destructive" />
               </Button>
