@@ -22,6 +22,7 @@ import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authent
 import { Route as AuthenticatedIntakeRouteImport } from './routes/_authenticated/intake'
 import { Route as AuthenticatedCompoundExplorerRouteImport } from './routes/_authenticated/compound-explorer'
 import { Route as AuthenticatedChainOfCustodyRouteImport } from './routes/_authenticated/chain-of-custody'
+import { Route as AuthenticatedStandardPrepFreelanceIndexRouteImport } from './routes/_authenticated/standard-prep-freelance/index'
 import { Route as AuthenticatedSchedulerIndexRouteImport } from './routes/_authenticated/scheduler/index'
 import { Route as AuthenticatedSamplesIndexRouteImport } from './routes/_authenticated/samples/index'
 import { Route as AuthenticatedSamplePrepIndexRouteImport } from './routes/_authenticated/sample-prep/index'
@@ -190,6 +191,12 @@ const AuthenticatedChainOfCustodyRoute =
   AuthenticatedChainOfCustodyRouteImport.update({
     id: '/chain-of-custody',
     path: '/chain-of-custody',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedStandardPrepFreelanceIndexRoute =
+  AuthenticatedStandardPrepFreelanceIndexRouteImport.update({
+    id: '/standard-prep-freelance/',
+    path: '/standard-prep-freelance/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSchedulerIndexRoute =
@@ -874,6 +881,7 @@ export interface FileRoutesByFullPath {
   '/sample-prep/': typeof AuthenticatedSamplePrepIndexRoute
   '/samples/': typeof AuthenticatedSamplesIndexRoute
   '/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/standard-prep-freelance/': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -990,6 +998,7 @@ export interface FileRoutesByTo {
   '/sample-prep': typeof AuthenticatedSamplePrepIndexRoute
   '/samples': typeof AuthenticatedSamplesIndexRoute
   '/scheduler': typeof AuthenticatedSchedulerIndexRoute
+  '/standard-prep-freelance': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -1108,6 +1117,7 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/': typeof AuthenticatedSamplePrepIndexRoute
   '/_authenticated/samples/': typeof AuthenticatedSamplesIndexRoute
   '/_authenticated/scheduler/': typeof AuthenticatedSchedulerIndexRoute
+  '/_authenticated/standard-prep-freelance/': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/_authenticated/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/_authenticated/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
   '/_authenticated/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -1226,6 +1236,7 @@ export interface FileRouteTypes {
     | '/sample-prep/'
     | '/samples/'
     | '/scheduler/'
+    | '/standard-prep-freelance/'
     | '/lab-logs/analysis-batches/$id'
     | '/lab-logs/analysis-batches/new'
     | '/lab-logs/mobile-phase/$id'
@@ -1342,6 +1353,7 @@ export interface FileRouteTypes {
     | '/sample-prep'
     | '/samples'
     | '/scheduler'
+    | '/standard-prep-freelance'
     | '/lab-logs/analysis-batches/$id'
     | '/lab-logs/analysis-batches/new'
     | '/lab-logs/mobile-phase/$id'
@@ -1459,6 +1471,7 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/'
     | '/_authenticated/samples/'
     | '/_authenticated/scheduler/'
+    | '/_authenticated/standard-prep-freelance/'
     | '/_authenticated/lab-logs/analysis-batches/$id'
     | '/_authenticated/lab-logs/analysis-batches/new'
     | '/_authenticated/lab-logs/mobile-phase/$id'
@@ -1603,6 +1616,13 @@ declare module '@tanstack/react-router' {
       path: '/chain-of-custody'
       fullPath: '/chain-of-custody'
       preLoaderRoute: typeof AuthenticatedChainOfCustodyRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/standard-prep-freelance/': {
+      id: '/_authenticated/standard-prep-freelance/'
+      path: '/standard-prep-freelance'
+      fullPath: '/standard-prep-freelance/'
+      preLoaderRoute: typeof AuthenticatedStandardPrepFreelanceIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/scheduler/': {
@@ -2426,6 +2446,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSamplePrepIndexRoute: typeof AuthenticatedSamplePrepIndexRoute
   AuthenticatedSamplesIndexRoute: typeof AuthenticatedSamplesIndexRoute
   AuthenticatedSchedulerIndexRoute: typeof AuthenticatedSchedulerIndexRoute
+  AuthenticatedStandardPrepFreelanceIndexRoute: typeof AuthenticatedStandardPrepFreelanceIndexRoute
   AuthenticatedLabLogsAnalysisBatchesIdRoute: typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   AuthenticatedLabLogsAnalysisBatchesNewRoute: typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
   AuthenticatedLabLogsMobilePhaseIdRoute: typeof AuthenticatedLabLogsMobilePhaseIdRoute
@@ -2544,6 +2565,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSamplePrepIndexRoute: AuthenticatedSamplePrepIndexRoute,
   AuthenticatedSamplesIndexRoute: AuthenticatedSamplesIndexRoute,
   AuthenticatedSchedulerIndexRoute: AuthenticatedSchedulerIndexRoute,
+  AuthenticatedStandardPrepFreelanceIndexRoute:
+    AuthenticatedStandardPrepFreelanceIndexRoute,
   AuthenticatedLabLogsAnalysisBatchesIdRoute:
     AuthenticatedLabLogsAnalysisBatchesIdRoute,
   AuthenticatedLabLogsAnalysisBatchesNewRoute:
