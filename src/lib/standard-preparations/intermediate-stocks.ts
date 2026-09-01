@@ -25,7 +25,7 @@
  * That is what makes it a serial dilution: once the 10x exists, the 100x is
  * a single further transfer rather than two fresh ones off the primary.
  */
-import { bestChain, ratioName, type RATIO_PALETTE } from "@/lib/sample-prep/dilution";
+import { bestChain, ratioName, roundToVolumeGrid, type RATIO_PALETTE } from "@/lib/sample-prep/dilution";
 
 /** Typed so the build fails if 10 ever leaves the palette. */
 type PaletteFactor = (typeof RATIO_PALETTE)[number]["factor"];
@@ -63,13 +63,20 @@ export interface IntermediateStock {
 }
 
 export interface LevelDraw {
-  /** Volume to pipette, µL. Always >= the floor when `ok`. */
+  /** Volume to pipette, µL. Always >= the floor when `ok`. Always a multiple of 5. */
   volumeUl: number;
   /** null when drawn from the primary stock. */
   fromFactor: number | null;
   sourceLabel: string;
   /** False when even an intermediate can't bring this level into range. */
   ok: boolean;
+  /**
+   * What volumeUl actually delivers, recomputed from the grid-rounded
+   * volume rather than the typed target. Grid rounding moves this off the
+   * target by up to +/-2.5 uL worth of concentration -- shown rather than
+   * hidden, same principle as every other rounding boundary in this app.
+   */
+  achievedConcMgPerMl: number;
 }
 
 export interface CompoundPlan {
@@ -120,19 +127,34 @@ export function planCompoundStocks(args: {
 
   concByLevel.forEach((conc, i) => {
     if (conc == null) return;
-    const fromPrimary = (conc / stockConcMgPerMl) * batchUl;
-    if (!(fromPrimary > 0)) return;
+    // Raw division, then snapped to the 5 uL grid immediately -- before
+    // anything downstream ever sees it. Every pipetted volume in this app
+    // is supposed to be a multiple of 5; this was the one place that
+    // computed one and never rounded it, so any stock concentration that
+    // didn't happen to divide evenly (anything but 1 mg/mL) produced real
+    // numbers like 234 or 178 uL. Snapping the DECADE FACTOR later (an
+    // integer power of ten) can never move a multiple-of-5 off the grid,
+    // so rounding once here is enough for every value derived from it.
+    const rawFromPrimary = (conc / stockConcMgPerMl) * batchUl;
+    if (!(rawFromPrimary > 0)) return;
+    const fromPrimary = roundToVolumeGrid(rawFromPrimary);
 
     const factor = decadeFor(fromPrimary, floorUl);
     const volumeUl = fromPrimary * factor;
     // A level whose aliquot would overflow the batch isn't rescued by a
     // weaker stock -- it's asking for more liquid than the vial holds.
     const ok = volumeUl >= floorUl && volumeUl <= batchUl;
+    // Equivalent-dose serial dilution: volumeUl of a stock `factor` times
+    // weaker than the primary delivers the same amount as fromPrimary of
+    // the primary itself, so the factor cancels and this reduces to the
+    // rounded direct-draw volume regardless of which stock it came from.
+    const achievedConcMgPerMl = (fromPrimary / batchUl) * stockConcMgPerMl;
     draws.set(i, {
       volumeUl,
       fromFactor: factor === 1 ? null : factor,
       sourceLabel: factor === 1 ? primaryLabel(abbrev) : intermediateLabel(abbrev, factor),
       ok,
+      achievedConcMgPerMl,
     });
     if (factor > 1) drawnByFactor.set(factor, (drawnByFactor.get(factor) ?? 0) + volumeUl);
   });
