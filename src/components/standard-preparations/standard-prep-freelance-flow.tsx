@@ -14,16 +14,17 @@
  * no presets, no library reconciliation. Dustin types the compounds, a low
  * and a high, and gets an even spread back on his own numbers.
  *
- * What it does NOT skip is the pipetting math. That isn't "compound data",
- * it's bench physics -- the 50 uL floor, the 5 uL grid, serial dilution via
- * intermediates when a level falls under the floor. Those come from
- * planCompoundStocks (intermediate-stocks.ts), the exact same engine
- * standard-set-flow.tsx uses, called here with freeform-generated levels
- * instead of library-derived ones. Persistence (createStandardSet) and the
- * cut sheet (generateStandardSetCutSheetPdf) are equally generic -- neither
- * one cares where the levels came from -- so both are reused unmodified.
+ * The pipetting math comes from prep-calculator.ts, 2026-09-01, after a
+ * KLOW overflow case (4 compounds, 5000 uL flask, 15000 uL of stock
+ * needed) surfaced as a soft warning instead of a hard failure. That
+ * module computes each LEVEL as a unit -- every compound in it checked
+ * together against one flask_ul -- and returns possible:false with a
+ * reason and fix suggestions when a level genuinely cannot be made,
+ * rather than silently clamping diluent to zero and hoping someone
+ * notices. Each level is computed independently of every other, per its
+ * own spec: a bad L6 does not affect L1.
  */
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -38,10 +39,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { listCompounds } from "@/lib/compounds.functions";
 import { createStandardSet, getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
-import {
-  planCompoundStocks, primaryLabel,
-  type CompoundPlan, type LevelDraw,
-} from "@/lib/standard-preparations/intermediate-stocks";
+import { primaryLabel } from "@/lib/standard-preparations/intermediate-stocks";
+import { computeLevel, type PrepLevelResult } from "@/lib/standard-preparations/prep-calculator";
 import { evenSpread } from "@/lib/standard-preparations/freeform-spread";
 import { freelanceRunListCsv } from "@/lib/standard-preparations/freeform-run-list";
 import { generateFreelanceLabelSheetPdf } from "@/lib/standard-preparations/freeform-label-sheet";
@@ -94,12 +93,7 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
   // Spread controls -- independent of the compound list. "Generate" targets
   // ONE compound at a time by default (targetCompoundId, auto-set to
   // whichever was just added) and MERGES its values into the grid, leaving
-  // every other compound's already-generated levels untouched. It used to
-  // overwrite the whole grid with one shared ladder every time -- real bug,
-  // reported 2026-09-01 after three compounds with genuinely distinct
-  // ranges (BPC/GHK/THY) all collapsed onto whichever range was generated
-  // last. ALL_COMPOUNDS is kept as an explicit opt-in for the case a truly
-  // shared range across every compound really is what's wanted.
+  // every other compound's already-generated levels untouched.
   const ALL_COMPOUNDS = "__all__";
   const [targetCompoundId, setTargetCompoundId] = useState("");
   const [levelCount, setLevelCount] = useState("6");
@@ -110,9 +104,6 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
 
   function selectTarget(id: string) {
     setTargetCompoundId(id);
-    // Clearing on every switch is deliberate: leftover numbers from the
-    // previous compound silently re-applied to a new one is exactly the
-    // failure mode being fixed here.
     setLowConc(""); setHighConc("");
   }
   function addCompound(id: string) {
@@ -139,9 +130,6 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
     const targetIds = applyToAll ? compounds.map(c => c.compoundId) : [targetCompoundId];
     const spread = evenSpread(lo, hi, n);
     setLevels(prev => {
-      // Grow the table if this compound needs more rows than exist today.
-      // Never shrink it -- an earlier compound's Generate may have left
-      // rows this one doesn't need but another compound still does.
       const rows = prev.length >= spread.length ? prev : [
         ...prev,
         ...Array.from({ length: spread.length - prev.length }, (_, i) => ({
@@ -168,81 +156,72 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
   const batchUl = (Number(batchVolumeMl) || 0) * 1000;
   const floorUl = settingsQ.data?.absolute_min_pipette_ul ?? FALLBACK_MIN_PIPETTE_UL;
 
-  const plans = useMemo(() => {
-    const map = new Map<string, CompoundPlan>();
-    for (const c of compounds) {
-      map.set(c.compoundId, planCompoundStocks({
-        compoundId: c.compoundId, abbrev: c.abbrev, stockConcMgPerMl: c.stockConcMgPerMl,
-        batchUl, floorUl, concByLevel: levels.map(l => l.conc[c.compoundId] ?? null),
-      }));
-    }
-    return map;
-  }, [compounds, levels, batchUl, floorUl]);
-
-  function drawFor(levelIdx: number, compoundId: string): LevelDraw | null {
-    return plans.get(compoundId)?.draws.get(levelIdx) ?? null;
-  }
-  function stockUsedUl(levelIdx: number): number {
-    return compounds.reduce((sum, c) => sum + (drawFor(levelIdx, c.compoundId)?.volumeUl ?? 0), 0);
-  }
-  function diluentUl(levelIdx: number): number {
-    return Math.max(0, batchUl - stockUsedUl(levelIdx));
-  }
-  function stockToMakeUl(compoundId: string): number {
-    const plan = plans.get(compoundId);
-    if (!plan) return 0;
-    let direct = 0;
-    for (const d of plan.draws.values()) if (!d.fromFactor) direct += d.volumeUl;
-    const need = direct + (plan.intermediates[0]?.aliquotUl ?? 0);
-    return need > 0 ? Math.ceil((need * 1.15) / 50) * 50 : 0;
-  }
-  const allIntermediates = compounds.flatMap(c =>
-    (plans.get(c.compoundId)?.intermediates ?? []).map(it => ({ compound: c, it })),
+  const engineStocks = useMemo(
+    () => compounds.map(c => ({ compound_id: c.compoundId, conc_mg_ml: c.stockConcMgPerMl })),
+    [compounds],
+  );
+  const engineCompounds = useMemo(
+    () => compounds.map(c => ({ id: c.compoundId, name: c.name })),
+    [compounds],
   );
 
-  /**
-   * Same two-branch pipetting-feasibility check as the library flow (see
-   * standard-set-flow.tsx) -- this is bench physics, not calibration data,
-   * so it stays. A level demanding more stock than the batch holds reads
-   * "0 uL diluent" and looks finished unless flagged; a draw off an
-   * intermediate needs a bigger batch to fix, a draw off the primary needs
-   * a stronger stock instead -- the two remedies are opposite, so which one
-   * shows depends on which is actually happening.
-   */
-  function levelIssues(levelIdx: number): string[] {
-    const issues: string[] = [];
-    if (!batchUl) return issues;
-    const level = levels[levelIdx];
-    const anyConc = compounds.some(c => level.conc[c.compoundId] != null);
-    if (!anyConc) return issues;
-    const used = stockUsedUl(levelIdx);
-    if (used > batchUl + 0.5) {
-      const viaIntermediate = compounds.filter(c => drawFor(levelIdx, c.compoundId)?.fromFactor);
-      if (viaIntermediate.length) {
-        issues.push(
-          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch — `
-          + `${viaIntermediate.map(c => c.abbrev).join(", ")} draw${viaIntermediate.length === 1 ? "s" : ""} `
-          + `from an intermediate, which multiplies the volume. Raise the batch volume so it can come straight from the primary.`,
-        );
-      } else {
-        const ratio = compounds.reduce((sum, c) => {
-          const v = level.conc[c.compoundId];
-          return sum + (v != null && c.stockConcMgPerMl > 0 ? v / c.stockConcMgPerMl : 0);
-        }, 0);
-        issues.push(
-          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch`
-          + ` — a bigger batch will not help, both scale together. Use primaries at least`
-          + ` ${(Math.ceil(ratio * 100) / 100).toFixed(2)}x their current strength, or lower this level.`,
-        );
-      }
-    } else if (used > batchUl * 0.9) {
-      issues.push(`${Math.round((used / batchUl) * 100)}% of this level is stock — barely a dilution; a stronger primary stock would give more room`);
-    }
-    return issues;
+  // One computeLevel call per row -- each level is its own, fully
+  // independent feasibility check, matching the calculator's own rule
+  // ("a bad L6 does not contaminate L1"). A row with no concentrations
+  // entered anywhere isn't a real level yet, so it's skipped rather than
+  // reported as an empty "possible" recipe.
+  const levelResults: Array<PrepLevelResult | null> = useMemo(() => {
+    if (!batchUl) return levels.map(() => null);
+    return levels.map((level, i) => {
+      const targets = compounds
+        .filter(c => level.conc[c.compoundId] != null)
+        .map(c => ({ compound_id: c.compoundId, conc_mg_ml: level.conc[c.compoundId]! }));
+      if (!targets.length) return null;
+      return computeLevel({
+        level_id: level.label || `L${i + 1}`,
+        flask_ul: batchUl,
+        targets,
+        compounds: engineCompounds,
+        stocks: engineStocks,
+        options: { diluent_name: diluentName, allow_serial: true, min_pipette_ul: floorUl, max_serial_steps: 2 },
+      });
+    });
+  }, [levels, compounds, engineCompounds, engineStocks, batchUl, floorUl, diluentName]);
+
+  function componentFor(levelIdx: number, compoundName: string) {
+    const r = levelResults[levelIdx];
+    if (!r || !r.possible) return null;
+    return r.components.find(c => c.compound === compoundName) ?? null;
   }
+
+  /** Primary stock a compound's WHOLE ladder consumes, across every level
+   * where that level is actually makeable. A serial component draws its
+   * intermediate from the primary only via the first step -- the second
+   * step draws from that intermediate, not from the primary stock itself. */
+  function stockToMakeUl(compoundId: string, compoundName: string): number {
+    let need = 0;
+    levelResults.forEach(r => {
+      if (!r || !r.possible) return;
+      const comp = r.components.find(c => c.compound === compoundName);
+      if (!comp) return;
+      need += comp.take_ul ?? comp.serial?.[0]?.take_ul ?? 0;
+    });
+    return need > 0 ? Math.ceil((need * 1.15) / 50) * 50 : 0;
+  }
+
+  const canSubmit = Boolean(
+    standardName.trim() && compounds.length > 0
+    && levels.some((l, i) => compounds.some(c => l.conc[c.compoundId] != null) && levelResults[i]?.possible)
+    && levels.every((_l, i) => levelResults[i] == null || levelResults[i]!.possible),
+  );
 
   const createMut = useMutation({
     mutationFn: async () => {
+      const intermediateSteps: Array<{
+        compound_id: string; compound_name: string; label: string; source_label: string;
+        factor: number; concentration_mg_per_ml: number; aliquot_ul: number; diluent_ul: number; volume_ul: number;
+      }> = [];
+
       const payload = {
         prepared_at: new Date().toISOString(),
         analyst_name: analystName,
@@ -251,29 +230,49 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         diluent_name: diluentName,
         batch_volume_ml: Number(batchVolumeMl) || 1,
         range_reasoning: rangeReasoning || null,
-        intermediate_steps: allIntermediates.map(({ compound, it }) => ({
-          compound_id: compound.compoundId, compound_name: compound.name,
-          label: it.label, source_label: it.sourceLabel, factor: it.factor,
-          concentration_mg_per_ml: round2(it.concMgPerMl), aliquot_ul: round2(it.aliquotUl),
-          diluent_ul: round2(it.diluentUl), volume_ul: round2(it.volumeUl),
-        })),
-        levels: levels.map((l, i) => ({
-          row_no: i + 1,
-          label: l.label,
-          components: compounds
+        levels: levels.map((l, i) => {
+          const result = levelResults[i];
+          if (!result || !result.possible) return { row_no: i + 1, label: l.label, components: [], diluent_volume_ul: 0, expected_note: null };
+          const rowComponents = compounds
             .filter(c => l.conc[c.compoundId] != null)
             .map(c => {
-              const d = drawFor(i, c.compoundId);
+              const comp = result.components.find(x => x.compound === c.name);
+              if (!comp) return null;
+              if (comp.take_ul != null) {
+                return {
+                  compound_id: c.compoundId, compound_name: c.name, abbrev: c.abbrev,
+                  concentration_mg_per_ml: comp.target_mg_ml,
+                  stock_volume_ul: round2(comp.take_ul),
+                  source_label: primaryLabel(c.abbrev),
+                };
+              }
+              // Serial: persist the first (intermediate-making) step as its
+              // own entry, and record the level's own draw as coming FROM
+              // that intermediate (the second step's take_ul).
+              const step1 = comp.serial![0];
+              const step2 = comp.serial![1];
+              const label = `${c.abbrev} ${l.label} 1:${round2(step1.factor)}`;
+              intermediateSteps.push({
+                compound_id: c.compoundId, compound_name: c.name, label,
+                source_label: primaryLabel(c.abbrev), factor: step1.factor,
+                concentration_mg_per_ml: round2(step1.resulting_conc),
+                aliquot_ul: round2(step1.take_ul), diluent_ul: round2(step1.diluent_ul),
+                volume_ul: round2(step1.take_ul + step1.diluent_ul),
+              });
               return {
                 compound_id: c.compoundId, compound_name: c.name, abbrev: c.abbrev,
-                concentration_mg_per_ml: l.conc[c.compoundId],
-                stock_volume_ul: d ? round2(d.volumeUl) : null,
-                source_label: d?.sourceLabel ?? primaryLabel(c.abbrev),
+                concentration_mg_per_ml: comp.target_mg_ml,
+                stock_volume_ul: round2(step2.take_ul),
+                source_label: label,
               };
-            }),
-          diluent_volume_ul: round2(diluentUl(i)),
-          expected_note: null,
-        })).filter(l => l.components.length > 0),
+            })
+            .filter((c): c is NonNullable<typeof c> => c != null);
+          return {
+            row_no: i + 1, label: l.label, components: rowComponents,
+            diluent_volume_ul: round2(result.diluent_ul), expected_note: null,
+          };
+        }).filter(l => l.components.length > 0),
+        intermediate_steps: intermediateSteps,
       };
       const created = await createFn({ data: payload });
       const detail = await getSetFn({ data: { id: created.id } });
@@ -316,19 +315,21 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const canSubmit = standardName.trim() && compounds.length > 0 && levels.some(l => compounds.some(c => l.conc[c.compoundId] != null));
-
   // Shape shared by the run list and the label sheet -- both need exactly
   // the same per-level compound/concentration list, and both need it to be
-  // the sample-name convention's input, not the raw grid state.
+  // the sample-name convention's input, not the raw grid state. Only levels
+  // the calculator confirms are actually makeable go out on a label or a
+  // sequence row.
   const namingLevels: FreelanceNamingLevel[] = useMemo(() => levels
-    .map(l => ({
+    .map((l, i) => ({
       label: l.label,
+      possible: levelResults[i]?.possible ?? false,
       components: compounds
         .filter(c => l.conc[c.compoundId] != null)
         .map(c => ({ name: c.name, concMgPerMl: l.conc[c.compoundId]! })),
     }))
-    .filter(l => l.components.length > 0), [levels, compounds]);
+    .filter(l => l.components.length > 0 && l.possible)
+    .map(({ label, components }) => ({ label, components })), [levels, compounds, levelResults]);
 
   function exportFilenameStem(): string {
     return (standardName.trim() || "standard-prep-freelance").replace(/[^A-Za-z0-9_-]+/g, "_");
@@ -336,7 +337,7 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
 
   function downloadRunList() {
     if (!standardName.trim()) { toast.error("Enter a standard name first — it goes into every sample name."); return; }
-    if (!namingLevels.length) { toast.error("Generate or enter some levels first."); return; }
+    if (!namingLevels.length) { toast.error("No makeable levels yet — fix any failed levels first."); return; }
     const csv = freelanceRunListCsv(standardName, namingLevels);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -348,9 +349,11 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
 
   function downloadLabelSheet() {
     if (!standardName.trim()) { toast.error("Enter a standard name first — it goes into every label."); return; }
-    if (!namingLevels.length) { toast.error("Generate or enter some levels first."); return; }
+    if (!namingLevels.length) { toast.error("No makeable levels yet — fix any failed levels first."); return; }
     generateFreelanceLabelSheetPdf(standardName, namingLevels).save(`${exportFilenameStem()}_labels.pdf`);
   }
+
+  const colCount = 2 + compounds.length * 2;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl space-y-4">
@@ -358,10 +361,11 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Standard Prep Freelance</h1>
         <p className="text-sm text-muted-foreground">
           Pick compounds, type a low and a high standard, get an even spread — no calibration lookups, no presets.
-          Still enforces the 50&nbsp;µL floor and the 5&nbsp;µL grid: a level that would need a sub-floor aliquot
-          is served from an automatic serial dilution instead of refused. The run list and label sheet share one
-          sample name per level — <code>L1 &lt;standard name&gt; B0.28 G0.14 &lt;D&gt;</code> — so a vial and its
-          sequence row always read the same.
+          Every level is checked as a whole against the batch volume before anything is offered: if the compounds
+          in it genuinely cannot fit, the level says so and why, instead of quietly clamping diluent to zero.
+          The run list and label sheet share one sample name per level —{" "}
+          <code>L1 &lt;standard name&gt; B0.28 G0.14 &lt;D&gt;</code> — so a vial and its sequence row always read
+          the same.
         </p>
       </div>
 
@@ -411,10 +415,10 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
                 onChange={e => setCompounds(prev => prev.map(x => x.compoundId === c.compoundId ? { ...x, stockConcMgPerMl: Number(e.target.value) || 1 } : x))}
               />
               <span className="text-muted-foreground">mg/mL</span>
-              {stockToMakeUl(c.compoundId) > 0 && (
+              {stockToMakeUl(c.compoundId, c.name) > 0 && (
                 <span className="text-[10px] rounded bg-muted px-1 py-px tabular-nums whitespace-nowrap"
-                  title="Primary stock this compound's whole ladder consumes, including the aliquot spent making its first intermediate, plus 15% for dead volume.">
-                  make {stockToMakeUl(c.compoundId)} µL
+                  title="Primary stock this compound's whole ladder consumes across every makeable level, plus 15% for dead volume.">
+                  make {stockToMakeUl(c.compoundId, c.name)} µL
                 </span>
               )}
               <Button size="icon" variant="ghost" className="size-5" onClick={() => removeCompound(c.compoundId)}>
@@ -461,46 +465,6 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         </p>
       </Card>
 
-      {allIntermediates.length > 0 && (
-        <Card className="p-4 space-y-2">
-          <div className="text-sm font-medium">Make these first — intermediate stocks</div>
-          <p className="text-[11px] text-muted-foreground">
-            These levels need less of the primary stock than the {floorUl}&nbsp;µL pipette floor allows,
-            so they are drawn from a weaker stock instead. Each one is a dilution of the line above it,
-            so make them in this order.
-          </p>
-          <div className="overflow-x-auto">
-            <table className="text-xs w-full min-w-[520px]">
-              <thead>
-                <tr className="text-left text-muted-foreground">
-                  <th className="pb-1 pr-3">Stock</th>
-                  <th className="pb-1 pr-3">From</th>
-                  <th className="pb-1 pr-3 text-right">Aliquot</th>
-                  <th className="pb-1 pr-3 text-right">Diluent</th>
-                  <th className="pb-1 pr-3 text-right">Total</th>
-                  <th className="pb-1 text-right">Gives</th>
-                </tr>
-              </thead>
-              <tbody className="tabular-nums">
-                {allIntermediates.map(({ compound, it }) => (
-                  <tr key={compound.compoundId + it.label} className="border-t border-border">
-                    <td className="py-1 pr-3">
-                      <span className="text-[10px] rounded bg-sky-500/10 text-sky-700 dark:text-sky-300 px-1 py-px">{it.label}</span>
-                      <span className="ml-1.5 text-muted-foreground">{compound.name}</span>
-                    </td>
-                    <td className="py-1 pr-3 text-muted-foreground">{it.sourceLabel}</td>
-                    <td className="py-1 pr-3 text-right">{Math.round(it.aliquotUl)} µL</td>
-                    <td className="py-1 pr-3 text-right text-muted-foreground">{Math.round(it.diluentUl)} µL</td>
-                    <td className="py-1 pr-3 text-right text-muted-foreground">{Math.round(it.volumeUl)} µL</td>
-                    <td className="py-1 text-right">{it.concMgPerMl} mg/mL</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
       {compounds.length > 0 && (
         <Card className="p-4 space-y-2 overflow-x-auto">
           <div className="flex items-center justify-between">
@@ -520,62 +484,78 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
               </tr>
             </thead>
             <tbody>
-              {levels.map((level, li) => (
-                <tr key={li} className="border-t border-border">
-                  <td className="py-1 pr-2 font-medium">
-                    <Input className="h-7 w-14 text-xs" value={level.label}
-                      onChange={e => setLevels(prev => prev.map((l, i) => i === li ? { ...l, label: e.target.value } : l))} />
-                  </td>
-                  {compounds.map(c => (
-                    <td key={c.compoundId} className="py-1 pr-2">
-                      <Input
-                        className="h-7 w-20 text-xs" type="number" step="0.005"
-                        value={level.conc[c.compoundId] ?? ""}
-                        onChange={e => {
-                          const v = e.target.value === "" ? null : Number(e.target.value);
-                          setLevels(prev => prev.map((l, i) => i === li ? { ...l, conc: { ...l.conc, [c.compoundId]: v } } : l));
-                        }}
-                      />
-                    </td>
-                  ))}
-                  {compounds.map(c => {
-                    const d = drawFor(li, c.compoundId);
-                    return (
-                      <td key={c.compoundId + "-ul"} className="py-1 pr-2 tabular-nums">
-                        {d ? (
-                          <span className={d.ok ? "" : "text-amber-700 dark:text-amber-400"}>
-                            <span className="text-muted-foreground">{Math.round(d.volumeUl)}</span>
-                            {d.fromFactor && (
-                              <span className="ml-1 text-[10px] rounded bg-sky-500/10 text-sky-700 dark:text-sky-300 px-1 py-px whitespace-nowrap">
-                                1:{d.fromFactor}
-                              </span>
-                            )}
-                          </span>
-                        ) : <span className="text-muted-foreground">-</span>}
+              {levels.map((level, li) => {
+                const result = levelResults[li];
+                const hasAnyConc = compounds.some(c => level.conc[c.compoundId] != null);
+                const failed = hasAnyConc && result != null && !result.possible;
+                return (
+                  <Fragment key={li}>
+                    <tr className={`border-t border-border ${failed ? "bg-red-500/5" : ""}`}>
+                      <td className="py-1 pr-2 font-medium">
+                        <Input className="h-7 w-14 text-xs" value={level.label}
+                          onChange={e => setLevels(prev => prev.map((l, i) => i === li ? { ...l, label: e.target.value } : l))} />
                       </td>
-                    );
-                  })}
-                  <td className="py-1 pr-2 text-muted-foreground tabular-nums">{Math.round(diluentUl(li))}</td>
-                  <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeLevel(li)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
-                </tr>
-              ))}
-              {levels.some((_l, li) => levelIssues(li).length > 0) && (
-                <tr>
-                  <td colSpan={2 + compounds.length * 2} className="pt-2">
-                    <div className="rounded border border-amber-500/40 bg-amber-500/5 p-2 space-y-1">
-                      {levels.map((l, li) => {
-                        const issues = levelIssues(li);
-                        if (!issues.length) return null;
+                      {compounds.map(c => (
+                        <td key={c.compoundId} className="py-1 pr-2">
+                          <Input
+                            className="h-7 w-20 text-xs" type="number" step="0.005"
+                            value={level.conc[c.compoundId] ?? ""}
+                            onChange={e => {
+                              const v = e.target.value === "" ? null : Number(e.target.value);
+                              setLevels(prev => prev.map((l, i) => i === li ? { ...l, conc: { ...l.conc, [c.compoundId]: v } } : l));
+                            }}
+                          />
+                        </td>
+                      ))}
+                      {compounds.map(c => {
+                        const comp = failed ? null : componentFor(li, c.name);
                         return (
-                          <div key={li} className="text-[11px] text-amber-700 dark:text-amber-300">
-                            <span className="font-medium">{l.label || `L${li + 1}`}:</span> {issues.join("; ")}
-                          </div>
+                          <td key={c.compoundId + "-ul"} className="py-1 pr-2 tabular-nums">
+                            {failed ? (
+                              <span className="text-red-700 dark:text-red-400">—</span>
+                            ) : comp ? (
+                              comp.take_ul != null ? (
+                                <span className="text-muted-foreground">{comp.take_ul}</span>
+                              ) : comp.serial ? (
+                                <span
+                                  className="text-muted-foreground"
+                                  title={comp.serial.map((s, i) => `step ${i + 1}: ${s.take_ul} µL + ${s.diluent_ul} µL diluent → ${s.factor}×`).join("  •  ")}
+                                >
+                                  {comp.serial[comp.serial.length - 1].take_ul}
+                                  <span className="ml-1 text-[10px] rounded bg-sky-500/10 text-sky-700 dark:text-sky-300 px-1 py-px whitespace-nowrap">
+                                    {comp.serial.map(s => `${s.factor}×`).join("→")}
+                                  </span>
+                                </span>
+                              ) : null
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
                         );
                       })}
-                    </div>
-                  </td>
-                </tr>
-              )}
+                      <td className="py-1 pr-2 text-muted-foreground tabular-nums">
+                        {failed ? <span className="text-red-700 dark:text-red-400">—</span> : (result?.possible ? result.diluent_ul : "-")}
+                      </td>
+                      <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeLevel(li)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
+                    </tr>
+                    {failed && (
+                      <tr>
+                        <td colSpan={colCount} className="pb-2">
+                          <div className="rounded border border-red-500/40 bg-red-500/5 p-2 text-[11px] text-red-700 dark:text-red-300">
+                            <span className="font-medium">{level.label || `L${li + 1}`} — not possible:</span>{" "}
+                            {(result as { reason: string }).reason}.
+                            {(result as { fix_suggestions: string[] }).fix_suggestions.length > 0 && (
+                              <ul className="list-disc list-inside mt-1 space-y-0.5">
+                                {(result as { fix_suggestions: string[] }).fix_suggestions.map((f, i) => <li key={i}>{f}</li>)}
+                              </ul>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </Card>
