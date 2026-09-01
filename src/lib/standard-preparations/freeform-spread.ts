@@ -31,7 +31,13 @@
 const CONC_GRID = 0.005;
 
 export function roundToConcGrid(mgPerMl: number): number {
-  return Math.round(mgPerMl / CONC_GRID) * CONC_GRID;
+  // Math.round(mgPerMl / CONC_GRID) is an exact integer, but multiplying it
+  // back by 0.005 lands back in float territory -- 70 * 0.005 comes out as
+  // 0.35000000000000003, not 0.35, and that garbage prints verbatim on a
+  // cut sheet since nothing downstream re-rounds a "rounded" value. Every
+  // point on this grid has exactly 3 decimal digits by construction, so
+  // toFixed(3) is a real cleanup, not an approximation.
+  return Number((Math.round(mgPerMl / CONC_GRID) * CONC_GRID).toFixed(3));
 }
 
 /** Nearest of 1, 2, 2.5, 5, 10 (times the matching power of ten) to `raw`. */
