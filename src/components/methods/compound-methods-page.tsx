@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { listCompounds } from "@/lib/compounds.functions";
+import { listCompounds, createCompound } from "@/lib/compounds.functions";
 import { listOpenLabMethods } from "@/lib/openlab.functions";
 import {
   getCompoundMethodState, saveCompoundMethodDraft, confirmCompoundMethod,
@@ -56,12 +56,26 @@ export function CompoundMethodsPage() {
   const queryClient = useQueryClient();
 
   const listCompoundsFn = useServerFn(listCompounds);
+  const createCompoundFn = useServerFn(createCompound);
   const listMethodsFn = useServerFn(listOpenLabMethods);
   const getStateFn = useServerFn(getCompoundMethodState);
   const saveDraftFn = useServerFn(saveCompoundMethodDraft);
   const confirmFn = useServerFn(confirmCompoundMethod);
 
   const { data: compounds = [] } = useQuery({ queryKey: qk.compounds.list(), queryFn: () => listCompoundsFn() });
+
+  const [newBlendName, setNewBlendName] = useState("");
+  const createBlendMut = useMutation({
+    mutationFn: async () => createCompoundFn({ data: { name: newBlendName.trim(), is_blend: true } }),
+    onSuccess: (row) => {
+      queryClient.setQueryData(qk.compounds.list(), (prev: typeof compounds = []) =>
+        prev.some(c => c.id === row.id) ? prev : [...prev, row].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewBlendName("");
+      setCompoundId(row.id);
+      toast.success(`${row.name} added to the library`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const { data: driveMethods = [] } = useQuery({
     queryKey: ["openlab-methods", "all"],
     queryFn: () => listMethodsFn({ data: {} }),
@@ -143,14 +157,35 @@ export function CompoundMethodsPage() {
         </p>
       </div>
 
-      <Card className="p-4 space-y-1">
-        <Label className="text-xs">Compound</Label>
-        <Select value={compoundId} onValueChange={setCompoundId}>
-          <SelectTrigger className="h-9"><SelectValue placeholder="Select a compound..." /></SelectTrigger>
-          <SelectContent>
-            {compounds.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.is_blend ? " (blend)" : ""}</SelectItem>)}
-          </SelectContent>
-        </Select>
+      <Card className="p-4 space-y-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Compound</Label>
+          <Select value={compoundId} onValueChange={setCompoundId}>
+            <SelectTrigger className="h-9"><SelectValue placeholder="Select a compound..." /></SelectTrigger>
+            <SelectContent>
+              {compounds.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.is_blend ? " (blend)" : ""}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-end gap-2 pt-1 border-t border-border">
+          <div className="flex-1 space-y-1 pt-2">
+            <Label className="text-xs text-muted-foreground">
+              Blend not in the library yet? Name it here -- it's the same compound record used everywhere else
+              (Standard Set, calibration ranges), just created from this screen instead of Admin.
+            </Label>
+            <Input
+              className="h-9" placeholder="e.g. KLOW II" value={newBlendName}
+              onChange={e => setNewBlendName(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && newBlendName.trim()) createBlendMut.mutate(); }}
+            />
+          </div>
+          <Button
+            variant="secondary" disabled={!newBlendName.trim() || createBlendMut.isPending}
+            onClick={() => createBlendMut.mutate()}
+          >
+            {createBlendMut.isPending ? "Creating..." : "Create Blend"}
+          </Button>
+        </div>
       </Card>
 
       {compoundId && stateQ.isPending && (
