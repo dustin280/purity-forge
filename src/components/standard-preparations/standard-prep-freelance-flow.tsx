@@ -71,6 +71,19 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * The 5 µL grid moves a draw off its exact target by a small, real amount --
+ * shown rather than hidden, same as every other rounding boundary in this
+ * app. Null when the deviation is floating-point noise, not something
+ * grid-rounding actually did.
+ */
+function achievedDeviation(comp: { target_mg_ml: number; achieved_mg_ml: number }): string | null {
+  if (!(comp.target_mg_ml > 0)) return null;
+  const rel = Math.abs(comp.achieved_mg_ml - comp.target_mg_ml) / comp.target_mg_ml;
+  if (rel < 0.001) return null;
+  return comp.achieved_mg_ml.toString();
+}
+
 export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { defaultAnalystName: string; userToken: string }) {
   const navigate = useNavigate();
   const listCompoundsFn = useServerFn(listCompounds);
@@ -183,10 +196,13 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         targets,
         compounds: engineCompounds,
         stocks: engineStocks,
-        options: { diluent_name: diluentName, allow_serial: true, min_pipette_ul: floorUl, max_serial_steps: 2 },
+        options: {
+          diluent_name: diluentName, allow_serial: true, min_pipette_ul: floorUl,
+          preferred_min_pipette_ul: settingsQ.data?.preferred_min_pipette_ul, max_serial_steps: 2,
+        },
       });
     });
-  }, [levels, compounds, engineCompounds, engineStocks, batchUl, floorUl, diluentName]);
+  }, [levels, compounds, engineCompounds, engineStocks, batchUl, floorUl, diluentName, settingsQ.data?.preferred_min_pipette_ul]);
 
   function componentFor(levelIdx: number, compoundName: string) {
     const r = levelResults[levelIdx];
@@ -197,14 +213,27 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
   /** Primary stock a compound's WHOLE ladder consumes, across every level
    * where that level is actually makeable. A serial component draws its
    * intermediate from the primary only via the first step -- the second
-   * step draws from that intermediate, not from the primary stock itself. */
+   * step draws from that intermediate, not from the primary stock itself.
+   * That first-step aliquot is a ONE-TIME cost per (compound, factor): every
+   * level sharing the same factor draws from the same bottle, so only the
+   * first occurrence of a given factor charges the primary -- counting it
+   * per level would charge for intermediate stock never actually made. */
   function stockToMakeUl(compoundId: string, compoundName: string): number {
     let need = 0;
+    const chargedFactors = new Set<number>();
     levelResults.forEach(r => {
       if (!r || !r.possible) return;
       const comp = r.components.find(c => c.compound === compoundName);
       if (!comp) return;
-      need += comp.take_ul ?? comp.serial?.[0]?.take_ul ?? 0;
+      if (comp.take_ul != null) {
+        need += comp.take_ul;
+      } else if (comp.serial) {
+        const factor = comp.serial[0].factor;
+        if (!chargedFactors.has(factor)) {
+          chargedFactors.add(factor);
+          need += comp.serial[0].take_ul;
+        }
+      }
     });
     return need > 0 ? Math.ceil((need * 1.15) / 50) * 50 : 0;
   }
@@ -221,6 +250,11 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         compound_id: string; compound_name: string; label: string; source_label: string;
         factor: number; concentration_mg_per_ml: number; aliquot_ul: number; diluent_ul: number; volume_ul: number;
       }> = [];
+      // One shared intermediate per (compound, factor) -- a 1:10 of NAD is
+      // the same bottle whether L1, L2, or L3 draws from it, so it's made
+      // once and every level that needs it points at the same label instead
+      // of each level minting its own identical "make this too" row.
+      const intermediateLabelByKey = new Map<string, string>();
 
       const payload = {
         prepared_at: new Date().toISOString(),
@@ -247,18 +281,25 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
                 };
               }
               // Serial: persist the first (intermediate-making) step as its
-              // own entry, and record the level's own draw as coming FROM
-              // that intermediate (the second step's take_ul).
+              // own entry -- once per (compound, factor), shared across
+              // every level that draws from it -- and record the level's own
+              // draw as coming FROM that intermediate (the second step's
+              // take_ul).
               const step1 = comp.serial![0];
               const step2 = comp.serial![1];
-              const label = `${c.abbrev} ${l.label} 1:${round2(step1.factor)}`;
-              intermediateSteps.push({
-                compound_id: c.compoundId, compound_name: c.name, label,
-                source_label: primaryLabel(c.abbrev), factor: step1.factor,
-                concentration_mg_per_ml: round2(step1.resulting_conc),
-                aliquot_ul: round2(step1.take_ul), diluent_ul: round2(step1.diluent_ul),
-                volume_ul: round2(step1.take_ul + step1.diluent_ul),
-              });
+              const key = `${c.compoundId}:${round2(step1.factor)}`;
+              let label = intermediateLabelByKey.get(key);
+              if (!label) {
+                label = `${c.abbrev} 1:${round2(step1.factor)}`;
+                intermediateLabelByKey.set(key, label);
+                intermediateSteps.push({
+                  compound_id: c.compoundId, compound_name: c.name, label,
+                  source_label: primaryLabel(c.abbrev), factor: step1.factor,
+                  concentration_mg_per_ml: round2(step1.resulting_conc),
+                  aliquot_ul: round2(step1.take_ul), diluent_ul: round2(step1.diluent_ul),
+                  volume_ul: round2(step1.take_ul + step1.diluent_ul),
+                });
+              }
               return {
                 compound_id: c.compoundId, compound_name: c.name, abbrev: c.abbrev,
                 concentration_mg_per_ml: comp.target_mg_ml,
@@ -515,16 +556,32 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
                               <span className="text-red-700 dark:text-red-400">—</span>
                             ) : comp ? (
                               comp.take_ul != null ? (
-                                <span className="text-muted-foreground">{comp.take_ul}</span>
+                                <span className="text-muted-foreground">
+                                  {comp.take_ul}
+                                  {achievedDeviation(comp) && (
+                                    <span
+                                      className="ml-1 text-[10px] text-amber-700 dark:text-amber-400 whitespace-nowrap"
+                                      title={`5 µL grid rounding -- achieves ${comp.achieved_mg_ml} mg/mL, not the exact ${comp.target_mg_ml} target`}
+                                    >
+                                      ≈{achievedDeviation(comp)}
+                                    </span>
+                                  )}
+                                </span>
                               ) : comp.serial ? (
                                 <span
                                   className="text-muted-foreground"
-                                  title={comp.serial.map((s, i) => `step ${i + 1}: ${s.take_ul} µL + ${s.diluent_ul} µL diluent → ${s.factor}×`).join("  •  ")}
+                                  title={comp.serial.map((s, i) => `step ${i + 1}: ${s.take_ul} µL + ${s.diluent_ul} µL diluent → ${s.factor}×`).join("  •  ")
+                                    + (achievedDeviation(comp) ? `  •  achieves ${comp.achieved_mg_ml} mg/mL, not the exact ${comp.target_mg_ml} target` : "")}
                                 >
                                   {comp.serial[comp.serial.length - 1].take_ul}
                                   <span className="ml-1 text-[10px] rounded bg-sky-500/10 text-sky-700 dark:text-sky-300 px-1 py-px whitespace-nowrap">
                                     {comp.serial.map(s => `${s.factor}×`).join("→")}
                                   </span>
+                                  {achievedDeviation(comp) && (
+                                    <span className="ml-1 text-[10px] text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                      ≈{achievedDeviation(comp)}
+                                    </span>
+                                  )}
                                 </span>
                               ) : null
                             ) : (
@@ -549,6 +606,16 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
                                 {(result as { fix_suggestions: string[] }).fix_suggestions.map((f, i) => <li key={i}>{f}</li>)}
                               </ul>
                             )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {!failed && result?.possible && result.warnings.length > 0 && (
+                      <tr>
+                        <td colSpan={colCount} className="pb-2">
+                          <div className="rounded border border-amber-500/40 bg-amber-500/5 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+                            <span className="font-medium">{level.label || `L${li + 1}`}:</span>{" "}
+                            {result.warnings.join("; ")}
                           </div>
                         </td>
                       </tr>

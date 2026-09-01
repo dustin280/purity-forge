@@ -10,18 +10,29 @@
  *
  * This module is the spec, implemented literally. It does not know about
  * compounds.cal_l1..l6, retention times, or any other library data --
- * every number it touches comes in through its arguments. It does not
- * round anything until every feasibility check has already run on exact
- * C1V1 math ("never round a volume first and then check fit" -- rounding
- * a borderline value before comparing it to a threshold is exactly how a
- * genuinely infeasible recipe gets reported as fine).
+ * every number it touches comes in through its arguments. Every DERIVATION
+ * runs on exact C1V1 math, unrounded; only the number actually printed on a
+ * recipe -- a take_ul, a diluent_ul, an aliquot -- gets snapped to a grid,
+ * and every feasibility check (floor, overflow) is re-run against THAT
+ * snapped number, not the exact one it came from ("never round a volume
+ * and then skip re-checking fit" -- a value that's fine exact and not fine
+ * rounded is exactly how a genuinely infeasible recipe gets reported as
+ * fine).
  *
- * Precision is tenths of a microliter, not the 5 uL grid the rest of this
- * app's dilution math uses (dilution.ts, intermediate-stocks.ts). That is
- * deliberate, not an inconsistency to fix -- this spec calls for "integers
- * or exact tenths only after math," a finer-grained, explicitly different
- * rule for this calculator.
+ * Dustin, 2026-09-01, after a 49 uL draw reached a printed cut sheet:
+ * "If a volume... is not divisible by 5, its wrong. Period." This module
+ * originally used tenths-of-a-microliter precision instead of the 5 uL grid
+ * the rest of this app's dilution math uses (dilution.ts,
+ * intermediate-stocks.ts), on the theory that finer precision was strictly
+ * safer. It wasn't -- a real pipettor doesn't have a tenths-of-a-microliter
+ * setting, so "23.4 uL, exactly as computed" is exactly as unpipettable as
+ * the oddball volumes the rest of the app was already built to refuse. The
+ * 5 uL grid is not a display nicety here, it is the same physical
+ * constraint as the pipette floor: reuses roundToVolumeGrid from
+ * dilution.ts so both rules speak the same grid.
  */
+
+import { roundToVolumeGrid } from "@/lib/sample-prep/dilution";
 
 // ---------------------------------------------------------------------------
 // Inputs
@@ -48,6 +59,13 @@ export interface PrepTarget {
 export interface SerialOptions {
   /** Operator will not pipette below this. Default 50. */
   min_pipette_ul?: number;
+  /**
+   * Softer than min_pipette_ul: a direct draw between the two is allowed --
+   * it clears the hard floor -- but flagged, so lowering the hard floor to
+   * whatever's technically achievable doesn't make a 20 uL draw look as
+   * clean as a 100 uL one. Absent means no soft threshold, only the hard one.
+   */
+  preferred_min_pipette_ul?: number;
   /** e.g. [100, 200, 250, 500, 1000] -- used only for the nice-volume pass. */
   preferred_pipette_uls?: number[];
   diluent_name: string;
@@ -64,6 +82,15 @@ export interface PrepComponentResult {
   compound: string;
   stock_mg_ml: number;
   target_mg_ml: number;
+  /**
+   * What this component's stock/diluent volumes -- grid-rounded to a real
+   * pipettable number, not the exact target -- actually deliver. Shown
+   * rather than hidden, same principle as every other rounding boundary in
+   * this app: a 5 uL grid step moves this off target_mg_ml by a small,
+   * real amount, and the achieved number is what should be checked against
+   * the printed target on review, not assumed identical to it.
+   */
+  achieved_mg_ml: number;
   /** Single direct transfer. Present when the compound didn't need serial dilution. */
   take_ul?: number;
   /** Present instead of take_ul when this compound needed a serial plan. */
@@ -126,10 +153,30 @@ export type PrepLevelResult = PrepLevelOk | PrepLevelFail;
  * wrong way. */
 const EPS_UL = 1e-6;
 
-/** "Integers or exact tenths only after math" -- applied ONLY for display,
- * never before a feasibility check. */
+/** Cosmetic rounding for numbers that are never pipetted -- explanatory
+ * text in a FAIL reason, not an instruction on a recipe. */
 function toTenths(v: number): number {
   return Math.round(v * 10) / 10;
+}
+
+/**
+ * Every volume that ends up on a recipe -- a take_ul, a diluent_ul, an
+ * aliquot -- goes through this, never toTenths. Reuses dilution.ts's own
+ * grid so this module and the rest of the app's pipetting math agree on
+ * what "a real volume" means.
+ */
+function gridVolume(v: number): number {
+  return roundToVolumeGrid(v);
+}
+
+/**
+ * For a suggested MINIMUM (a flask big enough, a stock strong enough) --
+ * rounds up, never down, so the suggestion stays sufficient. Rounding a
+ * minimum to the nearest grid point can round it down and hand back a
+ * number that's still short.
+ */
+function ceilToVolumeGrid(v: number): number {
+  return Math.ceil(v / 5) * 5;
 }
 
 /**
@@ -177,56 +224,100 @@ function stockFor(id: string, stocks: PrepStock[]): PrepStock | undefined {
 }
 
 /**
+ * Lower is more round-looking. Every candidate here is already a legal
+ * multiple of 5 -- this only breaks ties between legal candidates, same
+ * spirit as niceUnit in freeform-spread.ts: 5 µL is the hard floor a
+ * volume must clear, not a claim that 35, 65, and 85 are as easy to read
+ * at a glance as 25, 50, and 100.
+ *
+ * Quarters are the top tier, not hundreds -- "step by quarter, half, or
+ * whole" is the mental model this is scoring against, and under it 50 is
+ * exactly as clean as 100. Scoring 100 above 50 would reward a bigger,
+ * more wasteful intermediate purely for a digit it doesn't need: two
+ * numbers that are already equally easy to read at a glance shouldn't
+ * make the search prefer the one that burns more stock.
+ */
+function volumeNiceness(v: number): number {
+  if (v % 25 === 0) return 0; // 25/50/75/100/125... -- quarter, half, whole
+  if (v % 10 === 0) return 1; // 10/20/30/40... -- clean, off the quarter grid
+  return 2; // still legal -- a multiple of 5, just not a round-looking one
+}
+
+/**
  * Builds a 2-transfer serial plan (make an intermediate, then draw from it
  * straight into the flask) for one compound whose direct draw falls under
  * min_pipette_ul. Returns null if no plan within max_serial_steps clears the
- * floor at every transfer -- the caller must then FAIL the level, per spec:
- * serial dilution rescues a too-small draw, it never rescues an overflow.
+ * floor at every transfer, on the grid, -- the caller must then FAIL the
+ * level, per spec: serial dilution rescues a too-small draw, it never
+ * rescues an overflow.
  *
- * Math, exact (no rounding until the caller formats for display):
- *   direct_ul = target_conc * flask_ul / stock_conc      (the draw we can't take)
- *   intermediate is stock diluted by factor F: conc = stock_conc / F
- *   drawing v2 = direct_ul * F of that intermediate into flask_ul reproduces
- *   target_conc exactly, by construction -- F cancels out of the concentration,
- *   it only ever changes how much volume that concentration is packaged in.
+ * Every transfer here is a real pipetted volume, so every transfer is
+ * grid-rounded, and every downstream number is re-derived from the ROUNDED
+ * one, not the idealized exact one:
+ *   1. aliquot1 = interVol / F, exact, then snapped to the grid.
+ *   2. The intermediate's ACTUAL concentration comes from the snapped
+ *      aliquot1, not from stockConc/F -- those only agree when interVol/F
+ *      happened to land on the grid already, which is the exception.
+ *   3. v2 (the draw that reproduces target_mg_ml) is solved from that
+ *      ACTUAL concentration, then it too is snapped to the grid.
+ *   4. What v2 actually reproduces -- achieved_mg_ml -- is derived one more
+ *      time, from the snapped v2. It is reported, not silently treated as
+ *      target_mg_ml: two grid roundings compound, and target_mg_ml stays
+ *      the printed goal, achieved_mg_ml is what a re-injection would read.
+ *
+ * Smallest F wins, same as before -- fewer serial dilutions' worth of
+ * accumulated volumetric error. But F alone doesn't pick a unique plan:
+ * several intermediate volumes can be legal for the same F, and they don't
+ * all read the same at the bench (25 µL of a 1000 µL intermediate vs. 25 µL
+ * of a 500 µL one are both legal, 500 is the one worth making). Every legal
+ * candidate at the WINNING F is scored on volumeNiceness and the best one
+ * is returned -- the search never trades a smaller F for a rounder one.
  */
 function buildSerialPlan(
-  directUl: number, stockConc: number, minPipetteUl: number, flaskUl: number, maxSteps: number,
+  directUl: number, targetMgMl: number, stockConc: number, minPipetteUl: number, flaskUl: number, maxSteps: number,
 ): SerialStep[] | null {
   if (maxSteps < 2) return null; // a serial plan is inherently a 2-transfer minimum here
 
-  let best: SerialStep[] | null = null;
-  let bestFactor = Infinity;
-
   for (const F of PREFERRED_SERIAL_FACTORS) {
-    const v2 = directUl * F; // final draw, from the intermediate, into the flask
-    if (v2 < minPipetteUl - EPS_UL) continue; // this factor still isn't enough
-    if (v2 > flaskUl + EPS_UL) continue; // can't draw more than the flask holds
+    const v2Estimate = directUl * F; // rough final draw, to size-check this factor before grid work
+    if (v2Estimate < minPipetteUl - EPS_UL) continue; // this factor still isn't enough
+    if (v2Estimate > flaskUl + EPS_UL) continue; // can't draw more than the flask holds
 
+    let best: { steps: SerialStep[]; score: number } | null = null;
     for (const interVol of INTERMEDIATE_VOLUMES_UL) {
-      const aliquot1 = interVol / F; // primary stock taken to build the intermediate
-      if (aliquot1 < minPipetteUl - EPS_UL) continue;
+      const aliquot1Exact = interVol / F; // primary stock taken to build the intermediate
+      if (aliquot1Exact < minPipetteUl - EPS_UL) continue;
+      if (aliquot1Exact > interVol + EPS_UL) continue;
+
+      const aliquot1 = gridVolume(aliquot1Exact);
+      if (aliquot1 < minPipetteUl - EPS_UL) continue; // grid rounding pushed it back under the floor
       if (aliquot1 > interVol + EPS_UL) continue;
 
-      // First factor small enough to clear the floor wins -- smaller F means
-      // fewer serial dilutions' worth of accumulated volumetric error.
-      if (F < bestFactor) {
-        bestFactor = F;
-        // Each step's factor is ITS OWN dilution ratio (this step's total
-        // volume / this step's take), not the same F repeated -- step 1
-        // dilutes the primary by F, step 2 dilutes THAT intermediate by
-        // flaskUl/v2, and the two multiply to the combined factor (matches
-        // spec's own worked example: 10x then 15x -> 150x combined, not
-        // 10x then 10x).
-        best = [
-          { take_ul: aliquot1, diluent_ul: interVol - aliquot1, factor: F, resulting_conc: stockConc / F },
-          { take_ul: v2, diluent_ul: flaskUl - v2, factor: roundConc(flaskUl / v2), resulting_conc: (stockConc / F) * (v2 / flaskUl) },
-        ];
-      }
-      break; // smallest viable intermediate volume for this F is enough
+      // Real concentration of the intermediate as it will actually be made.
+      const actualInterConc = (stockConc * aliquot1) / interVol;
+      const v2Exact = (targetMgMl * flaskUl) / actualInterConc; // draw needed from THAT stock, exact
+      const v2 = gridVolume(v2Exact);
+      if (v2 < minPipetteUl - EPS_UL) continue;
+      if (v2 > flaskUl + EPS_UL) continue;
+
+      const score = volumeNiceness(aliquot1) + volumeNiceness(interVol) + volumeNiceness(v2);
+      if (best && score >= best.score) continue; // a later, equally-or-less-nice candidate never replaces an earlier one
+
+      best = {
+        score,
+        steps: [
+          { take_ul: aliquot1, diluent_ul: interVol - aliquot1, factor: F, resulting_conc: roundConc(actualInterConc) },
+          {
+            take_ul: v2, diluent_ul: flaskUl - v2, factor: roundConc(flaskUl / v2),
+            resulting_conc: roundConc((actualInterConc * v2) / flaskUl),
+          },
+        ],
+      };
+      if (score === 0) break; // can't do better than every volume landing on a clean hundred
     }
+    if (best) return best.steps; // this F has a legal plan -- don't fall through to a larger, noisier F
   }
-  return best;
+  return null;
 }
 
 /**
@@ -323,12 +414,12 @@ export function computeLevel(input: ComputeLevelInput): PrepLevelResult {
     if (uniformScale > 1 + EPS_UL) {
       fixes.push(`or raise every listed compound's stock by ${roundConc(uniformScale)}x`);
     }
-    fixes.push(`or raise flask_ul to at least ${toTenths(sumStockUl)} µL`);
+    fixes.push(`or raise flask_ul to at least ${ceilToVolumeGrid(sumStockUl)} µL`);
     return {
       level_id, possible: false, reason: "stock overflow",
       flask_ul, sum_stock_ul: toTenths(sumStockUl), shortfall_ul: toTenths(shortfallUl),
       min_stock_conc_mg_ml: Object.fromEntries(Object.entries(perCompound).map(([k, v]) => [k, roundConc(v)])),
-      min_flask_ul: toTenths(sumStockUl),
+      min_flask_ul: ceilToVolumeGrid(sumStockUl),
       fix_suggestions: fixes,
     };
   }
@@ -351,16 +442,41 @@ export function computeLevel(input: ComputeLevelInput): PrepLevelResult {
   // a serial plan rescues it.
   const components: PrepComponentResult[] = [];
   const warnings: string[] = [];
+  // The physical volume that actually lands in the flask for each compound --
+  // the direct draw, OR the serial plan's final transfer when one was needed.
+  // sumStockUl (above) is the pre-rescue C1V1 sum and is ONLY valid for the
+  // early "even the direct draws overflow" check; a serial rescue inflates a
+  // compound's real draw by its factor; a level that fits on paper can still
+  // overflow once that inflation is applied, and diluent_ul has to be struck
+  // against what actually gets pipetted, not the number rescued away.
+  const actualTakes: number[] = [];
   for (const e of exact) {
     const name = compoundName(e.target.compound_id, compounds);
-    if (e.takeUl >= minPipetteUl - EPS_UL) {
-      components.push({ compound: name, stock_mg_ml: e.stock.conc_mg_ml, target_mg_ml: e.target.conc_mg_ml, take_ul: toTenths(e.takeUl) });
+    // The grid-rounded draw is the one that has to clear the floor -- it's
+    // the volume that actually gets pipetted. Rounding can move a draw to
+    // either side of the floor (19.9 -> 20 clears it; 22 -> 20 still clears
+    // it; 17 -> 15 doesn't), so the floor check runs AFTER rounding, not on
+    // the exact value that led to it.
+    const roundedDirect = gridVolume(e.takeUl);
+    if (roundedDirect >= minPipetteUl - EPS_UL) {
+      const achieved = roundConc((e.stock.conc_mg_ml * roundedDirect) / flask_ul);
+      components.push({
+        compound: name, stock_mg_ml: e.stock.conc_mg_ml, target_mg_ml: e.target.conc_mg_ml,
+        achieved_mg_ml: achieved, take_ul: roundedDirect,
+      });
+      actualTakes.push(roundedDirect);
+      if (options.preferred_min_pipette_ul != null && roundedDirect < options.preferred_min_pipette_ul - EPS_UL) {
+        warnings.push(
+          `${name}'s direct draw (${roundedDirect} µL) clears the ${minPipetteUl} µL floor but is under the `
+          + `${options.preferred_min_pipette_ul} µL preferred minimum -- allowed, not ideal`,
+        );
+      }
       continue;
     }
     if (!allowSerial) {
       return {
         level_id, possible: false,
-        reason: `${name}'s direct draw (${toTenths(e.takeUl)} µL) is under the ${minPipetteUl} µL pipette floor`,
+        reason: `${name}'s direct draw (${roundedDirect} µL on the 5 µL grid) is under the ${minPipetteUl} µL pipette floor`,
         flask_ul, sum_stock_ul: toTenths(sumStockUl),
         fix_suggestions: [
           `enable serial dilution for ${name}`,
@@ -369,41 +485,68 @@ export function computeLevel(input: ComputeLevelInput): PrepLevelResult {
           // is what grows the draw. (The overflow branch above is the
           // mirror-image case, correctly asking for a STRONGER stock
           // there, because that one needs the draw to shrink instead.)
-          `or use a weaker ${name} stock (<= ${roundConc((e.takeUl / minPipetteUl) * e.stock.conc_mg_ml)} mg/mL makes the direct draw exactly ${minPipetteUl} µL)`,
+          `or use a weaker ${name} stock (<= ${roundConc((e.takeUl / minPipetteUl) * e.stock.conc_mg_ml)} mg/mL makes the direct draw at least ${minPipetteUl} µL)`,
         ],
       };
     }
-    const plan = buildSerialPlan(e.takeUl, e.stock.conc_mg_ml, minPipetteUl, flask_ul, maxSerialSteps);
+    const plan = buildSerialPlan(e.takeUl, e.target.conc_mg_ml, e.stock.conc_mg_ml, minPipetteUl, flask_ul, maxSerialSteps);
     if (!plan) {
       return {
         level_id, possible: false,
-        reason: `no serial plan for ${name} clears the ${minPipetteUl} µL floor within ${maxSerialSteps} step(s) `
-          + `(direct draw would be ${toTenths(e.takeUl)} µL)`,
+        reason: `no serial plan for ${name} clears the ${minPipetteUl} µL floor on the 5 µL grid within ${maxSerialSteps} step(s) `
+          + `(direct draw would be ${roundedDirect} µL)`,
         flask_ul, sum_stock_ul: toTenths(sumStockUl),
         fix_suggestions: [`raise max_serial_steps`, `or use a stronger ${name} stock`],
       };
     }
+    const finalStep = plan[plan.length - 1];
     components.push({
       compound: name, stock_mg_ml: e.stock.conc_mg_ml, target_mg_ml: e.target.conc_mg_ml,
-      serial: plan.map(s => ({ ...s, take_ul: toTenths(s.take_ul), diluent_ul: toTenths(s.diluent_ul), resulting_conc: roundConc(s.resulting_conc) })),
+      achieved_mg_ml: finalStep.resulting_conc, serial: plan,
     });
+    // The plan's own last step is the transfer that actually lands in the
+    // flask -- already grid-rounded, by construction, inside buildSerialPlan.
+    actualTakes.push(finalStep.take_ul);
   }
 
-  const diluentUl = flask_ul - sumStockUl;
+  // A level can pass the early, pre-rescue overflow check and still overflow
+  // here: each serial rescue multiplies one compound's draw by its factor,
+  // and nothing upstream re-summed after that multiplication. Per spec,
+  // serial dilution rescues a too-small draw -- it must never be allowed to
+  // quietly produce an overflow it can't rescue its way out of either.
+  const actualSumUl = actualTakes.reduce((s, v) => s + v, 0);
+  if (actualSumUl > flask_ul + EPS_UL) {
+    const shortfallUl = actualSumUl - flask_ul;
+    return {
+      level_id, possible: false,
+      reason: "stock overflow after serial dilution -- the serial transfers needed to clear the pipette floor add up to more than the flask holds",
+      flask_ul, sum_stock_ul: toTenths(actualSumUl), shortfall_ul: toTenths(shortfallUl),
+      min_flask_ul: ceilToVolumeGrid(actualSumUl),
+      fix_suggestions: [
+        `raise flask_ul to at least ${ceilToVolumeGrid(actualSumUl)} µL`,
+        `or use a stronger stock for whichever compound(s) needed serial dilution, so they draw straight from the primary instead`,
+      ],
+    };
+  }
+
+  // flask_ul and every actualTakes entry are grid-conforming by this point,
+  // so their difference already lands on the grid -- gridVolume here is a
+  // safety net against float noise, not a real rounding step.
+  const diluentUl = gridVolume(flask_ul - actualSumUl);
   if (diluentUl < flask_ul * 0.1 && diluentUl > EPS_UL) {
-    warnings.push(`only ${toTenths(diluentUl)} µL of diluent -- barely a dilution; a stronger primary stock would give more room`);
+    warnings.push(`only ${diluentUl} µL of diluent -- barely a dilution; a stronger primary stock would give more room`);
   }
 
-  const niceVolumeSuggestion = suggestNiceFlask(exact.map(e => e.takeUl), flask_ul, options.preferred_pipette_uls);
+  const niceVolumeSuggestion = suggestNiceFlask(actualTakes, flask_ul, options.preferred_pipette_uls);
 
   return {
     level_id, possible: true, flask_ul,
     components,
-    sum_stock_ul: toTenths(sumStockUl),
-    diluent_ul: toTenths(diluentUl),
+    sum_stock_ul: actualSumUl,
+    diluent_ul: diluentUl,
     diluent: options.diluent_name,
     check: {
-      recon_conc: "each target_mg_ml == stock_mg_ml * take_ul / flask_ul",
+      recon_conc: "each achieved_mg_ml == stock_mg_ml * take_ul / flask_ul, on the 5 µL grid",
       volume_balance: "sum_stock_ul + diluent_ul == flask_ul",
     },
     warnings,
