@@ -43,6 +43,9 @@ import {
   type CompoundPlan, type LevelDraw,
 } from "@/lib/standard-preparations/intermediate-stocks";
 import { evenSpread } from "@/lib/standard-preparations/freeform-spread";
+import { freelanceRunListCsv } from "@/lib/standard-preparations/freeform-run-list";
+import { generateFreelanceLabelSheetPdf } from "@/lib/standard-preparations/freeform-label-sheet";
+import { type FreelanceNamingLevel } from "@/lib/standard-preparations/freeform-sample-name";
 import { getPrepSettings } from "@/lib/sample-prep/master-data.functions";
 import { qk } from "@/lib/query-keys";
 
@@ -315,6 +318,40 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
 
   const canSubmit = standardName.trim() && compounds.length > 0 && levels.some(l => compounds.some(c => l.conc[c.compoundId] != null));
 
+  // Shape shared by the run list and the label sheet -- both need exactly
+  // the same per-level compound/concentration list, and both need it to be
+  // the sample-name convention's input, not the raw grid state.
+  const namingLevels: FreelanceNamingLevel[] = useMemo(() => levels
+    .map(l => ({
+      label: l.label,
+      components: compounds
+        .filter(c => l.conc[c.compoundId] != null)
+        .map(c => ({ name: c.name, concMgPerMl: l.conc[c.compoundId]! })),
+    }))
+    .filter(l => l.components.length > 0), [levels, compounds]);
+
+  function exportFilenameStem(): string {
+    return (standardName.trim() || "standard-prep-freelance").replace(/[^A-Za-z0-9_-]+/g, "_");
+  }
+
+  function downloadRunList() {
+    if (!standardName.trim()) { toast.error("Enter a standard name first — it goes into every sample name."); return; }
+    if (!namingLevels.length) { toast.error("Generate or enter some levels first."); return; }
+    const csv = freelanceRunListCsv(standardName, namingLevels);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${exportFilenameStem()}_runlist.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadLabelSheet() {
+    if (!standardName.trim()) { toast.error("Enter a standard name first — it goes into every label."); return; }
+    if (!namingLevels.length) { toast.error("Generate or enter some levels first."); return; }
+    generateFreelanceLabelSheetPdf(standardName, namingLevels).save(`${exportFilenameStem()}_labels.pdf`);
+  }
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl space-y-4">
       <div>
@@ -322,7 +359,9 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
         <p className="text-sm text-muted-foreground">
           Pick compounds, type a low and a high standard, get an even spread — no calibration lookups, no presets.
           Still enforces the 50&nbsp;µL floor and the 5&nbsp;µL grid: a level that would need a sub-floor aliquot
-          is served from an automatic serial dilution instead of refused.
+          is served from an automatic serial dilution instead of refused. The run list and label sheet share one
+          sample name per level — <code>L1 &lt;standard name&gt; B0.28 G0.14 &lt;D&gt;</code> — so a vial and its
+          sequence row always read the same.
         </p>
       </div>
 
@@ -548,7 +587,13 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
           placeholder="This is a freeform range, not derived from the compound library -- say what it is for." />
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" disabled={!namingLevels.length} onClick={downloadRunList}>
+          Download Run List (CSV)
+        </Button>
+        <Button variant="outline" disabled={!namingLevels.length} onClick={downloadLabelSheet}>
+          Download Label Sheet (PDF)
+        </Button>
         <Button disabled={!canSubmit || createMut.isPending} onClick={() => createMut.mutate()}>
           {createMut.isPending ? "Saving..." : "Save & Download Cut Sheet"}
         </Button>
