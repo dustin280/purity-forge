@@ -740,6 +740,71 @@ export type Database = {
         }
         Relationships: []
       }
+      compound_method_versions: {
+        Row: {
+          acquisition_method: string | null
+          column_temperature_c: number | null
+          compound_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_by_name: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          gradient: string | null
+          id: string
+          injection_volume_ul: number | null
+          notes: string | null
+          processing_method: string | null
+          special_handling: string | null
+          updated_at: string
+        }
+        Insert: {
+          acquisition_method?: string | null
+          column_temperature_c?: number | null
+          compound_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          gradient?: string | null
+          id?: string
+          injection_volume_ul?: number | null
+          notes?: string | null
+          processing_method?: string | null
+          special_handling?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acquisition_method?: string | null
+          column_temperature_c?: number | null
+          compound_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_by_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          gradient?: string | null
+          id?: string
+          injection_volume_ul?: number | null
+          notes?: string | null
+          processing_method?: string | null
+          special_handling?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compound_method_versions_compound_id_fkey"
+            columns: ["compound_id"]
+            isOneToOne: false
+            referencedRelation: "compounds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compound_blend_components: {
         Row: {
           blend_id: string

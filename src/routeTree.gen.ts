@@ -29,6 +29,7 @@ import { Route as AuthenticatedSamplePrepIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedRunListsIndexRouteImport } from './routes/_authenticated/run-lists/index'
 import { Route as AuthenticatedQueueIndexRouteImport } from './routes/_authenticated/queue/index'
 import { Route as AuthenticatedPendingOrdersIndexRouteImport } from './routes/_authenticated/pending-orders/index'
+import { Route as AuthenticatedMethodsIndexRouteImport } from './routes/_authenticated/methods/index'
 import { Route as AuthenticatedMaterialReceiptsIndexRouteImport } from './routes/_authenticated/material-receipts/index'
 import { Route as AuthenticatedMaintenanceIndexRouteImport } from './routes/_authenticated/maintenance/index'
 import { Route as AuthenticatedLabLogsIndexRouteImport } from './routes/_authenticated/lab-logs/index'
@@ -232,6 +233,12 @@ const AuthenticatedPendingOrdersIndexRoute =
   AuthenticatedPendingOrdersIndexRouteImport.update({
     id: '/pending-orders/',
     path: '/pending-orders/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedMethodsIndexRoute =
+  AuthenticatedMethodsIndexRouteImport.update({
+    id: '/methods/',
+    path: '/methods/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedMaterialReceiptsIndexRoute =
@@ -875,6 +882,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/methods/': typeof AuthenticatedMethodsIndexRoute
   '/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/queue/': typeof AuthenticatedQueueIndexRoute
   '/run-lists/': typeof AuthenticatedRunListsIndexRoute
@@ -992,6 +1000,7 @@ export interface FileRoutesByTo {
   '/lab-logs': typeof AuthenticatedLabLogsIndexRoute
   '/maintenance': typeof AuthenticatedMaintenanceIndexRoute
   '/material-receipts': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/methods': typeof AuthenticatedMethodsIndexRoute
   '/pending-orders': typeof AuthenticatedPendingOrdersIndexRoute
   '/queue': typeof AuthenticatedQueueIndexRoute
   '/run-lists': typeof AuthenticatedRunListsIndexRoute
@@ -1111,6 +1120,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/': typeof AuthenticatedLabLogsIndexRoute
   '/_authenticated/maintenance/': typeof AuthenticatedMaintenanceIndexRoute
   '/_authenticated/material-receipts/': typeof AuthenticatedMaterialReceiptsIndexRoute
+  '/_authenticated/methods/': typeof AuthenticatedMethodsIndexRoute
   '/_authenticated/pending-orders/': typeof AuthenticatedPendingOrdersIndexRoute
   '/_authenticated/queue/': typeof AuthenticatedQueueIndexRoute
   '/_authenticated/run-lists/': typeof AuthenticatedRunListsIndexRoute
@@ -1230,6 +1240,7 @@ export interface FileRouteTypes {
     | '/lab-logs/'
     | '/maintenance/'
     | '/material-receipts/'
+    | '/methods/'
     | '/pending-orders/'
     | '/queue/'
     | '/run-lists/'
@@ -1347,6 +1358,7 @@ export interface FileRouteTypes {
     | '/lab-logs'
     | '/maintenance'
     | '/material-receipts'
+    | '/methods'
     | '/pending-orders'
     | '/queue'
     | '/run-lists'
@@ -1465,6 +1477,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/'
     | '/_authenticated/maintenance/'
     | '/_authenticated/material-receipts/'
+    | '/_authenticated/methods/'
     | '/_authenticated/pending-orders/'
     | '/_authenticated/queue/'
     | '/_authenticated/run-lists/'
@@ -1665,6 +1678,13 @@ declare module '@tanstack/react-router' {
       path: '/pending-orders'
       fullPath: '/pending-orders/'
       preLoaderRoute: typeof AuthenticatedPendingOrdersIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/methods/': {
+      id: '/_authenticated/methods/'
+      path: '/methods'
+      fullPath: '/methods/'
+      preLoaderRoute: typeof AuthenticatedMethodsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/material-receipts/': {
@@ -2440,6 +2460,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsIndexRoute: typeof AuthenticatedLabLogsIndexRoute
   AuthenticatedMaintenanceIndexRoute: typeof AuthenticatedMaintenanceIndexRoute
   AuthenticatedMaterialReceiptsIndexRoute: typeof AuthenticatedMaterialReceiptsIndexRoute
+  AuthenticatedMethodsIndexRoute: typeof AuthenticatedMethodsIndexRoute
   AuthenticatedPendingOrdersIndexRoute: typeof AuthenticatedPendingOrdersIndexRoute
   AuthenticatedQueueIndexRoute: typeof AuthenticatedQueueIndexRoute
   AuthenticatedRunListsIndexRoute: typeof AuthenticatedRunListsIndexRoute
@@ -2559,6 +2580,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMaintenanceIndexRoute: AuthenticatedMaintenanceIndexRoute,
   AuthenticatedMaterialReceiptsIndexRoute:
     AuthenticatedMaterialReceiptsIndexRoute,
+  AuthenticatedMethodsIndexRoute: AuthenticatedMethodsIndexRoute,
   AuthenticatedPendingOrdersIndexRoute: AuthenticatedPendingOrdersIndexRoute,
   AuthenticatedQueueIndexRoute: AuthenticatedQueueIndexRoute,
   AuthenticatedRunListsIndexRoute: AuthenticatedRunListsIndexRoute,

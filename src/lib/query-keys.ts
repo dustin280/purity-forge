@@ -286,4 +286,9 @@ export const qk = {
     unmatched: () => ["cal-qc-peak-log", "unmatched"] as const,
     rtBand: (compoundId: string) => ["cal-qc-peak-log", "rt-band", compoundId] as const,
   },
+
+  compoundMethods: {
+    all: ["compound-methods"] as const,
+    state: (compoundId: string) => ["compound-methods", compoundId] as const,
+  },
 } as const;

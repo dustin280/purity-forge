@@ -2,7 +2,7 @@
  * Primary app navigation: persistent sidebar on desktop, slide-over sheet on mobile. Highlights the active route via TanStack Router state and gates admin links by role.
  */
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays, Cable, Building2, ListChecks, Tags, Wrench, Library, Boxes, PackageOpen, GaugeCircle, Beaker, ShieldAlert, Atom, TestTubes, Microscope, Bug, Droplets, SlidersHorizontal } from "lucide-react";
+import { LayoutDashboard, FlaskConical, Inbox, Webhook, Users, LogOut, Menu, Shield, ClipboardList, NotebookPen, MessageSquareWarning, BookOpen, CalendarDays, Cable, Building2, ListChecks, Tags, Wrench, Library, Boxes, PackageOpen, GaugeCircle, Beaker, ShieldAlert, Atom, TestTubes, Microscope, Bug, Droplets, SlidersHorizontal, FileCog } from "lucide-react";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -42,6 +42,7 @@ const NAV_SECTIONS: { label: string | null; items: { to: string; label: string; 
     label: "Prep & Instruments",
     items: [
       { to: "/sample-prep", label: "Sample Prep", icon: Beaker, tooltip: "Formulations, methods, equipment, and preparation records for sample and standard prep." },
+      { to: "/methods", label: "Methods", icon: FileCog, tooltip: "Per-compound method notes -- acquisition/processing method, gradient, temp, injection volume -- with confirm-to-version history." },
       { to: "/instrument-comm", label: "Instrument Comm", icon: Cable, tooltip: "Synced method/sequence libraries and connection status for linked instruments." },
       { to: "/scheduler", label: "Scheduler", icon: CalendarDays, tooltip: "Calendar for booking and viewing instrument time by day, week, or month." },
       { to: "/standard-prep-freelance", label: "Standard Prep Freelance", icon: SlidersHorizontal, tooltip: "Pick compounds, set a low/high range, get an even spread — no calibration lookups, no presets." },
