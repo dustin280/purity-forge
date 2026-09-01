@@ -88,25 +88,40 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
     Array.from({ length: 6 }, (_, i) => ({ label: `L${i + 1}`, conc: {} })),
   );
 
-  // Spread controls -- independent of the compound list. "Generate" fills
-  // EVERY selected compound's row with the SAME ladder: one range governs
-  // the whole standard, matching "these compounds in this standard in this
-  // range." Standards (unlike blend samples) can hold arbitrary independent
-  // per-compound concentrations, so nothing stops every compound sharing
-  // identical targets -- it is just the natural reading of a single range.
+  // Spread controls -- independent of the compound list. "Generate" targets
+  // ONE compound at a time by default (targetCompoundId, auto-set to
+  // whichever was just added) and MERGES its values into the grid, leaving
+  // every other compound's already-generated levels untouched. It used to
+  // overwrite the whole grid with one shared ladder every time -- real bug,
+  // reported 2026-09-01 after three compounds with genuinely distinct
+  // ranges (BPC/GHK/THY) all collapsed onto whichever range was generated
+  // last. ALL_COMPOUNDS is kept as an explicit opt-in for the case a truly
+  // shared range across every compound really is what's wanted.
+  const ALL_COMPOUNDS = "__all__";
+  const [targetCompoundId, setTargetCompoundId] = useState("");
   const [levelCount, setLevelCount] = useState("6");
   const [lowConc, setLowConc] = useState("");
   const [highConc, setHighConc] = useState("");
 
   const availableToAdd = allCompounds.filter(c => !compounds.some(gc => gc.compoundId === c.id));
 
+  function selectTarget(id: string) {
+    setTargetCompoundId(id);
+    // Clearing on every switch is deliberate: leftover numbers from the
+    // previous compound silently re-applied to a new one is exactly the
+    // failure mode being fixed here.
+    setLowConc(""); setHighConc("");
+  }
   function addCompound(id: string) {
     const c = allCompounds.find(x => x.id === id);
     if (!c) return;
     setCompounds(prev => [...prev, { compoundId: c.id, name: c.name, abbrev: defaultAbbrev(c.name), stockConcMgPerMl: 1 }]);
+    selectTarget(c.id);
   }
   function removeCompound(id: string) {
-    setCompounds(prev => prev.filter(c => c.compoundId !== id));
+    const next = compounds.filter(c => c.compoundId !== id);
+    setCompounds(next);
+    setTargetCompoundId(t => (t === id ? (next[0]?.compoundId ?? "") : t));
     setLevels(prev => prev.map(l => { const { [id]: _drop, ...rest } = l.conc; return { ...l, conc: rest }; }));
   }
 
@@ -116,12 +131,29 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
     if (!(lo > 0) || !(hi > 0)) { toast.error("Enter a low and high concentration first."); return; }
     if (hi < lo) { toast.error("High standard has to be at or above the low standard."); return; }
     if (!compounds.length) { toast.error("Add at least one compound first."); return; }
+    if (!targetCompoundId) { toast.error("Pick which compound this range is for."); return; }
+    const applyToAll = targetCompoundId === ALL_COMPOUNDS;
+    const targetIds = applyToAll ? compounds.map(c => c.compoundId) : [targetCompoundId];
     const spread = evenSpread(lo, hi, n);
-    setLevels(spread.map((v, i) => ({
-      label: `L${i + 1}`,
-      conc: Object.fromEntries(compounds.map(c => [c.compoundId, v])),
-    })));
-    toast.success(`Generated ${n} levels, ${spread[0]} to ${spread[spread.length - 1]} mg/mL`);
+    setLevels(prev => {
+      // Grow the table if this compound needs more rows than exist today.
+      // Never shrink it -- an earlier compound's Generate may have left
+      // rows this one doesn't need but another compound still does.
+      const rows = prev.length >= spread.length ? prev : [
+        ...prev,
+        ...Array.from({ length: spread.length - prev.length }, (_, i) => ({
+          label: `L${prev.length + i + 1}`, conc: {} as Record<string, number | null>,
+        })),
+      ];
+      return rows.map((row, i) => {
+        if (i >= spread.length) return row;
+        const conc = { ...row.conc };
+        for (const id of targetIds) conc[id] = spread[i];
+        return { ...row, conc };
+      });
+    });
+    const who = applyToAll ? "every compound" : compounds.find(c => c.compoundId === targetCompoundId)?.name ?? "this compound";
+    toast.success(`Generated ${n} levels for ${who}, ${spread[0]} to ${spread[spread.length - 1]} mg/mL`);
   }
   function addLevel() {
     setLevels(prev => (prev.length >= MAX_LEVELS ? prev : [...prev, { label: `L${prev.length + 1}`, conc: {} }]));
@@ -356,7 +388,19 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
 
       <Card className="p-4 space-y-3">
         <div className="text-sm font-medium">Range</div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+          <div className="space-y-1">
+            <Label className="text-xs">Apply to</Label>
+            <Select value={targetCompoundId} onValueChange={selectTarget}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pick a compound" /></SelectTrigger>
+              <SelectContent>
+                {compounds.length > 1 && (
+                  <SelectItem value={ALL_COMPOUNDS}>All compounds (same range for everyone)</SelectItem>
+                )}
+                {compounds.map(c => <SelectItem key={c.compoundId} value={c.compoundId}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-1">
             <Label className="text-xs">Low standard (mg/mL)</Label>
             <Input type="number" step="0.005" value={lowConc} onChange={e => setLowConc(e.target.value)} placeholder="e.g. 0.1" />
@@ -372,7 +416,8 @@ export function StandardPrepFreelanceFlow({ defaultAnalystName, userToken }: { d
           <Button onClick={generateSpread}>Generate spread</Button>
         </div>
         <p className="text-[11px] text-muted-foreground">
-          Fills every compound above with the same evenly-spaced ladder from low to high, on the 0.005&nbsp;mg/mL grid.
+          Fills the selected compound (or every compound, if you pick "All") with an evenly-spaced ladder from
+          low to high, on the 0.005&nbsp;mg/mL grid. Other compounds' already-generated levels are left alone.
           Every cell stays editable afterward — this is a starting point, not a lock.
         </p>
       </Card>
