@@ -5496,6 +5496,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           diluent_solvents: Json | null
+          edit_history: Json
           expiration_date: string | null
           expiration_period_code: string | null
           expiration_period_days: number | null
@@ -5552,6 +5553,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           diluent_solvents?: Json | null
+          edit_history?: Json
           expiration_date?: string | null
           expiration_period_code?: string | null
           expiration_period_days?: number | null
@@ -5608,6 +5610,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           diluent_solvents?: Json | null
+          edit_history?: Json
           expiration_date?: string | null
           expiration_period_code?: string | null
           expiration_period_days?: number | null

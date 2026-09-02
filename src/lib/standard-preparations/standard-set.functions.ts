@@ -177,11 +177,133 @@ export const createStandardSet = createServerFn({ method: "POST" })
     return { id: row.id as string, log_number: row.log_number as string };
   });
 
+/**
+ * Full recipe correction for an already-submitted Standard Set. Dustin,
+ * 2026-09-02: standard_preparation_logs auto-approves at creation (no
+ * review gate for this prep type), which meant the generic edit path --
+ * gated on status !== "approved" -- could never fire for one of these, and
+ * even if it could, the generic PrepForm is built for a single-target prep,
+ * not N levels of M components each. This replaces the levels/components
+ * wholesale (delete + reinsert, same shape createStandardSet already
+ * writes) rather than diffing row by row -- simpler, and correct here
+ * because the levels ARE the whole recipe; there's nothing else referencing
+ * an individual target_component's id from outside this record.
+ *
+ * Every edit is required to carry a one-line summary, appended to
+ * edit_history (who, when, why) rather than silently overwriting what was
+ * there -- the record should still say a level was corrected and by whom,
+ * not just show the corrected number with no trace of the original.
+ */
+const updateRecipeSchema = z.object({
+  id: z.string().uuid(),
+  analyst_name: z.string().min(1).max(255),
+  summary: z.string().min(1).max(500),
+  standard_name: z.string().min(1).max(255),
+  diluent_name: z.string().max(255),
+  batch_volume_ml: z.number().positive(),
+  range_reasoning: z.string().max(4000).nullable().optional(),
+  levels: z.array(levelSchema).min(1).max(20),
+  intermediate_steps: z.array(intermediateStepSchema).max(60).optional(),
+});
+
+export const updateStandardSetRecipe = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => updateRecipeSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: existing, error: existingErr } = await context.supabase
+      .from("standard_preparation_logs")
+      .select("id, edit_history")
+      .eq("id", data.id)
+      .single();
+    if (existingErr) throw existingErr;
+
+    const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.compound_name))));
+
+    const nextEditHistory = [
+      ...(((existing as { edit_history: unknown }).edit_history as Array<unknown>) ?? []),
+      { at: new Date().toISOString(), by: data.analyst_name, summary: data.summary },
+    ];
+    const { error: updErr } = await context.supabase
+      .from("standard_preparation_logs")
+      .update({
+        standard_name: data.standard_name,
+        final_diluent: data.diluent_name,
+        solvent: data.diluent_name,
+        final_volume: `${data.batch_volume_ml} mL each`,
+        final_volume_ml: data.batch_volume_ml,
+        preparation_steps: data.intermediate_steps ?? [],
+        notes: data.range_reasoning ?? null,
+        ref_material_name: compoundNames.join(", "),
+        edit_history: nextEditHistory,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+      .eq("id", data.id);
+    if (updErr) throw updErr;
+
+    // Wholesale replace: standard_preparation_targets cascades to
+    // standard_preparation_target_components, so deleting the targets is
+    // enough -- nothing outside this record points at a target_component id.
+    const { error: delErr } = await context.supabase
+      .from("standard_preparation_targets")
+      .delete()
+      .eq("prep_id", data.id);
+    if (delErr) throw delErr;
+
+    for (const level of data.levels) {
+      const primary = level.components[0];
+      const { data: targetRow, error: tErr } = await context.supabase
+        .from("standard_preparation_targets")
+        .insert({
+          prep_id: data.id,
+          row_no: level.row_no,
+          name: level.label,
+          target_concentration_mg_per_ml: primary?.concentration_mg_per_ml ?? null,
+          target_concentration_unit: "mg/mL",
+          target_volume_ml: data.batch_volume_ml,
+          calculated_mass_mg: null,
+          calculated_volume_ml: primary?.stock_volume_ul != null ? primary.stock_volume_ul / 1000 : null,
+          notes: level.expected_note ?? "",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any)
+        .select("id")
+        .single();
+      if (tErr) throw tErr;
+
+      const componentRows = level.components.map((c, i) => ({
+        target_id: targetRow.id,
+        compound_id: c.compound_id ?? null,
+        compound_name: c.compound_name,
+        concentration_mg_per_ml: c.concentration_mg_per_ml ?? null,
+        stock_volume_ul: c.stock_volume_ul ?? null,
+        source_label: c.source_label ?? null,
+        sort_order: i,
+      }));
+      if (level.diluent_volume_ul != null) {
+        componentRows.push({
+          target_id: targetRow.id,
+          compound_id: null,
+          compound_name: `${data.diluent_name} (diluent)`,
+          concentration_mg_per_ml: null,
+          stock_volume_ul: level.diluent_volume_ul,
+          source_label: null,
+          sort_order: level.components.length,
+        });
+      }
+      const { error: cErr } = await context.supabase
+        .from("standard_preparation_target_components")
+        .insert(componentRows);
+      if (cErr) throw cErr;
+    }
+
+    return { id: data.id };
+  });
+
 export interface StandardSetLevel {
   target_id: string;
   row_no: number;
   label: string;
   components: Array<{
+    compound_id: string | null;
     compound_name: string;
     concentration_mg_per_ml: number | null;
     stock_volume_ul: number | null;
@@ -190,6 +312,12 @@ export interface StandardSetLevel {
   }>;
   diluent_volume_ul: number | null;
   expected_note: string | null;
+}
+
+export interface EditHistoryEntry {
+  at: string;
+  by: string;
+  summary: string;
 }
 
 export interface StandardSetDetail {
@@ -206,6 +334,8 @@ export interface StandardSetDetail {
   levels: StandardSetLevel[];
   /** Weaker stocks made before the levels, in the order they're made. */
   intermediateSteps: StandardSetIntermediate[];
+  /** Newest first. Empty for a record that's never been corrected. */
+  editHistory: EditHistoryEntry[];
 }
 
 export interface StandardSetIntermediate {
@@ -225,7 +355,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
   .handler(async ({ context, data }): Promise<StandardSetDetail> => {
     const { data: log, error: logErr } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps")
+      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps, edit_history")
       .eq("id", data.id)
       .single();
     if (logErr) throw logErr;
@@ -241,7 +371,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
     const { data: components, error: cErr } = targetIds.length
       ? await context.supabase
         .from("standard_preparation_target_components")
-        .select("target_id, compound_name, concentration_mg_per_ml, stock_volume_ul, source_label, sort_order")
+        .select("target_id, compound_id, compound_name, concentration_mg_per_ml, stock_volume_ul, source_label, sort_order")
         .in("target_id", targetIds)
         .order("sort_order", { ascending: true })
       : { data: [], error: null };
@@ -256,6 +386,7 @@ export const getStandardSet = createServerFn({ method: "GET" })
         row_no: t.row_no,
         label: t.name ?? `L${t.row_no}`,
         components: compoundRows.map(c => ({
+          compound_id: c.compound_id ?? null,
           compound_name: c.compound_name,
           concentration_mg_per_ml: c.concentration_mg_per_ml,
           stock_volume_ul: c.stock_volume_ul,
@@ -270,10 +401,13 @@ export const getStandardSet = createServerFn({ method: "GET" })
     // before intermediate stocks existed, so an old record reads as "none".
     const raw = (log as { preparation_steps?: unknown }).preparation_steps;
     const intermediateSteps = (Array.isArray(raw) ? raw : []) as StandardSetIntermediate[];
+    const editHistoryRaw = (log as { edit_history?: unknown }).edit_history;
+    const editHistory = (Array.isArray(editHistoryRaw) ? editHistoryRaw : []) as EditHistoryEntry[];
 
     return {
-      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps">),
+      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps" | "editHistory">),
       levels,
+      editHistory: [...editHistory].reverse(),
       intermediateSteps,
     };
   });

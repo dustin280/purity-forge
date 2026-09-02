@@ -291,4 +291,8 @@ export const qk = {
     all: ["compound-methods"] as const,
     state: (compoundId: string) => ["compound-methods", compoundId] as const,
   },
+
+  standardSetDetail: {
+    detail: (id: string) => ["standard-set-detail", id] as const,
+  },
 } as const;

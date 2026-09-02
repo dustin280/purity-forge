@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PrepForm, prepValuesToPayload } from "@/components/standard-preparations/prep-form";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
@@ -16,8 +17,11 @@ import { SequenceUsageCard } from "@/components/standard-preparations/sequence-u
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
-import { getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
+import { getStandardSet, updateStandardSetRecipe } from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
+import { standardSetRunListCsv, abbrevFor } from "@/lib/standard-preparations/standard-set-run-list";
+import { StandardSetRecipeEdit, type RecipeEditPayload } from "@/components/standard-preparations/standard-set-recipe-edit";
+import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
   component: PrepDetail,
@@ -30,6 +34,27 @@ function PrepDetail() {
   const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } = usePrepDetail(id);
   const { data, isLoading, error } = query;
   const getSetFn = useServerFn(getStandardSet);
+  const updateRecipeFn = useServerFn(updateStandardSetRecipe);
+  const queryClient = useQueryClient();
+  const actorName = profileDisplayName(profile, user?.email) || user?.email || "";
+
+  const isStandardSet = data?.log.prep_type === "standard_set";
+  const setDetailQ = useQuery({
+    queryKey: qk.standardSetDetail.detail(id),
+    queryFn: () => getSetFn({ data: { id } }),
+    enabled: isStandardSet,
+  });
+
+  const updateRecipeMut = useMutation({
+    mutationFn: (payload: RecipeEditPayload) => updateRecipeFn({ data: { id, analyst_name: actorName, ...payload } }),
+    onSuccess: () => {
+      toast.success("Recipe corrected");
+      queryClient.invalidateQueries({ queryKey: qk.standardSetDetail.detail(id) });
+      queryClient.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
+      setEditing(false);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   async function exportPdf(row: NonNullable<typeof data>["log"], linkedReceipt: LinkedReceipt, attachmentCount: number) {
     if (row.prep_type !== "standard_set") {
@@ -37,7 +62,7 @@ function PrepDetail() {
       return;
     }
     try {
-      const detail = await getSetFn({ data: { id: row.id } });
+      const detail = setDetailQ.data ?? await getSetFn({ data: { id: row.id } });
       const doc = generateStandardSetCutSheetPdf({
         standardName: detail.standard_name,
         logNumber: detail.log_number,
@@ -48,7 +73,7 @@ function PrepDetail() {
         levels: detail.levels.map(l => ({
           label: l.label,
           components: l.components.map(c => ({
-            abbrev: c.compound_name.slice(0, 3).toUpperCase(),
+            abbrev: abbrevFor(c.compound_name, c.source_label),
             concMgPerMl: c.concentration_mg_per_ml,
             stockUl: c.stock_volume_ul,
           })),
@@ -65,6 +90,21 @@ function PrepDetail() {
     }
   }
 
+  async function downloadRunList(row: NonNullable<typeof data>["log"]) {
+    try {
+      const detail = setDetailQ.data ?? await getSetFn({ data: { id: row.id } });
+      const csv = standardSetRunListCsv(detail);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${detail.log_number}_runlist.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to build run list");
+    }
+  }
+
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
   if (error || !data) return <div className="p-8 text-sm text-destructive">Preparation not found.</div>;
 
@@ -72,7 +112,21 @@ function PrepDetail() {
   const linked: LinkedReceipt = r.material_receipt ?? null;
   const canEdit = role === "admin" || role === "tech" || role === "reviewer";
   const canReview = role === "admin" || role === "reviewer";
-  const actorName = profileDisplayName(profile, user?.email) || user?.email || "";
+
+  if (editing && r.prep_type === "standard_set") {
+    if (!setDetailQ.data) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+        <h1 className="text-2xl font-bold tracking-tight mb-4">Correct {r.log_number}</h1>
+        <StandardSetRecipeEdit
+          detail={setDetailQ.data}
+          saving={updateRecipeMut.isPending}
+          onSave={payload => updateRecipeMut.mutate(payload)}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
 
   if (editing) {
     const initial = buildPrepEditInitial(r, linked, data.targets);
@@ -103,6 +157,7 @@ function PrepDetail() {
         transitionLoading={transitionMut.isPending}
         onEdit={() => setEditing(true)}
         onExportPdf={() => exportPdf(r, linked, data.attachments.length)}
+        onDownloadRunList={r.prep_type === "standard_set" ? () => downloadRunList(r) : undefined}
         onTransition={(target, name) => transitionMut.mutate({ target, actor_name: name })}
         onDelete={() => deleteMut.mutate()}
       />

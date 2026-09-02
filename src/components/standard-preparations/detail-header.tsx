@@ -4,7 +4,7 @@
  * The route owns data + mutations and passes them in as props.
  */
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Eye, FileDown, Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Eye, FileDown, ListChecks, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ type RowLike = {
   log_number: string;
   standard_name: string;
   status: string;
+  prep_type?: string | null;
   target_concentration?: string | null;
   manufacturer_lot?: string | null;
   batch_group_id?: string | null;
@@ -25,7 +26,7 @@ type RowLike = {
 
 export function PrepDetailHeader({
   row, canEdit, canReview, isAdmin, actorName,
-  transitionLoading, onEdit, onExportPdf, onTransition, onDelete,
+  transitionLoading, onEdit, onExportPdf, onDownloadRunList, onTransition, onDelete,
 }: {
   row: RowLike;
   canEdit: boolean;
@@ -35,9 +36,18 @@ export function PrepDetailHeader({
   transitionLoading: boolean;
   onEdit: () => void;
   onExportPdf: () => void;
+  /** Only offered for prep_type "standard_set" -- the only kind with a
+   * per-level run list to regenerate. */
+  onDownloadRunList?: () => void;
   onTransition: (target: "reviewed" | "approved" | "draft", actorName: string) => void;
   onDelete: () => void;
 }) {
+  const isStandardSet = row.prep_type === "standard_set";
+  // Standard Set logs auto-approve at creation (no review gate for this
+  // prep type -- see standard-set.functions.ts), so gating Edit on
+  // status !== "approved" would hide it forever for every one of these.
+  // "Approved" for this type means "recorded," not "locked."
+  const canEditNow = canEdit && (isStandardSet || row.status !== "approved");
   return (
     <>
       <Link to="/lab-logs/standard-preparations">
@@ -66,7 +76,12 @@ export function PrepDetailHeader({
           <Button variant="outline" size="sm" onClick={onExportPdf}>
             <FileDown className="size-4 mr-1" /> PDF
           </Button>
-          {canEdit && row.status !== "approved" && (
+          {isStandardSet && onDownloadRunList && (
+            <Button variant="outline" size="sm" onClick={onDownloadRunList}>
+              <ListChecks className="size-4 mr-1" /> Run List
+            </Button>
+          )}
+          {canEditNow && (
             <Button variant="outline" size="sm" onClick={onEdit}>
               <Pencil className="size-4 mr-1" /> Edit
             </Button>
