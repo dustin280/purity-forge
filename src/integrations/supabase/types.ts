@@ -5519,6 +5519,7 @@ export type Database = {
           notes: string | null
           parent_prep_id: string | null
           prep_type: string | null
+          revised_from_id: string | null
           preparation_instructions: string | null
           preparation_steps: Json
           prepared_at: string
@@ -5576,6 +5577,7 @@ export type Database = {
           notes?: string | null
           parent_prep_id?: string | null
           prep_type?: string | null
+          revised_from_id?: string | null
           preparation_instructions?: string | null
           preparation_steps?: Json
           prepared_at?: string
@@ -5633,6 +5635,7 @@ export type Database = {
           notes?: string | null
           parent_prep_id?: string | null
           prep_type?: string | null
+          revised_from_id?: string | null
           preparation_instructions?: string | null
           preparation_steps?: Json
           prepared_at?: string
@@ -5673,6 +5676,13 @@ export type Database = {
           {
             foreignKeyName: "standard_preparation_logs_parent_prep_id_fkey"
             columns: ["parent_prep_id"]
+            isOneToOne: false
+            referencedRelation: "standard_preparation_logs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "standard_preparation_logs_revised_from_id_fkey"
+            columns: ["revised_from_id"]
             isOneToOne: false
             referencedRelation: "standard_preparation_logs"
             referencedColumns: ["id"]

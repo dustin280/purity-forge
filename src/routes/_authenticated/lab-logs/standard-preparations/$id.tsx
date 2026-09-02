@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PrepForm, prepValuesToPayload } from "@/components/standard-preparations/prep-form";
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
@@ -17,7 +17,7 @@ import { SequenceUsageCard } from "@/components/standard-preparations/sequence-u
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
-import { getStandardSet, updateStandardSetRecipe } from "@/lib/standard-preparations/standard-set.functions";
+import { getStandardSet, createStandardSetRevision, listStandardSetRevisions } from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
 import { standardSetRunListCsv, abbrevFor } from "@/lib/standard-preparations/standard-set-run-list";
 import { StandardSetRecipeEdit, type RecipeEditPayload } from "@/components/standard-preparations/standard-set-recipe-edit";
@@ -30,12 +30,13 @@ export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparat
 function PrepDetail() {
   const { id } = Route.useParams();
   const { user, profile, role } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } = usePrepDetail(id);
   const { data, isLoading, error } = query;
   const getSetFn = useServerFn(getStandardSet);
-  const updateRecipeFn = useServerFn(updateStandardSetRecipe);
-  const queryClient = useQueryClient();
+  const createRevisionFn = useServerFn(createStandardSetRevision);
+  const listRevisionsFn = useServerFn(listStandardSetRevisions);
   const actorName = profileDisplayName(profile, user?.email) || user?.email || "";
 
   const isStandardSet = data?.log.prep_type === "standard_set";
@@ -44,14 +45,21 @@ function PrepDetail() {
     queryFn: () => getSetFn({ data: { id } }),
     enabled: isStandardSet,
   });
+  const revisionsQ = useQuery({
+    queryKey: ["standard-set-revisions", id],
+    queryFn: () => listRevisionsFn({ data: { id } }),
+    enabled: isStandardSet,
+  });
 
-  const updateRecipeMut = useMutation({
-    mutationFn: (payload: RecipeEditPayload) => updateRecipeFn({ data: { id, analyst_name: actorName, ...payload } }),
-    onSuccess: () => {
-      toast.success("Recipe corrected");
-      queryClient.invalidateQueries({ queryKey: qk.standardSetDetail.detail(id) });
-      queryClient.invalidateQueries({ queryKey: qk.standardPreps.detail(id) });
+  const createRevisionMut = useMutation({
+    mutationFn: (payload: RecipeEditPayload) => createRevisionFn({ data: { analyst_name: actorName, ...payload } }),
+    onSuccess: (res) => {
+      toast.success(`Saved as ${res.log_number}`);
+      // Route param changes reuse this component instance rather than
+      // remounting it, so `editing` has to be reset explicitly -- otherwise
+      // the new record loads straight into its own edit form.
       setEditing(false);
+      navigate({ to: "/lab-logs/standard-preparations/$id", params: { id: res.id } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -120,8 +128,8 @@ function PrepDetail() {
         <h1 className="text-2xl font-bold tracking-tight mb-4">Correct {r.log_number}</h1>
         <StandardSetRecipeEdit
           detail={setDetailQ.data}
-          saving={updateRecipeMut.isPending}
-          onSave={payload => updateRecipeMut.mutate(payload)}
+          saving={createRevisionMut.isPending}
+          onSave={payload => createRevisionMut.mutate(payload)}
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -161,6 +169,33 @@ function PrepDetail() {
         onTransition={(target, name) => transitionMut.mutate({ target, actor_name: name })}
         onDelete={() => deleteMut.mutate()}
       />
+      {setDetailQ.data?.revisedFrom && (
+        <div className="mb-4 text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
+          Revision of{" "}
+          <Link
+            to="/lab-logs/standard-preparations/$id" params={{ id: setDetailQ.data.revisedFrom.id }}
+            className="font-medium text-foreground underline underline-offset-2"
+          >
+            {setDetailQ.data.revisedFrom.log_number}
+          </Link>
+        </div>
+      )}
+      {revisionsQ.data && revisionsQ.data.length > 0 && (
+        <div className="mb-4 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/5 border border-amber-500/40 rounded-md px-3 py-2">
+          Revised{revisionsQ.data.length > 1 ? ` (${revisionsQ.data.length} times)` : ""} — see{" "}
+          {revisionsQ.data.map((rev, i) => (
+            <span key={rev.id}>
+              {i > 0 && ", "}
+              <Link
+                to="/lab-logs/standard-preparations/$id" params={{ id: rev.id }}
+                className="font-medium underline underline-offset-2"
+              >
+                {rev.log_number}
+              </Link>
+            </span>
+          ))}
+        </div>
+      )}
       <PrepDetailInfoCards row={r} linked={linked} />
       {r.final_volume_ml != null && (
         <PrepLifecycleCard

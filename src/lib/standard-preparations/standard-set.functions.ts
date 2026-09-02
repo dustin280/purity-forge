@@ -178,24 +178,27 @@ export const createStandardSet = createServerFn({ method: "POST" })
   });
 
 /**
- * Full recipe correction for an already-submitted Standard Set. Dustin,
- * 2026-09-02: standard_preparation_logs auto-approves at creation (no
- * review gate for this prep type), which meant the generic edit path --
- * gated on status !== "approved" -- could never fire for one of these, and
- * even if it could, the generic PrepForm is built for a single-target prep,
- * not N levels of M components each. This replaces the levels/components
- * wholesale (delete + reinsert, same shape createStandardSet already
- * writes) rather than diffing row by row -- simpler, and correct here
- * because the levels ARE the whole recipe; there's nothing else referencing
- * an individual target_component's id from outside this record.
+ * Recalculated-and-corrected copy of an already-submitted Standard Set.
+ * Dustin, 2026-09-02: "there is no way to edit or add notes to an existing
+ * preparation" -> full recipe editing -> "it should recalculate so you can
+ * save a new updated variation" -> "it should get a new ID too, that's a
+ * new prep record."
  *
- * Every edit is required to carry a one-line summary, appended to
- * edit_history (who, when, why) rather than silently overwriting what was
- * there -- the record should still say a level was corrected and by whom,
- * not just show the corrected number with no trace of the original.
+ * This is why: standard_preparation_logs auto-approves at creation (no
+ * review gate for this prep type), so a genuinely different set of numbers
+ * -- which is what a recalculation produces -- shouldn't retroactively
+ * become what an already-approved record says it always was. A real
+ * analyst already lived this exact situation on SYN-STDP-000059 this
+ * session: found the numbers wrong, discarded the prep, and (implicitly)
+ * was going to make a fresh one. This formalizes that same real workflow --
+ * discard-and-reprep -- as one action that keeps the two records linked,
+ * instead of two disconnected ones. Mirrors createStandardSet almost
+ * exactly (new id, new registered log_number, same targets/components
+ * insert shape); the only additions are revised_from_id (which record this
+ * corrects) and a one-entry edit_history seeded with who/when/why.
  */
-const updateRecipeSchema = z.object({
-  id: z.string().uuid(),
+const revisionSchema = z.object({
+  revised_from_id: z.string().uuid(),
   analyst_name: z.string().min(1).max(255),
   summary: z.string().min(1).max(500),
   standard_name: z.string().min(1).max(255),
@@ -206,55 +209,65 @@ const updateRecipeSchema = z.object({
   intermediate_steps: z.array(intermediateStepSchema).max(60).optional(),
 });
 
-export const updateStandardSetRecipe = createServerFn({ method: "POST" })
+export const createStandardSetRevision = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => updateRecipeSchema.parse(d))
+  .inputValidator((d: unknown) => revisionSchema.parse(d))
   .handler(async ({ context, data }) => {
-    const { data: existing, error: existingErr } = await context.supabase
-      .from("standard_preparation_logs")
-      .select("id, edit_history")
-      .eq("id", data.id)
-      .single();
-    if (existingErr) throw existingErr;
+    const preparedDate = new Date().toISOString().slice(0, 10);
+    const rowId = crypto.randomUUID();
+    const { data: docNumber, error: docErr } = await context.supabase
+      .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+    if (docErr) throw docErr;
+    const log_number = docNumber as unknown as string;
 
     const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.compound_name))));
+    const levelCount = data.levels.length;
 
-    const nextEditHistory = [
-      ...(((existing as { edit_history: unknown }).edit_history as Array<unknown>) ?? []),
-      { at: new Date().toISOString(), by: data.analyst_name, summary: data.summary },
-    ];
-    const { error: updErr } = await context.supabase
+    const logPayload: Record<string, unknown> = {
+      id: rowId,
+      log_number,
+      prepared_at: new Date().toISOString(),
+      analyst_name: data.analyst_name,
+      analyst_id: context.userId,
+      created_by: context.userId,
+      standard_name: data.standard_name,
+      target_concentration: `${levelCount}-level set`,
+      final_volume: `${data.batch_volume_ml} mL each`,
+      solvent: data.diluent_name,
+      final_diluent: data.diluent_name,
+      preparation_steps: data.intermediate_steps ?? [],
+      container_label: log_number,
+      status: "approved",
+      approver_id: context.userId,
+      approver_name: data.analyst_name,
+      approved_at: new Date().toISOString(),
+      reviewer_id: context.userId,
+      reviewer_name: data.analyst_name,
+      reviewed_at: new Date().toISOString(),
+      notes: data.range_reasoning ?? null,
+      material_overridden: false,
+      ref_material_name: compoundNames.join(", "),
+      ref_form: "solid",
+      prep_type: "standard_set",
+      final_volume_ml: data.batch_volume_ml,
+      revised_from_id: data.revised_from_id,
+      edit_history: [{ at: new Date().toISOString(), by: data.analyst_name, summary: data.summary }],
+    };
+
+    const { data: row, error: insErr } = await context.supabase
       .from("standard_preparation_logs")
-      .update({
-        standard_name: data.standard_name,
-        final_diluent: data.diluent_name,
-        solvent: data.diluent_name,
-        final_volume: `${data.batch_volume_ml} mL each`,
-        final_volume_ml: data.batch_volume_ml,
-        preparation_steps: data.intermediate_steps ?? [],
-        notes: data.range_reasoning ?? null,
-        ref_material_name: compoundNames.join(", "),
-        edit_history: nextEditHistory,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
-      .eq("id", data.id);
-    if (updErr) throw updErr;
-
-    // Wholesale replace: standard_preparation_targets cascades to
-    // standard_preparation_target_components, so deleting the targets is
-    // enough -- nothing outside this record points at a target_component id.
-    const { error: delErr } = await context.supabase
-      .from("standard_preparation_targets")
-      .delete()
-      .eq("prep_id", data.id);
-    if (delErr) throw delErr;
+      .insert(logPayload as any)
+      .select("id, log_number")
+      .single();
+    if (insErr) throw insErr;
 
     for (const level of data.levels) {
       const primary = level.components[0];
       const { data: targetRow, error: tErr } = await context.supabase
         .from("standard_preparation_targets")
         .insert({
-          prep_id: data.id,
+          prep_id: row.id,
           row_no: level.row_no,
           name: level.label,
           target_concentration_mg_per_ml: primary?.concentration_mg_per_ml ?? null,
@@ -295,7 +308,23 @@ export const updateStandardSetRecipe = createServerFn({ method: "POST" })
       if (cErr) throw cErr;
     }
 
-    return { id: data.id };
+    return { id: row.id as string, log_number: row.log_number as string };
+  });
+
+/** Records revised FROM this one, newest first -- shown on the original so
+ * "this was corrected, here's the corrected version" is visible from
+ * either end of the link. */
+export const listStandardSetRevisions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    const { data: rows, error } = await context.supabase
+      .from("standard_preparation_logs")
+      .select("id, log_number, standard_name, prepared_at")
+      .eq("revised_from_id", data.id)
+      .order("prepared_at", { ascending: false });
+    if (error) throw error;
+    return (rows ?? []) as Array<{ id: string; log_number: string; standard_name: string; prepared_at: string }>;
   });
 
 export interface StandardSetLevel {
@@ -336,6 +365,8 @@ export interface StandardSetDetail {
   intermediateSteps: StandardSetIntermediate[];
   /** Newest first. Empty for a record that's never been corrected. */
   editHistory: EditHistoryEntry[];
+  /** The record this one recalculates/corrects, if any. */
+  revisedFrom: { id: string; log_number: string } | null;
 }
 
 export interface StandardSetIntermediate {
@@ -355,10 +386,24 @@ export const getStandardSet = createServerFn({ method: "GET" })
   .handler(async ({ context, data }): Promise<StandardSetDetail> => {
     const { data: log, error: logErr } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps, edit_history")
+      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps, edit_history, revised_from_id")
       .eq("id", data.id)
       .single();
     if (logErr) throw logErr;
+
+    // Separate lookup rather than an embedded select -- a self-referencing
+    // FK disambiguated by constraint name doesn't type-infer cleanly
+    // through supabase-js's generated client, and this is one cheap query.
+    const revisedFromId = (log as { revised_from_id?: string | null }).revised_from_id;
+    let revisedFrom: { id: string; log_number: string } | null = null;
+    if (revisedFromId) {
+      const { data: parent } = await context.supabase
+        .from("standard_preparation_logs")
+        .select("id, log_number")
+        .eq("id", revisedFromId)
+        .maybeSingle();
+      revisedFrom = parent ?? null;
+    }
 
     const { data: targets, error: tErr } = await context.supabase
       .from("standard_preparation_targets")
@@ -405,9 +450,10 @@ export const getStandardSet = createServerFn({ method: "GET" })
     const editHistory = (Array.isArray(editHistoryRaw) ? editHistoryRaw : []) as EditHistoryEntry[];
 
     return {
-      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps" | "editHistory">),
+      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps" | "editHistory" | "revisedFrom">),
       levels,
       editHistory: [...editHistory].reverse(),
       intermediateSteps,
+      revisedFrom,
     };
   });
