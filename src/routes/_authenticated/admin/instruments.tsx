@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, KeyRound } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useInstruments, type Instrument } from "@/components/scheduler/use-scheduler";
+import { FeedKeysPanel } from "@/components/live-instruments/feed-keys-panel";
 
 export const Route = createFileRoute("/_authenticated/admin/instruments")({
   component: InstrumentsAdmin,
@@ -99,8 +100,10 @@ function InstrumentRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(row.name);
+  const [showKeys, setShowKeys] = useState(false);
   return (
-    <div className="p-3 flex items-center gap-3">
+    <div className="p-3">
+    <div className="flex items-center gap-3">
       <div className="flex-1 min-w-0">
         {editing ? (
           <div className="flex gap-2">
@@ -119,11 +122,16 @@ function InstrumentRow({
         <span>{row.is_active ? "Active" : "Inactive"}</span>
         <Switch checked={row.is_active} onCheckedChange={onToggle} />
       </div>
+      <Button size="sm" variant={showKeys ? "secondary" : "ghost"} onClick={() => setShowKeys((v) => !v)}>
+        <KeyRound className="size-4 mr-1" /> Feed keys
+      </Button>
       <Button size="icon" variant="ghost" disabled={deleting} onClick={() => {
         if (confirm(`Delete "${row.name}"? This removes all its bookings.`)) onDelete();
       }}>
         <Trash2 className="size-4 text-destructive" />
       </Button>
+    </div>
+    {showKeys && <FeedKeysPanel instrumentId={row.id} />}
     </div>
   );
 }

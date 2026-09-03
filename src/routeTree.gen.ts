@@ -39,6 +39,8 @@ import { Route as AuthenticatedInventoryIndexRouteImport } from './routes/_authe
 import { Route as AuthenticatedInstrumentCommIndexRouteImport } from './routes/_authenticated/instrument-comm/index'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients/index'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as ApiInstrumentFeedRouteImport } from './routes/api/instrument/feed'
+import { Route as ApiInstrumentEventRouteImport } from './routes/api/instrument/event'
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
 import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
 import { Route as ApiCronInspectRxRouteImport } from './routes/api/cron/inspect-rx'
@@ -103,6 +105,7 @@ import { Route as AuthenticatedLabLogsStandardPreparationsIndexRouteImport } fro
 import { Route as AuthenticatedLabLogsSampleDisposalIndexRouteImport } from './routes/_authenticated/lab-logs/sample-disposal/index'
 import { Route as AuthenticatedLabLogsParameterScoutingIndexRouteImport } from './routes/_authenticated/lab-logs/parameter-scouting/index'
 import { Route as AuthenticatedLabLogsMobilePhaseIndexRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/index'
+import { Route as AuthenticatedLabLogsLiveInstrumentsIndexRouteImport } from './routes/_authenticated/lab-logs/live-instruments/index'
 import { Route as AuthenticatedLabLogsDailyBackpressureIndexRouteImport } from './routes/_authenticated/lab-logs/daily-backpressure/index'
 import { Route as AuthenticatedLabLogsCalQcTrendIndexRouteImport } from './routes/_authenticated/lab-logs/cal-qc-trend/index'
 import { Route as AuthenticatedLabLogsBenchSheetsIndexRouteImport } from './routes/_authenticated/lab-logs/bench-sheets/index'
@@ -123,6 +126,7 @@ import { Route as AuthenticatedLabLogsStandardPreparationsNewRouteImport } from 
 import { Route as AuthenticatedLabLogsStandardPreparationsIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/$id'
 import { Route as AuthenticatedLabLogsMobilePhaseNewRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/new'
 import { Route as AuthenticatedLabLogsMobilePhaseIdRouteImport } from './routes/_authenticated/lab-logs/mobile-phase/$id'
+import { Route as AuthenticatedLabLogsLiveInstrumentsRunIdRouteImport } from './routes/_authenticated/lab-logs/live-instruments/$runId'
 import { Route as AuthenticatedLabLogsAnalysisBatchesNewRouteImport } from './routes/_authenticated/lab-logs/analysis-batches/new'
 import { Route as AuthenticatedLabLogsAnalysisBatchesIdRouteImport } from './routes/_authenticated/lab-logs/analysis-batches/$id'
 import { Route as AuthenticatedLabLogsStandardPreparationsBatchGroupIdRouteImport } from './routes/_authenticated/lab-logs/standard-preparations/batch.$groupId'
@@ -293,6 +297,16 @@ const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ApiInstrumentFeedRoute = ApiInstrumentFeedRouteImport.update({
+  id: '/api/instrument/feed',
+  path: '/api/instrument/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInstrumentEventRoute = ApiInstrumentEventRouteImport.update({
+  id: '/api/instrument/event',
+  path: '/api/instrument/event',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronReconcileReportsRoute = ApiCronReconcileReportsRouteImport.update({
   id: '/api/cron/reconcile-reports',
@@ -668,6 +682,12 @@ const AuthenticatedLabLogsMobilePhaseIndexRoute =
     path: '/lab-logs/mobile-phase/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsLiveInstrumentsIndexRoute =
+  AuthenticatedLabLogsLiveInstrumentsIndexRouteImport.update({
+    id: '/lab-logs/live-instruments/',
+    path: '/lab-logs/live-instruments/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsDailyBackpressureIndexRoute =
   AuthenticatedLabLogsDailyBackpressureIndexRouteImport.update({
     id: '/lab-logs/daily-backpressure/',
@@ -785,6 +805,12 @@ const AuthenticatedLabLogsMobilePhaseIdRoute =
     path: '/lab-logs/mobile-phase/$id',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedLabLogsLiveInstrumentsRunIdRoute =
+  AuthenticatedLabLogsLiveInstrumentsRunIdRouteImport.update({
+    id: '/lab-logs/live-instruments/$runId',
+    path: '/lab-logs/live-instruments/$runId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedLabLogsAnalysisBatchesNewRoute =
   AuthenticatedLabLogsAnalysisBatchesNewRouteImport.update({
     id: '/lab-logs/analysis-batches/new',
@@ -873,6 +899,8 @@ export interface FileRoutesByFullPath {
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
+  '/api/instrument/event': typeof ApiInstrumentEventRoute
+  '/api/instrument/feed': typeof ApiInstrumentFeedRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
@@ -892,6 +920,7 @@ export interface FileRoutesByFullPath {
   '/standard-prep-freelance/': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
+  '/lab-logs/live-instruments/$runId': typeof AuthenticatedLabLogsLiveInstrumentsRunIdRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
   '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -912,6 +941,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/bench-sheets/': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/live-instruments/': typeof AuthenticatedLabLogsLiveInstrumentsIndexRoute
   '/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
@@ -991,6 +1021,8 @@ export interface FileRoutesByTo {
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
+  '/api/instrument/event': typeof ApiInstrumentEventRoute
+  '/api/instrument/feed': typeof ApiInstrumentFeedRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/instrument-comm': typeof AuthenticatedInstrumentCommIndexRoute
@@ -1010,6 +1042,7 @@ export interface FileRoutesByTo {
   '/standard-prep-freelance': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
+  '/lab-logs/live-instruments/$runId': typeof AuthenticatedLabLogsLiveInstrumentsRunIdRoute
   '/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
   '/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -1030,6 +1063,7 @@ export interface FileRoutesByTo {
   '/lab-logs/bench-sheets': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/lab-logs/cal-qc-trend': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/lab-logs/daily-backpressure': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/lab-logs/live-instruments': typeof AuthenticatedLabLogsLiveInstrumentsIndexRoute
   '/lab-logs/mobile-phase': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/lab-logs/parameter-scouting': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/lab-logs/sample-disposal': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
@@ -1111,6 +1145,8 @@ export interface FileRoutesById {
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
   '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
+  '/api/instrument/event': typeof ApiInstrumentEventRoute
+  '/api/instrument/feed': typeof ApiInstrumentFeedRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/instrument-comm/': typeof AuthenticatedInstrumentCommIndexRoute
@@ -1130,6 +1166,7 @@ export interface FileRoutesById {
   '/_authenticated/standard-prep-freelance/': typeof AuthenticatedStandardPrepFreelanceIndexRoute
   '/_authenticated/lab-logs/analysis-batches/$id': typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   '/_authenticated/lab-logs/analysis-batches/new': typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
+  '/_authenticated/lab-logs/live-instruments/$runId': typeof AuthenticatedLabLogsLiveInstrumentsRunIdRoute
   '/_authenticated/lab-logs/mobile-phase/$id': typeof AuthenticatedLabLogsMobilePhaseIdRoute
   '/_authenticated/lab-logs/mobile-phase/new': typeof AuthenticatedLabLogsMobilePhaseNewRoute
   '/_authenticated/lab-logs/standard-preparations/$id': typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -1150,6 +1187,7 @@ export interface FileRoutesById {
   '/_authenticated/lab-logs/bench-sheets/': typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   '/_authenticated/lab-logs/cal-qc-trend/': typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   '/_authenticated/lab-logs/daily-backpressure/': typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  '/_authenticated/lab-logs/live-instruments/': typeof AuthenticatedLabLogsLiveInstrumentsIndexRoute
   '/_authenticated/lab-logs/mobile-phase/': typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   '/_authenticated/lab-logs/parameter-scouting/': typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   '/_authenticated/lab-logs/sample-disposal/': typeof AuthenticatedLabLogsSampleDisposalIndexRoute
@@ -1231,6 +1269,8 @@ export interface FileRouteTypes {
     | '/api/cron/inspect-rx'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
+    | '/api/instrument/event'
+    | '/api/instrument/feed'
     | '/admin/'
     | '/clients/'
     | '/instrument-comm/'
@@ -1250,6 +1290,7 @@ export interface FileRouteTypes {
     | '/standard-prep-freelance/'
     | '/lab-logs/analysis-batches/$id'
     | '/lab-logs/analysis-batches/new'
+    | '/lab-logs/live-instruments/$runId'
     | '/lab-logs/mobile-phase/$id'
     | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
@@ -1270,6 +1311,7 @@ export interface FileRouteTypes {
     | '/lab-logs/bench-sheets/'
     | '/lab-logs/cal-qc-trend/'
     | '/lab-logs/daily-backpressure/'
+    | '/lab-logs/live-instruments/'
     | '/lab-logs/mobile-phase/'
     | '/lab-logs/parameter-scouting/'
     | '/lab-logs/sample-disposal/'
@@ -1349,6 +1391,8 @@ export interface FileRouteTypes {
     | '/api/cron/inspect-rx'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
+    | '/api/instrument/event'
+    | '/api/instrument/feed'
     | '/admin'
     | '/clients'
     | '/instrument-comm'
@@ -1368,6 +1412,7 @@ export interface FileRouteTypes {
     | '/standard-prep-freelance'
     | '/lab-logs/analysis-batches/$id'
     | '/lab-logs/analysis-batches/new'
+    | '/lab-logs/live-instruments/$runId'
     | '/lab-logs/mobile-phase/$id'
     | '/lab-logs/mobile-phase/new'
     | '/lab-logs/standard-preparations/$id'
@@ -1388,6 +1433,7 @@ export interface FileRouteTypes {
     | '/lab-logs/bench-sheets'
     | '/lab-logs/cal-qc-trend'
     | '/lab-logs/daily-backpressure'
+    | '/lab-logs/live-instruments'
     | '/lab-logs/mobile-phase'
     | '/lab-logs/parameter-scouting'
     | '/lab-logs/sample-disposal'
@@ -1468,6 +1514,8 @@ export interface FileRouteTypes {
     | '/api/cron/inspect-rx'
     | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
+    | '/api/instrument/event'
+    | '/api/instrument/feed'
     | '/_authenticated/admin/'
     | '/_authenticated/clients/'
     | '/_authenticated/instrument-comm/'
@@ -1487,6 +1535,7 @@ export interface FileRouteTypes {
     | '/_authenticated/standard-prep-freelance/'
     | '/_authenticated/lab-logs/analysis-batches/$id'
     | '/_authenticated/lab-logs/analysis-batches/new'
+    | '/_authenticated/lab-logs/live-instruments/$runId'
     | '/_authenticated/lab-logs/mobile-phase/$id'
     | '/_authenticated/lab-logs/mobile-phase/new'
     | '/_authenticated/lab-logs/standard-preparations/$id'
@@ -1507,6 +1556,7 @@ export interface FileRouteTypes {
     | '/_authenticated/lab-logs/bench-sheets/'
     | '/_authenticated/lab-logs/cal-qc-trend/'
     | '/_authenticated/lab-logs/daily-backpressure/'
+    | '/_authenticated/lab-logs/live-instruments/'
     | '/_authenticated/lab-logs/mobile-phase/'
     | '/_authenticated/lab-logs/parameter-scouting/'
     | '/_authenticated/lab-logs/sample-disposal/'
@@ -1530,6 +1580,8 @@ export interface RootRouteChildren {
   ApiCronInspectRxRoute: typeof ApiCronInspectRxRoute
   ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
+  ApiInstrumentEventRoute: typeof ApiInstrumentEventRoute
+  ApiInstrumentFeedRoute: typeof ApiInstrumentFeedRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
@@ -1749,6 +1801,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/api/instrument/feed': {
+      id: '/api/instrument/feed'
+      path: '/api/instrument/feed'
+      fullPath: '/api/instrument/feed'
+      preLoaderRoute: typeof ApiInstrumentFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/instrument/event': {
+      id: '/api/instrument/event'
+      path: '/api/instrument/event'
+      fullPath: '/api/instrument/event'
+      preLoaderRoute: typeof ApiInstrumentEventRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/cron/reconcile-reports': {
       id: '/api/cron/reconcile-reports'
@@ -2198,6 +2264,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/live-instruments/': {
+      id: '/_authenticated/lab-logs/live-instruments/'
+      path: '/lab-logs/live-instruments'
+      fullPath: '/lab-logs/live-instruments/'
+      preLoaderRoute: typeof AuthenticatedLabLogsLiveInstrumentsIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/daily-backpressure/': {
       id: '/_authenticated/lab-logs/daily-backpressure/'
       path: '/lab-logs/daily-backpressure'
@@ -2338,6 +2411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLabLogsMobilePhaseIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/lab-logs/live-instruments/$runId': {
+      id: '/_authenticated/lab-logs/live-instruments/$runId'
+      path: '/lab-logs/live-instruments/$runId'
+      fullPath: '/lab-logs/live-instruments/$runId'
+      preLoaderRoute: typeof AuthenticatedLabLogsLiveInstrumentsRunIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/lab-logs/analysis-batches/new': {
       id: '/_authenticated/lab-logs/analysis-batches/new'
       path: '/lab-logs/analysis-batches/new'
@@ -2470,6 +2550,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedStandardPrepFreelanceIndexRoute: typeof AuthenticatedStandardPrepFreelanceIndexRoute
   AuthenticatedLabLogsAnalysisBatchesIdRoute: typeof AuthenticatedLabLogsAnalysisBatchesIdRoute
   AuthenticatedLabLogsAnalysisBatchesNewRoute: typeof AuthenticatedLabLogsAnalysisBatchesNewRoute
+  AuthenticatedLabLogsLiveInstrumentsRunIdRoute: typeof AuthenticatedLabLogsLiveInstrumentsRunIdRoute
   AuthenticatedLabLogsMobilePhaseIdRoute: typeof AuthenticatedLabLogsMobilePhaseIdRoute
   AuthenticatedLabLogsMobilePhaseNewRoute: typeof AuthenticatedLabLogsMobilePhaseNewRoute
   AuthenticatedLabLogsStandardPreparationsIdRoute: typeof AuthenticatedLabLogsStandardPreparationsIdRoute
@@ -2484,6 +2565,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedLabLogsBenchSheetsIndexRoute: typeof AuthenticatedLabLogsBenchSheetsIndexRoute
   AuthenticatedLabLogsCalQcTrendIndexRoute: typeof AuthenticatedLabLogsCalQcTrendIndexRoute
   AuthenticatedLabLogsDailyBackpressureIndexRoute: typeof AuthenticatedLabLogsDailyBackpressureIndexRoute
+  AuthenticatedLabLogsLiveInstrumentsIndexRoute: typeof AuthenticatedLabLogsLiveInstrumentsIndexRoute
   AuthenticatedLabLogsMobilePhaseIndexRoute: typeof AuthenticatedLabLogsMobilePhaseIndexRoute
   AuthenticatedLabLogsParameterScoutingIndexRoute: typeof AuthenticatedLabLogsParameterScoutingIndexRoute
   AuthenticatedLabLogsSampleDisposalIndexRoute: typeof AuthenticatedLabLogsSampleDisposalIndexRoute
@@ -2593,6 +2675,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsAnalysisBatchesIdRoute,
   AuthenticatedLabLogsAnalysisBatchesNewRoute:
     AuthenticatedLabLogsAnalysisBatchesNewRoute,
+  AuthenticatedLabLogsLiveInstrumentsRunIdRoute:
+    AuthenticatedLabLogsLiveInstrumentsRunIdRoute,
   AuthenticatedLabLogsMobilePhaseIdRoute:
     AuthenticatedLabLogsMobilePhaseIdRoute,
   AuthenticatedLabLogsMobilePhaseNewRoute:
@@ -2620,6 +2704,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
     AuthenticatedLabLogsCalQcTrendIndexRoute,
   AuthenticatedLabLogsDailyBackpressureIndexRoute:
     AuthenticatedLabLogsDailyBackpressureIndexRoute,
+  AuthenticatedLabLogsLiveInstrumentsIndexRoute:
+    AuthenticatedLabLogsLiveInstrumentsIndexRoute,
   AuthenticatedLabLogsMobilePhaseIndexRoute:
     AuthenticatedLabLogsMobilePhaseIndexRoute,
   AuthenticatedLabLogsParameterScoutingIndexRoute:
@@ -2652,6 +2738,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronInspectRxRoute: ApiCronInspectRxRoute,
   ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
+  ApiInstrumentEventRoute: ApiInstrumentEventRoute,
+  ApiInstrumentFeedRoute: ApiInstrumentFeedRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,

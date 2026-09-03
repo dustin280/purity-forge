@@ -11,6 +11,7 @@ import { BackpressureTrendChart } from "@/components/daily-backpressure/trend-ch
 import { WorkflowLauncher } from "@/components/dashboard/workflow-launcher";
 import { getStandardPrepAlerts } from "@/lib/standard-preparations/prep-alerts.functions";
 import { StandardsAlertCard } from "@/components/dashboard/standards-alert-card";
+import { LiveInstrumentsCard } from "@/components/dashboard/live-instruments-card";
 export const Route = createFileRoute("/_authenticated/")({ component: Dashboard });
 
 function Dashboard() {
@@ -36,6 +37,8 @@ function Dashboard() {
       </header>
 
       <WorkflowLauncher />
+
+      <LiveInstrumentsCard />
 
       <BackpressureTrendChart rows={bpRows ?? []} isLoading={bpLoading} showOpenLogLink />
 

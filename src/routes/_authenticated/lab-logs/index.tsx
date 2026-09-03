@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
-import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker, Droplets, Clock, Trash2, LineChart, ClipboardCheck, TestTubes, Activity } from "lucide-react";
+import { ChevronRight, PackageCheck, FlaskConical, Gauge, Beaker, Droplets, Clock, Trash2, LineChart, ClipboardCheck, TestTubes, Activity, Radio } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/")({ component: LogsIndex });
 
@@ -8,6 +8,7 @@ const ITEMS = [
   { to: "/material-receipts", title: "Material Receipt Log", description: "Track incoming controlled and uncontrolled materials.", icon: PackageCheck },
   { to: "/lab-logs/standard-preparations", title: "Standard Preparation Log", description: "Reference standards, system suitability, check standards, and working solutions.", icon: FlaskConical },
   { to: "/lab-logs/daily-backpressure", title: "Daily Backpressure Log", description: "Quick daily HPLC backpressure readings.", icon: Gauge },
+  { to: "/lab-logs/live-instruments", title: "Live Instrument Feed", description: "Chromatogram, pump pressure and module traces streamed from the instrument LAN while runs are in progress, plus replay of stored runs.", icon: Radio },
   { to: "/lab-logs/cal-qc-trend", title: "Cal/QC Peak Trend Log", description: "Retention time and peak area drift over time, for one compound under one acquisition method.", icon: LineChart },
   { to: "/lab-logs/cal-qc-monitor", title: "Cal/QC Peak Monitor", description: "Peak height, area and response factor per calibration level — checks a curve against the 100–1800 mAU window, grouped by acquisition method.", icon: Activity },
   { to: "/lab-logs/parameter-scouting", title: "Parameter Scouting Log", description: "HPLC method scouting: flow, temperature, gradient, and the compound run list.", icon: Beaker },
