@@ -25,8 +25,8 @@
  *                                 Pressure Log page and the dashboard's daily
  *                                 first/last chart.
  *
- * Daily Backpressure semantics deliberately mirror the Drive .dx importer
- * (src/lib/lab-logs/pressure-watcher.functions.ts) so the trend chart is
+ * Daily Backpressure semantics deliberately mirror the retired Drive .dx
+ * importer (archive/drive-pressure-importer/) so the trend chart is
  * continuous across the switch-over: one row per *sequence*, `backpressure` /
  * flow / column temp = mean over the first 15 s of the sequence's first
  * injection (the agent computes those from the same streams the .dx files

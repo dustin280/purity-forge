@@ -4,7 +4,8 @@
  * Each `.dx` file pulled off Drive for a run is actually a zip archive
  * (`injection.acmd` XML manifest + one binary file per detector/pump
  * channel). This module only handles the two pieces once that archive has
- * already been unzipped elsewhere (src/lib/lab-logs/pressure-watcher.functions.ts):
+ * already been unzipped by the caller (Cal/QC watcher, .dx pickers; formerly
+ * the Drive pressure importer, now archive/drive-pressure-importer/):
  *   - `injection.acmd`, a small XML manifest listing every channel
  *     (Description/DeviceName/Units/TraceId) plus run-level info
  *     (SampleName/RunDateTime/RunOperator/AcquisitionMethod).

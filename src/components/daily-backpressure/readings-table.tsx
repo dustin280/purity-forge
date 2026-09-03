@@ -60,15 +60,13 @@ export function ReadingsTable({
                   <td className="px-4 py-2 text-right font-mono whitespace-nowrap">
                     {r.backpressure}{" "}
                     <span className="text-muted-foreground">{r.backpressure_unit}</span>
-                    {r.source === "auto" && (
+                    {r.source !== "manual" && (
                       <Badge variant="secondary" className="ml-1.5 align-middle font-sans">
-                        Auto
+                        {r.source === "live" ? "Live" : "Auto"}
                       </Badge>
                     )}
                   </td>
-                  <td className="px-4 py-2 text-right font-mono">
-                    {r.injections_count ?? "—"}
-                  </td>
+                  <td className="px-4 py-2 text-right font-mono">{r.injections_count ?? "—"}</td>
                   <td className="px-4 py-2 text-muted-foreground">{r.mobile_phase ?? "—"}</td>
                   <td className="px-4 py-2 text-right font-mono whitespace-nowrap">
                     {r.flow_rate != null ? (

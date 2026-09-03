@@ -2,8 +2,9 @@
 
 Live chromatogram / pump / module data from the Agilent 1290 Infinity II/III
 stacks, plus automatic Daily Backpressure logging, sourced from a read-only
-packet capture of the instrument LAN. Replaces the hourly Drive `.dx`
-importer for pressure once verified.
+packet capture of the instrument LAN. Replaced the hourly Drive `.dx`
+importer for pressure on 2026-09-03 (archived under
+`archive/drive-pressure-importer/`).
 
 ## Pieces
 
@@ -121,17 +122,14 @@ Replaying a capture also writes log entries, stamped with the capture's own
 times (the windows follow the packet clock), so a replay of an old capture
 fills in that day rather than today.
 
-## Switching off the Drive importer
+## The Drive importer is retired
 
-Once live rows are appearing, disable the hourly pg_cron job so sequences are
-not logged twice:
-
-```sql
-select cron.unschedule('pressure-log-watcher-hourly');
-```
-
-The *Run watcher now* button on the Daily Backpressure page still works for a
-manual catch-up.
+Done 2026-09-03 after the first live row was checked against a real sequence:
+migration `20260903235000_retire_drive_pressure_importer.sql` unscheduled the
+hourly pg_cron job and dropped its trigger function, the importer's code and
+cron route moved to `archive/drive-pressure-importer/` (with restore notes),
+and the *Run watcher now* button was removed from the Daily Backpressure page.
+Rows it wrote (`source = 'auto'`) remain; new rows are `source = 'live'`.
 
 ## Realtime payloads
 

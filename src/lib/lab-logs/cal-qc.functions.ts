@@ -1,7 +1,8 @@
 /**
  * Read-side server functions for the Cal Std / QC Peak Trend Log — the
  * write side (the watcher itself) lives in cal-qc-watcher.functions.ts,
- * same split as daily-backpressure.functions.ts vs pressure-watcher.functions.ts.
+ * same split as daily-backpressure.functions.ts vs the (now archived) Drive
+ * pressure importer, archive/drive-pressure-importer/pressure-watcher.functions.ts.
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -82,7 +83,8 @@ export interface RtReferenceBand {
 export const getRtReferenceBand = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => {
-    if (typeof d !== "object" || d === null || !("compoundId" in d)) throw new Error("compoundId required");
+    if (typeof d !== "object" || d === null || !("compoundId" in d))
+      throw new Error("compoundId required");
     return d as { compoundId: string };
   })
   .handler(async ({ context, data }): Promise<RtReferenceBand | null> => {

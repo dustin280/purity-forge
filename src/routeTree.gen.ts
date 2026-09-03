@@ -42,7 +42,6 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as ApiInstrumentFeedRouteImport } from './routes/api/instrument/feed'
 import { Route as ApiInstrumentEventRouteImport } from './routes/api/instrument/event'
 import { Route as ApiCronReconcileReportsRouteImport } from './routes/api/cron/reconcile-reports'
-import { Route as ApiCronPressureLogRouteImport } from './routes/api/cron/pressure-log'
 import { Route as ApiCronInspectRxRouteImport } from './routes/api/cron/inspect-rx'
 import { Route as ApiCronIncubationWatcherRouteImport } from './routes/api/cron/incubation-watcher'
 import { Route as ApiCronDailyDigestRouteImport } from './routes/api/cron/daily-digest'
@@ -312,11 +311,6 @@ const ApiInstrumentEventRoute = ApiInstrumentEventRouteImport.update({
 const ApiCronReconcileReportsRoute = ApiCronReconcileReportsRouteImport.update({
   id: '/api/cron/reconcile-reports',
   path: '/api/cron/reconcile-reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCronPressureLogRoute = ApiCronPressureLogRouteImport.update({
-  id: '/api/cron/pressure-log',
-  path: '/api/cron/pressure-log',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCronInspectRxRoute = ApiCronInspectRxRouteImport.update({
@@ -904,7 +898,6 @@ export interface FileRoutesByFullPath {
   '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
-  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/api/instrument/event': typeof ApiInstrumentEventRoute
   '/api/instrument/feed': typeof ApiInstrumentFeedRoute
@@ -1027,7 +1020,6 @@ export interface FileRoutesByTo {
   '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
-  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/api/instrument/event': typeof ApiInstrumentEventRoute
   '/api/instrument/feed': typeof ApiInstrumentFeedRoute
@@ -1152,7 +1144,6 @@ export interface FileRoutesById {
   '/api/cron/daily-digest': typeof ApiCronDailyDigestRoute
   '/api/cron/incubation-watcher': typeof ApiCronIncubationWatcherRoute
   '/api/cron/inspect-rx': typeof ApiCronInspectRxRoute
-  '/api/cron/pressure-log': typeof ApiCronPressureLogRoute
   '/api/cron/reconcile-reports': typeof ApiCronReconcileReportsRoute
   '/api/instrument/event': typeof ApiInstrumentEventRoute
   '/api/instrument/feed': typeof ApiInstrumentFeedRoute
@@ -1277,7 +1268,6 @@ export interface FileRouteTypes {
     | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/inspect-rx'
-    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/api/instrument/event'
     | '/api/instrument/feed'
@@ -1400,7 +1390,6 @@ export interface FileRouteTypes {
     | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/inspect-rx'
-    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/api/instrument/event'
     | '/api/instrument/feed'
@@ -1524,7 +1513,6 @@ export interface FileRouteTypes {
     | '/api/cron/daily-digest'
     | '/api/cron/incubation-watcher'
     | '/api/cron/inspect-rx'
-    | '/api/cron/pressure-log'
     | '/api/cron/reconcile-reports'
     | '/api/instrument/event'
     | '/api/instrument/feed'
@@ -1591,7 +1579,6 @@ export interface RootRouteChildren {
   ApiCronDailyDigestRoute: typeof ApiCronDailyDigestRoute
   ApiCronIncubationWatcherRoute: typeof ApiCronIncubationWatcherRoute
   ApiCronInspectRxRoute: typeof ApiCronInspectRxRoute
-  ApiCronPressureLogRoute: typeof ApiCronPressureLogRoute
   ApiCronReconcileReportsRoute: typeof ApiCronReconcileReportsRoute
   ApiInstrumentEventRoute: typeof ApiInstrumentEventRoute
   ApiInstrumentFeedRoute: typeof ApiInstrumentFeedRoute
@@ -1834,13 +1821,6 @@ declare module '@tanstack/react-router' {
       path: '/api/cron/reconcile-reports'
       fullPath: '/api/cron/reconcile-reports'
       preLoaderRoute: typeof ApiCronReconcileReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/cron/pressure-log': {
-      id: '/api/cron/pressure-log'
-      path: '/api/cron/pressure-log'
-      fullPath: '/api/cron/pressure-log'
-      preLoaderRoute: typeof ApiCronPressureLogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/cron/inspect-rx': {
@@ -2759,7 +2739,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronDailyDigestRoute: ApiCronDailyDigestRoute,
   ApiCronIncubationWatcherRoute: ApiCronIncubationWatcherRoute,
   ApiCronInspectRxRoute: ApiCronInspectRxRoute,
-  ApiCronPressureLogRoute: ApiCronPressureLogRoute,
   ApiCronReconcileReportsRoute: ApiCronReconcileReportsRoute,
   ApiInstrumentEventRoute: ApiInstrumentEventRoute,
   ApiInstrumentFeedRoute: ApiInstrumentFeedRoute,
