@@ -69,6 +69,12 @@ page should show the run, and when it finishes a Daily Backpressure row
   Daily Backpressure log uses), `sequence_completed`, and `heartbeat` while
   idle. Queued, retried with backoff and spooled to `spool/` while the app is
   unreachable, so nothing is lost across outages.
+- `pressure_log` events, one per minute (`pressure_log_interval_s`, 0
+  disables) whenever the instrument is on — idle or running: the window's
+  mean / min / max pump pressure, mean flow and column temperature, plus the
+  sequence/run it fell in. This is the continuous log behind the *Instrument
+  Pressure Log* page and the dashboard's daily first/last pressure chart. Same
+  reliable queue as the other events.
 
 ## Notes
 

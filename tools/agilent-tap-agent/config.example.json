@@ -4,6 +4,7 @@
   "tshark_path": "C:\\Program Files\\Wireshark\\tshark.exe",
   "batch_interval_s": 1.0,
   "heartbeat_interval_s": 15,
+  "pressure_log_interval_s": 60,
   "instruments": [
     {
       "instrument_id": "00000000-0000-0000-0000-000000000000",

@@ -11,7 +11,10 @@ Manager:
   POST <app_url>/api/instrument/event  sequence_started / run_started /
                                        run_completed (+ per-run traces and the
                                        Daily-Backpressure summary) /
-                                       sequence_completed / heartbeat
+                                       sequence_completed / heartbeat /
+                                       pressure_log (one continuous-log entry
+                                       per minute: mean/min/max pressure, flow,
+                                       column temperature — idle or running)
 
 Every request is signed: x-instrument-id + x-signature (hex HMAC-SHA256 of
 the raw body under that instrument's feed key, created under Admin ->
@@ -53,7 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.0.0"
+AGENT_VERSION = "1.1.0"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -85,6 +88,9 @@ TRACE_STREAMS = {
     "PMP1E_SolventRatioB": 1.0, "THM1A_LeftTemp": None, "THM1B_RightTemp": None,
     "WPS1A_Temperature": 1.0,
 }  # value = decimation interval in seconds (None = keep native rate)
+# Monitor streams folded into the continuous pressure log (one entry per
+# pressure_log_interval_s, default 60 s, whenever the instrument is on).
+PRESSURE_LOG_STREAMS = ("PMP1B_Pressure", "PMP1C_Flow", "THM1A_LeftTemp", "THM1B_RightTemp")
 
 
 def utc_iso(epoch: float) -> str:
@@ -135,24 +141,58 @@ class AppClient:
         stamp = body.get("sent_at", utc_iso(time.time())).replace(":", "").replace("-", "")
         return self.spool_dir / f"{instrument_id}_{stamp}_{body.get('type', 'event')}.json"
 
-    def _event_worker(self) -> None:
-        # Drain anything spooled by an earlier crash first.
-        for p in sorted(self.spool_dir.glob("*.json")):
+    # Events the deployed app does not understand yet (agent newer than the
+    # app) are parked as *.deferred and re-queued every DEFERRED_RETRY_S, so
+    # they are neither lost nor hold up the events queued behind them.
+    DEFERRED_RETRY_S = 300.0
+
+    def _requeue(self, pattern: str) -> int:
+        n = 0
+        for p in sorted(self.spool_dir.glob(pattern)):
             try:
                 rec = json.loads(p.read_text("utf-8"))
-                self.events.put((rec["instrument_id"], rec["secret"], rec["body"]))
                 p.unlink()
+                self.events.put((rec["instrument_id"], rec["secret"], rec["body"]))
+                n += 1
             except Exception as e:  # noqa: BLE001
                 LOG.error("bad spool file %s: %s", p, e)
+        return n
+
+    def _event_worker(self) -> None:
+        # Drain anything spooled by an earlier crash first, then anything parked.
+        self._requeue("*.json")
+        self._requeue("*.deferred")
+        last_deferred_check = time.time()
         while True:
-            instrument_id, secret, body = self.events.get()
+            try:
+                instrument_id, secret, body = self.events.get(timeout=self.DEFERRED_RETRY_S)
+            except queue.Empty:
+                instrument_id = ""
+            if time.time() - last_deferred_check >= self.DEFERRED_RETRY_S:
+                last_deferred_check = time.time()
+                n = self._requeue("*.deferred")
+                if n:
+                    LOG.info("re-queued %d deferred event(s)", n)
+            if not instrument_id:
+                continue
             delay = 2.0
             spooled: Optional[Path] = None
             while True:
                 try:
                     status, text = self._post("/api/instrument/event", instrument_id, secret, body, timeout=60)
                     if status == 200:
-                        LOG.info("event %s ok: %s", body.get("type"), text[:120])
+                        # pressure_log goes out every minute; keep it out of the INFO log.
+                        LOG.log(logging.DEBUG if body.get("type") == "pressure_log" else logging.INFO,
+                                "event %s ok: %s", body.get("type"), text[:120])
+                        if spooled and spooled.exists():
+                            spooled.unlink()
+                        break
+                    if status == 400 and "invalid_union_discriminator" in text:
+                        # The app does not know this event type yet: park it and move on.
+                        LOG.warning("event %s unknown to the app yet (400) - parked, retry in %d s",
+                                    body.get("type"), int(self.DEFERRED_RETRY_S))
+                        parked = self._spool_path(instrument_id, body).with_suffix(".deferred")
+                        parked.write_text(json.dumps({"instrument_id": instrument_id, "secret": secret, "body": body}), "utf-8")
                         if spooled and spooled.exists():
                             spooled.unlink()
                         break
@@ -332,7 +372,8 @@ class SequenceState:
 
 
 class Instrument:
-    def __init__(self, cfg: dict, client: AppClient, batch_interval: float, heartbeat_interval: float):
+    def __init__(self, cfg: dict, client: AppClient, batch_interval: float, heartbeat_interval: float,
+                 pressure_log_interval: float = 60.0):
         self.id: str = cfg["instrument_id"]
         self.name: str = cfg.get("name", self.id)
         self.ip: str = cfg["ip"]
@@ -372,6 +413,12 @@ class Instrument:
         self.last_batch_at = 0.0
         self.last_heartbeat_at = 0.0
         self.now = time.time()
+        # Continuous pressure log: samples of PRESSURE_LOG_STREAMS accumulate
+        # per wall-clock-aligned window (capture clock, so replay logs the
+        # capture's own times) and go out as one pressure_log event per window.
+        self.plog_interval = pressure_log_interval
+        self.plog_window: Optional[int] = None
+        self.plog_acc: dict[str, list[float]] = defaultdict(list)
 
     # ---- packet input ----
     def on_segment(self, ts: float, capture_ts: float, src_port: int, dst_port: int, seq: int, payload: bytes) -> None:
@@ -466,6 +513,8 @@ class Instrument:
             t_batch = s.t0 + (tick - s.anchor_tick) / clock
             for i, v in enumerate(m["values"]):
                 s.pending.append((t_batch + i * dt, v * st["scale"]))
+            if self.plog_interval > 0 and base in PRESSURE_LOG_STREAMS:
+                self._accumulate_pressure_log(base, m["values"], st["scale"])
         else:
             # Acquisition batches: exact samples, only during a run (or its tail).
             self.last_acq_at = self.now
@@ -485,6 +534,44 @@ class Instrument:
             t_batch = s.t0 + (tick - s.anchor_tick) / clock
             for i, v in enumerate(m["values"]):
                 s.run_values.append((t_batch + i * dt, v * st["scale"]))
+
+    # ---- continuous pressure log ----
+    def _accumulate_pressure_log(self, name: str, values: list, scale: float) -> None:
+        window = int(self.capture_now // self.plog_interval)
+        if self.plog_window is None:
+            self.plog_window = window
+        elif window != self.plog_window:
+            self.flush_pressure_log()
+            self.plog_window = window
+        self.plog_acc[name].extend(v * scale for v in values)
+
+    def flush_pressure_log(self) -> None:
+        """Send the accumulated window as one pressure_log event (no-op without pressure samples)."""
+        if self.plog_window is None:
+            return
+        acc, self.plog_acc = self.plog_acc, defaultdict(list)
+        pvals = acc.get("PMP1B_Pressure") or []
+        if not pvals:
+            return
+
+        def mean(vals: Optional[list[float]]) -> Optional[float]:
+            return (sum(vals) / len(vals)) if vals else None
+
+        flow = mean(acc.get("PMP1C_Flow"))
+        temps = [x for x in (mean(acc.get("THM1A_LeftTemp")), mean(acc.get("THM1B_RightTemp"))) if x is not None]
+        start = self.plog_window * self.plog_interval
+        self.client.send_event(self.id, self.secret, {
+            "type": "pressure_log", "sent_at": utc_iso(self.now), "agent": self.agent_dict(),
+            "at": utc_iso(start), "window_s": int(round(self.plog_interval)),
+            "pressure": {"mean": round(sum(pvals) / len(pvals), 3), "min": round(min(pvals), 3),
+                         "max": round(max(pvals), 3), "n": len(pvals)},
+            "flow_ml_min": round(flow, 4) if flow is not None else None,
+            "column_temp_c": round(sum(temps) / len(temps), 2) if temps else None,
+            "state": "running" if self.run else "idle",
+            "sequence": self._sequence_ref(),
+            "run": {"key": self.run.key, "injection_index": self.run.injection_index,
+                    "started_at": utc_iso(self.run.started_at)} if self.run else None,
+        })
 
     # ---- lifecycle ----
     def state_dict(self) -> dict:
@@ -756,7 +843,8 @@ def main() -> int:
     cfg = json.loads(Path(args.config).read_text("utf-8"))
     tshark = cfg.get("tshark_path") or (DEFAULT_TSHARK if os.path.exists(DEFAULT_TSHARK) else "tshark")
     client = AppClient(cfg["app_url"], Path(cfg.get("spool_dir") or Path(args.config).resolve().parent / "spool"))
-    instruments = [Instrument(c, client, float(cfg.get("batch_interval_s", 1.0)), float(cfg.get("heartbeat_interval_s", 15.0)))
+    instruments = [Instrument(c, client, float(cfg.get("batch_interval_s", 1.0)), float(cfg.get("heartbeat_interval_s", 15.0)),
+                              float(cfg.get("pressure_log_interval_s", 60.0)))
                    for c in cfg["instruments"]]
     by_ip = {i.ip: i for i in instruments}
     LOG.info("agent %s host=%s app=%s instruments=%s", AGENT_VERSION, client.host, client.app_url,
@@ -781,6 +869,7 @@ def main() -> int:
                         if inst.run:
                             inst.begin_run_end(inst.now)
                         inst.finalize_ending()
+                        inst.flush_pressure_log()
                     time.sleep(3)
                     return 0
                 LOG.error("tshark exited (%s); restarting in 5 s", proc.poll())

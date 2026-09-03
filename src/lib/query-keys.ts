@@ -107,14 +107,12 @@ export const qk = {
 
   parameterScoutingAttachments: {
     all: ["parameter-scouting-attachments"] as const,
-    list: (entryId: string) =>
-      ["parameter-scouting-attachments", entryId] as const,
+    list: (entryId: string) => ["parameter-scouting-attachments", entryId] as const,
   },
 
   auditLog: {
     all: ["audit_log"] as const,
-    list: (from: string, to: string, table: string) =>
-      ["audit_log", from, to, table] as const,
+    list: (from: string, to: string, table: string) => ["audit_log", from, to, table] as const,
     profiles: (actorIds: string) => ["audit_log_profiles", actorIds] as const,
   },
 
@@ -142,10 +140,8 @@ export const qk = {
     all: ["coc_records"] as const,
     list: () => ["coc_records"] as const,
     detail: (id: string | null | undefined) => ["coc_record", id] as const,
-    view: (id: string | null | undefined) =>
-      ["coc_record_view", id] as const,
-    attachments: (cocId: string | null | undefined) =>
-      ["coc_attachments", cocId] as const,
+    view: (id: string | null | undefined) => ["coc_record_view", id] as const,
+    attachments: (cocId: string | null | undefined) => ["coc_attachments", cocId] as const,
     attachmentsAll: ["coc_attachments"] as const,
   },
 
@@ -162,9 +158,12 @@ export const qk = {
   instrumentFeed: {
     all: ["instrument-feed"] as const,
     overview: () => ["instrument-feed", "overview"] as const,
-    runs: (instrumentId: string | null) => ["instrument-feed", "runs", instrumentId ?? "all"] as const,
+    runs: (instrumentId: string | null) =>
+      ["instrument-feed", "runs", instrumentId ?? "all"] as const,
     trace: (runId: string) => ["instrument-feed", "trace", runId] as const,
     keys: (instrumentId: string) => ["instrument-feed", "keys", instrumentId] as const,
+    pressureLog: (filters: unknown) => ["instrument-feed", "pressure-log", filters] as const,
+    bookends: (filters: unknown) => ["instrument-feed", "bookends", filters] as const,
   },
 
   instrumentBookings: {
@@ -192,9 +191,7 @@ export const qk = {
   timesheets: {
     all: ["timesheets"] as const,
     list: (filters?: unknown) =>
-      filters === undefined
-        ? (["timesheets"] as const)
-        : (["timesheets", filters] as const),
+      filters === undefined ? (["timesheets"] as const) : (["timesheets", filters] as const),
     projects: () => ["timesheet-projects"] as const,
   },
 
@@ -273,7 +270,8 @@ export const qk = {
 
   analysisBatches: {
     all: ["analysis-batches"] as const,
-    list: (testType?: string) => (testType ? (["analysis-batches", testType] as const) : (["analysis-batches"] as const)),
+    list: (testType?: string) =>
+      testType ? (["analysis-batches", testType] as const) : (["analysis-batches"] as const),
     detail: (id: string) => ["analysis-batch", id] as const,
     queue: (testType: string) => ["analysis-batch-queue", testType] as const,
   },

@@ -185,6 +185,131 @@ export const getInstrumentRunTrace = createServerFn({ method: "GET" })
     },
   );
 
+/* ---------------- continuous pressure log ---------------- */
+
+export interface InstrumentPressureLogRow {
+  id: string;
+  instrument_id: string;
+  /** start of the aggregation window */
+  logged_at: string;
+  window_s: number;
+  samples: number;
+  /** window mean */
+  pressure_bar: number;
+  pressure_min_bar: number | null;
+  pressure_max_bar: number | null;
+  flow_ml_min: number | null;
+  column_temp_c: number | null;
+  state: "idle" | "running";
+  sequence_id: string | null;
+  run_id: string | null;
+}
+
+/** PostgREST returns at most 1000 rows per request, so a range is read page by page. */
+const PRESSURE_LOG_PAGE = 1000;
+/** ~14 instrument-days at one entry per minute; wider ranges are truncated (newest first). */
+const PRESSURE_LOG_MAX_ROWS = 20000;
+
+export const listInstrumentPressureLog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        instrument_id: z.string().uuid().nullable().optional(),
+        from: z.string().datetime({ offset: true }),
+        to: z.string().datetime({ offset: true }),
+        state: z.enum(["idle", "running"]).nullable().optional(),
+        pump_on_only: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(
+    async ({
+      context,
+      data,
+    }): Promise<{ rows: InstrumentPressureLogRow[]; truncated: boolean }> => {
+      const db = context.supabase as AnySupabase;
+      const rows: InstrumentPressureLogRow[] = [];
+      for (let offset = 0; offset < PRESSURE_LOG_MAX_ROWS; offset += PRESSURE_LOG_PAGE) {
+        let q = db
+          .from("instrument_pressure_log")
+          .select("*")
+          .gte("logged_at", data.from)
+          .lt("logged_at", data.to)
+          .order("logged_at", { ascending: false })
+          .range(offset, offset + PRESSURE_LOG_PAGE - 1);
+        if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
+        if (data.state) q = q.eq("state", data.state);
+        if (data.pump_on_only) q = q.gt("flow_ml_min", 0);
+        const { data: page, error } = await q;
+        if (error) throw error;
+        const got = (page ?? []) as InstrumentPressureLogRow[];
+        rows.push(...got);
+        if (got.length < PRESSURE_LOG_PAGE) return { rows, truncated: false };
+      }
+      return { rows, truncated: true };
+    },
+  );
+
+export interface PressureDailyBookend {
+  instrument_id: string;
+  instrument_name: string;
+  /** YYYY-MM-DD in the requested time zone */
+  day: string;
+  first_at: string;
+  first_bar: number;
+  last_at: string;
+  last_bar: number;
+  readings: number;
+  min_bar: number;
+  max_bar: number;
+}
+
+/**
+ * First and last continuous-log entries per local day (dashboard chart).
+ * By default only entries logged while the pump was delivering count, since
+ * pressure with the pump off says nothing about the column.
+ */
+export const getInstrumentPressureDailyBookends = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        from: z.string().datetime({ offset: true }),
+        to: z.string().datetime({ offset: true }),
+        /** IANA zone name of the viewer, e.g. America/Los_Angeles */
+        tz: z
+          .string()
+          .min(1)
+          .max(64)
+          .regex(/^[A-Za-z0-9_+\-/]+$/),
+        instrument_id: z.string().uuid().nullable().optional(),
+        pump_on_only: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }): Promise<PressureDailyBookend[]> => {
+    const db = context.supabase as AnySupabase;
+    const [{ data: rows, error }, { data: instruments }] = await Promise.all([
+      db.rpc("instrument_pressure_daily_bookends", {
+        p_from: data.from,
+        p_to: data.to,
+        p_tz: data.tz,
+        p_instrument_id: data.instrument_id ?? null,
+        p_min_flow: data.pump_on_only === false ? null : 0,
+      }),
+      db.from("instruments").select("id, name"),
+    ]);
+    if (error) throw error;
+    const names = new Map<string, string>();
+    for (const i of (instruments ?? []) as Array<{ id: string; name: string }>)
+      names.set(i.id, i.name);
+    return ((rows ?? []) as Array<Omit<PressureDailyBookend, "instrument_name">>).map((r) => ({
+      ...r,
+      instrument_name: names.get(r.instrument_id) ?? "Unknown instrument",
+    }));
+  });
+
 /* ---------------- admin: feed keys ---------------- */
 
 export interface InstrumentFeedKeyRow {

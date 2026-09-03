@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft, ChartLine, RefreshCw } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,10 +18,7 @@ export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressur
 
 function BackpressureLog() {
   const { profile, role } = useAuth();
-  const defaultName = [profile?.first_name, profile?.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  const defaultName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
   const canCreate = role === "admin" || role === "tech" || role === "reviewer";
   const isAdmin = role === "admin";
   const { query, createMut, deleteMut } = useBackpressure();
@@ -52,9 +49,7 @@ function BackpressureLog() {
       </Link>
       <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            Logs
-          </div>
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground">Logs</div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">
             Daily Backpressure Log
           </h1>
@@ -62,17 +57,26 @@ function BackpressureLog() {
             Quick daily readings from the HPLC system.
           </p>
         </div>
-        {isAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={runWatcherMut.isPending}
-            onClick={() => runWatcherMut.mutate()}
-          >
-            <RefreshCw className={`size-4 mr-1.5 ${runWatcherMut.isPending ? "animate-spin" : ""}`} />
-            {runWatcherMut.isPending ? "Running…" : "Run watcher now"}
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link to="/lab-logs/pressure-log">
+              <ChartLine className="size-4 mr-1.5" /> Continuous log
+            </Link>
           </Button>
-        )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={runWatcherMut.isPending}
+              onClick={() => runWatcherMut.mutate()}
+            >
+              <RefreshCw
+                className={`size-4 mr-1.5 ${runWatcherMut.isPending ? "animate-spin" : ""}`}
+              />
+              {runWatcherMut.isPending ? "Running…" : "Run watcher now"}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="mb-6">

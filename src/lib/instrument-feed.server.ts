@@ -17,7 +17,13 @@
  *                                 heartbeat. These maintain
  *                                 instrument_sequences / instrument_runs, store
  *                                 traces in the instrument-traces bucket, and
- *                                 write the Daily Backpressure row.
+ *                                 write the Daily Backpressure row. Plus
+ *                                 pressure_log once a minute (idle or running):
+ *                                 the window's mean/min/max pressure, flow and
+ *                                 column temperature -> instrument_pressure_log,
+ *                                 the continuous log behind the Instrument
+ *                                 Pressure Log page and the dashboard's daily
+ *                                 first/last chart.
  *
  * Daily Backpressure semantics deliberately mirror the Drive .dx importer
  * (src/lib/lab-logs/pressure-watcher.functions.ts) so the trend chart is
@@ -158,6 +164,24 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     ...eventBase,
     sequence: sequenceRefSchema,
     ended_at: z.string().max(40),
+  }),
+  z.object({
+    type: z.literal("pressure_log"),
+    ...eventBase,
+    /** start of the aggregation window */
+    at: z.string().max(40),
+    window_s: z.number().int().min(1).max(3600),
+    pressure: z.object({
+      mean: z.number().finite(),
+      min: z.number().finite(),
+      max: z.number().finite(),
+      n: z.number().int().min(1),
+    }),
+    flow_ml_min: z.number().finite().nullable().optional(),
+    column_temp_c: z.number().finite().nullable().optional(),
+    state: z.enum(["idle", "running"]),
+    sequence: sequenceRefSchema.nullable().optional(),
+    run: runRefSchema.nullable().optional(),
   }),
 ]);
 export type FeedEvent = z.infer<typeof feedEventSchema>;
@@ -632,6 +656,50 @@ export async function processFeedEvent(
         sequence_id: seq.id,
       });
       return { ok: true, sequence_id: seq.id };
+    }
+
+    case "pressure_log": {
+      const loggedAt = toIso(event.at);
+      // An unparseable timestamp can't be fixed by the agent retrying, so
+      // acknowledge and drop rather than answer 500 forever.
+      if (!loggedAt) return { ok: true, dropped: "invalid timestamp" };
+      const [seq, run] = await Promise.all([
+        event.sequence
+          ? db
+              .from("instrument_sequences")
+              .select("id")
+              .eq("instrument_id", instrumentId)
+              .eq("agent_sequence_key", event.sequence.key)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        event.run
+          ? db
+              .from("instrument_runs")
+              .select("id")
+              .eq("instrument_id", instrumentId)
+              .eq("agent_run_key", event.run.key)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      const { error } = await db.from("instrument_pressure_log").upsert(
+        {
+          instrument_id: instrumentId,
+          logged_at: loggedAt,
+          window_s: event.window_s,
+          samples: event.pressure.n,
+          pressure_bar: round(event.pressure.mean, 3),
+          pressure_min_bar: round(event.pressure.min, 3),
+          pressure_max_bar: round(event.pressure.max, 3),
+          flow_ml_min: round(event.flow_ml_min ?? null, 4),
+          column_temp_c: round(event.column_temp_c ?? null, 2),
+          state: event.state,
+          sequence_id: seq.data?.id ?? null,
+          run_id: run.data?.id ?? null,
+        },
+        { onConflict: "instrument_id,logged_at" },
+      );
+      if (error) throw new Error(`instrument_pressure_log upsert failed: ${error.message}`);
+      return { ok: true };
     }
   }
 }

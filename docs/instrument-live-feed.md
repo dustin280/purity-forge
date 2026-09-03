@@ -16,8 +16,10 @@ importer for pressure once verified.
 | Server functions for the UI / admin keys | `src/lib/instrument-feed.functions.ts` |
 | Live page + replay | `src/routes/_authenticated/lab-logs/live-instruments/` |
 | Dashboard card | `src/components/dashboard/live-instruments-card.tsx` |
+| Continuous pressure log page (review / filter / print / CSV) | `src/routes/_authenticated/lab-logs/pressure-log/`, `src/components/pressure-log/` |
+| Dashboard daily first/last pressure chart | `src/components/dashboard/pressure-bookends-chart.tsx` |
 | Feed-key admin | Admin → Instruments → *Feed keys* (`src/components/live-instruments/feed-keys-panel.tsx`) |
-| Schema | `supabase/migrations/20260903170000_instrument_live_feed.sql` |
+| Schema | `supabase/migrations/20260903170000_instrument_live_feed.sql`, `supabase/migrations/20260903230000_instrument_pressure_log.sql` |
 
 ## Data flow
 
@@ -33,6 +35,7 @@ POST /api/instrument/event        ──▶ instrument_sequences / instrument_ru
                                    ──▶ daily_backpressure_logs (source = 'live')
                                    ──▶ hplc_columns.total_injections (+1 per injection)
                                    ──▶ Realtime broadcast event "lifecycle"
+                                   ──▶ instrument_pressure_log (pressure_log, once a minute)
 Browser (Live Instruments page) ◀── supabase.channel("instrument:<id>") broadcast
 ```
 
@@ -82,6 +85,30 @@ copies, which are sample-for-sample identical to what OpenLab writes into the
 - `source = 'live'`, `user_name = 'Live Instrument Feed'`,
   `instrument_id` / `instrument_sequence_id` set.
 - `acquisition_method` is **not** available on the wire and stays null.
+
+## Continuous pressure log
+
+Independently of runs, the agent folds the pump's monitor stream into one
+`pressure_log` event per minute (`pressure_log_interval_s` in the agent
+config; windows are aligned to the clock, so entries land at :00 seconds)
+whenever the instrument is on, idle or running: mean / min / max pressure,
+mean flow, mean column temperature, sample count, and the sequence/run the
+window fell in. The server upserts it into `instrument_pressure_log`
+(unique per instrument and window start, so retries and replays are
+idempotent). About 1,440 rows per instrument-day.
+
+- **Instrument Pressure Log** page (Lab Logs): filter by instrument, date
+  range, running/idle and "pump delivering only"; chart with the per-minute
+  min–max band and flow; paginated table with a *Replay* link into the stored
+  run; Print (full filtered table) and CSV.
+- **Dashboard chart**: first and last entry of each local day (viewer's time
+  zone) over the last 14/30/60/90 days, counting only entries logged while the
+  pump was delivering (`flow > 0`), via the SQL function
+  `instrument_pressure_daily_bookends`. A static daily sample, not live.
+
+Replaying a capture also writes log entries, stamped with the capture's own
+times (the windows follow the packet clock), so a replay of an old capture
+fills in that day rather than today.
 
 ## Switching off the Drive importer
 
