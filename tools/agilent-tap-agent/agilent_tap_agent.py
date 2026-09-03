@@ -56,7 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.1.0"
+AGENT_VERSION = "1.1.1"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -371,6 +371,20 @@ class SequenceState:
     injections: int = 0
 
 
+@dataclass
+class ConnState:
+    """One TCP connection from the instrument. Channel ids are handles scoped
+    to the connection (see stream_defs.py), so classification lives here."""
+    key: tuple[int, int]
+    reasm: Reassembler
+    telemetry: bool
+    last_seen: float
+    classifier: ChannelClassifier = field(default_factory=ChannelClassifier)
+    # messages on a not-yet-identified channel wait here and are replayed
+    unclassified: dict[int, list[dict]] = field(default_factory=dict)
+    identified: dict[int, str] = field(default_factory=dict)
+
+
 class Instrument:
     def __init__(self, cfg: dict, client: AppClient, batch_interval: float, heartbeat_interval: float,
                  pressure_log_interval: float = 60.0):
@@ -382,13 +396,8 @@ class Instrument:
         self.batch_interval = batch_interval
         self.heartbeat_interval = heartbeat_interval
 
-        self.telemetry = TelemetryDecoder(self.on_message)
-        self.status = StatusDecoder(self.on_status)
-        self.reasm: dict[tuple[int, int], Reassembler] = {}
-        # channel_id -> module is learned per session (see stream_defs.py);
-        # messages on a not-yet-classified channel wait here and are replayed.
-        self.classifier = ChannelClassifier()
-        self.unclassified: dict[int, list[dict]] = {}
+        # One decoder + channel classifier per TCP connection (src, dst port).
+        self.conns: dict[tuple[int, int], ConnState] = {}
         self.capture_now: float = time.time()
 
         self.run_state: Optional[int] = None
@@ -428,13 +437,26 @@ class Instrument:
         self.now = ts
         self.capture_now = capture_ts
         key = (src_port, dst_port)
-        r = self.reasm.get(key)
-        if r is None:
-            sink = self.telemetry.feed if src_port == TELEMETRY_PORT else self.status.feed if src_port == STATUS_PORT else None
-            if sink is None:
+        c = self.conns.get(key)
+        if c is None:
+            if src_port == TELEMETRY_PORT:
+                sink = TelemetryDecoder(lambda m, k=key: self.on_message(k, m)).feed
+            elif src_port == STATUS_PORT:
+                sink = StatusDecoder(self.on_status).feed
+            else:
                 return
-            r = self.reasm[key] = Reassembler(sink)
-        r.feed(seq, payload, ts)
+            c = self.conns[key] = ConnState(key, Reassembler(sink), src_port == TELEMETRY_PORT, ts)
+            LOG.info("[%s] new %s connection: port %d -> workstation port %d", self.name,
+                     "telemetry" if c.telemetry else "status", src_port, dst_port)
+            self._prune_conns(ts)
+        c.last_seen = ts
+        c.reasm.feed(seq, payload, ts)
+
+    def _prune_conns(self, now: float) -> None:
+        # OpenLab reconnects now and then; forget connections silent for a while.
+        for key, c in list(self.conns.items()):
+            if now - c.last_seen > 300 and len(self.conns) > 2:
+                del self.conns[key]
 
     # ---- SignalR status ----
     def on_status(self, sd: dict) -> None:
@@ -470,7 +492,7 @@ class Instrument:
                 self.begin_run_end(self.now)
 
     # ---- telemetry ----
-    def on_message(self, m: dict) -> None:
+    def on_message(self, conn_key: tuple[int, int], m: dict) -> None:
         if m["msg_type"] == proto.SPECTRUM_MSG_TYPE:
             return
         if looks_like_text(m["values"]):
@@ -478,18 +500,22 @@ class Instrument:
             for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", txt):
                 self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
             return
+        c = self.conns[conn_key]
         ch = m["channel_id"]
-        module = self.classifier.observe(ch, m["sub_id"], m["tick"], len(m["values"]))
+        module = c.classifier.observe(ch, m["sub_id"], m["tick"], len(m["values"]))
         if module is None:
-            pending = self.unclassified.setdefault(ch, [])
+            pending = c.unclassified.setdefault(ch, [])
             pending.append(m)
             del pending[:-400]
             return
-        pending = self.unclassified.pop(ch, None)
-        if pending:
-            LOG.info("[%s] channel %#04x identified as %s (%d buffered messages replayed)", self.name, ch, module, len(pending))
-            for pm in pending:
-                self._handle_telemetry(module, pm)
+        pending = c.unclassified.pop(ch, None)
+        if c.identified.get(ch) != module:
+            was = c.identified.get(ch)
+            c.identified[ch] = module
+            LOG.info("[%s] channel %#04x %s %s (%d buffered messages replayed)", self.name, ch,
+                     f"re-identified {was} ->" if was else "identified as", module, len(pending or []))
+        for pm in pending or []:
+            self._handle_telemetry(module, pm)
         self._handle_telemetry(module, m)
 
     def _handle_telemetry(self, module: str, m: dict) -> None:

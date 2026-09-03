@@ -43,12 +43,23 @@ Time axes are run-relative seconds; the agent derives them from each module's
 own tick clock (DAD 240 Hz, pump 200.24 Hz, sampler 200 Hz, thermostat 10 Hz),
 which is what OpenLab's stored timestamps are based on too.
 
-The `channel_id` byte in the port-9100 protocol is a per-OpenLab-session handle,
-not a fixed identifier (the pump's streams were on channel 0x22 in one session
-and 0x24 in the next). The agent therefore identifies each channel's module at
-runtime from its tick clock and sub-ID set (`tools/agilent-tap-agent/stream_defs.py`),
-buffering a channel's messages for the first ~5 s until it is classified, and
-recognises text/status channels by content and spectra by message type.
+The `channel_id` byte in the port-9100 protocol is a handle the instrument
+allocates **per TCP connection**, not a fixed identifier: OpenLab gets one
+channel per module for the per-second monitor copies when it connects, each
+run's acquisition streams arrive on further, separate channels that exist only
+for that run (their header "handle" field is a per-message counter), and a new
+connection reuses the same small numbers for different modules (observed the
+same day: 0x1f was the thermostat monitor on one connection and the pump's
+acquisition channel on the next). The agent therefore keeps one classifier per
+connection and identifies each channel's module at runtime from its tick clock
+and sub-ID set (`tools/agilent-tap-agent/stream_defs.py`), buffering a
+channel's messages until it is identified (a few seconds for monitor channels,
+one or two acquisition batches at run start), re-identifying a channel whose
+messages start voting for another module, and recognising text/status channels
+by content and spectra by message type. Agent 1.0.x kept a single classifier
+for its whole lifetime, so after OpenLab's first reconnect the acquisition
+channels of later runs hit stale mappings and those runs got no pressure
+summary — fixed in 1.1.1.
 
 ## Authentication
 

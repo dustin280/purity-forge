@@ -2,10 +2,14 @@
 Module-keyed stream definitions and a runtime channel classifier.
 
 The `channel_id` byte in the port-9100 header is NOT a fixed identifier: it is
-a per-session handle that OpenLab assigns when it subscribes to each module's
-streams, and it changes between OpenLab sessions (observed: pump monitor on
-0x22 in one session, 0x24 in the next; sampler 0x1e -> 0x1d; thermostat
-0x23 -> 0x21). What stays fixed per module is:
+a handle the instrument allocates per TCP connection. When OpenLab connects it
+gets one channel per module for the per-second monitor copies (header handle
+field = 0); when a run starts, each module's acquisition streams get a further,
+separate channel (handle field = a per-message counter, so it cannot serve as
+an id either), and those come and go per run. A new connection reuses the same
+small numbers for different modules (observed the same day: 0x1f = thermostat
+monitor on one connection, pump acquisition on the next; pump monitor 0x22 vs
+0x24; sampler 0x1e vs 0x1d). What stays fixed per module is:
 
   - the sub_id of each trace (pump: 0x02 pressure, 0x04 flow, 0x07/0x08
     solvent A/B, 0x2c/0x2d tuning; DAD: 0x00-0x07 signals A-H, 0x0a/0x0b
@@ -21,8 +25,11 @@ streams, and it changes between OpenLab sessions (observed: pump monitor on
     per-second monitor copies carry handle 0.
 
 So a channel is identified at runtime from (ticks per sample, sub_id), after
-which (module, sub_id) picks the stream definition. Spectrum records are
-recognised by msg_type and text channels by content, independent of channel_id.
+which (module, sub_id) picks the stream definition -- with one classifier per
+TCP connection, and a channel that starts voting for another module is
+re-identified (a freed channel number can be handed to another module).
+Spectrum records are recognised by msg_type and text channels by content,
+independent of channel_id.
 """
 
 from __future__ import annotations
@@ -92,29 +99,31 @@ def module_for(ticks_per_sample: int, sub_id: int) -> Optional[str]:
 
 
 class ChannelClassifier:
-    """Learns which module each channel_id belongs to.
+    """Learns which module each channel_id of ONE TCP connection belongs to.
 
-    Feed every telemetry message through `observe`; it returns the module once
-    two consecutive messages of one of the channel's streams agree on a known
-    ticks-per-sample value (None before that -- callers should buffer the
-    channel's messages meanwhile and replay them once classified, so nothing
-    is lost at start-up or at run start).
+    Feed every telemetry message of the connection through `observe`; it
+    returns the module to route the message to, or None when the message has
+    to wait: the first message of a (channel, sub) pair, or one whose tick
+    delta does not fit -- callers buffer the channel's messages meanwhile and
+    replay them on the next non-None result, so nothing is lost at start-up,
+    at run start, or when a channel number is re-allocated.
+
+    A channel is identified once two messages of one of its streams agree on
+    a known ticks-per-sample value. An identified channel keeps being checked:
+    two agreeing votes for a *different* module re-identify it (the instrument
+    hands freed channel numbers to other modules), and until then the
+    dissenting messages wait rather than being routed to the wrong module.
     """
+
+    VOTES_NEEDED = 2
 
     def __init__(self) -> None:
         self.module: dict[int, str] = {}
         self._last: dict[tuple[int, int], tuple[int, int]] = {}  # (ch, sub) -> (tick, n_values)
         self._votes: dict[int, dict[str, int]] = {}
 
-    def observe(self, channel_id: int, sub_id: int, tick: int, n_values: int) -> Optional[str]:
-        known = self.module.get(channel_id)
-        if known:
-            return known
-        key = (channel_id, sub_id)
-        prev = self._last.get(key)
-        self._last[key] = (tick, n_values)
-        if prev is None or n_values <= 0:
-            return None
+    @staticmethod
+    def _implied_module(prev: tuple[int, int], tick: int, n_values: int, sub_id: int) -> Optional[str]:
         delta = (tick - prev[0]) % (1 << 32)
         if delta == 0 or delta >= (1 << 31):
             return None
@@ -122,13 +131,27 @@ class ChannelClassifier:
         # way one of the two neighbouring batch sizes divides the delta exactly.
         for n in (prev[1], n_values):
             if n > 0 and delta % n == 0 and (delta // n) in KNOWN_TICKS_PER_SAMPLE:
-                module = module_for(delta // n, sub_id)
-                if module is None:
-                    continue
-                votes = self._votes.setdefault(channel_id, {})
-                votes[module] = votes.get(module, 0) + 1
-                if votes[module] >= 2:
-                    self.module[channel_id] = module
-                    return module
-                break
+                return module_for(delta // n, sub_id)
+        return None
+
+    def observe(self, channel_id: int, sub_id: int, tick: int, n_values: int) -> Optional[str]:
+        key = (channel_id, sub_id)
+        prev = self._last.get(key)
+        self._last[key] = (tick, n_values)
+        if prev is None or n_values <= 0:
+            return None
+        module = self._implied_module(prev, tick, n_values, sub_id)
+        known = self.module.get(channel_id)
+        if module is None:
+            # Gap, wrap or unknown rate: cannot confirm anything from this one.
+            return None
+        if module == known:
+            self._votes.pop(channel_id, None)
+            return known
+        votes = self._votes.setdefault(channel_id, {})
+        votes[module] = votes.get(module, 0) + 1
+        if votes[module] >= self.VOTES_NEEDED:
+            self.module[channel_id] = module
+            self._votes.pop(channel_id, None)
+            return module
         return None
