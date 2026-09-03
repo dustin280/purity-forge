@@ -648,13 +648,18 @@ class Instrument:
                 "status": self.state_dict(), "modules": list(self.modules.values()),
             })
 
+    # The feed route accepts at most 2000 values per stream per batch (live
+    # batches carry ~40); only the newest samples matter for a live display.
+    MAX_BATCH_VALUES = 2000
+
     def _send_batch(self, now: float) -> None:
         streams = {}
         for name, s in self.monitor.items():
             if not s.pending:
                 continue
-            streams[name] = {"units": s.units, "t0": round(s.pending[0][0], 4), "dt": round(s.dt, 6),
-                             "values": [round(v, 4) for _, v in s.pending]}
+            pending = s.pending[-self.MAX_BATCH_VALUES:]
+            streams[name] = {"units": s.units, "t0": round(pending[0][0], 4), "dt": round(s.dt, 6),
+                             "values": [round(v, 4) for _, v in pending]}
             s.pending = []
         if not streams and not self.run:
             return  # nothing new (instrument silent) — heartbeat covers presence
