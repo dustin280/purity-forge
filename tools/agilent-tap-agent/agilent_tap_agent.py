@@ -155,12 +155,14 @@ class AppClient:
                         if spooled and spooled.exists():
                             spooled.unlink()
                         break
-                    if 400 <= status < 500:
-                        LOG.error("event %s rejected (%s): %s — dropping", body.get("type"), status, text)
+                    if status in (400, 401, 422):
+                        # Bad payload or bad key: retrying can't help.
+                        LOG.error("event %s rejected (%s): %s — dropping", body.get("type"), status, text[:200])
                         if spooled and spooled.exists():
                             spooled.unlink()
                         break
-                    LOG.warning("event %s server error %s: %s", body.get("type"), status, text)
+                    # 404/403 (routes not deployed yet, gateway), 5xx, etc.: keep retrying.
+                    LOG.warning("event %s not accepted (%s): %s", body.get("type"), status, text[:120])
                 except Exception as e:  # noqa: BLE001
                     LOG.warning("event %s send failed: %s", body.get("type"), e)
                 if spooled is None:
