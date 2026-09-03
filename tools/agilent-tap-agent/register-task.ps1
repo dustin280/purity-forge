@@ -24,9 +24,13 @@ if (-not $PythonExe) {
 }
 
 $log = Join-Path $PSScriptRoot "agent.log"
-# cmd /c so stdout/stderr land in a log file next to the agent.
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -WorkingDirectory $PSScriptRoot `
-    -Argument "/c `"`"$PythonExe`" `"$agent`" --config `"$ConfigPath`" --service >> `"$log`" 2>&1`""
+# Run under pythonw.exe (GUI subsystem: no console window, so nothing flashes
+# or steals focus when the task starts) and let the agent write its own log
+# file. Falls back to python.exe if pythonw.exe isn't next to it.
+$pythonw = Join-Path (Split-Path $PythonExe -Parent) "pythonw.exe"
+$exe = if (Test-Path $pythonw) { $pythonw } else { $PythonExe }
+$action = New-ScheduledTaskAction -Execute $exe -WorkingDirectory $PSScriptRoot `
+    -Argument "`"$agent`" --config `"$ConfigPath`" --service --log-file `"$log`""
 
 # Two triggers: start at logon, and a 5-minute repeating keep-alive. With
 # MultipleInstances=IgnoreNew the keep-alive is a no-op while the agent is
@@ -36,7 +40,7 @@ $keepAlive = New-ScheduledTaskTrigger -Once -At (Get-Date) `
     -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
-    -MultipleInstances IgnoreNew
+    -MultipleInstances IgnoreNew -Hidden
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger @($atLogon, $keepAlive) -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null

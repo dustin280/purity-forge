@@ -14,7 +14,25 @@ if (-not (Test-Path $exePath)) {
     throw "ChromatogramConverter.exe not found next to this script. Publish the project first (see README.md)."
 }
 
-$action = New-ScheduledTaskAction -Execute $exePath -WorkingDirectory $PSScriptRoot
+# Launch through a hidden-window wrapper: the converter is a console app, and a
+# task that starts a console app directly flashes a window and steals focus
+# every interval. wscript.exe has no console and starts the child hidden
+# (window style 0) while passing its exit code through. Same launcher as
+# tools/hidden-run.vbs, written next to the exe so the task is self-contained.
+$vbs = Join-Path $PSScriptRoot "hidden-run.vbs"
+@'
+Set sh = CreateObject("WScript.Shell")
+Set a = WScript.Arguments
+If a.Count = 0 Then WScript.Quit 2
+cmd = ""
+For i = 0 To a.Count - 1
+    s = a(i)
+    If InStr(s, " ") > 0 Then s = """" & s & """"
+    cmd = cmd & " " & s
+Next
+WScript.Quit sh.Run(Trim(cmd), 0, True)
+'@ | Set-Content -Path $vbs -Encoding ASCII
+$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument ('"' + $vbs + '" "' + $exePath + '"') -WorkingDirectory $PSScriptRoot
 # [TimeSpan]::MaxValue produces a duration Task Scheduler's XML schema
 # rejects outright ("out of range"). 10 years is effectively permanent
 # for this purpose and well within the accepted range.

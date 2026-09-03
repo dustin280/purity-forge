@@ -700,8 +700,11 @@ def tshark_command(tshark: str, instruments: list[Instrument], interface: Option
 def run_capture(cmd: list[str], out: "queue.Queue[Optional[str]]") -> subprocess.Popen:
     LOG.info("starting capture: %s", " ".join(cmd))
     # Own process group so a Ctrl+C aimed at some console we happen to share
-    # doesn't take the capture down with it (Windows: CREATE_NEW_PROCESS_GROUP).
-    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
+    # doesn't take the capture down with it, and no console window at all so
+    # an unattended agent (pythonw.exe) never flashes a window or steals focus.
+    flags = 0
+    if os.name == "nt":
+        flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) | getattr(subprocess, "CREATE_NO_WINDOW", 0)
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1,
                             creationflags=flags)
 
@@ -730,10 +733,21 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--service", action="store_true",
                     help="unattended mode: ignore console Ctrl+C/Break so only an explicit kill stops the agent")
+    ap.add_argument("--log-file", help="write the log here (rotating, 5 MB x 3) instead of stderr; "
+                                       "required when running under pythonw.exe, which has no console")
     args = ap.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
-                        format="%(asctime)s %(levelname)s %(message)s")
+    level = logging.DEBUG if args.verbose else logging.INFO
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
+    if args.log_file:
+        from logging.handlers import RotatingFileHandler
+        handler: logging.Handler = RotatingFileHandler(args.log_file, maxBytes=5_000_000, backupCount=3, encoding="utf-8")
+    elif sys.stderr is not None:
+        handler = logging.StreamHandler(sys.stderr)
+    else:
+        handler = logging.NullHandler()
+    handler.setFormatter(fmt)
+    logging.basicConfig(level=level, handlers=[handler])
     if args.service:
         import signal
         signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -810,4 +824,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except Exception:  # noqa: BLE001 - under pythonw there is no stderr to print a traceback to
+        LOG.exception("agent crashed")
+        sys.exit(1)
