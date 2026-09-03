@@ -40,6 +40,13 @@ Time axes are run-relative seconds; the agent derives them from each module's
 own tick clock (DAD 240 Hz, pump 200.24 Hz, sampler 200 Hz, thermostat 10 Hz),
 which is what OpenLab's stored timestamps are based on too.
 
+The `channel_id` byte in the port-9100 protocol is a per-OpenLab-session handle,
+not a fixed identifier (the pump's streams were on channel 0x22 in one session
+and 0x24 in the next). The agent therefore identifies each channel's module at
+runtime from its tick clock and sub-ID set (`tools/agilent-tap-agent/stream_defs.py`),
+buffering a channel's messages for the first ~5 s until it is classified, and
+recognises text/status channels by content and spectra by message type.
+
 ## Authentication
 
 `x-instrument-id: <instruments.id>` and `x-signature: hex(HMAC-SHA256(secret,

@@ -26,15 +26,20 @@ if (-not $PythonExe) {
 $log = Join-Path $PSScriptRoot "agent.log"
 # cmd /c so stdout/stderr land in a log file next to the agent.
 $action = New-ScheduledTaskAction -Execute "cmd.exe" -WorkingDirectory $PSScriptRoot `
-    -Argument "/c `"`"$PythonExe`" `"$agent`" --config `"$ConfigPath`" >> `"$log`" 2>&1`""
+    -Argument "/c `"`"$PythonExe`" `"$agent`" --config `"$ConfigPath`" --service >> `"$log`" 2>&1`""
 
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+# Two triggers: start at logon, and a 5-minute repeating keep-alive. With
+# MultipleInstances=IgnoreNew the keep-alive is a no-op while the agent is
+# running and relaunches it within 5 minutes if it ever exits.
+$atLogon = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$keepAlive = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd `
     -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
     -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger @($atLogon, $keepAlive) -Settings $settings -Principal $principal -Force -ErrorAction Stop | Out-Null
 Start-ScheduledTask -TaskName $TaskName
 Write-Host "Registered and started scheduled task '$TaskName' (log: $log)."
 Write-Host "Stop:   Stop-ScheduledTask -TaskName $TaskName"

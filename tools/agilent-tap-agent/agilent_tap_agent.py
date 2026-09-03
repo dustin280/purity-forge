@@ -51,6 +51,7 @@ from typing import Callable, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
+from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
 AGENT_VERSION = "1.0.0"
 LOG = logging.getLogger("agilent-tap-agent")
@@ -343,6 +344,11 @@ class Instrument:
         self.telemetry = TelemetryDecoder(self.on_message)
         self.status = StatusDecoder(self.on_status)
         self.reasm: dict[tuple[int, int], Reassembler] = {}
+        # channel_id -> module is learned per session (see stream_defs.py);
+        # messages on a not-yet-classified channel wait here and are replayed.
+        self.classifier = ChannelClassifier()
+        self.unclassified: dict[int, list[dict]] = {}
+        self.capture_now: float = time.time()
 
         self.run_state: Optional[int] = None
         self.analysis_state: Optional[int] = None
@@ -368,8 +374,12 @@ class Instrument:
         self.now = time.time()
 
     # ---- packet input ----
-    def on_segment(self, ts: float, src_port: int, dst_port: int, seq: int, payload: bytes) -> None:
+    def on_segment(self, ts: float, capture_ts: float, src_port: int, dst_port: int, seq: int, payload: bytes) -> None:
+        """`ts` is wall-clock time (what timestamps go to the app); `capture_ts` is
+        the packet's own timestamp — identical live, but in replay it is the
+        original capture clock, which is what tick-rate estimation must use."""
         self.now = ts
+        self.capture_now = capture_ts
         key = (src_port, dst_port)
         r = self.reasm.get(key)
         if r is None:
@@ -414,23 +424,37 @@ class Instrument:
 
     # ---- telemetry ----
     def on_message(self, m: dict) -> None:
+        if m["msg_type"] == proto.SPECTRUM_MSG_TYPE:
+            return
+        if looks_like_text(m["values"]):
+            txt = proto.values_as_text(m["values"])
+            for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", txt):
+                self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
+            return
         ch = m["channel_id"]
-        if ch in proto.TEXT_CHANNELS:
-            if ch == 0x25:
-                txt = proto.values_as_text(m["values"])
-                for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", txt):
-                    self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
+        module = self.classifier.observe(ch, m["sub_id"], m["tick"], len(m["values"]))
+        if module is None:
+            pending = self.unclassified.setdefault(ch, [])
+            pending.append(m)
+            del pending[:-400]
             return
-        if ch not in proto.CLOCK_HZ or m["msg_type"] == proto.SPECTRUM_MSG_TYPE:
-            return
-        st = proto.STREAMS.get((ch, m["sub_id"])) or proto.STREAMS.get((ch, None))
+        pending = self.unclassified.pop(ch, None)
+        if pending:
+            LOG.info("[%s] channel %#04x identified as %s (%d buffered messages replayed)", self.name, ch, module, len(pending))
+            for pm in pending:
+                self._handle_telemetry(module, pm)
+        self._handle_telemetry(module, m)
+
+    def _handle_telemetry(self, module: str, m: dict) -> None:
+        st = lookup_stream(module, m["sub_id"])
         if st is None:
             return
-        clock = proto.CLOCK_HZ[ch]
+        clock = CLOCK_HZ[module]
         dt = st["ticks_per_sample"] / clock
         name = st["name"]
-        if st["monitor"]:
-            base = name[: -len("_monitor")]
+        if m["handle"] == 0:
+            # Monitor copy (one message per second, also while idle).
+            base = name
             if base not in LIVE_STREAMS:
                 return
             s = self.monitor.get(base)
@@ -670,7 +694,11 @@ def tshark_command(tshark: str, instruments: list[Instrument], interface: Option
 
 def run_capture(cmd: list[str], out: "queue.Queue[Optional[str]]") -> subprocess.Popen:
     LOG.info("starting capture: %s", " ".join(cmd))
-    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    # Own process group so a Ctrl+C aimed at some console we happen to share
+    # doesn't take the capture down with it (Windows: CREATE_NEW_PROCESS_GROUP).
+    flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1,
+                            creationflags=flags)
 
     def pump() -> None:
         assert proc.stdout is not None
@@ -695,10 +723,17 @@ def main() -> int:
     ap.add_argument("--replay", help="replay a .pcapng through the pipeline instead of capturing live")
     ap.add_argument("--speed", type=float, default=1.0, help="replay speed factor (default 1 = real time)")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--service", action="store_true",
+                    help="unattended mode: ignore console Ctrl+C/Break so only an explicit kill stops the agent")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
+    if args.service:
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        if hasattr(signal, "SIGBREAK"):
+            signal.signal(signal.SIGBREAK, signal.SIG_IGN)
     cfg = json.loads(Path(args.config).read_text("utf-8"))
     tshark = cfg.get("tshark_path") or (DEFAULT_TSHARK if os.path.exists(DEFAULT_TSHARK) else "tshark")
     client = AppClient(cfg["app_url"], Path(cfg.get("spool_dir") or Path(args.config).resolve().parent / "spool"))
@@ -753,7 +788,7 @@ def main() -> int:
                 if inst is None or dst in by_ip:
                     continue  # only instrument -> workstation carries data we decode
                 try:
-                    inst.on_segment(wall, int(parts[3]), int(parts[4]), int(parts[5]), bytes.fromhex(parts[7].replace(":", "")))
+                    inst.on_segment(wall, ts, int(parts[3]), int(parts[4]), int(parts[5]), bytes.fromhex(parts[7].replace(":", "")))
                 except Exception as e:  # noqa: BLE001
                     LOG.exception("decode error: %s", e)
             now = time.time()
