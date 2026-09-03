@@ -316,6 +316,10 @@ class RunState:
     key: str
     injection_index: int
     started_at: float
+    # True when the agent joined this run mid-way (started up, or reconnected,
+    # while acquisition was already in progress). Its first samples are not
+    # the run's initiation, so it must not produce a Daily Backpressure value.
+    partial: bool = False
     acq: dict[str, StreamState] = field(default_factory=dict)
 
 
@@ -506,10 +510,15 @@ class Instrument:
         if self.sequence:
             self.sequence.injections = idx
         key = f"run-{utc_iso(ts).replace(':', '').replace('-', '')}"
-        self.run = RunState(key, idx, ts)
+        # An inferred start with no RunState transition behind it means we are
+        # seeing a run that was already under way (agent just started, or the
+        # capture restarted): treat it as partial.
+        partial = inferred and self.run_state != RUN_STATE_ACQUIRING
+        self.run = RunState(key, idx, ts, partial=partial)
         for s in self.monitor.values():  # re-anchor the live streams on run time zero
             s.anchor_tick, s.pending = None, []
-        LOG.info("[%s] run started %s (injection %d%s)", self.name, key, idx, ", inferred" if inferred else "")
+        LOG.info("[%s] run started %s (injection %d%s)", self.name, key, idx,
+                 ", inferred, partial" if partial else ", inferred" if inferred else "")
         self.client.send_event(self.id, self.secret, {
             "type": "run_started", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
             "sequence": self._sequence_ref(),
@@ -561,10 +570,12 @@ class Instrument:
         pvals = [v for _, v in pressure.run_values] if pressure else []
         temps = [x for x in (mean_window("THM1A_LeftTemp"), mean_window("THM1B_RightTemp")) if x is not None]
         summary = {
+            # A partial run has no trustworthy initiation window; nulls make the
+            # server skip the Daily Backpressure row (min/max are still real).
             "initiation": {
-                "pressure_bar": mean_window("PMP1B_Pressure"),
-                "flow_ml_min": mean_window("PMP1C_Flow"),
-                "column_temp_c": (sum(temps) / len(temps)) if temps else None,
+                "pressure_bar": None if run.partial else mean_window("PMP1B_Pressure"),
+                "flow_ml_min": None if run.partial else mean_window("PMP1C_Flow"),
+                "column_temp_c": None if run.partial else ((sum(temps) / len(temps)) if temps else None),
             },
             "pressure_min_bar": min(pvals) if pvals else None,
             "pressure_max_bar": max(pvals) if pvals else None,
