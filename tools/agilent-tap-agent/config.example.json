@@ -1,0 +1,15 @@
+{
+  "app_url": "https://syxlab.org",
+  "interface": "Ethernet 3",
+  "tshark_path": "C:\\Program Files\\Wireshark\\tshark.exe",
+  "batch_interval_s": 1.0,
+  "heartbeat_interval_s": 15,
+  "instruments": [
+    {
+      "instrument_id": "00000000-0000-0000-0000-000000000000",
+      "name": "Infinity III HPLC-DAD",
+      "ip": "192.168.254.11",
+      "secret": "paste the feed key from Admin -> Instruments -> Feed keys"
+    }
+  ]
+}

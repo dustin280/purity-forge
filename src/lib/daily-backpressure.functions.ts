@@ -21,7 +21,7 @@ export interface BackpressureRow {
   column_temp: number | null;
   column_temp_unit: string | null;
   column_name: string | null;
-  source: "manual" | "auto";
+  source: "manual" | "auto" | "live";
   acquisition_method: string | null;
   pressure_run_min: number | null;
   pressure_run_max: number | null;

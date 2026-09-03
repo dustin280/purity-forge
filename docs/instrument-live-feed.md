@@ -1,0 +1,117 @@
+# Instrument live feed
+
+Live chromatogram / pump / module data from the Agilent 1290 Infinity II/III
+stacks, plus automatic Daily Backpressure logging, sourced from a read-only
+packet capture of the instrument LAN. Replaces the hourly Drive `.dx`
+importer for pressure once verified.
+
+## Pieces
+
+| Piece | Where |
+|---|---|
+| On-prem agent (Python, runs on the OpenLab PC) | `tools/agilent-tap-agent/` |
+| Wire-protocol decoder (verified against OpenLab `.rslt` data) | `tools/agilent-tap-agent/agilent1290_parser.py` |
+| Ingest routes (HMAC per instrument) | `src/routes/api/instrument/feed.ts`, `src/routes/api/instrument/event.ts` |
+| Processing, Realtime fan-out, Daily Backpressure writes | `src/lib/instrument-feed.server.ts` |
+| Server functions for the UI / admin keys | `src/lib/instrument-feed.functions.ts` |
+| Live page + replay | `src/routes/_authenticated/lab-logs/live-instruments/` |
+| Dashboard card | `src/components/dashboard/live-instruments-card.tsx` |
+| Feed-key admin | Admin → Instruments → *Feed keys* (`src/components/live-instruments/feed-keys-panel.tsx`) |
+| Schema | `supabase/migrations/20260903170000_instrument_live_feed.sql` |
+
+## Data flow
+
+```
+Agilent stack ──(instrument LAN, passive tshark capture)──▶ agent on OpenLab PC
+     │  TCP 9100: proprietary telemetry (decoded per channel/sub-id)
+     │  TCP 80:   SignalR StatusData (RunState / AnalysisState / module ids)
+     ▼
+POST /api/instrument/feed  (1/s)  ──▶ instrument_live_status upsert
+                                   ──▶ Realtime broadcast  topic instrument:<id>, event "batch"
+POST /api/instrument/event        ──▶ instrument_sequences / instrument_runs
+                                   ──▶ storage instrument-traces/<instrument>/<run>.json
+                                   ──▶ daily_backpressure_logs (source = 'live')
+                                   ──▶ hplc_columns.total_injections (+1 per injection)
+                                   ──▶ Realtime broadcast event "lifecycle"
+Browser (Live Instruments page) ◀── supabase.channel("instrument:<id>") broadcast
+```
+
+Time axes are run-relative seconds; the agent derives them from each module's
+own tick clock (DAD 240 Hz, pump 200.24 Hz, sampler 200 Hz, thermostat 10 Hz),
+which is what OpenLab's stored timestamps are based on too.
+
+## Authentication
+
+`x-instrument-id: <instruments.id>` and `x-signature: hex(HMAC-SHA256(secret,
+raw body))`. Secrets live in `instrument_feed_keys` (one or more per
+instrument, revocable, shown once at creation). Same pattern as the partner
+order webhook, scoped per instrument.
+
+## Streams
+
+| Stream name | Units | Rate | Source |
+|---|---|---|---|
+| `DAD1A` … `DAD1H` | mAU | 2.5 Hz | DAD wavelength signals A–H (wavelengths in `labels`, e.g. `214 nm`) |
+| `PMP1B_Pressure` | bar | 40 Hz live / 1 Hz stored | Binary pump |
+| `PMP1C_Flow` | mL/min | 20 Hz / 1 Hz | Binary pump |
+| `PMP1D_SolventRatioA`, `PMP1E_SolventRatioB` | % | 20 Hz / 1 Hz | Binary pump |
+| `THM1A_LeftTemp`, `THM1B_RightTemp` | °C | 1 Hz | Column compartment |
+| `WPS1A_Temperature` | °C | 10 Hz / 1 Hz | Multisampler |
+| `DAD1T_BoardTemp`, `DAD1U_OpticalUnitTemp` | °C | 10 Hz (live only) | DAD housekeeping |
+
+Live batches carry the instrument's *monitor* copies of these streams (sent
+by the instrument once a second); stored run traces use the *acquisition*
+copies, which are sample-for-sample identical to what OpenLab writes into the
+`.dx` files (verified for every stream above).
+
+## Daily Backpressure semantics (unchanged from the Drive importer)
+
+- One row per **sequence** (`AnalysisState` active period in OpenLab).
+- `backpressure`, `flow_rate`, `column_temp` = mean over the first 15 s of the
+  sequence's **first injection**.
+- `pressure_run_min/max` widened as further injections complete;
+  `injections_count` incremented per injection; the column installed on the
+  instrument (`hplc_columns.installed_on_instrument_id`) gets `+1` per injection.
+- `source = 'live'`, `user_name = 'Live Instrument Feed'`,
+  `instrument_id` / `instrument_sequence_id` set.
+- `acquisition_method` is **not** available on the wire and stays null.
+
+## Switching off the Drive importer
+
+Once live rows are appearing, disable the hourly pg_cron job so sequences are
+not logged twice:
+
+```sql
+select cron.unschedule('pressure-log-watcher-hourly');
+```
+
+The *Run watcher now* button on the Daily Backpressure page still works for a
+manual catch-up.
+
+## Realtime payloads
+
+`batch`:
+
+```jsonc
+{
+  "sent_at": "2026-09-03T14:46:52.100+00:00",
+  "batch_seq": 812,
+  "status": { "state": "running", "run_state": 1, "analysis_state": 1, "ready_state": 1, "error_state": 2, "not_ready_text": null },
+  "sequence": { "key": "seq-20260903T144504", "started_at": "…" },
+  "run": { "key": "run-20260903T144649", "injection_index": 1, "started_at": "…" },
+  "streams": { "PMP1B_Pressure": { "units": "bar", "t0": 12.015, "dt": 0.025, "values": [611.2, …] }, "DAD1A": { … } },
+  "labels": { "DAD1A": "214 nm", … }
+}
+```
+
+`lifecycle`: `{ "type": "run_started" | "run_completed" | "sequence_started" | "sequence_completed", "run": …, "run_id": …, "sequence_id": … }`.
+
+## Verifying end to end
+
+`python tools/agilent-tap-agent/agilent_tap_agent.py --config config.json
+--replay <capture.pcapng> --speed 20` replays a real capture through the whole
+pipeline; the Live page should stream the run and a `source = 'live'` Daily
+Backpressure row plus a replayable run should appear when it ends. The
+reference capture from 2026-09-03 07:45 produces `backpressure ≈ 594.6 bar`,
+`min/max 432.85 / 669.52`, matching the row the Drive importer had written for
+the same run.

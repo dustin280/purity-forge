@@ -159,6 +159,14 @@ export const qk = {
     list: () => ["instruments"] as const,
   },
 
+  instrumentFeed: {
+    all: ["instrument-feed"] as const,
+    overview: () => ["instrument-feed", "overview"] as const,
+    runs: (instrumentId: string | null) => ["instrument-feed", "runs", instrumentId ?? "all"] as const,
+    trace: (runId: string) => ["instrument-feed", "trace", runId] as const,
+    keys: (instrumentId: string) => ["instrument-feed", "keys", instrumentId] as const,
+  },
+
   instrumentBookings: {
     all: ["instrument-bookings"] as const,
     list: (fromISO: string, toISO: string, instrumentId: string | null) =>

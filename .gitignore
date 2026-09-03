@@ -34,3 +34,9 @@ supabase/.temp/
 
 # scratch calibration analysis scripts
 cal*.cjs
+
+# Python (instrument agent)
+__pycache__/
+*.pyc
+tools/agilent-tap-agent/config.json
+tools/agilent-tap-agent/spool/
