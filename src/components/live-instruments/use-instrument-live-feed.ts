@@ -41,6 +41,13 @@ export interface FeedStreamChunk {
   w0?: number;
   values: number[];
 }
+export interface FeedRunInfo {
+  sample_name?: string | null;
+  sample_type?: string | null;
+  method_name?: string | null;
+  sequence_name?: string | null;
+  vial?: string | null;
+}
 export interface FeedBatchPayload {
   sent_at: string;
   batch_seq: number;
@@ -50,6 +57,8 @@ export interface FeedBatchPayload {
   streams: Record<string, FeedStreamChunk>;
   labels?: Record<string, string> | null;
   column?: { description?: string | null; part_number?: string | null } | null;
+  /** OpenLab's SetRunInformation for the current run (agent >= 1.3.0) */
+  run_info?: FeedRunInfo | null;
 }
 export interface FeedLifecyclePayload {
   type: "sequence_started" | "run_started" | "run_completed" | "sequence_completed";
@@ -83,6 +92,7 @@ export interface LiveFeedState {
   batchSeq: number;
   status: FeedStatus | null;
   run: FeedRunRef | null;
+  runInfo: FeedRunInfo | null;
   sequence: FeedSequenceRef | null;
   streams: Record<string, StreamBuffer>;
   labels: Record<string, string>;
@@ -101,6 +111,7 @@ const EMPTY: LiveFeedState = {
   batchSeq: -1,
   status: null,
   run: null,
+  runInfo: null,
   sequence: null,
   streams: {},
   labels: {},
@@ -218,6 +229,7 @@ export function useInstrumentLiveFeed(
         batchSeq: b.batch_seq,
         status: b.status,
         run: b.run ?? null,
+        runInfo: b.run_info ?? null,
         sequence: b.sequence ?? null,
       });
     });

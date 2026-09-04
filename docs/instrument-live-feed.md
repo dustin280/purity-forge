@@ -139,6 +139,23 @@ Replaying a capture also writes log entries, stamped with the capture's own
 times (the windows follow the packet clock), so a replay of an old capture
 fills in that day rather than today.
 
+## Run information (sample, method)
+
+The workstation side of the port-80 connection is a WebSocket whose frames
+the client masks, which is why nothing readable shows up in a plain capture.
+Unmasked, it is a keep-alive ping every 15 s plus, about two minutes before
+each injection, a SignalR invocation `SetRunInformation` with the sample
+name, sample type, method (name and path), sequence name, vial, operator and
+project — the same values the `.rslt` manifest ends up with. The agent keeps
+the latest call and attaches it to the next run: `run_info` on `run_started`
+/ `run_completed` and on live batches, `sample_position` = vial, and the
+method name in the run summary. The server stores it on `instrument_runs`
+(`sample_name`, `sample_type`, `method_name`, `sequence_name`, `run_info`) and
+uses the method name for the live Daily Backpressure row's
+`acquisition_method`. The Live page shows sample · type · method in bold
+above the chromatogram (the current injection while running, otherwise the
+last run's).
+
 ## The installed column
 
 OpenLab asks the column compartment for its column record (`COL:DATAX? 7`)

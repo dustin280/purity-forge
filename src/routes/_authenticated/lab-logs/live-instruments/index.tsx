@@ -60,6 +60,28 @@ function fmtClock(epochSeconds: number): string {
   return format(epochSeconds * 1000, "HH:mm:ss");
 }
 
+interface RunHeader {
+  sample_name: string | null;
+  sample_type: string | null;
+  method_name: string | null;
+}
+
+/** The three things worth a headline above the chromatogram, or null if none are known. */
+function runHeader(
+  src:
+    | { sample_name?: string | null; sample_type?: string | null; method_name?: string | null }
+    | null
+    | undefined,
+): RunHeader | null {
+  if (!src) return null;
+  const h = {
+    sample_name: src.sample_name ?? null,
+    sample_type: src.sample_type ?? null,
+    method_name: src.method_name ?? null,
+  };
+  return h.sample_name || h.method_name ? h : null;
+}
+
 function LiveInstrumentsPage() {
   const overviewFn = useServerFn(listInstrumentLiveOverview);
   const { data: overview = [], isLoading } = useQuery({
@@ -158,6 +180,13 @@ function LiveInstrumentsPage() {
 
   const state = selectedOverview ? liveStateOf(selectedOverview) : "offline";
   const anyDadSelected = selectedStreams.some(isDadSignal);
+
+  // Sample / type / method for the current injection while running (from the
+  // batches, or the stored run when the page opened mid-run), else the last run's.
+  const running = state === "running" && !!feed.run;
+  const header = running
+    ? (runHeader(feed.runInfo) ?? runHeader(selectedOverview?.current_run))
+    : runHeader(runsQuery.data?.runs[0]);
   const emptyText =
     state === "offline"
       ? "Instrument offline — no agent data."
@@ -308,6 +337,16 @@ function LiveInstrumentsPage() {
             </CardContent>
           </Card>
 
+          {header && (
+            <div className="px-1 text-base font-semibold leading-snug">
+              {!running && (
+                <span className="mr-2 text-sm font-normal text-muted-foreground">Last run:</span>
+              )}
+              {[header.sample_name, header.sample_type, header.method_name]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
           {anyDadSelected && (
             <TraceChart
               title="Chromatogram"

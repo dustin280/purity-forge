@@ -70,8 +70,16 @@ both before and after a run), TAG 0 = no RFID column tag, ACT:COL 0,... = empty 
 positions, "7" = slot/record index (hypotheses).
 
 PORT 80 (separate TCP connection): SignalR JSON hub messages instrument->workstation
-(2-byte length + JSON + 0x1E), confirmed (RunState etc.). Workstation->instrument
-(incl. the 657-byte start-acquisition call) is NOT decoded; not needed for read-only.
+(2-byte length + JSON + 0x1E), confirmed (RunState etc.). Workstation->instrument is
+the same hub over a WebSocket whose frames the client MASKS (RFC 6455) — unmask
+(WsClientDecoder in agilent_tap_agent.py) and it is a {"type":6} ping every 15 s plus,
+~2 min before each injection, the invocation (confirmed 2026-09-03)
+  {"type":1,"target":"SetRunInformation","arguments":[{"methodID":"<path>.amx",
+   "methodName":..,"projectName":..,"userName":..,"sequenceName":..,"injectionVial":
+   "D4F-A5","sampleName":..,"sampleType":"CALIBRATION","isPreviewRun":false,
+   "isBaselineCheck":false,"isShutdown":false, ...}]}
+whose values match the .rslt manifest exactly. Seen once per injection in a
+one-injection capture; once-per-sequence vs once-per-injection is unverified.
 
 TIME BASE: sample_time = t0 + (tick - tick_of_first_message)/clock + i*dt, anchored on
 the first message of each stream (for acquisition streams that is run start). The

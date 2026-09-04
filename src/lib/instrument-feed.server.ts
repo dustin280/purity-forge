@@ -119,6 +119,39 @@ const columnSchema = z
   .passthrough();
 export type InstrumentColumnRecord = z.infer<typeof columnSchema>;
 
+/**
+ * What OpenLab told the instrument about the injection (its SetRunInformation
+ * call on the port-80 WebSocket, ~2 min before the run), normalised by the agent.
+ */
+const runInfoSchema = z
+  .object({
+    sample_name: z.string().max(300).nullable().optional(),
+    sample_type: z.string().max(64).nullable().optional(),
+    method_name: z.string().max(200).nullable().optional(),
+    method_id: z.string().max(500).nullable().optional(),
+    sequence_name: z.string().max(200).nullable().optional(),
+    vial: z.string().max(64).nullable().optional(),
+    user_name: z.string().max(120).nullable().optional(),
+    project_name: z.string().max(120).nullable().optional(),
+    preview: z.boolean().optional(),
+    baseline_check: z.boolean().optional(),
+    received_at: z.string().max(40).nullable().optional(),
+  })
+  .passthrough();
+export type InstrumentRunInfoRecord = z.infer<typeof runInfoSchema>;
+
+/** instrument_runs columns derived from a run-information record. */
+function runInfoColumns(info: InstrumentRunInfoRecord | null | undefined): Record<string, unknown> {
+  if (!info) return {};
+  return {
+    sample_name: info.sample_name ?? null,
+    sample_type: info.sample_type ?? null,
+    method_name: info.method_name ?? null,
+    sequence_name: info.sequence_name ?? null,
+    run_info: info,
+  };
+}
+
 export const feedBatchSchema = z.object({
   agent: agentSchema,
   sent_at: z.string().max(40),
@@ -136,6 +169,7 @@ export const feedBatchSchema = z.object({
   labels: z.record(z.string().max(64), z.string().max(64)).optional(),
   modules: z.array(moduleSchema).max(16).optional(),
   column: columnSchema.nullable().optional(),
+  run_info: runInfoSchema.nullable().optional(),
 });
 export type FeedBatch = z.infer<typeof feedBatchSchema>;
 
@@ -182,6 +216,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     sequence: sequenceRefSchema.nullable().optional(),
     run: runRefSchema,
     column: columnSchema.nullable().optional(),
+    run_info: runInfoSchema.nullable().optional(),
   }),
   z.object({
     type: z.literal("run_completed"),
@@ -193,6 +228,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     summary: summarySchema,
     trace: traceSchema.optional(),
     column: columnSchema.nullable().optional(),
+    run_info: runInfoSchema.nullable().optional(),
   }),
   z.object({
     type: z.literal("sequence_completed"),
@@ -576,6 +612,7 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
     streams: batch.streams,
     labels: batch.labels ?? null,
     column: batch.column ?? null,
+    run_info: batch.run_info ?? null,
   });
 }
 
@@ -601,7 +638,7 @@ async function writeBackpressureForSequence(
   if (seq.backpressure_log_id) {
     const { data: row } = await db
       .from("daily_backpressure_logs")
-      .select("id, pressure_run_min, pressure_run_max, column_name")
+      .select("id, pressure_run_min, pressure_run_max, column_name, acquisition_method")
       .eq("id", seq.backpressure_log_id)
       .maybeSingle();
     if (!row) return;
@@ -624,6 +661,9 @@ async function writeBackpressureForSequence(
         pressure_run_min: nextMin,
         pressure_run_max: nextMax,
         ...(row.column_name === null && columnName ? { column_name: columnName } : {}),
+        ...(row.acquisition_method === null && summary.method
+          ? { acquisition_method: summary.method }
+          : {}),
       })
       .eq("id", row.id);
     if (error) throw new Error(`daily_backpressure_logs update failed: ${error.message}`);
@@ -717,6 +757,7 @@ export async function processFeedEvent(
         status: "running",
         column_name: col?.name ?? event.column?.description ?? null,
         column_info: event.column ?? null,
+        ...runInfoColumns(event.run_info),
       });
       if (seq) {
         await db
@@ -788,6 +829,7 @@ export async function processFeedEvent(
               column_info: event.column,
             }
           : {}),
+        ...runInfoColumns(event.run_info),
       });
 
       await db

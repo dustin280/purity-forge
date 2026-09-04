@@ -32,6 +32,21 @@ export interface InstrumentColumnInfo {
   raw?: { [key: string]: Json };
 }
 
+/** OpenLab's run information for an injection (see runInfoSchema in instrument-feed.server.ts). */
+export interface InstrumentRunInfo {
+  sample_name?: string | null;
+  sample_type?: string | null;
+  method_name?: string | null;
+  method_id?: string | null;
+  sequence_name?: string | null;
+  vial?: string | null;
+  user_name?: string | null;
+  project_name?: string | null;
+  preview?: boolean;
+  baseline_check?: boolean;
+  received_at?: string | null;
+}
+
 export interface InstrumentLiveStatusRow {
   instrument_id: string;
   status: "offline" | "idle" | "running";
@@ -83,6 +98,11 @@ export interface InstrumentRunRow {
   sample_position: string | null;
   column_name: string | null;
   column_info: InstrumentColumnInfo | null;
+  sample_name: string | null;
+  sample_type: string | null;
+  method_name: string | null;
+  sequence_name: string | null;
+  run_info: InstrumentRunInfo | null;
   created_at: string;
 }
 

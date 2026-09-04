@@ -19,6 +19,12 @@ Manager:
                                        pressure_log (one continuous-log entry
                                        per minute: mean/min/max pressure, flow,
                                        column temperature — idle or running)
+  Runs also carry what OpenLab tells the instrument about them: ~2 min before
+  each injection the workstation invokes SetRunInformation over its (masked)
+  WebSocket on port 80 — sample name, sample type, method name, sequence name,
+  vial, operator, project — which the agent attaches to the next run
+  (run_info on run_started / run_completed / batches, method into the
+  Daily-Backpressure summary).
   Every run / pressure_log event and every feed batch also carries the column
   record the column compartment reports (COL:DATAX reply to OpenLab's query
   before and after each run: description, part number, geometry, injection
@@ -64,7 +70,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.2.2"
+AGENT_VERSION = "1.3.0"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -412,6 +418,139 @@ class StatusDecoder:
             del self.buf[:-8192]
 
 
+class WsClientDecoder:
+    """Workstation -> instrument side of the port-80 connection: SignalR JSON hub
+    messages inside WebSocket frames that the client MASKS (RFC 6455), so nothing
+    is readable until each frame is unmasked. Emits every complete JSON record
+    (records end with 0x1E). Resyncs on the frame boundaries when a capture
+    joins the connection mid-stream (the 15 s keep-alive pings make that quick)."""
+
+    MAX_FRAME = 1_000_000
+
+    def __init__(self, on_json: Callable[[dict], None]):
+        self.buf = bytearray()
+        self.text = bytearray()
+        self.on_json = on_json
+        self.synced = False
+
+    def feed(self, data: bytes) -> None:
+        if data == b"":
+            self.buf.clear()
+            self.text.clear()
+            self.synced = False
+            return
+        self.buf.extend(data)
+        if not self.synced:
+            self._resync()
+            if not self.synced:
+                return
+        while self.buf:
+            status, opcode, payload, size = self._parse(0)
+            if status == "incomplete":
+                return
+            if status == "bad":
+                self.synced = False
+                self.text.clear()
+                self._resync()
+                if not self.synced:
+                    return
+                continue
+            del self.buf[:size]
+            if opcode in (0, 1, 2) and payload:
+                self.text.extend(payload)
+                self._drain()
+
+    def _parse(self, i: int) -> tuple[str, int, bytes, int]:
+        b = self.buf
+        if len(b) - i < 2:
+            return "incomplete", 0, b"", 0
+        b0, b1 = b[i], b[i + 1]
+        opcode = b0 & 0x0F
+        if (b0 & 0x70) or opcode not in (0, 1, 2, 8, 9, 10):
+            return "bad", 0, b"", 0
+        masked = bool(b1 & 0x80)
+        n = b1 & 0x7F
+        j = i + 2
+        if n == 126:
+            if len(b) - j < 2:
+                return "incomplete", 0, b"", 0
+            n = int.from_bytes(b[j:j + 2], "big")
+            j += 2
+        elif n == 127:
+            if len(b) - j < 8:
+                return "incomplete", 0, b"", 0
+            n = int.from_bytes(b[j:j + 8], "big")
+            j += 8
+        if n > self.MAX_FRAME or (opcode >= 8 and n > 125):
+            return "bad", 0, b"", 0
+        key = b""
+        if masked:
+            if len(b) - j < 4:
+                return "incomplete", 0, b"", 0
+            key = bytes(b[j:j + 4])
+            j += 4
+        if len(b) - j < n:
+            return "incomplete", 0, b"", 0
+        payload = bytes(b[j:j + n])
+        if masked:
+            payload = bytes(c ^ key[k & 3] for k, c in enumerate(payload))
+        return "ok", opcode, payload, j + n - i
+
+    def _resync(self) -> None:
+        # A frame boundary is where a frame parses and the next header is plausible too.
+        for i in range(0, max(0, len(self.buf) - 1)):
+            status, _, _, size = self._parse(i)
+            if status != "ok":
+                continue
+            nxt = self._parse(i + size)[0]
+            if nxt in ("ok", "incomplete"):
+                del self.buf[:i]
+                self.synced = True
+                return
+        if len(self.buf) > 8192:
+            del self.buf[:-4096]
+
+    def _drain(self) -> None:
+        while True:
+            k = self.text.find(b"\x1e")
+            if k < 0:
+                break
+            rec = bytes(self.text[:k])
+            del self.text[:k + 1]
+            try:
+                obj = json.loads(rec.decode("utf-8", "replace"))
+            except ValueError:
+                continue
+            if isinstance(obj, dict):
+                self.on_json(obj)
+        if len(self.text) > self.MAX_FRAME:
+            self.text.clear()
+
+
+def run_info_from_invocation(args: list) -> Optional[dict]:
+    """Normalise OpenLab's SetRunInformation argument (keys as seen on the wire)."""
+    a = args[0] if args and isinstance(args[0], dict) else None
+    if a is None:
+        return None
+
+    def text(v):
+        v = v.strip() if isinstance(v, str) else ""
+        return v or None
+
+    return {
+        "sample_name": text(a.get("sampleName")),
+        "sample_type": text(a.get("sampleType")),
+        "method_name": text(a.get("methodName")),
+        "method_id": text(a.get("methodID")),
+        "sequence_name": text(a.get("sequenceName")),
+        "vial": text(a.get("injectionVial")),
+        "user_name": text(a.get("userName")),
+        "project_name": text(a.get("projectName")),
+        "preview": bool(a.get("isPreviewRun")),
+        "baseline_check": bool(a.get("isBaselineCheck")),
+    }
+
+
 # ----------------------------------------------------------------------------
 # Per-instrument state machine
 # ----------------------------------------------------------------------------
@@ -441,6 +580,8 @@ class RunState:
     # the run's initiation, so it must not produce a Daily Backpressure value.
     partial: bool = False
     acq: dict[str, StreamState] = field(default_factory=dict)
+    # OpenLab's SetRunInformation for this injection (sample, method, ...)
+    info: Optional[dict] = None
 
 
 @dataclass
@@ -456,7 +597,7 @@ class ConnState:
     to the connection (see stream_defs.py), so classification lives here."""
     key: tuple[int, int]
     reasm: Reassembler
-    telemetry: bool
+    kind: str  # "telemetry" | "status" | "ws-client"
     last_seen: float
     classifier: ChannelClassifier = field(default_factory=ChannelClassifier)
     # messages on a not-yet-identified channel wait here and are replayed
@@ -494,6 +635,9 @@ class Instrument:
         self.column_path = client.spool_dir / f"column_{self.id}.state"
         self.column: Optional[dict] = self._load_column()
 
+        # Latest SetRunInformation from OpenLab; attached to the next run to start.
+        self.run_info: Optional[dict] = None
+
         self.sequence: Optional[SequenceState] = None
         self.run: Optional[RunState] = None
         # A run whose RunState has ended but whose last acquisition batches may
@@ -525,15 +669,19 @@ class Instrument:
         c = self.conns.get(key)
         if c is None:
             if src_port == TELEMETRY_PORT:
+                kind = "telemetry"
                 sink = TelemetryDecoder(lambda m, k=key: self.on_message(k, m),
                                         lambda ch, t, k=key: self.on_text(k, ch, t)).feed
             elif src_port == STATUS_PORT:
+                kind = "status"
                 sink = StatusDecoder(self.on_status).feed
+            elif dst_port == STATUS_PORT:
+                kind = "ws-client"  # workstation -> instrument: masked WebSocket
+                sink = WsClientDecoder(self.on_ws_client).feed
             else:
                 return
-            c = self.conns[key] = ConnState(key, Reassembler(sink), src_port == TELEMETRY_PORT, ts)
-            LOG.info("[%s] new %s connection: port %d -> workstation port %d", self.name,
-                     "telemetry" if c.telemetry else "status", src_port, dst_port)
+            c = self.conns[key] = ConnState(key, Reassembler(sink), kind, ts)
+            LOG.info("[%s] new %s connection: port %d -> port %d", self.name, kind, src_port, dst_port)
             self._prune_conns(ts)
         c.last_seen = ts
         c.reasm.feed(seq, payload, ts)
@@ -576,6 +724,20 @@ class Instrument:
                 self.start_run(self.now)
             elif prev == RUN_STATE_ACQUIRING:
                 self.begin_run_end(self.now)
+
+    # ---- SignalR invocations from the workstation ----
+    def on_ws_client(self, obj: dict) -> None:
+        if obj.get("type") != 1 or obj.get("target") != "SetRunInformation":
+            return
+        info = run_info_from_invocation(obj.get("arguments") or [])
+        if info is None:
+            return
+        info["received_at"] = utc_iso(self.now)
+        self.run_info = info
+        if self.run and self.run.info is None:
+            self.run.info = info  # the call came after RunState flipped; still this run's
+        LOG.info("[%s] run information: sample %r (%s), method %r, vial %s", self.name,
+                 info["sample_name"], info["sample_type"], info["method_name"], info["vial"])
 
     # ---- text frames (module status, query replies) ----
     def on_text(self, conn_key: tuple[int, int], channel: int, text: str) -> None:
@@ -794,7 +956,7 @@ class Instrument:
         # seeing a run that was already under way (agent just started, or the
         # capture restarted): treat it as partial.
         partial = inferred and self.run_state != RUN_STATE_ACQUIRING
-        self.run = RunState(key, idx, ts, partial=partial)
+        self.run = RunState(key, idx, ts, partial=partial, info=self.run_info)
         for s in self.monitor.values():  # re-anchor the live streams on run time zero
             s.anchor_tick, s.pending = None, []
         LOG.info("[%s] run started %s (injection %d%s)", self.name, key, idx,
@@ -802,9 +964,17 @@ class Instrument:
         self.client.send_event(self.id, self.secret, {
             "type": "run_started", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
             "sequence": self._sequence_ref(),
-            "run": {"key": key, "injection_index": idx, "started_at": utc_iso(ts)},
+            "run": self._run_ref(self.run),
+            "run_info": self.run.info,
             "column": self.column,
         })
+
+    @staticmethod
+    def _run_ref(run: RunState) -> dict:
+        ref = {"key": run.key, "injection_index": run.injection_index, "started_at": utc_iso(run.started_at)}
+        if run.info and run.info.get("vial"):
+            ref["sample_position"] = run.info["vial"]
+        return ref
 
     def _sequence_ref(self) -> Optional[dict]:
         return {"key": self.sequence.key, "started_at": utc_iso(self.sequence.started_at)} if self.sequence else None
@@ -834,7 +1004,8 @@ class Instrument:
         self.client.send_event(self.id, self.secret, {
             "type": "run_completed", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
             "sequence": self._sequence_ref(),
-            "run": {"key": run.key, "injection_index": run.injection_index, "started_at": utc_iso(run.started_at)},
+            "run": self._run_ref(run),
+            "run_info": run.info,
             "ended_at": utc_iso(ts), "duration_s": round(ts - run.started_at, 3),
             "summary": summary, "trace": trace,
             "column": self.column,
@@ -862,7 +1033,7 @@ class Instrument:
             "pressure_min_bar": min(pvals) if pvals else None,
             "pressure_max_bar": max(pvals) if pvals else None,
             "wavelengths_nm": dict(self.wavelengths),
-            "method": None,
+            "method": run.info.get("method_name") if run.info else None,
         }
         streams: dict[str, dict] = {}
         for name, decimate in TRACE_STREAMS.items():
@@ -926,7 +1097,8 @@ class Instrument:
         body = {
             "agent": self.agent_dict(), "sent_at": utc_iso(now), "batch_seq": self.batch_seq,
             "status": self.state_dict(), "sequence": self._sequence_ref(),
-            "run": {"key": self.run.key, "injection_index": self.run.injection_index, "started_at": utc_iso(self.run.started_at)} if self.run else None,
+            "run": self._run_ref(self.run) if self.run else None,
+            "run_info": self.run.info if self.run else None,
             "streams": streams,
             "labels": {f"DAD1{k}": f"{v:g} nm" for k, v in self.wavelengths.items()},
             "column": self.column,
@@ -1067,7 +1239,10 @@ def main() -> int:
                 src, dst = parts[1], parts[2]
                 inst = by_ip.get(src)
                 if inst is None or dst in by_ip:
-                    continue  # only instrument -> workstation carries data we decode
+                    # workstation -> instrument: only the port-80 WebSocket (SetRunInformation) is decoded
+                    inst = by_ip.get(dst)
+                    if inst is None or int(parts[4]) != STATUS_PORT:
+                        continue
                 try:
                     inst.on_segment(wall, ts, int(parts[3]), int(parts[4]), int(parts[5]), bytes.fromhex(parts[7].replace(":", "")))
                 except Exception as e:  # noqa: BLE001

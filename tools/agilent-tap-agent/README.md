@@ -75,6 +75,11 @@ page should show the run, and when it finishes a Daily Backpressure row
   sequence/run it fell in. This is the continuous log behind the *Instrument
   Pressure Log* page and the dashboard's daily first/last pressure chart. Same
   reliable queue as the other events.
+- Run information: ~2 min before each injection OpenLab invokes
+  `SetRunInformation` on its port-80 WebSocket (masked client frames — the agent
+  unmasks them): sample name, sample type, method name, sequence name, vial,
+  operator, project. Attached to the next run (`run_info` on run events and
+  batches, `sample_position` = vial, method into the run summary).
 - The installed column: the column compartment answers OpenLab's `COL:DATAX?`
   query before and after every run with a JSON record (description, part
   number, dimensions, particle size, pressure limit, injection count, first /
