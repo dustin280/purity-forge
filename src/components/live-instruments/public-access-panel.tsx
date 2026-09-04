@@ -23,27 +23,45 @@ import { qk } from "@/lib/query-keys";
 
 /**
  * Admin card on the Live Instruments page: mint one-time passcodes for the
- * public /live viewer, see which are unused / active / spent, revoke any.
+ * public /live viewer, hand out a ready-to-paste invite, see which codes are
+ * unused / viewing / spent, revoke any. A code and the session it unlocks
+ * both end 12 hours after the code was generated.
  */
 
 const ANY = "__any__";
 
+function fmtWhen(iso: string): string {
+  return new Date(iso).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
+
+/** The text an invitee gets — pasteable into an email or a social post. */
+function inviteText(code: string, expiresAt: string, url: string): string {
+  return [
+    `You have been invited to a 12hr live chromatogram watch session, it expires at ${fmtWhen(expiresAt)}.`,
+    "",
+    `Watch here: ${url}`,
+    `Your code: ${code}`,
+  ].join("\n");
+}
+
 function codeState(r: PublicLiveCodeRow): { text: string; tone: "muted" | "ok" | "warn" } {
   const now = Date.now();
   if (r.revoked_at) return { text: "revoked", tone: "muted" };
+  const ended = new Date(r.session_expires_at ?? r.code_expires_at).getTime() < now;
   if (r.redeemed_at) {
-    if (r.session_expires_at && new Date(r.session_expires_at).getTime() > now)
-      return {
-        text: `viewing until ${new Date(r.session_expires_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`,
-        tone: "ok",
-      };
-    return { text: "used, access ended", tone: "muted" };
+    return ended
+      ? { text: "used, session ended", tone: "muted" }
+      : { text: `viewing until ${fmtWhen(r.session_expires_at ?? r.code_expires_at)}`, tone: "ok" };
   }
-  if (new Date(r.code_expires_at).getTime() < now) return { text: "unused, lapsed", tone: "muted" };
-  return {
-    text: `unused, valid until ${new Date(r.code_expires_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`,
-    tone: "warn",
-  };
+  return ended
+    ? { text: "unused, expired", tone: "muted" }
+    : { text: `unused, expires ${fmtWhen(r.code_expires_at)}`, tone: "warn" };
 }
 
 export function PublicAccessPanel({
@@ -57,11 +75,7 @@ export function PublicAccessPanel({
   const revokeFn = useServerFn(revokePublicLiveCode);
   const [label, setLabel] = useState("");
   const [instrumentId, setInstrumentId] = useState(ANY);
-  const [fresh, setFresh] = useState<{
-    code: string;
-    code_expires_at: string;
-    session_hours: number;
-  } | null>(null);
+  const [fresh, setFresh] = useState<{ code: string; expires_at: string } | null>(null);
 
   const { data: codes = [] } = useQuery({
     queryKey: qk.publicLive.codes(),
@@ -78,7 +92,7 @@ export function PublicAccessPanel({
         },
       }),
     onSuccess: (res) => {
-      setFresh(res);
+      setFresh({ code: res.code, expires_at: res.expires_at });
       setLabel("");
       qc.invalidateQueries({ queryKey: qk.publicLive.codes() });
     },
@@ -94,11 +108,12 @@ export function PublicAccessPanel({
   });
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/live` : "/live";
+  const invite = fresh ? inviteText(fresh.code, fresh.expires_at, shareUrl) : "";
 
-  async function copy(text: string) {
+  async function copy(text: string, what: string) {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied");
+      toast.success(`${what} copied`);
     } catch {
       toast.error("Copy failed — select the text and copy it by hand");
     }
@@ -111,8 +126,9 @@ export function PublicAccessPanel({
           <KeyRound className="size-4" /> Public viewer passcodes
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Give someone a passcode and the link <span className="font-mono">{shareUrl}</span>. It
-          works once, within 24 hours, and then opens the live feed on their device for 12 hours.
+          Generate a passcode and paste the invite wherever you like. The code works once and the
+          watch session ends 12 hours after it was generated. Viewers see the sample name and the
+          chromatogram, nothing else.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -157,32 +173,21 @@ export function PublicAccessPanel({
         </div>
 
         {fresh && (
-          <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-2">
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-3">
             <div className="text-xs text-muted-foreground">
-              New passcode — shown once. Valid to redeem until{" "}
-              {new Date(fresh.code_expires_at).toLocaleString([], {
-                month: "short",
-                day: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-              , then {fresh.session_hours} hours of viewing.
+              Shown once — copy the invite now. The code is{" "}
+              <span className="font-mono text-foreground">{fresh.code}</span>, valid until{" "}
+              {fmtWhen(fresh.expires_at)}.
             </div>
+            <pre className="whitespace-pre-wrap rounded-md border border-border bg-background px-3 py-2 text-sm leading-relaxed font-sans select-all">
+              {invite}
+            </pre>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-2xl tracking-[0.2em]">{fresh.code}</span>
-              <Button variant="outline" size="sm" onClick={() => copy(fresh.code)}>
-                <Copy className="size-3.5" /> Copy code
+              <Button size="sm" onClick={() => copy(invite, "Invite")}>
+                <Copy className="size-3.5" /> Copy invite
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  copy(
-                    `Live instrument feed: ${shareUrl}\nPasscode: ${fresh.code} (works once, 12 hours of access)`,
-                  )
-                }
-              >
-                <Copy className="size-3.5" /> Copy message
+              <Button variant="outline" size="sm" onClick={() => copy(fresh.code, "Code")}>
+                <Copy className="size-3.5" /> Copy code only
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setFresh(null)}>
                 Done
@@ -220,14 +225,7 @@ export function PublicAccessPanel({
                             "one instrument")
                           : "any"}
                       </td>
-                      <td className="py-1.5 pr-3 whitespace-nowrap">
-                        {new Date(r.created_at).toLocaleString([], {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </td>
+                      <td className="py-1.5 pr-3 whitespace-nowrap">{fmtWhen(r.created_at)}</td>
                       <td
                         className={
                           "py-1.5 pr-3 " +

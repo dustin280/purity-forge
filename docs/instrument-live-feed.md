@@ -8,19 +8,19 @@ importer for pressure on 2026-09-03 (archived under
 
 ## Pieces
 
-| Piece | Where |
-|---|---|
-| On-prem agent (Python, runs on the OpenLab PC) | `tools/agilent-tap-agent/` |
-| Wire-protocol decoder (verified against OpenLab `.rslt` data) | `tools/agilent-tap-agent/agilent1290_parser.py` |
-| Ingest routes (HMAC per instrument) | `src/routes/api/instrument/feed.ts`, `src/routes/api/instrument/event.ts` |
-| Processing, Realtime fan-out, Daily Backpressure writes | `src/lib/instrument-feed.server.ts` |
-| Server functions for the UI / admin keys | `src/lib/instrument-feed.functions.ts` |
-| Live page + replay | `src/routes/_authenticated/lab-logs/live-instruments/` |
-| Dashboard card | `src/components/dashboard/live-instruments-card.tsx` |
-| Continuous pressure log page (review / filter / print / CSV) | `src/routes/_authenticated/lab-logs/pressure-log/`, `src/components/pressure-log/` |
-| Dashboard daily first/last pressure chart | `src/components/dashboard/pressure-bookends-chart.tsx` |
-| Feed-key admin | Admin → Instruments → *Feed keys* (`src/components/live-instruments/feed-keys-panel.tsx`) |
-| Schema | `supabase/migrations/20260903170000_instrument_live_feed.sql`, `supabase/migrations/20260903230000_instrument_pressure_log.sql` |
+| Piece                                                         | Where                                                                                                                           |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| On-prem agent (Python, runs on the OpenLab PC)                | `tools/agilent-tap-agent/`                                                                                                      |
+| Wire-protocol decoder (verified against OpenLab `.rslt` data) | `tools/agilent-tap-agent/agilent1290_parser.py`                                                                                 |
+| Ingest routes (HMAC per instrument)                           | `src/routes/api/instrument/feed.ts`, `src/routes/api/instrument/event.ts`                                                       |
+| Processing, Realtime fan-out, Daily Backpressure writes       | `src/lib/instrument-feed.server.ts`                                                                                             |
+| Server functions for the UI / admin keys                      | `src/lib/instrument-feed.functions.ts`                                                                                          |
+| Live page + replay                                            | `src/routes/_authenticated/lab-logs/live-instruments/`                                                                          |
+| Dashboard card                                                | `src/components/dashboard/live-instruments-card.tsx`                                                                            |
+| Continuous pressure log page (review / filter / print / CSV)  | `src/routes/_authenticated/lab-logs/pressure-log/`, `src/components/pressure-log/`                                              |
+| Dashboard daily first/last pressure chart                     | `src/components/dashboard/pressure-bookends-chart.tsx`                                                                          |
+| Feed-key admin                                                | Admin → Instruments → _Feed keys_ (`src/components/live-instruments/feed-keys-panel.tsx`)                                       |
+| Schema                                                        | `supabase/migrations/20260903170000_instrument_live_feed.sql`, `supabase/migrations/20260903230000_instrument_pressure_log.sql` |
 
 ## Data flow
 
@@ -90,18 +90,18 @@ order webhook, scoped per instrument.
 
 ## Streams
 
-| Stream name | Units | Rate | Source |
-|---|---|---|---|
-| `DAD1A` … `DAD1H` | mAU | 2.5 Hz | DAD wavelength signals A–H (wavelengths in `labels`, e.g. `214 nm`) |
-| `PMP1B_Pressure` | bar | 40 Hz live / 1 Hz stored | Binary pump |
-| `PMP1C_Flow` | mL/min | 20 Hz / 1 Hz | Binary pump |
-| `PMP1D_SolventRatioA`, `PMP1E_SolventRatioB` | % | 20 Hz / 1 Hz | Binary pump |
-| `THM1A_LeftTemp`, `THM1B_RightTemp` | °C | 1 Hz | Column compartment |
-| `WPS1A_Temperature` | °C | 10 Hz / 1 Hz | Multisampler |
-| `DAD1T_BoardTemp`, `DAD1U_OpticalUnitTemp` | °C | 10 Hz (live only) | DAD housekeeping |
+| Stream name                                  | Units  | Rate                     | Source                                                              |
+| -------------------------------------------- | ------ | ------------------------ | ------------------------------------------------------------------- |
+| `DAD1A` … `DAD1H`                            | mAU    | 2.5 Hz                   | DAD wavelength signals A–H (wavelengths in `labels`, e.g. `214 nm`) |
+| `PMP1B_Pressure`                             | bar    | 40 Hz live / 1 Hz stored | Binary pump                                                         |
+| `PMP1C_Flow`                                 | mL/min | 20 Hz / 1 Hz             | Binary pump                                                         |
+| `PMP1D_SolventRatioA`, `PMP1E_SolventRatioB` | %      | 20 Hz / 1 Hz             | Binary pump                                                         |
+| `THM1A_LeftTemp`, `THM1B_RightTemp`          | °C     | 1 Hz                     | Column compartment                                                  |
+| `WPS1A_Temperature`                          | °C     | 10 Hz / 1 Hz             | Multisampler                                                        |
+| `DAD1T_BoardTemp`, `DAD1U_OpticalUnitTemp`   | °C     | 10 Hz (live only)        | DAD housekeeping                                                    |
 
-Live batches carry the instrument's *monitor* copies of these streams (sent
-by the instrument once a second); stored run traces use the *acquisition*
+Live batches carry the instrument's _monitor_ copies of these streams (sent
+by the instrument once a second); stored run traces use the _acquisition_
 copies, which are sample-for-sample identical to what OpenLab writes into the
 `.dx` files (verified for every stream above).
 
@@ -138,7 +138,7 @@ idempotent). About 1,440 rows per instrument-day.
 
 - **Instrument Pressure Log** page (Lab Logs): filter by instrument, date
   range, running/idle and "pump delivering only"; chart with the per-minute
-  min–max band and flow; paginated table with a *Replay* link into the stored
+  min–max band and flow; paginated table with a _Replay_ link into the stored
   run; Print (full filtered table) and CSV.
 - **Dashboard chart**: each local day's highest logged pressure (the peak
   inside the per-minute entries, with its time and the minute mean in the
@@ -175,12 +175,15 @@ happens: the sample name and the chromatogram (primary detector signal),
 with the same window/slider and run markers as the private page, nothing
 else. Access is by one-time passcode:
 
-- An admin generates a passcode on Live Instruments → *Public viewer
-  passcodes* (`createPublicLiveCode`; optional label and instrument). It is
-  shown once; only its hash is stored (`public_live_access_codes`).
-- The viewer opens `/live`, enters the code; `POST /api/public/live/redeem`
-  turns it into a 64-hex session token (the code is spent) valid for 12 h,
-  kept in that browser's localStorage. Unredeemed codes lapse after 24 h.
+- An admin generates a passcode on Live Instruments → _Public viewer
+  passcodes_ (`createPublicLiveCode`; optional label and instrument) and
+  copies the ready-made invite ("You have been invited to a 12hr live
+  chromatogram watch session, it expires at …", the link and the code). The
+  code is shown once; only its hash is stored (`public_live_access_codes`).
+- A watch session is a fixed 12-hour window from generation. The viewer
+  opens `/live`, enters the code; `POST /api/public/live/redeem` turns it
+  into a 64-hex session token (the code is spent) that lasts until that same
+  end time, kept in the browser's localStorage.
 - The page polls `GET /api/public/live/snapshot` (bearer token, every 2 s:
   the cached hour first, then only rows newer than its cursor). The route
   verifies the token, reads `instrument_live_batches` with the service
@@ -223,7 +226,7 @@ Done 2026-09-03 after the first live row was checked against a real sequence:
 migration `20260903235000_retire_drive_pressure_importer.sql` unscheduled the
 hourly pg_cron job and dropped its trigger function, the importer's code and
 cron route moved to `archive/drive-pressure-importer/` (with restore notes),
-and the *Run watcher now* button was removed from the Daily Backpressure page.
+and the _Run watcher now_ button was removed from the Daily Backpressure page.
 Rows it wrote (`source = 'auto'`) remain; new rows are `source = 'live'`.
 
 ## Realtime payloads

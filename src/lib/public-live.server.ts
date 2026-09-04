@@ -13,9 +13,12 @@
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import { LIVE_HISTORY_MINUTES } from "@/lib/instrument-feed.server";
 
+/**
+ * A watch session is a fixed 12-hour window starting when the code is
+ * generated: the invite can say exactly when it expires, and redeeming late
+ * only shortens the viewing, never extends it.
+ */
 export const PUBLIC_LIVE_SESSION_HOURS = 12;
-/** An unredeemed code lapses after this long. */
-export const PUBLIC_LIVE_CODE_TTL_HOURS = 24;
 /** Unambiguous: no 0/O, 1/I. */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
@@ -76,11 +79,16 @@ export async function redeemPublicLiveCode(
   if (row.redeemed_at)
     return { ok: false, status: 410, error: "This passcode has already been used." };
   if (new Date(row.code_expires_at).getTime() < Date.now()) {
-    return { ok: false, status: 410, error: "This passcode has expired. Ask for a new one." };
+    return {
+      ok: false,
+      status: 410,
+      error: "This watch session has expired. Ask for a new passcode.",
+    };
   }
   const token = randomToken();
   const now = new Date();
-  const expires = new Date(now.getTime() + PUBLIC_LIVE_SESSION_HOURS * 3_600_000);
+  // The session ends when the invite said it would, whenever it was redeemed.
+  const expires = new Date(row.code_expires_at);
   // The `is null` guard makes two simultaneous redemptions of one code
   // impossible: only the first update matches a row.
   const { data: updated, error } = await db

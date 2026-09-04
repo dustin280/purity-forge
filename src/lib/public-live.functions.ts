@@ -9,7 +9,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import {
-  PUBLIC_LIVE_CODE_TTL_HOURS,
   PUBLIC_LIVE_SESSION_HOURS,
   generateCode,
   normalizeCode,
@@ -61,37 +60,28 @@ export const createPublicLiveCode = createServerFn({ method: "POST" })
       })
       .parse(d ?? {}),
   )
-  .handler(
-    async ({
-      context,
-      data,
-    }): Promise<{ id: string; code: string; code_expires_at: string; session_hours: number }> => {
-      const db = context.supabase as AnySupabase;
-      await assertAdmin(db, context.userId);
-      const code = generateCode();
-      const expires = new Date(Date.now() + PUBLIC_LIVE_CODE_TTL_HOURS * 3_600_000).toISOString();
-      const { data: row, error } = await db
-        .from("public_live_access_codes")
-        .insert({
-          code_hash: await sha256Hex(normalizeCode(code)),
-          code_hint: code.slice(-4),
-          label: data.label?.trim() || null,
-          instrument_id: data.instrument_id ?? null,
-          created_by: context.userId,
-          code_expires_at: expires,
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      // Shown once; afterwards only the hint is available.
-      return {
-        id: row.id,
-        code,
+  .handler(async ({ context, data }): Promise<{ id: string; code: string; expires_at: string }> => {
+    const db = context.supabase as AnySupabase;
+    await assertAdmin(db, context.userId);
+    const code = generateCode();
+    // The whole watch session — code and viewing — ends 12 h from now.
+    const expires = new Date(Date.now() + PUBLIC_LIVE_SESSION_HOURS * 3_600_000).toISOString();
+    const { data: row, error } = await db
+      .from("public_live_access_codes")
+      .insert({
+        code_hash: await sha256Hex(normalizeCode(code)),
+        code_hint: code.slice(-4),
+        label: data.label?.trim() || null,
+        instrument_id: data.instrument_id ?? null,
+        created_by: context.userId,
         code_expires_at: expires,
-        session_hours: PUBLIC_LIVE_SESSION_HOURS,
-      };
-    },
-  );
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    // Shown once; afterwards only the hint is available.
+    return { id: row.id, code, expires_at: expires };
+  });
 
 export const revokePublicLiveCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

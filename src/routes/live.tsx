@@ -182,8 +182,8 @@ function PasscodeGate({
             <h1 className="text-lg font-semibold">Enter your passcode</h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            A passcode from Synthesyx shows the live chromatogram on this device for 12 hours. Each
-            passcode works once.
+            A passcode from Synthesyx shows the live chromatogram on this device until its watch
+            session ends. Each passcode works once.
           </p>
           {notice && <div className="text-sm text-muted-foreground">{notice}</div>}
           <form onSubmit={submit} className="space-y-3">
