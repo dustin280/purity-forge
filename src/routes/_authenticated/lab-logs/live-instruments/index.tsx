@@ -173,6 +173,7 @@ function LiveInstrumentsPage() {
     () =>
       feed.runs.map((r) => ({
         started_at: r.started_at,
+        ended_at: r.ended_at,
         label: `injection #${r.injection_index}`,
       })),
     [feed.runs],
@@ -352,7 +353,7 @@ function LiveInstrumentsPage() {
               title="Chromatogram"
               unit="mAU"
               series={dadSeries}
-              height={300}
+              height={320}
               emptyText={emptyText}
               xMode="wall"
               xDomain={domain}
@@ -365,7 +366,7 @@ function LiveInstrumentsPage() {
               title={streamDisplayName(c.name, feed.streams[c.name]?.label)}
               unit={c.unit}
               series={c.series}
-              height={200}
+              height={220}
               emptyText={emptyText}
               xMode="wall"
               xDomain={domain}

@@ -59,7 +59,9 @@ it per selected stream when it opens and prepends it to the Realtime stream,
 so the charts show the recent past immediately. All live charts share one
 window (5 / 15 / 30 / 60 min, default 15) and one slider that pans it across
 the cached hour; "Live" snaps back to following the newest data. Run starts
-are drawn as markers and the tooltip shows the time into the injection.
+are drawn as markers, a second axis under each chart counts minutes into the
+injection (restarting at every run start, blank between runs) so retention
+times can be read directly, and the tooltip shows the time into the injection.
 
 The `channel_id` byte in the port-9100 protocol is a handle the instrument
 allocates **per TCP connection**, not a fixed identifier: OpenLab gets one

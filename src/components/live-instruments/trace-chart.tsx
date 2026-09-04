@@ -25,11 +25,17 @@ export interface TraceSeries {
   v: number[];
 }
 
-/** A run start to mark on a wall-clock chart. */
+/** A run to mark on a wall-clock chart: a start line, and a minute axis that restarts here. */
 export interface RunMarker {
   /** epoch seconds */
   started_at: number;
+  /** epoch seconds; null while the run is still going */
+  ended_at?: number | null;
   label: string;
+}
+
+function fmtRunMinute(minutes: number): string {
+  return Number.isInteger(minutes) ? String(minutes) : minutes.toFixed(1);
 }
 
 const DAD_COLORS: Record<string, string> = {
@@ -276,6 +282,28 @@ export function TraceChart({
       ? runs.filter((r) => r.started_at >= xMin && r.started_at <= xMax)
       : [];
 
+  // Second bottom axis: minutes into the injection, restarting at each run
+  // start and stopping where the run ends, so a peak's retention time can be
+  // read straight off the chart.
+  const runTicks = useMemo(() => {
+    if (!wall || xMin === null || xMax === null || runs.length === 0) return [];
+    const stepMin = span <= 6 * 60 ? 0.5 : span <= 16 * 60 ? 1 : span <= 31 * 60 ? 2 : 5;
+    const step = stepMin * 60;
+    const sorted = [...runs].sort((a, b) => a.started_at - b.started_at);
+    const out: number[] = [];
+    sorted.forEach((r, i) => {
+      const end = Math.min(xMax, r.ended_at ?? sorted[i + 1]?.started_at ?? xMax);
+      for (let t = r.started_at; t <= end + 1e-6; t += step) if (t >= xMin) out.push(t);
+    });
+    return out;
+  }, [wall, xMin, xMax, span, runs]);
+  const fmtRunTick = (v: number): string => {
+    let run: RunMarker | null = null;
+    for (const r of runs)
+      if (r.started_at <= v + 1e-6 && (!run || r.started_at > run.started_at)) run = r;
+    return run ? fmtRunMinute(Math.round(((v - run.started_at) / 60) * 10) / 10) : "";
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -318,6 +346,29 @@ export function TraceChart({
                         }
                   }
                 />
+                {wall && (
+                  <XAxis
+                    xAxisId="run"
+                    dataKey="t"
+                    type="number"
+                    domain={[xMin ?? "dataMin", xMax ?? "dataMax"]}
+                    allowDataOverflow={manualX}
+                    ticks={runTicks}
+                    interval={0}
+                    tickFormatter={(v) => fmtRunTick(Number(v))}
+                    tick={{ fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                    height={20}
+                    stroke="var(--muted-foreground)"
+                    label={{
+                      value: "min into injection",
+                      position: "insideBottomRight",
+                      offset: -2,
+                      style: { fontSize: 10, fill: "var(--muted-foreground)" },
+                    }}
+                  />
+                )}
                 <YAxis
                   tick={{ fontSize: 11 }}
                   stroke="var(--muted-foreground)"
@@ -360,6 +411,18 @@ export function TraceChart({
                     }}
                   />
                 ))}
+                {wall && (
+                  // Binds the run-minute axis to the chart so it keeps the shared domain.
+                  <Line
+                    xAxisId="run"
+                    data={[]}
+                    dataKey="v"
+                    stroke="none"
+                    dot={false}
+                    legendType="none"
+                    isAnimationActive={false}
+                  />
+                )}
                 {drawn.map((s) => (
                   <Line
                     key={s.name}
