@@ -8,9 +8,11 @@
  *                                 the newest samples per stream + status.
  *                                 Fanned out over Supabase Realtime broadcast
  *                                 (topic `instrument:<id>`, event `batch`) for
- *                                 the Live Instruments page, and folded into
- *                                 instrument_live_status. Never stored per
- *                                 sample.
+ *                                 the Live Instruments page, folded into
+ *                                 instrument_live_status, and kept (decimated
+ *                                 to <= 5 Hz) in instrument_live_batches for
+ *                                 LIVE_HISTORY_MINUTES so a freshly opened page
+ *                                 can show the last hour at once.
  *   POST /api/instrument/event  — lifecycle: sequence_started, run_started,
  *                                 run_completed (with the decoded per-run
  *                                 traces + summary), sequence_completed,
@@ -49,6 +51,8 @@ const streamSchema = z.object({
   t0: z.number().finite(),
   /** seconds between consecutive values */
   dt: z.number().positive(),
+  /** wall-clock epoch seconds of values[0] (agent >= 1.2.1; live batches only) */
+  w0: z.number().finite().optional(),
   values: z.array(z.number().finite()).max(20000),
 });
 export type FeedStream = z.infer<typeof streamSchema>;
@@ -222,6 +226,21 @@ export type FeedEvent = z.infer<typeof feedEventSchema>;
 
 const TRACES_BUCKET = "instrument-traces";
 const LIVE_USER_NAME = "Live Instrument Feed";
+/** How much live history the page can show on open (instrument_live_batches). */
+export const LIVE_HISTORY_MINUTES = 60;
+/** Prune the cache every this many batches (~seconds). */
+const HISTORY_PRUNE_EVERY = 120;
+
+/**
+ * Decimation factor for the history cache: pump streams to 5 Hz (pressure
+ * arrives at 40 Hz), temperatures to 1 Hz, everything else (DAD signals at
+ * 2.5 Hz, thermostat at 1 Hz) as is. An hour of history for one stream then
+ * stays under ~20k values.
+ */
+function historyFactor(name: string, dt: number): number {
+  const target = /Temp/i.test(name) ? 1.0 : name.startsWith("PMP") ? 0.2 : dt;
+  return Math.max(1, Math.round(target / dt));
+}
 
 function toIso(v: string | null | undefined): string | null {
   if (!v) return null;
@@ -508,6 +527,45 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
   if (batch.modules?.length) patch.modules = batch.modules;
   if (batch.column) patch.column_info = batch.column;
   await upsertLiveStatus(db, instrumentId, patch);
+
+  // Rolling history cache (see LIVE_HISTORY_MINUTES). Wall-clock time per
+  // stream comes from the agent (w0); older agents get it from sent_at.
+  const sentAt = toIso(batch.sent_at) ?? now;
+  const sentEpoch = new Date(sentAt).getTime() / 1000;
+  const history: Record<string, { units: string; dt: number; w0: number; values: number[] }> = {};
+  for (const [name, s] of Object.entries(batch.streams)) {
+    const n = s.values.length;
+    if (n === 0) continue;
+    const factor = historyFactor(name, s.dt);
+    const w0 = s.w0 ?? sentEpoch - (n - 1) * s.dt;
+    history[name] = {
+      units: s.units,
+      dt: Math.round(s.dt * factor * 1e6) / 1e6,
+      w0: Math.round(w0 * 1000) / 1000,
+      values: factor === 1 ? s.values : s.values.filter((_, i) => i % factor === 0),
+    };
+  }
+  if (Object.keys(history).length > 0) {
+    const { error } = await db.from("instrument_live_batches").insert({
+      instrument_id: instrumentId,
+      batch_seq: batch.batch_seq,
+      sent_at: sentAt,
+      state: batch.status.state,
+      run_key: batch.run?.key ?? null,
+      run_index: batch.run?.injection_index ?? null,
+      run_started_at: batch.run ? toIso(batch.run.started_at) : null,
+      streams: history,
+      labels: batch.labels ?? null,
+    });
+    if (error) console.error("[instrument-feed] history insert failed", error.message);
+    if (batch.batch_seq % HISTORY_PRUNE_EVERY === 0) {
+      await db
+        .from("instrument_live_batches")
+        .delete()
+        .eq("instrument_id", instrumentId)
+        .lt("sent_at", new Date(Date.now() - (LIVE_HISTORY_MINUTES + 5) * 60_000).toISOString());
+    }
+  }
 
   await broadcastInstrument(instrumentId, "batch", {
     sent_at: batch.sent_at,

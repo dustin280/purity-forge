@@ -40,9 +40,26 @@ POST /api/instrument/event        ──▶ instrument_sequences / instrument_ru
 Browser (Live Instruments page) ◀── supabase.channel("instrument:<id>") broadcast
 ```
 
-Time axes are run-relative seconds; the agent derives them from each module's
-own tick clock (DAD 240 Hz, pump 200.24 Hz, sampler 200 Hz, thermostat 10 Hz),
-which is what OpenLab's stored timestamps are based on too.
+Time axes are run-relative seconds (`t0` per stream) for stored traces; the
+agent derives them from each module's own tick clock (DAD 240 Hz, pump
+200.24 Hz, sampler 200 Hz, thermostat 10 Hz), which is what OpenLab's stored
+timestamps are based on too. Live batches additionally carry `w0`, the
+wall-clock epoch of each chunk's first value (the same tick clock anchored on
+arrival), which the Live page uses as its axis.
+
+## Live page history and window
+
+`/api/instrument/feed` keeps every batch for `LIVE_HISTORY_MINUTES` (60) in
+`instrument_live_batches`, decimated to <= 5 Hz for pump streams and 1 Hz
+for temperatures (DAD signals stay at 2.5 Hz), pruned by the route every
+~2 min and by pg_cron (`instrument-live-batches-prune`) as a backstop.
+`getInstrumentLiveHistory()` returns the requested streams for the last hour
+as contiguous segments plus the runs seen in that window; the Live page loads
+it per selected stream when it opens and prepends it to the Realtime stream,
+so the charts show the recent past immediately. All live charts share one
+window (5 / 15 / 30 / 60 min, default 15) and one slider that pans it across
+the cached hour; "Live" snaps back to following the newest data. Run starts
+are drawn as markers and the tooltip shows the time into the injection.
 
 The `channel_id` byte in the port-9100 protocol is a handle the instrument
 allocates **per TCP connection**, not a fixed identifier: OpenLab gets one

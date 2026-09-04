@@ -1,13 +1,25 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Radio, Wifi, WifiOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { listInstrumentLiveOverview, listInstrumentRuns } from "@/lib/instrument-feed.functions";
 import { qk } from "@/lib/query-keys";
-import { useInstrumentLiveFeed } from "@/components/live-instruments/use-instrument-live-feed";
+import {
+  LIVE_HISTORY_MINUTES,
+  useInstrumentLiveFeed,
+} from "@/components/live-instruments/use-instrument-live-feed";
 import {
   InstrumentStatusList,
   liveStateOf,
@@ -21,6 +33,7 @@ import {
 import {
   TraceChart,
   colorForStream,
+  type RunMarker,
   type TraceSeries,
 } from "@/components/live-instruments/trace-chart";
 import { RecentRunsTable } from "@/components/live-instruments/recent-runs-table";
@@ -28,6 +41,10 @@ import { RecentRunsTable } from "@/components/live-instruments/recent-runs-table
 export const Route = createFileRoute("/_authenticated/lab-logs/live-instruments/")({
   component: LiveInstrumentsPage,
 });
+
+/** Viewable window lengths in minutes; the cache holds LIVE_HISTORY_MINUTES. */
+const WINDOW_OPTIONS = [5, 15, 30, 60].filter((m) => m <= LIVE_HISTORY_MINUTES);
+const DEFAULT_WINDOW_MIN = 15;
 
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -37,6 +54,10 @@ function fmtDateTime(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
+}
+
+function fmtClock(epochSeconds: number): string {
+  return format(epochSeconds * 1000, "HH:mm:ss");
 }
 
 function LiveInstrumentsPage() {
@@ -54,8 +75,15 @@ function LiveInstrumentsPage() {
     return running?.instrument.id ?? overview[0]?.instrument.id ?? null;
   }, [selectedId, overview]);
 
-  const feed = useInstrumentLiveFeed(effectiveId);
   const [selectedStreams, setSelectedStreams] = useState<string[]>(DEFAULT_STREAMS);
+  const feed = useInstrumentLiveFeed(effectiveId, selectedStreams);
+
+  // Shared viewing window: length + where its right edge sits. While
+  // "following" the edge rides on the newest sample; dragging the slider
+  // parks it, "Live" snaps back.
+  const [windowMin, setWindowMin] = useState(DEFAULT_WINDOW_MIN);
+  const [follow, setFollow] = useState(true);
+  const [viewEnd, setViewEnd] = useState<number | null>(null);
 
   const runsFn = useServerFn(listInstrumentRuns);
   const runsQuery = useQuery({
@@ -84,29 +112,58 @@ function LiveInstrumentsPage() {
   }, [feed.streams, selectedOverview]);
 
   // Rebuilt on every batch (batchSeq) — buffers mutate in place.
-  const { dadSeries, scalarCharts } = useMemo(() => {
+  const { dadSeries, scalarCharts, extent } = useMemo(() => {
     const dad: TraceSeries[] = [];
     const scalars: Array<{ name: string; unit: string; series: TraceSeries[] }> = [];
+    let lo = Infinity;
+    let hi = -Infinity;
     let i = 0;
     for (const name of selectedStreams) {
       const buf = feed.streams[name];
       if (!buf) continue;
+      if (buf.x.length > 0) {
+        lo = Math.min(lo, buf.x[0]);
+        hi = Math.max(hi, buf.x[buf.x.length - 1]);
+      }
       const series: TraceSeries = {
         name,
         label: streamDisplayName(name, buf.label),
         color: colorForStream(name, i++),
-        t: buf.t,
+        t: buf.x,
         v: buf.v,
       };
       if (isDadSignal(name)) dad.push(series);
       else scalars.push({ name, unit: buf.units, series: [series] });
     }
-    return { dadSeries: dad, scalarCharts: scalars };
+    return { dadSeries: dad, scalarCharts: scalars, extent: lo < hi ? { lo, hi } : null };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feed.batchSeq, feed.streams, selectedStreams]);
+  }, [feed.batchSeq, feed.historyLoading, feed.streams, selectedStreams]);
+
+  const windowS = windowMin * 60;
+  const domain = useMemo<[number, number] | null>(() => {
+    if (!extent) return null;
+    const end =
+      follow || viewEnd === null ? extent.hi : Math.min(Math.max(viewEnd, extent.lo), extent.hi);
+    return [end - windowS, end];
+  }, [extent, follow, viewEnd, windowS]);
+
+  const runMarkers = useMemo<RunMarker[]>(
+    () =>
+      feed.runs.map((r) => ({
+        started_at: r.started_at,
+        label: `injection #${r.injection_index}`,
+      })),
+    [feed.runs],
+  );
 
   const state = selectedOverview ? liveStateOf(selectedOverview) : "offline";
   const anyDadSelected = selectedStreams.some(isDadSignal);
+  const emptyText =
+    state === "offline"
+      ? "Instrument offline — no agent data."
+      : feed.historyLoading
+        ? "Loading the last hour…"
+        : "Waiting for data…";
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
@@ -125,7 +182,7 @@ function LiveInstrumentsPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Chromatogram, pump pressure and module traces straight from the instrument LAN, as they
-            are acquired.
+            are acquired, with the last {LIVE_HISTORY_MINUTES} minutes kept for review.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -175,6 +232,12 @@ function LiveInstrumentsPage() {
                     {fmtDateTime(feed.sequence.started_at)}
                   </div>
                 )}
+                {selectedOverview?.status?.column_info?.description && (
+                  <div>
+                    <span className="text-muted-foreground">Column: </span>
+                    {selectedOverview.status.column_info.description}
+                  </div>
+                )}
               </div>
               <StreamPicker
                 options={streamOptions}
@@ -184,17 +247,77 @@ function LiveInstrumentsPage() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>Window</span>
+                  <Select value={String(windowMin)} onValueChange={(v) => setWindowMin(Number(v))}>
+                    <SelectTrigger className="w-[100px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {WINDOW_OPTIONS.map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          {m} min
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 min-w-[200px] px-1">
+                  {extent && domain ? (
+                    <Slider
+                      min={extent.lo}
+                      max={extent.hi}
+                      step={1}
+                      value={[domain[1]]}
+                      onValueChange={([v]) => {
+                        setViewEnd(v);
+                        setFollow(v >= extent.hi - 1);
+                      }}
+                      aria-label="Window position"
+                    />
+                  ) : (
+                    <div className="h-1.5 rounded-full bg-primary/10" />
+                  )}
+                </div>
+                <div className="text-xs tabular-nums text-muted-foreground min-w-[9.5rem] text-right">
+                  {domain ? `${fmtClock(domain[0])} – ${fmtClock(domain[1])}` : "—"}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={follow ? "default" : "outline"}
+                  className="h-8"
+                  onClick={() => {
+                    setFollow(true);
+                    setViewEnd(null);
+                  }}
+                >
+                  <Radio className="size-3.5" /> Live
+                </Button>
+              </div>
+              <div className="mt-1.5 text-[11px] text-muted-foreground">
+                {extent
+                  ? `Data available ${fmtClock(extent.lo)} – ${fmtClock(extent.hi)}`
+                  : "No data yet"}
+                {feed.historyLoading ? " · loading history…" : ""}
+                {feed.historyError ? ` · history unavailable: ${feed.historyError}` : ""}
+              </div>
+            </CardContent>
+          </Card>
+
           {anyDadSelected && (
             <TraceChart
               title="Chromatogram"
               unit="mAU"
               series={dadSeries}
               height={300}
-              emptyText={
-                state === "offline"
-                  ? "Instrument offline — no agent data."
-                  : "Waiting for detector data…"
-              }
+              emptyText={emptyText}
+              xMode="wall"
+              xDomain={domain}
+              runs={runMarkers}
             />
           )}
           {scalarCharts.map((c) => (
@@ -204,9 +327,10 @@ function LiveInstrumentsPage() {
               unit={c.unit}
               series={c.series}
               height={200}
-              emptyText={
-                state === "offline" ? "Instrument offline — no agent data." : "Waiting for data…"
-              }
+              emptyText={emptyText}
+              xMode="wall"
+              xDomain={domain}
+              runs={runMarkers}
             />
           ))}
 

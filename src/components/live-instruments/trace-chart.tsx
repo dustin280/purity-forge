@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
+import { format } from "date-fns";
 import {
   CartesianGrid,
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,9 +20,16 @@ export interface TraceSeries {
   name: string;
   label: string;
   color: string;
-  /** run-relative seconds */
+  /** run-relative seconds (xMode "relative") or epoch seconds (xMode "wall") */
   t: number[];
   v: number[];
+}
+
+/** A run start to mark on a wall-clock chart. */
+export interface RunMarker {
+  /** epoch seconds */
+  started_at: number;
+  label: string;
 }
 
 const DAD_COLORS: Record<string, string> = {
@@ -79,7 +88,7 @@ function visibleRange(t: number[], lo: number | null, hi: number | null): [numbe
  * Bucketed downsampling of samples [start, end) that keeps the extreme
  * (largest |v|) point of each bucket, so chromatogram peaks and pressure
  * spikes survive even when 50k samples are drawn into ~1.5k pixels. Only the
- * visible window is bucketed, so zooming the X axis reveals full detail.
+ * visible window is bucketed, so a narrower window reveals full detail.
  */
 function downsample(
   t: number[],
@@ -159,23 +168,30 @@ function AxisField({
 function AxisControls({
   inputs,
   unit,
+  showX,
   onChange,
 }: {
   inputs: AxisInputs;
   unit: string;
+  /** the X inputs only make sense on a run-relative axis; wall-clock charts are panned by the page */
+  showX: boolean;
   onChange: (next: AxisInputs) => void;
 }) {
-  const manual = Object.values(inputs).some((s) => s.trim() !== "");
+  const manual = (showX ? Object.values(inputs) : [inputs.yMin, inputs.yMax]).some(
+    (s) => s.trim() !== "",
+  );
   const set = (key: keyof AxisInputs) => (v: string) => onChange({ ...inputs, [key]: v });
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-      <span className="flex items-center gap-1">
-        <span className="font-medium">X</span>
-        <AxisField label="X axis from (min)" value={inputs.xMin} onChange={set("xMin")} />
-        <span>–</span>
-        <AxisField label="X axis to (min)" value={inputs.xMax} onChange={set("xMax")} />
-        <span>min</span>
-      </span>
+      {showX && (
+        <span className="flex items-center gap-1">
+          <span className="font-medium">X</span>
+          <AxisField label="X axis from (min)" value={inputs.xMin} onChange={set("xMin")} />
+          <span>–</span>
+          <AxisField label="X axis to (min)" value={inputs.xMax} onChange={set("xMax")} />
+          <span>min</span>
+        </span>
+      )}
       <span className="flex items-center gap-1">
         <span className="font-medium">Y</span>
         <AxisField label={`Y axis from (${unit})`} value={inputs.yMin} onChange={set("yMin")} />
@@ -206,6 +222,9 @@ export function TraceChart({
   height = 240,
   emptyText = "Waiting for data…",
   maxPoints = 1500,
+  xMode = "relative",
+  xDomain = null,
+  runs = [],
 }: {
   title: string;
   unit: string;
@@ -213,13 +232,20 @@ export function TraceChart({
   height?: number;
   emptyText?: string;
   maxPoints?: number;
+  /** "relative": run-relative seconds with X limit inputs; "wall": epoch seconds, window from `xDomain` */
+  xMode?: "relative" | "wall";
+  /** [start, end] in epoch seconds (wall mode) */
+  xDomain?: [number, number] | null;
+  /** run starts to mark (wall mode) */
+  runs?: RunMarker[];
 }) {
+  const wall = xMode === "wall";
   // Manual axis limits; empty = auto. X is entered in minutes, plotted in seconds.
   const [axes, setAxes] = useState<AxisInputs>(AUTO_AXES);
   const [xMinMin, xMaxMin] = orderedPair(parseLimit(axes.xMin), parseLimit(axes.xMax));
   const [yMin, yMax] = orderedPair(parseLimit(axes.yMin), parseLimit(axes.yMax));
-  const xMin = xMinMin === null ? null : xMinMin * 60;
-  const xMax = xMaxMin === null ? null : xMaxMin * 60;
+  const xMin = wall ? (xDomain?.[0] ?? null) : xMinMin === null ? null : xMinMin * 60;
+  const xMax = wall ? (xDomain?.[1] ?? null) : xMaxMin === null ? null : xMaxMin * 60;
   const manualX = xMin !== null || xMax !== null;
   const manualY = yMin !== null || yMax !== null;
 
@@ -235,12 +261,27 @@ export function TraceChart({
   );
   const decimals = unit === "mAU" || unit === "bar" ? 1 : 2;
 
+  const span = xMin !== null && xMax !== null ? xMax - xMin : 0;
+  const fmtX = (v: number): string =>
+    wall ? format(v * 1000, span > 1800 ? "HH:mm" : "HH:mm:ss") : fmtMin(v);
+  const tooltipLabel = (v: number): string => {
+    if (!wall) return `${fmtMin(v)} min`;
+    const base = format(v * 1000, "HH:mm:ss");
+    let run: RunMarker | null = null;
+    for (const r of runs) if (r.started_at <= v && (!run || r.started_at > run.started_at)) run = r;
+    return run ? `${base} · ${fmtMin(v - run.started_at)} min into ${run.label}` : base;
+  };
+  const markers =
+    wall && xMin !== null && xMax !== null
+      ? runs.filter((r) => r.started_at >= xMin && r.started_at <= xMax)
+      : [];
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <CardTitle className="text-sm">{title}</CardTitle>
-          <AxisControls inputs={axes} unit={unit} onChange={setAxes} />
+          <AxisControls inputs={axes} unit={unit} showX={!wall} onChange={setAxes} />
         </div>
       </CardHeader>
       <CardContent>
@@ -259,17 +300,23 @@ export function TraceChart({
                 <XAxis
                   dataKey="t"
                   type="number"
-                  domain={[xMin ?? 0, xMax ?? "dataMax"]}
+                  domain={
+                    wall ? [xMin ?? "dataMin", xMax ?? "dataMax"] : [xMin ?? 0, xMax ?? "dataMax"]
+                  }
                   allowDataOverflow={manualX}
-                  tickFormatter={(v) => fmtMin(Number(v))}
+                  tickFormatter={(v) => fmtX(Number(v))}
                   tick={{ fontSize: 11 }}
                   stroke="var(--muted-foreground)"
-                  label={{
-                    value: "min",
-                    position: "insideBottomRight",
-                    offset: -4,
-                    style: { fontSize: 10, fill: "var(--muted-foreground)" },
-                  }}
+                  label={
+                    wall
+                      ? undefined
+                      : {
+                          value: "min",
+                          position: "insideBottomRight",
+                          offset: -4,
+                          style: { fontSize: 10, fill: "var(--muted-foreground)" },
+                        }
+                  }
                 />
                 <YAxis
                   tick={{ fontSize: 11 }}
@@ -291,7 +338,7 @@ export function TraceChart({
                     borderRadius: 6,
                     fontSize: 12,
                   }}
-                  labelFormatter={(v) => `${fmtMin(Number(v))} min`}
+                  labelFormatter={(v) => tooltipLabel(Number(v))}
                   formatter={(value, name) => [
                     `${Number(value).toFixed(decimals)} ${unit}`,
                     String(name),
@@ -299,6 +346,20 @@ export function TraceChart({
                   isAnimationActive={false}
                 />
                 {drawn.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+                {markers.map((r) => (
+                  <ReferenceLine
+                    key={`${r.started_at}`}
+                    x={r.started_at}
+                    stroke="var(--muted-foreground)"
+                    strokeDasharray="3 3"
+                    label={{
+                      value: r.label,
+                      position: "insideTopLeft",
+                      fontSize: 10,
+                      fill: "var(--muted-foreground)",
+                    }}
+                  />
+                ))}
                 {drawn.map((s) => (
                   <Line
                     key={s.name}

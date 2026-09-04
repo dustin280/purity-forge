@@ -9,7 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
-import type { RunSummary, RunTrace } from "@/lib/instrument-feed.server";
+import { LIVE_HISTORY_MINUTES, type RunSummary, type RunTrace } from "@/lib/instrument-feed.server";
 
 /** Column record the instrument reported (see columnSchema in instrument-feed.server.ts). */
 export interface InstrumentColumnInfo {
@@ -208,6 +208,136 @@ export const getInstrumentRunTrace = createServerFn({ method: "GET" })
       return { run: run as InstrumentRunRow, trace };
     },
   );
+
+/* ---------------- live history cache ---------------- */
+
+export interface LiveHistorySegment {
+  /** epoch seconds of values[0] */
+  w0: number;
+  dt: number;
+  values: number[];
+}
+export interface LiveHistoryStream {
+  units: string;
+  /** contiguous stretches, oldest first */
+  segments: LiveHistorySegment[];
+}
+export interface LiveHistoryRun {
+  key: string;
+  injection_index: number;
+  started_at: string;
+  first_seen: string;
+  last_seen: string;
+}
+export interface InstrumentLiveHistory {
+  from: string;
+  to: string;
+  streams: Record<string, LiveHistoryStream>;
+  runs: LiveHistoryRun[];
+  labels: Record<string, string>;
+}
+
+const HISTORY_PAGE = 1000;
+const HISTORY_MAX_ROWS = 4000;
+
+/**
+ * The last `minutes` of the requested streams from the rolling cache
+ * (instrument_live_batches), stitched into contiguous segments so the page
+ * can draw the recent past before the first live batch arrives. Only the
+ * requested streams are pulled out of each row's jsonb.
+ */
+export const getInstrumentLiveHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        instrument_id: z.string().uuid(),
+        minutes: z.number().int().min(1).max(LIVE_HISTORY_MINUTES).optional(),
+        streams: z
+          .array(z.string().regex(/^[A-Za-z0-9_]{1,64}$/))
+          .min(1)
+          .max(24),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }): Promise<InstrumentLiveHistory> => {
+    const db = context.supabase as AnySupabase;
+    const minutes = data.minutes ?? LIVE_HISTORY_MINUTES;
+    const to = new Date();
+    const from = new Date(to.getTime() - minutes * 60_000);
+    const names = [...new Set(data.streams)];
+    const select = [
+      "sent_at",
+      "run_key",
+      "run_index",
+      "run_started_at",
+      "labels",
+      ...names.map((n, i) => `s${i}:streams->${n}`),
+    ].join(",");
+
+    type Chunk = { units: string; dt: number; w0: number; values: number[] } | null;
+    type Row = {
+      sent_at: string;
+      run_key: string | null;
+      run_index: number | null;
+      run_started_at: string | null;
+      labels: Record<string, string> | null;
+    } & Record<string, unknown>;
+
+    const streams: Record<string, LiveHistoryStream> = {};
+    const runs = new Map<string, LiveHistoryRun>();
+    let labels: Record<string, string> = {};
+    for (let offset = 0; offset < HISTORY_MAX_ROWS; offset += HISTORY_PAGE) {
+      const { data: rows, error } = await db
+        .from("instrument_live_batches")
+        .select(select)
+        .eq("instrument_id", data.instrument_id)
+        .gte("sent_at", from.toISOString())
+        .order("sent_at", { ascending: true })
+        .range(offset, offset + HISTORY_PAGE - 1);
+      if (error) throw error;
+      const page = (rows ?? []) as Row[];
+      for (const row of page) {
+        if (row.labels) labels = { ...labels, ...row.labels };
+        if (row.run_key && row.run_started_at) {
+          const r = runs.get(row.run_key);
+          if (r) r.last_seen = row.sent_at;
+          else
+            runs.set(row.run_key, {
+              key: row.run_key,
+              injection_index: row.run_index ?? 1,
+              started_at: row.run_started_at,
+              first_seen: row.sent_at,
+              last_seen: row.sent_at,
+            });
+        }
+        names.forEach((name, i) => {
+          const chunk = row[`s${i}`] as Chunk;
+          if (!chunk || !Array.isArray(chunk.values) || chunk.values.length === 0) return;
+          let s = streams[name];
+          if (!s) s = streams[name] = { units: chunk.units, segments: [] };
+          const last = s.segments[s.segments.length - 1];
+          if (
+            last &&
+            last.dt === chunk.dt &&
+            Math.abs(chunk.w0 - (last.w0 + last.values.length * last.dt)) < chunk.dt * 0.6 + 0.05
+          ) {
+            last.values.push(...chunk.values);
+          } else {
+            s.segments.push({ w0: chunk.w0, dt: chunk.dt, values: [...chunk.values] });
+          }
+        });
+      }
+      if (page.length < HISTORY_PAGE) break;
+    }
+    return {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      streams,
+      runs: [...runs.values()],
+      labels,
+    };
+  });
 
 /* ---------------- continuous pressure log ---------------- */
 

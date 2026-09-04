@@ -8,6 +8,10 @@ sequence state from the port-80 SignalR status pushes, and reports to the Lab
 Manager:
 
   POST <app_url>/api/instrument/feed   once a second: newest samples + status
+                                       (each stream carries t0 = run-relative
+                                       seconds and w0 = wall-clock epoch seconds
+                                       of its first value, from the module's own
+                                       tick clock anchored on arrival)
   POST <app_url>/api/instrument/event  sequence_started / run_started /
                                        run_completed (+ per-run traces and the
                                        Daily-Backpressure summary) /
@@ -60,7 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.2.0"
+AGENT_VERSION = "1.2.1"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -417,6 +421,9 @@ class StreamState:
     unwrap: proto._TickUnwrapper
     anchor_tick: Optional[int] = None
     t0: float = 0.0
+    # wall-clock epoch of the sample at anchor_tick (monitor streams), so live
+    # batches can carry an absolute time axis alongside the run-relative one
+    anchor_wall: float = 0.0
     pending: list[tuple[float, float]] = field(default_factory=list)   # (t, value) not yet sent live
     run_values: list[tuple[float, float]] = field(default_factory=list)  # acquisition samples for the run
 
@@ -651,6 +658,9 @@ class Instrument:
             tick = s.unwrap(m["tick"])
             if s.anchor_tick is None:
                 s.anchor_tick, s.t0 = tick, (st["t0_ms"] / 1000.0 if self.run else 0.0)
+                # The message arrives just after its last sample was taken. Packet
+                # clock, not wall clock, so a replayed capture keeps its own times.
+                s.anchor_wall = self.capture_now - (len(m["values"]) - 1) * dt
             t_batch = s.t0 + (tick - s.anchor_tick) / clock
             for i, v in enumerate(m["values"]):
                 s.pending.append((t_batch + i * dt, v * st["scale"]))
@@ -890,6 +900,7 @@ class Instrument:
                 continue
             pending = s.pending[-self.MAX_BATCH_VALUES:]
             streams[name] = {"units": s.units, "t0": round(pending[0][0], 4), "dt": round(s.dt, 6),
+                             "w0": round(s.anchor_wall + (pending[0][0] - s.t0), 3),
                              "values": [round(v, 4) for _, v in pending]}
             s.pending = []
         if not streams and not self.run:
