@@ -28,23 +28,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import {
-  listBackpressureDailySummary,
-  type BackpressureDailySummaryRow,
-} from "@/lib/daily-backpressure.functions";
+import { listBackpressureDailySummary } from "@/lib/daily-backpressure.functions";
+import { listPressureDailyByColumn } from "@/lib/instrument-feed.functions";
 import { listHplcColumns } from "@/lib/hplc-columns.functions";
 import { qk } from "@/lib/query-keys";
 
 /**
- * Daily Backpressure, one point per day per column. The log keeps one row per
- * sequence (the record); at hundreds of sequences a day that is unreadable as
- * a line, so this reads daily_backpressure_daily_summary(): for each local day
- * and column the mean "at initiation" pressure (solid), the highest pressure
- * any run reached (dashed) and the injection count (right axis).
+ * Daily Backpressure, one point per day per column, read from the continuous
+ * per-minute pressure log the way the dashboard's daily peak chart is: each
+ * day's highest logged pressure while the pump was delivering, with the time
+ * it happened, first/last and entry count in the tooltip. Injections per day
+ * (right axis) come from the per-sequence rows, which stay the audit record
+ * and are listed below the chart.
  */
 
 export const ALL_COLUMNS = "__all__";
-/** rows whose column was not recorded */
+/** entries logged before any column record was seen */
 export const NO_COLUMN = "__none__";
 
 const SERIES_COLORS = [
@@ -69,6 +68,9 @@ function localMidnight(day: string): number {
 }
 function fmtBar(v: unknown): string {
   return typeof v === "number" ? v.toFixed(1) : "—";
+}
+function fmtClock(iso: unknown): string {
+  return typeof iso === "string" ? format(new Date(iso), "HH:mm") : "";
 }
 
 export function rangeLabel(range: DateRange | undefined): string {
@@ -105,27 +107,29 @@ function DayTooltip({
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md space-y-1.5 max-w-[22rem]">
       <div className="font-medium">{format(new Date(Number(label)), "EEE, MMM d, yyyy")}</div>
       {columns.map(([key, name]) =>
-        p[`${key}:init`] == null ? null : (
+        p[`${key}:peak`] == null ? null : (
           <div key={key} className="space-y-0.5">
             {columns.length > 1 && <div className="text-muted-foreground truncate">{name}</div>}
             <div>
-              At initiation <span className="font-mono">{fmtBar(p[`${key}:init`])} bar</span>
+              Peak <span className="font-mono">{fmtBar(p[`${key}:peak`])} bar</span> at{" "}
+              {fmtClock(p[`${key}:peak_at`])}
               <span className="text-muted-foreground">
                 {" "}
-                ({fmtBar(p[`${key}:init_min`])} – {fmtBar(p[`${key}:init_max`])})
+                (minute mean {fmtBar(p[`${key}:peak_mean`])})
               </span>
             </div>
-            <div>
-              Highest in a run <span className="font-mono">{fmtBar(p[`${key}:max`])} bar</span>
-            </div>
             <div className="text-muted-foreground">
-              {String(p[`${key}:sequences`])} sequence{p[`${key}:sequences`] === 1 ? "" : "s"} ·{" "}
-              {String(p[`${key}:injections`])} injections
-              {p[`${key}:flow`] != null ? ` · ${Number(p[`${key}:flow`]).toFixed(2)} mL/min` : ""}
-              {p[`${key}:temp`] != null ? ` · ${Number(p[`${key}:temp`]).toFixed(0)} °C` : ""}
-              {Number(p[`${key}:manual`]) > 0 ? ` · ${String(p[`${key}:manual`])} manual` : ""}
-              {Number(p[`${key}:noted`]) > 0 ? ` · ${String(p[`${key}:noted`])} with notes` : ""}
+              first {fmtBar(p[`${key}:first`])} at {fmtClock(p[`${key}:first_at`])} · last{" "}
+              {fmtBar(p[`${key}:last`])} at {fmtClock(p[`${key}:last_at`])} ·{" "}
+              {String(p[`${key}:readings`] ?? "")} min logged
             </div>
+            {p[`${key}:sequences`] != null && (
+              <div className="text-muted-foreground">
+                {String(p[`${key}:sequences`])} sequence
+                {p[`${key}:sequences`] === 1 ? "" : "s"} · {String(p[`${key}:injections`])}{" "}
+                injections
+              </div>
+            )}
           </div>
         ),
       )}
@@ -148,16 +152,28 @@ export function BackpressureDailyChart({
   tz: string;
 }) {
   const bounds = rangeBounds(range);
-  const fn = useServerFn(listBackpressureDailySummary);
-  // Always fetch every column so the selector can list them; filter client-side.
-  const params = bounds ? { ...bounds, tz } : null;
-  const { data: rows = [], isLoading } = useQuery({
-    queryKey: qk.backpressure.daily(params),
+  const window_ = bounds ? { ...bounds, tz } : null;
+
+  // Pressure per day and column from the continuous log; every column is
+  // fetched so the selector can list them, the filter is applied client-side.
+  const dailyFn = useServerFn(listPressureDailyByColumn);
+  const { data: daily = [], isLoading } = useQuery({
+    queryKey: qk.backpressure.dailyByColumn(window_),
     queryFn: () => {
-      if (!params) throw new Error("Pick a date range");
-      return fn({ data: params });
+      if (!window_) throw new Error("Pick a date range");
+      return dailyFn({ data: { ...window_, pump_on_only: true } });
     },
-    enabled: params !== null,
+    enabled: window_ !== null,
+  });
+  // Sequences and injections per day and column from the rows (the record).
+  const summaryFn = useServerFn(listBackpressureDailySummary);
+  const { data: summary = [] } = useQuery({
+    queryKey: qk.backpressure.daily(window_),
+    queryFn: () => {
+      if (!window_) throw new Error("Pick a date range");
+      return summaryFn({ data: window_ });
+    },
+    enabled: window_ !== null,
   });
 
   const listCols = useServerFn(listHplcColumns);
@@ -168,53 +184,55 @@ export function BackpressureDailyChart({
 
   const columnOptions = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const r of rows) seen.set(columnKey(r.column_name), columnLabel(r.column_name));
+    for (const r of daily) seen.set(columnKey(r.column_name), columnLabel(r.column_name));
+    for (const r of summary) seen.set(columnKey(r.column_name), columnLabel(r.column_name));
     return [...seen.entries()].sort((a, b) =>
       a[0] === NO_COLUMN ? 1 : b[0] === NO_COLUMN ? -1 : a[1].localeCompare(b[1]),
     );
-  }, [rows]);
+  }, [daily, summary]);
   const effectiveColumn = columnOptions.some(([k]) => k === column) ? column : ALL_COLUMNS;
+  const wanted = (key: string) => effectiveColumn === ALL_COLUMNS || key === effectiveColumn;
 
-  const { points, columns, sequences } = useMemo(() => {
+  const { points, columns, days } = useMemo(() => {
     const byDay = new Map<number, Point>();
     const names = new Map<string, string>();
-    let sequences = 0;
-    for (const r of rows as BackpressureDailySummaryRow[]) {
+    for (const r of daily) {
       const key = columnKey(r.column_name);
-      if (effectiveColumn !== ALL_COLUMNS && key !== effectiveColumn) continue;
+      if (!wanted(key)) continue;
       names.set(key, columnLabel(r.column_name));
-      sequences += r.sequences;
       const t = localMidnight(r.day);
       const p = byDay.get(t) ?? { t, injections: 0 };
-      // Several instruments on one column in one day: keep the higher values.
-      p[`${key}:init`] = Math.max(Number(p[`${key}:init`] ?? -Infinity), r.initiation_bar);
-      p[`${key}:init_min`] = Math.min(
-        Number(p[`${key}:init_min`] ?? Infinity),
-        r.initiation_min_bar,
-      );
-      p[`${key}:init_max`] = Math.max(
-        Number(p[`${key}:init_max`] ?? -Infinity),
-        r.initiation_max_bar,
-      );
-      p[`${key}:max`] =
-        r.run_max_bar == null
-          ? (p[`${key}:max`] ?? null)
-          : Math.max(Number(p[`${key}:max`] ?? -Infinity), r.run_max_bar);
-      p[`${key}:sequences`] = Number(p[`${key}:sequences`] ?? 0) + r.sequences;
-      p[`${key}:injections`] = Number(p[`${key}:injections`] ?? 0) + r.injections;
-      p[`${key}:flow`] = r.flow_ml_min;
-      p[`${key}:temp`] = r.column_temp_c;
-      p[`${key}:manual`] = Number(p[`${key}:manual`] ?? 0) + r.manual;
-      p[`${key}:noted`] = Number(p[`${key}:noted`] ?? 0) + r.noted;
-      p.injections = Number(p.injections) + r.injections;
+      // Several instruments on one column in one day: the higher peak wins.
+      if (p[`${key}:peak`] == null || r.max_bar > Number(p[`${key}:peak`])) {
+        p[`${key}:peak`] = r.max_bar;
+        p[`${key}:peak_at`] = r.max_at;
+        p[`${key}:peak_mean`] = r.max_mean_bar;
+      }
+      if (p[`${key}:first_at`] == null || r.first_at < String(p[`${key}:first_at`])) {
+        p[`${key}:first`] = r.first_bar;
+        p[`${key}:first_at`] = r.first_at;
+      }
+      if (p[`${key}:last_at`] == null || r.last_at > String(p[`${key}:last_at`])) {
+        p[`${key}:last`] = r.last_bar;
+        p[`${key}:last_at`] = r.last_at;
+      }
+      p[`${key}:readings`] = Number(p[`${key}:readings`] ?? 0) + r.readings;
       byDay.set(t, p);
     }
-    return {
-      points: [...byDay.values()].sort((a, b) => Number(a.t) - Number(b.t)),
-      columns: [...names.entries()],
-      sequences,
-    };
-  }, [rows, effectiveColumn]);
+    for (const r of summary) {
+      const key = columnKey(r.column_name);
+      if (!wanted(key)) continue;
+      const t = localMidnight(r.day);
+      const p = byDay.get(t);
+      if (!p) continue; // a day with rows but no pump-on log entries: nothing to plot
+      p[`${key}:sequences`] = Number(p[`${key}:sequences`] ?? 0) + r.sequences;
+      p[`${key}:injections`] = Number(p[`${key}:injections`] ?? 0) + r.injections;
+      p.injections = Number(p.injections) + r.injections;
+    }
+    const points = [...byDay.values()].sort((a, b) => Number(a.t) - Number(b.t));
+    return { points, columns: [...names.entries()], days: points.length };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daily, summary, effectiveColumn]);
 
   const ratedMax =
     effectiveColumn === ALL_COLUMNS || effectiveColumn === NO_COLUMN
@@ -230,9 +248,8 @@ export function BackpressureDailyChart({
           <div>
             <CardTitle className="text-base">Backpressure by Day</CardTitle>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {points.length} day{points.length === 1 ? "" : "s"} · {sequences} sequence
-              {sequences === 1 ? "" : "s"} · mean pressure at initiation (solid), highest in any run
-              (dashed)
+              Highest logged pressure each day per column, from the continuous log while the pump
+              was delivering · {days} day{days === 1 ? "" : "s"}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -281,8 +298,9 @@ export function BackpressureDailyChart({
         {isLoading ? (
           <Skeleton className="h-[260px] w-full" />
         ) : points.length === 0 ? (
-          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
-            No readings in this date range.
+          <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground text-center px-4">
+            No live pressure entries in this date range. The agent logs one entry per minute while
+            the instrument is on.
           </div>
         ) : (
           <div className="h-[260px] w-full">
@@ -340,37 +358,20 @@ export function BackpressureDailyChart({
                     }}
                   />
                 )}
-                {columns.map(([key, name], i) => {
-                  const color = SERIES_COLORS[i % SERIES_COLORS.length];
-                  const short = single ? "" : `${name} · `;
-                  return [
-                    <Line
-                      key={`${key}:init`}
-                      type="monotone"
-                      dataKey={`${key}:init`}
-                      name={`${short}at initiation`}
-                      stroke={color}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 4 }}
-                      connectNulls
-                      isAnimationActive={false}
-                    />,
-                    <Line
-                      key={`${key}:max`}
-                      type="monotone"
-                      dataKey={`${key}:max`}
-                      name={`${short}highest in a run`}
-                      stroke={color}
-                      strokeDasharray="5 3"
-                      strokeWidth={1.5}
-                      dot={false}
-                      activeDot={{ r: 3 }}
-                      connectNulls
-                      isAnimationActive={false}
-                    />,
-                  ];
-                })}
+                {columns.map(([key, name], i) => (
+                  <Line
+                    key={key}
+                    type="monotone"
+                    dataKey={`${key}:peak`}
+                    name={single ? "Daily peak" : `${name} · peak`}
+                    stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 4 }}
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                ))}
                 {hasInjections && (
                   <Line
                     yAxisId="injections"

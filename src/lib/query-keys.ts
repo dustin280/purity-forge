@@ -75,6 +75,8 @@ export const qk = {
         ? (["daily-backpressure", "list"] as const)
         : (["daily-backpressure", "list", filters] as const),
     daily: (filters: unknown) => ["daily-backpressure", "daily", filters] as const,
+    dailyByColumn: (filters: unknown) =>
+      ["daily-backpressure", "daily-by-column", filters] as const,
   },
 
   hplcColumns: {

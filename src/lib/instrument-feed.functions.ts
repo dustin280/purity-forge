@@ -523,6 +523,66 @@ export const getInstrumentPressureDailyBookends = createServerFn({ method: "GET"
     }));
   });
 
+export interface PressureDailyByColumn {
+  /** YYYY-MM-DD in the requested time zone */
+  day: string;
+  /** null = entries logged before any column record was seen */
+  column_name: string | null;
+  instrument_id: string;
+  instrument_name: string;
+  readings: number;
+  first_at: string;
+  first_bar: number;
+  last_at: string;
+  last_bar: number;
+  min_bar: number;
+  max_bar: number;
+  max_at: string;
+  max_mean_bar: number;
+}
+
+/**
+ * The continuous log per local day AND column (Daily Backpressure page):
+ * peak with its time, first/last, min, entry count. Pump-delivering entries
+ * only by default, as on the dashboard.
+ */
+export const listPressureDailyByColumn = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        from: z.string().datetime({ offset: true }),
+        to: z.string().datetime({ offset: true }),
+        tz: z
+          .string()
+          .min(1)
+          .max(64)
+          .regex(/^[A-Za-z0-9_+\-/]+$/),
+        pump_on_only: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }): Promise<PressureDailyByColumn[]> => {
+    const db = context.supabase as AnySupabase;
+    const [{ data: rows, error }, { data: instruments }] = await Promise.all([
+      db.rpc("instrument_pressure_daily_by_column", {
+        p_from: data.from,
+        p_to: data.to,
+        p_tz: data.tz,
+        p_min_flow: data.pump_on_only === false ? null : 0,
+      }),
+      db.from("instruments").select("id, name"),
+    ]);
+    if (error) throw error;
+    const names = new Map<string, string>();
+    for (const i of (instruments ?? []) as Array<{ id: string; name: string }>)
+      names.set(i.id, i.name);
+    return ((rows ?? []) as Array<Omit<PressureDailyByColumn, "instrument_name">>).map((r) => ({
+      ...r,
+      instrument_name: names.get(r.instrument_id) ?? "Unknown instrument",
+    }));
+  });
+
 /* ---------------- admin: feed keys ---------------- */
 
 export interface InstrumentFeedKeyRow {

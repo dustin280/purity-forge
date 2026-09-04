@@ -116,9 +116,12 @@ copies, which are sample-for-sample identical to what OpenLab writes into the
 - `source = 'live'`, `user_name = 'Live Instrument Feed'`,
   `instrument_id` / `instrument_sequence_id` set.
 - `acquisition_method` comes from OpenLab's SetRunInformation (agent 1.3.0+).
-- The log keeps growing at one row per sequence; the Daily Backpressure page
-  charts `daily_backpressure_daily_summary()` — one point per local day and
-  column (mean "at initiation" pressure, highest run pressure, injections) —
+- The log keeps growing at one row per sequence (the audit record). The
+  Daily Backpressure page charts the continuous per-minute log instead, one
+  point per local day and column (`instrument_pressure_daily_by_column()`:
+  the day's peak with its time, first/last and entry count, pump-delivering
+  entries only, like the dashboard's daily peak chart), with injections per
+  day from the rows (`daily_backpressure_daily_summary()`) on the right axis,
   and lists the rows for the chosen date range, paged. At hundreds of
   sequences a day the rows remain the record while the views stay readable.
 
