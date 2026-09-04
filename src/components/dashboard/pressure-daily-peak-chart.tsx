@@ -34,8 +34,8 @@ import { listHplcColumns } from "@/lib/hplc-columns.functions";
 import { qk } from "@/lib/query-keys";
 
 /**
- * Dashboard chart: the first and last continuous-log pressure entry of each
- * day (viewer's local day) over a trailing window — a static daily sample of
+ * Dashboard chart: each day's highest logged pressure (the peak inside the
+ * per-minute log entries) over a trailing window — a static daily sample of
  * the live feed, not the live feed itself. Only entries logged while the pump
  * was delivering count. Filterable by instrument and by the column the
  * instrument reported at the time. Source: instrument_pressure_log via
@@ -78,7 +78,7 @@ function fmtBar(v: unknown): string {
   return typeof v === "number" ? v.toFixed(1) : "—";
 }
 
-function BookendTooltip({
+function PeakTooltip({
   active,
   payload,
   label,
@@ -96,20 +96,21 @@ function BookendTooltip({
     <div className="rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md space-y-1.5">
       <div className="font-medium">{format(new Date(Number(label)), "EEE, MMM d, yyyy")}</div>
       {instruments.map(([id, name]) =>
-        p[`${id}:first`] == null ? null : (
+        p[`${id}:peak`] == null ? null : (
           <div key={id} className="space-y-0.5">
             {instruments.length > 1 && <div className="text-muted-foreground">{name}</div>}
             <div>
-              First ({fmtClock(p[`${id}:first_at`])}):{" "}
-              <span className="font-mono">{fmtBar(p[`${id}:first`])} bar</span>
-            </div>
-            <div>
-              Last ({fmtClock(p[`${id}:last_at`])}):{" "}
-              <span className="font-mono">{fmtBar(p[`${id}:last`])} bar</span>
+              Peak <span className="font-mono">{fmtBar(p[`${id}:peak`])} bar</span> at{" "}
+              {fmtClock(p[`${id}:peak_at`])}
+              <span className="text-muted-foreground">
+                {" "}
+                (minute mean {fmtBar(p[`${id}:peak_mean`])})
+              </span>
             </div>
             <div className="text-muted-foreground">
-              {String(p[`${id}:readings`] ?? "")} entries · {fmtBar(p[`${id}:min`])} –{" "}
-              {fmtBar(p[`${id}:max`])} bar
+              {String(p[`${id}:readings`] ?? "")} entries · first {fmtBar(p[`${id}:first`])} at{" "}
+              {fmtClock(p[`${id}:first_at`])} · last {fmtBar(p[`${id}:last`])} at{" "}
+              {fmtClock(p[`${id}:last_at`])}
             </div>
           </div>
         ),
@@ -118,7 +119,7 @@ function BookendTooltip({
   );
 }
 
-export function PressureBookendsChart() {
+export function PressureDailyPeakChart() {
   const [days, setDays] = useState(30);
   const [instrumentId, setInstrumentId] = useState(ALL);
   const [column, setColumn] = useState(ALL);
@@ -175,13 +176,14 @@ export function PressureBookendsChart() {
       names.set(r.instrument_id, r.instrument_name);
       const t = localMidnight(r.day);
       const p = byDay.get(t) ?? { t };
+      p[`${r.instrument_id}:peak`] = r.max_bar;
+      p[`${r.instrument_id}:peak_at`] = r.max_at;
+      p[`${r.instrument_id}:peak_mean`] = r.max_mean_bar;
       p[`${r.instrument_id}:first`] = r.first_bar;
       p[`${r.instrument_id}:first_at`] = r.first_at;
       p[`${r.instrument_id}:last`] = r.last_bar;
       p[`${r.instrument_id}:last_at`] = r.last_at;
       p[`${r.instrument_id}:readings`] = r.readings;
-      p[`${r.instrument_id}:min`] = r.min_bar;
-      p[`${r.instrument_id}:max`] = r.max_bar;
       byDay.set(t, p);
     }
     return {
@@ -205,10 +207,10 @@ export function PressureBookendsChart() {
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <CardTitle className="text-base">Backpressure · Daily First / Last</CardTitle>
+            <CardTitle className="text-base">Backpressure · Daily Peak</CardTitle>
             <div className="text-xs text-muted-foreground mt-0.5">
-              First and last logged pressure each day while the pump was delivering · last {days}{" "}
-              days{effectiveColumn !== ALL ? ` · ${effectiveColumn}` : ""}
+              Highest logged pressure each day while the pump was delivering · last {days} days
+              {effectiveColumn !== ALL ? ` · ${effectiveColumn}` : ""}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -299,10 +301,10 @@ export function PressureBookendsChart() {
                   }}
                 />
                 <Tooltip
-                  content={<BookendTooltip instruments={instruments} />}
+                  content={<PeakTooltip instruments={instruments} />}
                   isAnimationActive={false}
                 />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {!single && <Legend wrapperStyle={{ fontSize: 11 }} />}
                 {ratedMax != null && (
                   <ReferenceLine
                     y={ratedMax}
@@ -316,36 +318,20 @@ export function PressureBookendsChart() {
                     }}
                   />
                 )}
-                {instruments.map(([id, name], i) => {
-                  const color = SERIES_COLORS[i % SERIES_COLORS.length];
-                  return [
-                    <Line
-                      key={`${id}:first`}
-                      type="monotone"
-                      dataKey={`${id}:first`}
-                      name={single ? "First reading" : `${name} · First`}
-                      stroke={color}
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 4 }}
-                      connectNulls
-                      isAnimationActive={false}
-                    />,
-                    <Line
-                      key={`${id}:last`}
-                      type="monotone"
-                      dataKey={`${id}:last`}
-                      name={single ? "Last reading" : `${name} · Last`}
-                      stroke={color}
-                      strokeDasharray="5 3"
-                      strokeWidth={2}
-                      dot={{ r: 3 }}
-                      activeDot={{ r: 4 }}
-                      connectNulls
-                      isAnimationActive={false}
-                    />,
-                  ];
-                })}
+                {instruments.map(([id, name], i) => (
+                  <Line
+                    key={id}
+                    type="monotone"
+                    dataKey={`${id}:peak`}
+                    name={single ? "Daily peak" : `${name} · peak`}
+                    stroke={SERIES_COLORS[i % SERIES_COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 4 }}
+                    connectNulls
+                    isAnimationActive={false}
+                  />
+                ))}
               </LineChart>
             </ResponsiveContainer>
           </div>

@@ -471,10 +471,13 @@ export interface PressureDailyBookend {
   readings: number;
   min_bar: number;
   max_bar: number;
+  /** when the day's peak (max_bar) was logged, and that minute's mean */
+  max_at: string;
+  max_mean_bar: number;
 }
 
 /**
- * First and last continuous-log entries per local day (dashboard chart).
+ * Per local day: first, last and peak continuous-log entries (dashboard chart).
  * By default only entries logged while the pump was delivering count, since
  * pressure with the pump off says nothing about the column.
  */

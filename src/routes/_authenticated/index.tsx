@@ -6,7 +6,7 @@ import { qk } from "@/lib/query-keys";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { RecentSamplesCard } from "@/components/dashboard/recent-samples-card";
 import { AuditStreamCard } from "@/components/dashboard/audit-stream-card";
-import { PressureBookendsChart } from "@/components/dashboard/pressure-bookends-chart";
+import { PressureDailyPeakChart } from "@/components/dashboard/pressure-daily-peak-chart";
 import { WorkflowLauncher } from "@/components/dashboard/workflow-launcher";
 import { getStandardPrepAlerts } from "@/lib/standard-preparations/prep-alerts.functions";
 import { StandardsAlertCard } from "@/components/dashboard/standards-alert-card";
@@ -38,7 +38,7 @@ function Dashboard() {
 
       <LiveInstrumentsCard />
 
-      <PressureBookendsChart />
+      <PressureDailyPeakChart />
 
       <StatTiles counts={data?.counts} />
 

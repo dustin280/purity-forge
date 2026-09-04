@@ -130,10 +130,12 @@ idempotent). About 1,440 rows per instrument-day.
   range, running/idle and "pump delivering only"; chart with the per-minute
   min–max band and flow; paginated table with a *Replay* link into the stored
   run; Print (full filtered table) and CSV.
-- **Dashboard chart**: first and last entry of each local day (viewer's time
-  zone) over the last 14/30/60/90 days, counting only entries logged while the
-  pump was delivering (`flow > 0`), via the SQL function
-  `instrument_pressure_daily_bookends`. A static daily sample, not live.
+- **Dashboard chart**: each local day's highest logged pressure (the peak
+  inside the per-minute entries, with its time and the minute mean in the
+  tooltip, plus first/last for reference) over the last 14/30/60/90 days,
+  counting only entries logged while the pump was delivering (`flow > 0`),
+  via the SQL function `instrument_pressure_daily_bookends`. A static daily
+  sample, not live.
 
 Replaying a capture also writes log entries, stamped with the capture's own
 times (the windows follow the packet clock), so a replay of an old capture
@@ -176,7 +178,7 @@ batch (`column`), and the server:
   `column_name` with the app's column name, and counts each completed injection
   on that column.
 
-Both the dashboard's daily first/last chart and the Instrument Pressure Log
+Both the dashboard's daily peak chart and the Instrument Pressure Log
 page can then be filtered per column (`instrument_pressure_log_columns()`
 lists the columns seen in a window). Entries logged before the agent has seen
 a column record (e.g. right after an install, before the first run) have no
