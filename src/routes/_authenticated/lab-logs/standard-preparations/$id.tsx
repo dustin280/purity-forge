@@ -7,6 +7,7 @@ import { PrepForm, prepValuesToPayload } from "@/components/standard-preparation
 import { useAuth, profileDisplayName } from "@/hooks/use-auth";
 import { TraceabilitySnapshot } from "@/components/standard-preparations/traceability-snapshot";
 import { TargetsTable } from "@/components/standard-preparations/targets-table";
+import { StandardSetLevelsTable } from "@/components/standard-preparations/standard-set-levels-table";
 import { PrepAttachments } from "@/components/standard-preparations/prep-attachments";
 import { PrepDetailHeader } from "@/components/standard-preparations/detail-header";
 import { PrepDetailInfoCards } from "@/components/standard-preparations/detail-info-cards";
@@ -17,10 +18,20 @@ import { SequenceUsageCard } from "@/components/standard-preparations/sequence-u
 import { exportPrepPdf, type LinkedReceipt } from "@/lib/standard-preparation-pdf";
 import { usePrepDetail } from "@/components/standard-preparations/use-prep-detail";
 import { buildPrepEditInitial } from "@/components/standard-preparations/prep-edit-initial";
-import { getStandardSet, createStandardSetRevision, listStandardSetRevisions } from "@/lib/standard-preparations/standard-set.functions";
+import {
+  getStandardSet,
+  createStandardSetRevision,
+  listStandardSetRevisions,
+} from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
-import { standardSetRunListCsv, abbrevFor } from "@/lib/standard-preparations/standard-set-run-list";
-import { StandardSetRecipeEdit, type RecipeEditPayload } from "@/components/standard-preparations/standard-set-recipe-edit";
+import {
+  standardSetRunListCsv,
+  abbrevFor,
+} from "@/lib/standard-preparations/standard-set-run-list";
+import {
+  StandardSetRecipeEdit,
+  type RecipeEditPayload,
+} from "@/components/standard-preparations/standard-set-recipe-edit";
 import { qk } from "@/lib/query-keys";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/standard-preparations/$id")({
@@ -32,7 +43,8 @@ function PrepDetail() {
   const { user, profile, role } = useAuth();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
-  const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } = usePrepDetail(id);
+  const { query, updateMut, deleteMut, transitionMut, recordUsageMut, discardMut } =
+    usePrepDetail(id);
   const { data, isLoading, error } = query;
   const getSetFn = useServerFn(getStandardSet);
   const createRevisionFn = useServerFn(createStandardSetRevision);
@@ -52,7 +64,8 @@ function PrepDetail() {
   });
 
   const createRevisionMut = useMutation({
-    mutationFn: (payload: RecipeEditPayload) => createRevisionFn({ data: { analyst_name: actorName, ...payload } }),
+    mutationFn: (payload: RecipeEditPayload) =>
+      createRevisionFn({ data: { analyst_name: actorName, ...payload } }),
     onSuccess: (res) => {
       toast.success(`Saved as ${res.log_number}`);
       // Route param changes reuse this component instance rather than
@@ -64,13 +77,17 @@ function PrepDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  async function exportPdf(row: NonNullable<typeof data>["log"], linkedReceipt: LinkedReceipt, attachmentCount: number) {
+  async function exportPdf(
+    row: NonNullable<typeof data>["log"],
+    linkedReceipt: LinkedReceipt,
+    attachmentCount: number,
+  ) {
     if (row.prep_type !== "standard_set") {
       exportPrepPdf(row, linkedReceipt, attachmentCount);
       return;
     }
     try {
-      const detail = setDetailQ.data ?? await getSetFn({ data: { id: row.id } });
+      const detail = setDetailQ.data ?? (await getSetFn({ data: { id: row.id } }));
       const doc = generateStandardSetCutSheetPdf({
         standardName: detail.standard_name,
         logNumber: detail.log_number,
@@ -78,9 +95,9 @@ function PrepDetail() {
         analystName: detail.analyst_name,
         diluentName: detail.final_diluent ?? "—",
         batchVolumeMl: detail.final_volume_ml ?? 0,
-        levels: detail.levels.map(l => ({
+        levels: detail.levels.map((l) => ({
           label: l.label,
-          components: l.components.map(c => ({
+          components: l.components.map((c) => ({
             abbrev: abbrevFor(c.compound_name, c.source_label),
             concMgPerMl: c.concentration_mg_per_ml,
             stockUl: c.stock_volume_ul,
@@ -100,12 +117,13 @@ function PrepDetail() {
 
   async function downloadRunList(row: NonNullable<typeof data>["log"]) {
     try {
-      const detail = setDetailQ.data ?? await getSetFn({ data: { id: row.id } });
+      const detail = setDetailQ.data ?? (await getSetFn({ data: { id: row.id } }));
       const csv = standardSetRunListCsv(detail);
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `${detail.log_number}_runlist.csv`;
+      a.href = url;
+      a.download = `${detail.log_number}_runlist.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -114,7 +132,8 @@ function PrepDetail() {
   }
 
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
-  if (error || !data) return <div className="p-8 text-sm text-destructive">Preparation not found.</div>;
+  if (error || !data)
+    return <div className="p-8 text-sm text-destructive">Preparation not found.</div>;
 
   const r = data.log;
   const linked: LinkedReceipt = r.material_receipt ?? null;
@@ -129,7 +148,7 @@ function PrepDetail() {
         <StandardSetRecipeEdit
           detail={setDetailQ.data}
           saving={createRevisionMut.isPending}
-          onSave={payload => createRevisionMut.mutate(payload)}
+          onSave={(payload) => createRevisionMut.mutate(payload)}
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -147,7 +166,9 @@ function PrepDetail() {
           submitting={updateMut.isPending}
           submitLabel="Save Changes"
           draftKey={`sop-draft:edit:${id}`}
-          onSubmit={v => updateMut.mutate(prepValuesToPayload(v), { onSuccess: () => setEditing(false) })}
+          onSubmit={(v) =>
+            updateMut.mutate(prepValuesToPayload(v), { onSuccess: () => setEditing(false) })
+          }
           onCancel={() => setEditing(false)}
         />
       </div>
@@ -173,7 +194,8 @@ function PrepDetail() {
         <div className="mb-4 text-xs text-muted-foreground bg-muted/40 border border-border rounded-md px-3 py-2">
           Revision of{" "}
           <Link
-            to="/lab-logs/standard-preparations/$id" params={{ id: setDetailQ.data.revisedFrom.id }}
+            to="/lab-logs/standard-preparations/$id"
+            params={{ id: setDetailQ.data.revisedFrom.id }}
             className="font-medium text-foreground underline underline-offset-2"
           >
             {setDetailQ.data.revisedFrom.log_number}
@@ -187,7 +209,8 @@ function PrepDetail() {
             <span key={rev.id}>
               {i > 0 && ", "}
               <Link
-                to="/lab-logs/standard-preparations/$id" params={{ id: rev.id }}
+                to="/lab-logs/standard-preparations/$id"
+                params={{ id: rev.id }}
                 className="font-medium underline underline-offset-2"
               >
                 {rev.log_number}
@@ -216,10 +239,22 @@ function PrepDetail() {
       <PrepStepsCard steps={r.preparation_steps ?? []} mixingDetails={r.mixing_details} />
       <PrepReviewCard row={r} />
       <TraceabilitySnapshot row={r} />
-      <TargetsTable targets={data.targets} />
+      {isStandardSet && setDetailQ.data ? (
+        <StandardSetLevelsTable
+          levels={setDetailQ.data.levels}
+          diluentName={setDetailQ.data.final_diluent}
+          batchVolumeMl={setDetailQ.data.final_volume_ml}
+        />
+      ) : (
+        <TargetsTable targets={data.targets} />
+      )}
 
-      <PrepAttachments logId={id} attachments={data.attachments} canEdit={canEdit && r.status !== "approved"} />
+      <PrepAttachments
+        logId={id}
+        attachments={data.attachments}
+        canAttach={canEdit}
+        canRemove={canEdit && r.status !== "approved"}
+      />
     </div>
   );
 }
-
