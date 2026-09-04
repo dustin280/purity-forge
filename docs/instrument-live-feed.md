@@ -115,7 +115,12 @@ copies, which are sample-for-sample identical to what OpenLab writes into the
   instrument (`hplc_columns.installed_on_instrument_id`) gets `+1` per injection.
 - `source = 'live'`, `user_name = 'Live Instrument Feed'`,
   `instrument_id` / `instrument_sequence_id` set.
-- `acquisition_method` is **not** available on the wire and stays null.
+- `acquisition_method` comes from OpenLab's SetRunInformation (agent 1.3.0+).
+- The log keeps growing at one row per sequence; the Daily Backpressure page
+  charts `daily_backpressure_daily_summary()` — one point per local day and
+  column (mean "at initiation" pressure, highest run pressure, injections) —
+  and lists the rows for the chosen date range, paged. At hundreds of
+  sequences a day the rows remain the record while the views stay readable.
 
 ## Continuous pressure log
 

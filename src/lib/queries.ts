@@ -182,7 +182,7 @@ export const materialSuggestionsQuery = () =>
 export const backpressureListQuery = () =>
   queryOptions({
     queryKey: qk.backpressure.list(),
-    queryFn: () => listBackpressureLogs(),
+    queryFn: async () => (await listBackpressureLogs()).rows,
   });
 
 // Issues

@@ -5,6 +5,7 @@ import {
   createBackpressureLog,
   deleteBackpressureLog,
   listBackpressureLogs,
+  type BackpressureListFilters,
 } from "@/lib/daily-backpressure.functions";
 import { qk } from "@/lib/query-keys";
 
@@ -24,19 +25,27 @@ type CreatePayload = {
   column_name: string | null;
 };
 
-export function useBackpressure() {
+/** Rows for one date range (null = nothing to fetch yet), plus create/delete. */
+export function useBackpressure(filters: BackpressureListFilters | null) {
   const qc = useQueryClient();
   const list = useServerFn(listBackpressureLogs);
   const create = useServerFn(createBackpressureLog);
   const del = useServerFn(deleteBackpressureLog);
 
-  const query = useQuery({ queryKey: qk.backpressure.list(), queryFn: () => list() });
+  const query = useQuery({
+    queryKey: qk.backpressure.list(filters),
+    queryFn: () => {
+      if (!filters) throw new Error("Pick a date range");
+      return list({ data: filters });
+    },
+    enabled: filters !== null,
+  });
 
   const createMut = useMutation({
     mutationFn: (payload: CreatePayload) => create({ data: payload }),
     onSuccess: () => {
       toast.success("Reading logged");
-      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
+      qc.invalidateQueries({ queryKey: qk.backpressure.all });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -45,7 +54,7 @@ export function useBackpressure() {
     mutationFn: (id: string) => del({ data: { id } }),
     onSuccess: () => {
       toast.success("Deleted");
-      qc.invalidateQueries({ queryKey: qk.backpressure.list() });
+      qc.invalidateQueries({ queryKey: qk.backpressure.all });
     },
     onError: (e: Error) => toast.error(e.message),
   });

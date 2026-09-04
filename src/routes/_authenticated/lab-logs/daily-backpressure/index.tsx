@@ -1,11 +1,19 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, ChartLine } from "lucide-react";
+import { addDays, startOfDay } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { ReadingForm } from "@/components/daily-backpressure/reading-form";
 import { ReadingsTable } from "@/components/daily-backpressure/readings-table";
 import { useBackpressure } from "@/components/daily-backpressure/use-backpressure";
-import { BackpressureTrendChart } from "@/components/daily-backpressure/trend-chart";
+import {
+  ALL_COLUMNS,
+  NO_COLUMN,
+  BackpressureDailyChart,
+  rangeBounds,
+} from "@/components/daily-backpressure/daily-chart";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressure/")({
   component: BackpressureLog,
@@ -14,17 +22,35 @@ export const Route = createFileRoute("/_authenticated/lab-logs/daily-backpressur
 // Rows arrive three ways: the manual form below, the live instrument feed
 // (source = 'live', one row per sequence — see docs/instrument-live-feed.md),
 // and, historically, the Drive .dx importer (source = 'auto', retired
-// 2026-09-03; archive/drive-pressure-importer/).
+// 2026-09-03; archive/drive-pressure-importer/). The chart reads a per-day,
+// per-column summary of those rows; the table shows the rows themselves for
+// the same range.
 function BackpressureLog() {
   const { profile, role } = useAuth();
   const defaultName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
   const canCreate = role === "admin" || role === "tech" || role === "reviewer";
   const isAdmin = role === "admin";
-  const { query, createMut, deleteMut } = useBackpressure();
-  const { data: rows = [], isLoading } = query;
+
+  const [range, setRange] = useState<DateRange | undefined>(() => {
+    const to = new Date();
+    return { from: startOfDay(addDays(to, -29)), to };
+  });
+  const [column, setColumn] = useState(ALL_COLUMNS);
+  const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []);
+
+  const bounds = rangeBounds(range);
+  const filters = bounds
+    ? {
+        ...bounds,
+        // "" asks for rows with no column recorded; null for every row
+        column: column === ALL_COLUMNS ? null : column === NO_COLUMN ? "" : column,
+      }
+    : null;
+  const { query, createMut, deleteMut } = useBackpressure(filters);
+  const rows = query.data?.rows ?? [];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl">
       <Link to="/lab-logs">
         <Button variant="ghost" size="sm" className="-ml-2 mb-2">
           <ArrowLeft className="size-4 mr-1" /> Back to Logs
@@ -37,7 +63,8 @@ function BackpressureLog() {
             Daily Backpressure Log
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            One reading per sequence from the live instrument feed, plus manual entries.
+            One reading per sequence from the live instrument feed, plus manual entries, summarised
+            per day and column.
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -48,7 +75,13 @@ function BackpressureLog() {
       </div>
 
       <div className="mb-6">
-        <BackpressureTrendChart rows={rows} isLoading={isLoading} />
+        <BackpressureDailyChart
+          range={range}
+          onRangeChange={setRange}
+          column={column}
+          onColumnChange={setColumn}
+          tz={tz}
+        />
       </div>
 
       {canCreate && (
@@ -61,10 +94,11 @@ function BackpressureLog() {
 
       <ReadingsTable
         rows={rows}
-        isLoading={isLoading}
+        isLoading={query.isLoading}
         isAdmin={isAdmin}
         deleteLoading={deleteMut.isPending}
         onDelete={(id) => deleteMut.mutate(id)}
+        truncated={query.data?.truncated ?? false}
       />
     </div>
   );
