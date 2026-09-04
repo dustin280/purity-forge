@@ -64,7 +64,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.2.1"
+AGENT_VERSION = "1.2.2"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -200,10 +200,13 @@ class AppClient:
     def _requeue(self, pattern: str) -> int:
         n = 0
         for p in sorted(self.spool_dir.glob(pattern)):
+            if p.name.startswith("column_"):
+                continue  # per-instrument column state lives here too (agent 1.2.0/1.2.1 used .json)
             try:
                 rec = json.loads(p.read_text("utf-8"))
+                item = (rec["instrument_id"], rec["secret"], rec["body"])  # validate before unlinking
                 p.unlink()
-                self.events.put((rec["instrument_id"], rec["secret"], rec["body"]))
+                self.events.put(item)
                 n += 1
             except Exception as e:  # noqa: BLE001
                 LOG.error("bad spool file %s: %s", p, e)
@@ -487,7 +490,8 @@ class Instrument:
 
         # Column record from the column compartment (see column_record); kept
         # on disk so a restart between runs still knows the installed column.
-        self.column_path = client.spool_dir / f"column_{self.id}.json"
+        # Not *.json: that glob is the event spool, which is drained at start-up.
+        self.column_path = client.spool_dir / f"column_{self.id}.state"
         self.column: Optional[dict] = self._load_column()
 
         self.sequence: Optional[SequenceState] = None
@@ -601,12 +605,25 @@ class Instrument:
         return {k: v for k, v in a.items() if k != "seen_at"} == {k: v for k, v in b.items() if k != "seen_at"}
 
     def _load_column(self) -> Optional[dict]:
+        legacy = self.column_path.with_suffix(".json")  # agent 1.2.0/1.2.1 name
+        source = self.column_path if self.column_path.exists() else legacy if legacy.exists() else None
+        if source is None:
+            return None
         try:
-            if self.column_path.exists():
-                return json.loads(self.column_path.read_text("utf-8"))
+            rec = json.loads(source.read_text("utf-8"))
         except Exception as e:  # noqa: BLE001
-            LOG.warning("[%s] could not read %s: %s", self.name, self.column_path, e)
-        return None
+            LOG.warning("[%s] could not read %s: %s", self.name, source, e)
+            return None
+        if not (isinstance(rec, dict) and "description" in rec):
+            return None
+        if source is legacy:
+            # Migrate by copy; the old file may still be open elsewhere for a moment.
+            try:
+                self.column_path.write_text(json.dumps(rec, indent=1), "utf-8")
+                legacy.unlink()
+            except OSError as e:
+                LOG.warning("[%s] could not migrate %s: %s", self.name, legacy, e)
+        return rec
 
     def _save_column(self) -> None:
         try:

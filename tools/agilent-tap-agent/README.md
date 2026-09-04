@@ -79,7 +79,7 @@ page should show the run, and when it finishes a Daily Backpressure row
   query before and after every run with a JSON record (description, part
   number, dimensions, particle size, pressure limit, injection count, first /
   last use). The agent keeps the latest record (also on disk,
-  `spool/column_<instrument>.json`, so a restart between runs still knows it)
+  `spool/column_<instrument>.state`, so a restart between runs still knows it)
   and sends it with every run event, `pressure_log` entry and feed batch; the
   app matches it to its HPLC Columns list, marks it installed, and stamps
   Daily Backpressure rows and the continuous log with it.
