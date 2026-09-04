@@ -61,8 +61,22 @@ export interface StandardSetCutSheetInput {
   approvedAt?: string | null;
 }
 
+/**
+ * Draws a tick box in a table cell's left padding so the analyst can check
+ * each pipetted volume off as it is done (Dustin, 2026-09-04). The column's
+ * left cellPadding has to leave room for it — see CHECK_PAD.
+ */
+const CHECK_SIZE = 0.11;
+const CHECK_PAD = { top: 0.04, right: 0.04, bottom: 0.04, left: 0.22 };
+
+function drawCheckbox(doc: jsPDF, cell: { x: number; y: number; height: number }): void {
+  doc.setDrawColor(70);
+  doc.setLineWidth(0.008);
+  doc.rect(cell.x + 0.05, cell.y + (cell.height - CHECK_SIZE) / 2, CHECK_SIZE, CHECK_SIZE);
+}
+
 function labelCellText(level: CutSheetLevel): string {
-  const compLines = level.components.map(c => `${c.abbrev}.${c.concMgPerMl ?? "?"}`).join(" ");
+  const compLines = level.components.map((c) => `${c.abbrev}.${c.concMgPerMl ?? "?"}`).join(" ");
   return `${level.label} ${compLines} <D>`;
 }
 
@@ -83,7 +97,9 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     doc.setFontSize(6.5);
     const text = labelCellText(data.levels[i]);
     const lines = doc.splitTextToSize(text, CELL_W - 0.1);
-    doc.text(lines, x + CELL_W / 2, y + CELL_H / 2 - (lines.length - 1) * 0.035, { align: "center" });
+    doc.text(lines, x + CELL_W / 2, y + CELL_H / 2 - (lines.length - 1) * 0.035, {
+      align: "center",
+    });
   }
   // Blank remaining cells in the last row so the grid reads as real label stock
   const usedInLastRow = data.levels.length % LABEL_COLS || LABEL_COLS;
@@ -102,7 +118,9 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   doc.setFontSize(7);
   doc.setTextColor(120);
   doc.setFont("helvetica", "italic");
-  doc.text("cut along this line — labels above, prep record below", W / 2, y + 0.12, { align: "center" });
+  doc.text("cut along this line — labels above, prep record below", W / 2, y + 0.12, {
+    align: "center",
+  });
   y += 0.3;
 
   // ---- Letterhead ----
@@ -131,19 +149,33 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
 
   // ---- Info block ----
   doc.setFontSize(8.5);
+  const compoundNames = Array.from(
+    new Set(data.levels.flatMap((l) => l.components.map((c) => c.abbrev))),
+  );
+  // Every level's concentration up here too, so the whole ladder can be read
+  // at a glance before the recipe (Dustin, 2026-09-04).
+  const levelConcLines: [string, string][] = compoundNames.map((n) => [
+    `${n} levels`,
+    data.levels
+      .map((l) => `${l.label} ${l.components.find((c) => c.abbrev === n)?.concMgPerMl ?? "—"}`)
+      .join("   ") + "   mg/mL",
+  ]);
   const info: [string, string][] = [
     ["Analyst", data.analystName],
     ["Prepared", new Date(data.preparedAt).toLocaleString()],
     ["Diluent", data.diluentName],
     ["Batch volume", `${data.batchVolumeMl} mL`],
+    ...levelConcLines,
   ];
+  const infoValueW = W - MARGIN_LR * 2 - 1.1;
   info.forEach(([k, v]) => {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(31, 41, 55);
     doc.text(k + ":", MARGIN_LR, y);
     doc.setFont("helvetica", "normal");
-    doc.text(v, MARGIN_LR + 1.1, y);
-    y += 0.16;
+    const lines = doc.splitTextToSize(v, infoValueW) as string[];
+    doc.text(lines, MARGIN_LR + 1.1, y);
+    y += 0.16 * lines.length;
   });
   y += 0.08;
 
@@ -159,8 +191,10 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     autoTable(doc, {
       startY: y,
       head: [["Stock", "Compound", "From", "Aliquot µL", "Diluent µL", "Total µL", "Gives mg/mL"]],
-      body: intermediates.map(it => [
-        it.label, it.compoundName, it.sourceLabel,
+      body: intermediates.map((it) => [
+        it.label,
+        it.compoundName,
+        it.sourceLabel,
         it.aliquotUl?.toString() ?? "—",
         it.diluentUl?.toString() ?? "—",
         it.volumeUl?.toString() ?? "—",
@@ -168,17 +202,32 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
       ]),
       styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
       headStyles: { fillColor: [7, 89, 133], textColor: 255, fontSize: 6.8 },
-      columnStyles: { 0: { fontStyle: "bold" } },
+      columnStyles: {
+        0: { fontStyle: "bold" },
+        3: { cellPadding: CHECK_PAD },
+        4: { cellPadding: CHECK_PAD },
+      },
       margin: { left: MARGIN_LR, right: MARGIN_LR },
+      didDrawCell: (d) => {
+        if (
+          d.section === "body" &&
+          (d.column.index === 3 || d.column.index === 4) &&
+          d.cell.raw !== "—"
+        ) {
+          drawCheckbox(doc, d.cell);
+        }
+      },
     });
-    y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 0.1;
+    y =
+      ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 0.1;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(90, 90, 90);
     doc.text(
-      "Made in the order listed — each is a dilution of the stock named in \"From\". "
-      + "Levels drawing on one of these are marked with its ratio in the µL column below.",
-      MARGIN_LR, y,
+      'Made in the order listed — each is a dilution of the stock named in "From". ' +
+        "Levels drawing on one of these are marked with its ratio in the µL column below.",
+      MARGIN_LR,
+      y,
     );
     y += 0.18;
   }
@@ -188,7 +237,6 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   doc.text("RECIPE", MARGIN_LR, y);
   y += 0.08;
 
-  const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.abbrev))));
   const batchUl = data.batchVolumeMl * 1000;
   /**
    * Dilution from the PRIMARY stock, which is what the number has to mean --
@@ -207,41 +255,58 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   };
   const head = [
     "Level",
-    ...compoundNames.map(n => `${n} mg/mL`),
-    ...compoundNames.map(n => `${n} µL`),
-    ...compoundNames.map(n => `${n} DF`),
+    ...compoundNames.map((n) => `${n} mg/mL`),
+    ...compoundNames.map((n) => `${n} µL`),
+    ...compoundNames.map((n) => `${n} DF`),
     "Diluent µL",
     "Expected",
   ];
-  const body = data.levels.map(l => {
-    const byAbbrev = new Map(l.components.map(c => [c.abbrev, c] as const));
+  const body = data.levels.map((l) => {
+    const byAbbrev = new Map(l.components.map((c) => [c.abbrev, c] as const));
     return [
       l.label,
-      ...compoundNames.map(n => byAbbrev.get(n)?.concMgPerMl?.toString() ?? "—"),
-      ...compoundNames.map(n => volText(byAbbrev.get(n))),
-      ...compoundNames.map(n => dfText(byAbbrev.get(n))),
+      ...compoundNames.map((n) => byAbbrev.get(n)?.concMgPerMl?.toString() ?? "—"),
+      ...compoundNames.map((n) => volText(byAbbrev.get(n))),
+      ...compoundNames.map((n) => dfText(byAbbrev.get(n))),
       l.diluentUl?.toString() ?? "—",
       l.expectedNote ?? "",
     ];
   });
-  // DF columns sit after Level (1) + mg/mL cols + µL cols
+  // Column layout: Level (1) + mg/mL cols + µL cols + DF cols + Diluent + Expected.
+  const ulColStart = 1 + compoundNames.length;
   const dfColStart = 1 + compoundNames.length * 2;
-  const dfColumnStyles: Record<number, { fontStyle: "bold" }> = {};
+  const diluentCol = 1 + compoundNames.length * 3;
+  const columnStyles: Record<number, { fontStyle?: "bold"; cellPadding?: typeof CHECK_PAD }> = {};
+  const checkCols = new Set<number>([diluentCol]);
   for (let i = 0; i < compoundNames.length; i++) {
-    dfColumnStyles[dfColStart + i] = { fontStyle: "bold" };
+    columnStyles[dfColStart + i] = { fontStyle: "bold" };
+    columnStyles[ulColStart + i] = { cellPadding: CHECK_PAD };
+    checkCols.add(ulColStart + i);
   }
+  columnStyles[diluentCol] = { cellPadding: CHECK_PAD };
   autoTable(doc, {
     startY: y,
     head: [head],
     body,
     styles: { fontSize: 7.5, font: "helvetica", cellPadding: 0.04 },
     headStyles: { fillColor: [31, 41, 55], textColor: 255, fontSize: 6.8 },
-    columnStyles: dfColumnStyles,
+    columnStyles,
     margin: { left: MARGIN_LR, right: MARGIN_LR },
+    didDrawCell: (d) => {
+      if (d.section === "body" && checkCols.has(d.column.index) && d.cell.raw !== "—") {
+        drawCheckbox(doc, d.cell);
+      }
+    },
   });
 
-  const afterTableY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
-  y = afterTableY + 0.2;
+  const afterTableY =
+    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
+  y = afterTableY + 0.1;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7);
+  doc.setTextColor(90, 90, 90);
+  doc.text("Tick each volume as it is pipetted.", MARGIN_LR, y);
+  y += 0.2;
 
   // ---- Reasoning ----
   doc.setFontSize(8.5);
@@ -258,7 +323,10 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
 
   // ---- Signatures ----
   const pageH = doc.internal.pageSize.getHeight();
-  if (y > pageH - 1.3) { doc.addPage(); y = MARGIN_TOP; }
+  if (y > pageH - 1.3) {
+    doc.addPage();
+    y = MARGIN_TOP;
+  }
   const colW = (W - MARGIN_LR * 2 - 0.3) / 2;
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
@@ -277,13 +345,23 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   doc.setTextColor(120);
   doc.setFontSize(7);
   doc.text(`Date: ${new Date(data.preparedAt).toLocaleDateString()}`, MARGIN_LR, y);
-  doc.text(`Date: ${data.approvedAt ? new Date(data.approvedAt).toLocaleDateString() : "—"}`, MARGIN_LR + colW + 0.3, y);
+  doc.text(
+    `Date: ${data.approvedAt ? new Date(data.approvedAt).toLocaleDateString() : "—"}`,
+    MARGIN_LR + colW + 0.3,
+    y,
+  );
 
   // ---- Footer ----
   doc.setFontSize(6.5);
   doc.setTextColor(150);
-  doc.text(`Generated ${new Date().toLocaleString()} • Synthesyx • ${data.logNumber}`, MARGIN_LR, pageH - 0.25);
-  doc.text("Template R001/LS-0100F, 8×20, 1in×0.5in cells", W - MARGIN_LR, pageH - 0.25, { align: "right" });
+  doc.text(
+    `Generated ${new Date().toLocaleString()} • Synthesyx • ${data.logNumber}`,
+    MARGIN_LR,
+    pageH - 0.25,
+  );
+  doc.text("Template R001/LS-0100F, 8×20, 1in×0.5in cells", W - MARGIN_LR, pageH - 0.25, {
+    align: "right",
+  });
 
   return doc;
 }
