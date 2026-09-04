@@ -11,6 +11,27 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import type { RunSummary, RunTrace } from "@/lib/instrument-feed.server";
 
+/** Column record the instrument reported (see columnSchema in instrument-feed.server.ts). */
+export interface InstrumentColumnInfo {
+  slot?: number | null;
+  description?: string | null;
+  part_number?: string | null;
+  serial?: string | null;
+  batch?: string | null;
+  comment?: string | null;
+  diameter_mm?: number | null;
+  length_mm?: number | null;
+  particle_um?: number | null;
+  max_pressure_bar?: number | null;
+  max_temp_c?: number | null;
+  injections?: number | null;
+  first_used_at?: string | null;
+  last_used_at?: string | null;
+  tagged?: boolean;
+  seen_at?: string | null;
+  raw?: { [key: string]: Json };
+}
+
 export interface InstrumentLiveStatusRow {
   instrument_id: string;
   status: "offline" | "idle" | "running";
@@ -26,6 +47,7 @@ export interface InstrumentLiveStatusRow {
   latest: Record<string, { v: number; t: number; units: string }>;
   streams: Array<{ name: string; units: string; dt: number }>;
   modules: Array<{ type: string; serial: string; name: string }>;
+  column_info: InstrumentColumnInfo | null;
   agent_host: string | null;
   agent_version: string | null;
   updated_at: string;
@@ -59,6 +81,8 @@ export interface InstrumentRunRow {
   summary: RunSummary;
   trace_path: string | null;
   sample_position: string | null;
+  column_name: string | null;
+  column_info: InstrumentColumnInfo | null;
   created_at: string;
 }
 
@@ -203,6 +227,8 @@ export interface InstrumentPressureLogRow {
   state: "idle" | "running";
   sequence_id: string | null;
   run_id: string | null;
+  /** hplc_columns.name of the column the instrument reported at the time */
+  column_name: string | null;
 }
 
 /** PostgREST returns at most 1000 rows per request, so a range is read page by page. */
@@ -220,6 +246,7 @@ export const listInstrumentPressureLog = createServerFn({ method: "GET" })
         to: z.string().datetime({ offset: true }),
         state: z.enum(["idle", "running"]).nullable().optional(),
         pump_on_only: z.boolean().optional(),
+        column: z.string().max(200).nullable().optional(),
       })
       .parse(d),
   )
@@ -241,6 +268,7 @@ export const listInstrumentPressureLog = createServerFn({ method: "GET" })
         if (data.instrument_id) q = q.eq("instrument_id", data.instrument_id);
         if (data.state) q = q.eq("state", data.state);
         if (data.pump_on_only) q = q.gt("flow_ml_min", 0);
+        if (data.column) q = q.eq("column_name", data.column);
         const { data: page, error } = await q;
         if (error) throw error;
         const got = (page ?? []) as InstrumentPressureLogRow[];
@@ -250,6 +278,36 @@ export const listInstrumentPressureLog = createServerFn({ method: "GET" })
       return { rows, truncated: true };
     },
   );
+
+export interface PressureLogColumn {
+  column_name: string;
+  entries: number;
+  first_at: string;
+  last_at: string;
+}
+
+/** Columns the instrument reported over a window, newest first (for the column selectors). */
+export const listPressureLogColumns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        from: z.string().datetime({ offset: true }),
+        to: z.string().datetime({ offset: true }),
+        instrument_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }): Promise<PressureLogColumn[]> => {
+    const db = context.supabase as AnySupabase;
+    const { data: rows, error } = await db.rpc("instrument_pressure_log_columns", {
+      p_from: data.from,
+      p_to: data.to,
+      p_instrument_id: data.instrument_id ?? null,
+    });
+    if (error) throw error;
+    return (rows ?? []) as PressureLogColumn[];
+  });
 
 export interface PressureDailyBookend {
   instrument_id: string;
@@ -285,6 +343,7 @@ export const getInstrumentPressureDailyBookends = createServerFn({ method: "GET"
           .regex(/^[A-Za-z0-9_+\-/]+$/),
         instrument_id: z.string().uuid().nullable().optional(),
         pump_on_only: z.boolean().optional(),
+        column: z.string().max(200).nullable().optional(),
       })
       .parse(d),
   )
@@ -297,6 +356,7 @@ export const getInstrumentPressureDailyBookends = createServerFn({ method: "GET"
         p_tz: data.tz,
         p_instrument_id: data.instrument_id ?? null,
         p_min_flow: data.pump_on_only === false ? null : 0,
+        p_column: data.column ?? null,
       }),
       db.from("instruments").select("id, name"),
     ]);

@@ -15,6 +15,10 @@ Manager:
                                        pressure_log (one continuous-log entry
                                        per minute: mean/min/max pressure, flow,
                                        column temperature — idle or running)
+  Every run / pressure_log event and every feed batch also carries the column
+  record the column compartment reports (COL:DATAX reply to OpenLab's query
+  before and after each run: description, part number, geometry, injection
+  count, first/last use), so rows can be labelled with the installed column.
 
 Every request is signed: x-instrument-id + x-signature (hex HMAC-SHA256 of
 the raw body under that instrument's feed key, created under Admin ->
@@ -56,7 +60,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.1.1"
+AGENT_VERSION = "1.2.0"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -95,6 +99,49 @@ PRESSURE_LOG_STREAMS = ("PMP1B_Pressure", "PMP1C_Flow", "THM1A_LeftTemp", "THM1B
 
 def utc_iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat(timespec="milliseconds")
+
+
+# Column record the column compartment returns to OpenLab's `COL:DATAX? <slot>`
+# query (sent ~10 s before each run and again after it), e.g.
+#   RA 32113 COL:DATAX 7,'{"BAT":"","CMNT":"","DESC":"Agilent SBAq","DIA":2.1,
+#   "FUSD":1786728517,"INJ":389,"LEN":150,"LUSD":1788421609,"MFGD":0,"MPH":[0,0],
+#   "MPRS":1200,"MTMP":0,"PROD":"683675-914","PTMP":0,"PTSZ":1.9,"SEAL":0,
+#   "SER":"","TAG":0,"VVOL":0}'
+COL_DATAX_RE = re.compile(r"COL:DATAX\s+(\d+),'(\{.*?\})'", re.S)
+
+
+def column_record(slot: int, d: dict) -> dict:
+    """Normalise the instrument's column JSON (keys as observed on the wire; the
+    less certain ones are kept under `raw` untouched)."""
+    def num(v):
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+    def text(v):
+        v = (v or "").strip() if isinstance(v, str) else ""
+        return v or None
+
+    def when(v):
+        v = num(v)
+        return utc_iso(v) if v and v > 0 else None
+
+    return {
+        "slot": slot,
+        "description": text(d.get("DESC")),
+        "part_number": text(d.get("PROD")),
+        "serial": text(d.get("SER")),
+        "batch": text(d.get("BAT")),
+        "comment": text(d.get("CMNT")),
+        "diameter_mm": num(d.get("DIA")),
+        "length_mm": num(d.get("LEN")),
+        "particle_um": num(d.get("PTSZ")),
+        "max_pressure_bar": num(d.get("MPRS")) or None,
+        "max_temp_c": num(d.get("MTMP")) or None,
+        "injections": int(d["INJ"]) if num(d.get("INJ")) is not None else None,
+        "first_used_at": when(d.get("FUSD")),
+        "last_used_at": when(d.get("LUSD")),
+        "tagged": bool(d.get("TAG")),
+        "raw": d,
+    }
 
 
 # ----------------------------------------------------------------------------
@@ -258,12 +305,30 @@ class Reassembler:
 
 
 class TelemetryDecoder:
-    """Incremental length-prefixed message walker for the port-9100 stream."""
+    """Incremental length-prefixed message walker for the port-9100 stream.
 
-    def __init__(self, on_message: Callable[[dict], None]):
+    Two kinds of frame share the [len:2][0xF8][channel] prefix: binary sample
+    messages (34-byte header + int32 values, see agilent1290_parser) and text
+    frames — module status ("MO nnnn ..."), replies to OpenLab's queries
+    ("RA nnnnn ..."), lists — whose text starts right at byte 4. Text frames
+    rarely fit the binary template, so they get their own callback.
+    """
+
+    def __init__(self, on_message: Callable[[dict], None], on_text: Optional[Callable[[int, str], None]] = None):
         self.buf = bytearray()
         self.on_message = on_message
+        self.on_text = on_text
         self.need_resync = False
+
+    @staticmethod
+    def text_of(body: bytes) -> Optional[str]:
+        tail = body[4:].rstrip(b"\x00")
+        if len(tail) < 4 or not all(32 <= c < 127 for c in body[4:8]):
+            return None
+        printable = sum(1 for c in tail if 32 <= c < 127 or c in (9, 10, 13))
+        if printable < 0.95 * len(tail):
+            return None
+        return tail.decode("latin-1")
 
     def feed(self, data: bytes) -> None:
         if data == b"":
@@ -285,6 +350,10 @@ class TelemetryDecoder:
                 return
             body = bytes(self.buf[:total_len])
             del self.buf[:total_len]
+            text = self.text_of(body) if self.on_text is not None and total_len > 8 else None
+            if text is not None:
+                self.on_text(body[3], text)
+                continue
             m = proto.decode_message(body)
             if m is not None and m["values"]:
                 self.on_message(m)
@@ -409,6 +478,11 @@ class Instrument:
         self.modules: dict[str, dict] = {}
         self.wavelengths: dict[str, float] = {}
 
+        # Column record from the column compartment (see column_record); kept
+        # on disk so a restart between runs still knows the installed column.
+        self.column_path = client.spool_dir / f"column_{self.id}.json"
+        self.column: Optional[dict] = self._load_column()
+
         self.sequence: Optional[SequenceState] = None
         self.run: Optional[RunState] = None
         # A run whose RunState has ended but whose last acquisition batches may
@@ -440,7 +514,8 @@ class Instrument:
         c = self.conns.get(key)
         if c is None:
             if src_port == TELEMETRY_PORT:
-                sink = TelemetryDecoder(lambda m, k=key: self.on_message(k, m)).feed
+                sink = TelemetryDecoder(lambda m, k=key: self.on_message(k, m),
+                                        lambda ch, t, k=key: self.on_text(k, ch, t)).feed
             elif src_port == STATUS_PORT:
                 sink = StatusDecoder(self.on_status).feed
             else:
@@ -491,14 +566,54 @@ class Instrument:
             elif prev == RUN_STATE_ACQUIRING:
                 self.begin_run_end(self.now)
 
+    # ---- text frames (module status, query replies) ----
+    def on_text(self, conn_key: tuple[int, int], channel: int, text: str) -> None:
+        for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", text):
+            self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
+        m = COL_DATAX_RE.search(text)
+        if m:
+            try:
+                rec = column_record(int(m.group(1)), json.loads(m.group(2)))
+            except (ValueError, TypeError) as e:
+                LOG.warning("[%s] unreadable column record on channel %#04x: %s", self.name, channel, e)
+                return
+            rec["seen_at"] = utc_iso(self.now)
+            if self._same_column(self.column, rec):
+                self.column["seen_at"] = rec["seen_at"]
+                return
+            self.column = rec
+            self._save_column()
+            LOG.info("[%s] column record: %s (%s) %sx%s mm %s um, %s injections, slot %s", self.name,
+                     rec["description"], rec["part_number"], rec["diameter_mm"], rec["length_mm"],
+                     rec["particle_um"], rec["injections"], rec["slot"])
+
+    @staticmethod
+    def _same_column(a: Optional[dict], b: Optional[dict]) -> bool:
+        if a is None or b is None:
+            return a is b
+        return {k: v for k, v in a.items() if k != "seen_at"} == {k: v for k, v in b.items() if k != "seen_at"}
+
+    def _load_column(self) -> Optional[dict]:
+        try:
+            if self.column_path.exists():
+                return json.loads(self.column_path.read_text("utf-8"))
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("[%s] could not read %s: %s", self.name, self.column_path, e)
+        return None
+
+    def _save_column(self) -> None:
+        try:
+            self.column_path.write_text(json.dumps(self.column, indent=1), "utf-8")
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("[%s] could not write %s: %s", self.name, self.column_path, e)
+
     # ---- telemetry ----
     def on_message(self, conn_key: tuple[int, int], m: dict) -> None:
         if m["msg_type"] == proto.SPECTRUM_MSG_TYPE:
             return
         if looks_like_text(m["values"]):
-            txt = proto.values_as_text(m["values"])
-            for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", txt):
-                self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
+            # A text frame that happens to fit the binary template (rare).
+            self.on_text(conn_key, m["channel_id"], proto.values_as_text(m["values"]))
             return
         c = self.conns[conn_key]
         ch = m["channel_id"]
@@ -597,6 +712,7 @@ class Instrument:
             "sequence": self._sequence_ref(),
             "run": {"key": self.run.key, "injection_index": self.run.injection_index,
                     "started_at": utc_iso(self.run.started_at)} if self.run else None,
+            "column": self.column,
         })
 
     # ---- lifecycle ----
@@ -660,6 +776,7 @@ class Instrument:
             "type": "run_started", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
             "sequence": self._sequence_ref(),
             "run": {"key": key, "injection_index": idx, "started_at": utc_iso(ts)},
+            "column": self.column,
         })
 
     def _sequence_ref(self) -> Optional[dict]:
@@ -693,6 +810,7 @@ class Instrument:
             "run": {"key": run.key, "injection_index": run.injection_index, "started_at": utc_iso(run.started_at)},
             "ended_at": utc_iso(ts), "duration_s": round(ts - run.started_at, 3),
             "summary": summary, "trace": trace,
+            "column": self.column,
         })
 
     def _summarize(self, run: RunState) -> tuple[dict, dict]:
@@ -783,6 +901,7 @@ class Instrument:
             "run": {"key": self.run.key, "injection_index": self.run.injection_index, "started_at": utc_iso(self.run.started_at)} if self.run else None,
             "streams": streams,
             "labels": {f"DAD1{k}": f"{v:g} nm" for k, v in self.wavelengths.items()},
+            "column": self.column,
         }
         if self.modules:
             body["modules"] = list(self.modules.values())

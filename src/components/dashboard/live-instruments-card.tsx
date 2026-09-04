@@ -59,6 +59,14 @@ export function LiveInstrumentsCard() {
                           : "—"}
                       </span>
                     </div>
+                    {item.status?.column_info?.description && (
+                      <div className="truncate">
+                        Column:{" "}
+                        <span className="text-foreground">
+                          {item.status.column_info.description}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       {state === "running" && item.current_run
                         ? `Injection #${item.current_run.injection_index} · ${ago(item.current_run.started_at)} in`

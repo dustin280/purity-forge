@@ -75,6 +75,14 @@ page should show the run, and when it finishes a Daily Backpressure row
   sequence/run it fell in. This is the continuous log behind the *Instrument
   Pressure Log* page and the dashboard's daily first/last pressure chart. Same
   reliable queue as the other events.
+- The installed column: the column compartment answers OpenLab's `COL:DATAX?`
+  query before and after every run with a JSON record (description, part
+  number, dimensions, particle size, pressure limit, injection count, first /
+  last use). The agent keeps the latest record (also on disk,
+  `spool/column_<instrument>.json`, so a restart between runs still knows it)
+  and sends it with every run event, `pressure_log` entry and feed batch; the
+  app matches it to its HPLC Columns list, marks it installed, and stamps
+  Daily Backpressure rows and the continuous log with it.
 
 ## Notes
 

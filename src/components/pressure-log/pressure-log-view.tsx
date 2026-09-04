@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import {
   listInstrumentLiveOverview,
   listInstrumentPressureLog,
+  listPressureLogColumns,
   type InstrumentPressureLogRow,
 } from "@/lib/instrument-feed.functions";
 import { qk } from "@/lib/query-keys";
@@ -29,6 +30,7 @@ import { PressureLogChart } from "./pressure-log-chart";
 import { PressureLogTable } from "./pressure-log-table";
 
 const PAGE_SIZE = 100;
+const ALL = "__all__";
 type StateFilter = "all" | "running" | "idle";
 
 function defaultRange(): DateRange {
@@ -47,6 +49,7 @@ function toCsv(rows: InstrumentPressureLogRow[], names: Map<string, string>): st
   const head = [
     "logged_at",
     "instrument",
+    "column",
     "state",
     "pressure_bar",
     "pressure_min_bar",
@@ -65,6 +68,7 @@ function toCsv(rows: InstrumentPressureLogRow[], names: Map<string, string>): st
     [
       r.logged_at,
       names.get(r.instrument_id) ?? r.instrument_id,
+      r.column_name,
       r.state,
       r.pressure_bar,
       r.pressure_min_bar,
@@ -103,23 +107,44 @@ export function PressureLogView() {
     [overview],
   );
 
-  const [instrumentId, setInstrumentId] = useState("__all__");
+  const [instrumentId, setInstrumentId] = useState(ALL);
   const [range, setRange] = useState<DateRange | undefined>(defaultRange);
   const [stateFilter, setStateFilter] = useState<StateFilter>("all");
   const [pumpOnly, setPumpOnly] = useState(false);
+  const [column, setColumn] = useState(ALL);
   const [page, setPage] = useState(0);
   const [printing, setPrinting] = useState(false);
 
-  const filters = useMemo(() => {
+  const window_ = useMemo(() => {
     if (!range?.from) return null;
     return {
-      instrument_id: instrumentId === "__all__" ? null : instrumentId,
+      instrument_id: instrumentId === ALL ? null : instrumentId,
       from: startOfDay(range.from).toISOString(),
       to: startOfDay(addDays(range.to ?? range.from, 1)).toISOString(),
+    };
+  }, [instrumentId, range]);
+
+  // Columns the instrument reported inside the current window, for the filter.
+  const columnsFn = useServerFn(listPressureLogColumns);
+  const { data: columns = [] } = useQuery({
+    queryKey: qk.instrumentFeed.pressureLogColumns(window_),
+    queryFn: () => {
+      if (!window_) throw new Error("Pick a date range");
+      return columnsFn({ data: window_ });
+    },
+    enabled: window_ !== null,
+  });
+  const effectiveColumn = columns.some((c) => c.column_name === column) ? column : ALL;
+
+  const filters = useMemo(() => {
+    if (!window_) return null;
+    return {
+      ...window_,
       state: stateFilter === "all" ? null : stateFilter,
       pump_on_only: pumpOnly,
+      column: effectiveColumn === ALL ? null : effectiveColumn,
     };
-  }, [instrumentId, range, stateFilter, pumpOnly]);
+  }, [window_, stateFilter, pumpOnly, effectiveColumn]);
 
   const listFn = useServerFn(listInstrumentPressureLog);
   const { data, isLoading, isFetching } = useQuery({
@@ -164,7 +189,8 @@ export function PressureLogView() {
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const pageRows = rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const showInstrument = instrumentId === "__all__";
+  const showInstrument = instrumentId === ALL;
+  const showColumn = effectiveColumn === ALL && rows.some((r) => r.column_name !== null);
 
   // Print: mount the full filtered table (hidden on screen), print, unmount.
   useEffect(() => {
@@ -190,6 +216,7 @@ export function PressureLogView() {
 
   const filterSummary = [
     `Instrument: ${showInstrument ? "all" : (instrumentNames.get(instrumentId) ?? instrumentId)}`,
+    `Column: ${effectiveColumn === ALL ? "all" : effectiveColumn}`,
     `Range: ${rangeLabel(range)}`,
     `State: ${stateFilter}`,
     pumpOnly ? "Pump delivering only" : null,
@@ -215,10 +242,32 @@ export function PressureLogView() {
                   <SelectValue placeholder="All instruments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All instruments</SelectItem>
+                  <SelectItem value={ALL}>All instruments</SelectItem>
                   {overview.map((o) => (
                     <SelectItem key={o.instrument.id} value={o.instrument.id}>
                       {o.instrument.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Column</Label>
+              <Select
+                value={effectiveColumn}
+                onValueChange={(v) => {
+                  setColumn(v);
+                  setPage(0);
+                }}
+              >
+                <SelectTrigger className="w-[240px] h-9">
+                  <SelectValue placeholder="All columns" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All columns</SelectItem>
+                  {columns.map((c) => (
+                    <SelectItem key={c.column_name} value={c.column_name}>
+                      {c.column_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -413,6 +462,7 @@ export function PressureLogView() {
                 rows={pageRows}
                 instrumentNames={instrumentNames}
                 showInstrument={showInstrument}
+                showColumn={showColumn}
               />
             </div>
           )}
@@ -436,6 +486,7 @@ export function PressureLogView() {
             rows={chronological}
             instrumentNames={instrumentNames}
             showInstrument={showInstrument}
+            showColumn={showColumn}
             forPrint
           />
         </div>

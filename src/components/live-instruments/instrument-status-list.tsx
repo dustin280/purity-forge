@@ -108,6 +108,16 @@ export function InstrumentStatusList({
                     ? `${item.current_sequence.injections_count} inj · ${ago(item.current_sequence.started_at)}`
                     : "—"}
                 </div>
+                <div className="text-muted-foreground">Column</div>
+                <div
+                  className="truncate"
+                  title={item.status?.column_info?.part_number ?? undefined}
+                >
+                  {item.status?.column_info?.description ?? "—"}
+                  {item.status?.column_info?.injections != null
+                    ? ` · ${item.status.column_info.injections} inj`
+                    : ""}
+                </div>
                 <div className="text-muted-foreground">Agent</div>
                 <div className="truncate">
                   {item.status?.agent_host ?? "—"}

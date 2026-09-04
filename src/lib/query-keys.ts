@@ -164,6 +164,8 @@ export const qk = {
     keys: (instrumentId: string) => ["instrument-feed", "keys", instrumentId] as const,
     pressureLog: (filters: unknown) => ["instrument-feed", "pressure-log", filters] as const,
     bookends: (filters: unknown) => ["instrument-feed", "bookends", filters] as const,
+    pressureLogColumns: (filters: unknown) =>
+      ["instrument-feed", "pressure-log-columns", filters] as const,
   },
 
   instrumentBookings: {

@@ -11,11 +11,13 @@ export function PressureLogTable({
   rows,
   instrumentNames,
   showInstrument,
+  showColumn = false,
   forPrint = false,
 }: {
   rows: InstrumentPressureLogRow[];
   instrumentNames: Map<string, string>;
   showInstrument: boolean;
+  showColumn?: boolean;
   /** plain text only (no links or badges) for the printed copy */
   forPrint?: boolean;
 }) {
@@ -29,6 +31,7 @@ export function PressureLogTable({
         <tr>
           <th className={th}>Time</th>
           {showInstrument && <th className={th}>Instrument</th>}
+          {showColumn && <th className={th}>Column</th>}
           <th className={th}>State</th>
           <th className={thR}>Pressure (bar)</th>
           <th className={thR}>Min</th>
@@ -45,6 +48,11 @@ export function PressureLogTable({
             <td className={td}>{format(new Date(r.logged_at), "MMM d, yyyy HH:mm")}</td>
             {showInstrument && (
               <td className={td}>{instrumentNames.get(r.instrument_id) ?? r.instrument_id}</td>
+            )}
+            {showColumn && (
+              <td className={`${td} max-w-[16rem] truncate`} title={r.column_name ?? undefined}>
+                {r.column_name ?? <span className="text-muted-foreground">—</span>}
+              </td>
             )}
             <td className={td}>
               {forPrint ? (

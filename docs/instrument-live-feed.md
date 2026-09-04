@@ -122,6 +122,32 @@ Replaying a capture also writes log entries, stamped with the capture's own
 times (the windows follow the packet clock), so a replay of an old capture
 fills in that day rather than today.
 
+## The installed column
+
+OpenLab asks the column compartment for its column record (`COL:DATAX? 7`)
+about 10 s before each run and again after it; the reply is a JSON record —
+description, part number, diameter / length / particle size, pressure limit,
+injection count, first and last use (see the parser docstring). The agent
+forwards the latest record on every run event, `pressure_log` entry and feed
+batch (`column`), and the server:
+
+- matches it to `hplc_columns` by part number, then by name
+  (case-insensitive), and **creates** the row when the column is new to the
+  app (name = description + geometry, injection count seeded from the
+  instrument's counter, rated max from its pressure limit);
+- marks that column as installed on the instrument (`installed_on_instrument_id`),
+  un-installing any other column marked for it;
+- stamps `instrument_runs.column_name` / `column_info`,
+  `instrument_pressure_log.column_name` and the live Daily Backpressure row's
+  `column_name` with the app's column name, and counts each completed injection
+  on that column.
+
+Both the dashboard's daily first/last chart and the Instrument Pressure Log
+page can then be filtered per column (`instrument_pressure_log_columns()`
+lists the columns seen in a window). Entries logged before the agent has seen
+a column record (e.g. right after an install, before the first run) have no
+column.
+
 ## The Drive importer is retired
 
 Done 2026-09-03 after the first live row was checked against a real sequence:

@@ -87,6 +87,34 @@ const moduleSchema = z.object({
   name: z.string().max(64),
 });
 
+/**
+ * The column record the column compartment reports (its reply to OpenLab's
+ * `COL:DATAX?` query before and after each run), normalised by the agent.
+ * `raw` keeps the instrument's own keys for anything not mapped.
+ */
+const columnSchema = z
+  .object({
+    slot: z.number().int().nullable().optional(),
+    description: z.string().max(200).nullable().optional(),
+    part_number: z.string().max(64).nullable().optional(),
+    serial: z.string().max(64).nullable().optional(),
+    batch: z.string().max(64).nullable().optional(),
+    comment: z.string().max(500).nullable().optional(),
+    diameter_mm: z.number().finite().nullable().optional(),
+    length_mm: z.number().finite().nullable().optional(),
+    particle_um: z.number().finite().nullable().optional(),
+    max_pressure_bar: z.number().finite().nullable().optional(),
+    max_temp_c: z.number().finite().nullable().optional(),
+    injections: z.number().int().nullable().optional(),
+    first_used_at: z.string().max(40).nullable().optional(),
+    last_used_at: z.string().max(40).nullable().optional(),
+    tagged: z.boolean().optional(),
+    seen_at: z.string().max(40).nullable().optional(),
+    raw: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+export type InstrumentColumnRecord = z.infer<typeof columnSchema>;
+
 export const feedBatchSchema = z.object({
   agent: agentSchema,
   sent_at: z.string().max(40),
@@ -103,6 +131,7 @@ export const feedBatchSchema = z.object({
   /** human labels per stream, e.g. DAD1A -> "214 nm" (from the DAD's own status text) */
   labels: z.record(z.string().max(64), z.string().max(64)).optional(),
   modules: z.array(moduleSchema).max(16).optional(),
+  column: columnSchema.nullable().optional(),
 });
 export type FeedBatch = z.infer<typeof feedBatchSchema>;
 
@@ -148,6 +177,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     ...eventBase,
     sequence: sequenceRefSchema.nullable().optional(),
     run: runRefSchema,
+    column: columnSchema.nullable().optional(),
   }),
   z.object({
     type: z.literal("run_completed"),
@@ -158,6 +188,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     duration_s: z.number().finite().nullable().optional(),
     summary: summarySchema,
     trace: traceSchema.optional(),
+    column: columnSchema.nullable().optional(),
   }),
   z.object({
     type: z.literal("sequence_completed"),
@@ -182,6 +213,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     state: z.enum(["idle", "running"]),
     sequence: sequenceRefSchema.nullable().optional(),
     run: runRefSchema.nullable().optional(),
+    column: columnSchema.nullable().optional(),
   }),
 ]);
 export type FeedEvent = z.infer<typeof feedEventSchema>;
@@ -343,6 +375,91 @@ async function installedColumn(
   return data ?? null;
 }
 
+/**
+ * Match the instrument's column record to an hplc_columns row — by part
+ * number, then by name — creating the row when the column is new to the app
+ * (name from the record, injection count seeded from the instrument's own
+ * counter), and mark it as the column installed on this instrument. Returns
+ * the app's column, whose name is what rows get stamped with.
+ */
+async function syncInstrumentColumn(
+  db: AnySupabase,
+  instrumentId: string,
+  column: InstrumentColumnRecord | null | undefined,
+): Promise<{ id: string; name: string } | null> {
+  if (!column) return null;
+  const part = column.part_number?.trim() || null;
+  const desc = column.description?.trim() || null;
+  if (!part && !desc) return null;
+  type Row = { id: string; name: string; installed_on_instrument_id: string | null };
+  let found: Row | null = null;
+  if (part) {
+    const { data } = await db
+      .from("hplc_columns")
+      .select("id, name, installed_on_instrument_id")
+      .eq("part_number", part)
+      .eq("is_active", true)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    found = (data as Row | null) ?? null;
+  }
+  if (!found && desc) {
+    const { data } = await db
+      .from("hplc_columns")
+      .select("id, name, installed_on_instrument_id")
+      .ilike("name", desc)
+      .eq("is_active", true)
+      .order("created_at")
+      .limit(1)
+      .maybeSingle();
+    found = (data as Row | null) ?? null;
+  }
+  if (!found) {
+    const dims = [
+      column.particle_um ? `${column.particle_um} µm` : null,
+      column.diameter_mm && column.length_mm
+        ? `${column.diameter_mm} mm x ${column.length_mm} mm`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+    const base = desc ?? part ?? "Instrument column";
+    const name = dims ? `${base}, ${dims}` : base;
+    const { data, error } = await db
+      .from("hplc_columns")
+      .insert({
+        name,
+        part_number: part,
+        rated_max_pressure_bar: column.max_pressure_bar ?? null,
+        total_injections: column.injections ?? 0,
+        is_active: true,
+      })
+      .select("id, name, installed_on_instrument_id")
+      .single();
+    if (error) {
+      console.error("[instrument-feed] could not create HPLC column from instrument record", error);
+      return null;
+    }
+    found = data as Row;
+    console.log(
+      `[instrument-feed] created HPLC column "${name}" from the instrument's column record`,
+    );
+  }
+  if (found.installed_on_instrument_id !== instrumentId) {
+    await db
+      .from("hplc_columns")
+      .update({ installed_on_instrument_id: null })
+      .eq("installed_on_instrument_id", instrumentId)
+      .neq("id", found.id);
+    await db
+      .from("hplc_columns")
+      .update({ installed_on_instrument_id: instrumentId, installed_at: new Date().toISOString() })
+      .eq("id", found.id);
+  }
+  return { id: found.id, name: found.name };
+}
+
 /* ---------------- batch ---------------- */
 
 export async function processFeedBatch(instrumentId: string, batch: FeedBatch): Promise<void> {
@@ -389,6 +506,7 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
     streams: Object.entries(streams).map(([name, s]) => ({ name, ...s })),
   };
   if (batch.modules?.length) patch.modules = batch.modules;
+  if (batch.column) patch.column_info = batch.column;
   await upsertLiveStatus(db, instrumentId, patch);
 
   await broadcastInstrument(instrumentId, "batch", {
@@ -399,6 +517,7 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
     run: batch.run ?? null,
     streams: batch.streams,
     labels: batch.labels ?? null,
+    column: batch.column ?? null,
   });
 }
 
@@ -416,6 +535,7 @@ async function writeBackpressureForSequence(
   injectionsCount: number,
   summary: RunSummary,
   sequenceKey: string,
+  columnName: string | null,
 ): Promise<void> {
   const pressureMin = round(summary.pressure_min_bar ?? null, 2);
   const pressureMax = round(summary.pressure_max_bar ?? null, 2);
@@ -423,7 +543,7 @@ async function writeBackpressureForSequence(
   if (seq.backpressure_log_id) {
     const { data: row } = await db
       .from("daily_backpressure_logs")
-      .select("id, pressure_run_min, pressure_run_max")
+      .select("id, pressure_run_min, pressure_run_max, column_name")
       .eq("id", seq.backpressure_log_id)
       .maybeSingle();
     if (!row) return;
@@ -445,6 +565,7 @@ async function writeBackpressureForSequence(
         injections_count: injectionsCount,
         pressure_run_min: nextMin,
         pressure_run_max: nextMax,
+        ...(row.column_name === null && columnName ? { column_name: columnName } : {}),
       })
       .eq("id", row.id);
     if (error) throw new Error(`daily_backpressure_logs update failed: ${error.message}`);
@@ -472,7 +593,7 @@ async function writeBackpressureForSequence(
       flow_rate_unit: flow !== null ? "mL/min" : null,
       column_temp: temp,
       column_temp_unit: temp !== null ? "C" : null,
-      column_name: column?.name ?? null,
+      column_name: columnName ?? column?.name ?? null,
       injections_count: injectionsCount,
       acquisition_method: summary.method ?? null,
       source: "live",
@@ -533,8 +654,11 @@ export async function processFeedEvent(
 
     case "run_started": {
       const seq = event.sequence ? await ensureSequence(db, instrumentId, event.sequence) : null;
+      const col = await syncInstrumentColumn(db, instrumentId, event.column);
       const run = await upsertRun(db, instrumentId, seq?.id ?? null, event.run, {
         status: "running",
+        column_name: col?.name ?? event.column?.description ?? null,
+        column_info: event.column ?? null,
       });
       if (seq) {
         await db
@@ -548,6 +672,7 @@ export async function processFeedEvent(
         current_sequence_id: seq?.id ?? null,
         last_event_at: now,
         updated_at: now,
+        ...(event.column ? { column_info: event.column } : {}),
       });
       await broadcastInstrument(instrumentId, "lifecycle", {
         type: event.type,
@@ -592,12 +717,19 @@ export async function processFeedEvent(
         }
       }
 
+      const col = await syncInstrumentColumn(db, instrumentId, event.column);
       const run = await upsertRun(db, instrumentId, seq.id, event.run, {
         status: "completed",
         ended_at: toIso(event.ended_at) ?? now,
         duration_s: event.duration_s ?? null,
         summary: event.summary,
         ...(tracePath ? { trace_path: tracePath } : {}),
+        ...(event.column
+          ? {
+              column_name: col?.name ?? event.column.description ?? null,
+              column_info: event.column,
+            }
+          : {}),
       });
 
       await db
@@ -611,9 +743,12 @@ export async function processFeedEvent(
         injectionsCount,
         event.summary,
         seqRef.key,
+        col?.name ?? null,
       );
 
-      const column = await installedColumn(db, instrumentId);
+      // The column the instrument reports wins; fall back to whatever is
+      // marked installed in the app for agents that don't send it.
+      const column = col ?? (await installedColumn(db, instrumentId));
       if (column) {
         const { error } = await db.rpc("increment_hplc_column_injections", {
           p_column_id: column.id,
@@ -681,10 +816,12 @@ export async function processFeedEvent(
               .maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
+      const col = await syncInstrumentColumn(db, instrumentId, event.column);
       const { error } = await db.from("instrument_pressure_log").upsert(
         {
           instrument_id: instrumentId,
           logged_at: loggedAt,
+          column_name: col?.name ?? event.column?.description ?? null,
           window_s: event.window_s,
           samples: event.pressure.n,
           pressure_bar: round(event.pressure.mean, 3),

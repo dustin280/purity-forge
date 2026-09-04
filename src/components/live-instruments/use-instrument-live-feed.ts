@@ -41,6 +41,7 @@ export interface FeedBatchPayload {
   run: FeedRunRef | null;
   streams: Record<string, FeedStreamChunk>;
   labels?: Record<string, string> | null;
+  column?: { description?: string | null; part_number?: string | null } | null;
 }
 export interface FeedLifecyclePayload {
   type: "sequence_started" | "run_started" | "run_completed" | "sequence_completed";

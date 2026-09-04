@@ -49,9 +49,25 @@ SPECTRUM RECORDS (channel 0x26 sub 0 with msg_type 0x0110; channel 0x28 while id
 112 int32 = 6 constant header words + 106 points covering 190..400 nm in 2 nm steps,
 one record per 400 ms. raw * 0.000476837 = mAU (OpenLab's .UV stores raw*2097.152).
 
-TEXT CHANNELS (ASCII packed big-endian into the int32 slots): 0x20 autosampler
-status, 0x25 DAD status (ACT:OUT = live mAU of signals A-H, ACT:SIGn = configured
-wavelengths), 0x17 / 0x0e / 0x1b / 0x0c / 0x10 method & config dumps at run start.
+TEXT FRAMES (confirmed 2026-09-03): the same [len:2][0xF8][channel] prefix also
+carries plain text starting at byte 4 (no 34-byte header): module status pushes
+"MO nnnn ACT:...;" (0x25 DAD: ACT:OUT = live mAU of signals A-H, ACT:SIGn = configured
+wavelengths; 0x20 autosampler; thermostat ACT:TEMP/ACT:COL), replies to OpenLab's
+queries "RA nnnnn ..." (0x14 thermostat, 0x0c), list replies "LIX...", and the method &
+config dumps at run start (0x17 / 0x0e / 0x1b / 0x0c / 0x10). Only ~1 in 9 text frames
+happens to fit the 34+4k binary template, so decode_message() must not be the only
+path — see TelemetryDecoder.text_of in agilent_tap_agent.py. Of note: about 10 s
+before each run and ~20 s after it OpenLab asks the column compartment
+  COL:DATAX? 7   (also ACT:COL?, ACT:CNT? "D_ON"/"D_TI"/"V_ON"/"V_TI", LIST "HOTEL_STATE")
+and it answers with the installed column's record as JSON:
+  RA 32113 COL:DATAX 7,'{"BAT":"","CMNT":"","DESC":"Agilent SBAq","DIA":2.1,
+  "FUSD":1786728517,"INJ":389,"LEN":150,"LUSD":1788421609,"MFGD":0,"MPH":[0,0],
+  "MPRS":1200,"MTMP":0,"PROD":"683675-914","PTMP":0,"PTSZ":1.9,"SEAL":0,"SER":"",
+  "TAG":0,"VVOL":0}'
+DESC / PROD / DIA / LEN / PTSZ / MPRS and the FUSD / LUSD epoch dates are certain;
+INJ = injection count (hypothesis: not bumped by the instrument itself — it read 389
+both before and after a run), TAG 0 = no RFID column tag, ACT:COL 0,... = empty tag
+positions, "7" = slot/record index (hypotheses).
 
 PORT 80 (separate TCP connection): SignalR JSON hub messages instrument->workstation
 (2-byte length + JSON + 0x1E), confirmed (RunState etc.). Workstation->instrument

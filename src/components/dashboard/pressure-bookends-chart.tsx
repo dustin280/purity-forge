@@ -9,6 +9,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -27,14 +28,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getInstrumentPressureDailyBookends,
   listInstrumentLiveOverview,
+  listPressureLogColumns,
 } from "@/lib/instrument-feed.functions";
+import { listHplcColumns } from "@/lib/hplc-columns.functions";
 import { qk } from "@/lib/query-keys";
 
 /**
  * Dashboard chart: the first and last continuous-log pressure entry of each
  * day (viewer's local day) over a trailing window — a static daily sample of
  * the live feed, not the live feed itself. Only entries logged while the pump
- * was delivering count. Source: instrument_pressure_log via
+ * was delivering count. Filterable by instrument and by the column the
+ * instrument reported at the time. Source: instrument_pressure_log via
  * instrument_pressure_daily_bookends().
  */
 
@@ -47,6 +51,7 @@ const SERIES_COLORS = [
 ];
 const DAY_OPTIONS = [14, 30, 60, 90];
 const DAY_MS = 86_400_000;
+const ALL = "__all__";
 
 type Point = Record<string, number | string | null>;
 
@@ -115,7 +120,8 @@ function BookendTooltip({
 
 export function PressureBookendsChart() {
   const [days, setDays] = useState(30);
-  const [instrumentId, setInstrumentId] = useState("__all__");
+  const [instrumentId, setInstrumentId] = useState(ALL);
+  const [column, setColumn] = useState(ALL);
   const { from, to } = useMemo(() => windowFor(days), [days]);
   const tz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", []);
 
@@ -125,12 +131,35 @@ export function PressureBookendsChart() {
     queryFn: () => overviewFn(),
   });
 
-  const params = {
+  const windowParams = {
     from: from.toISOString(),
     to: to.toISOString(),
+    instrument_id: instrumentId === ALL ? null : instrumentId,
+  };
+  const columnsFn = useServerFn(listPressureLogColumns);
+  const { data: columns = [] } = useQuery({
+    queryKey: qk.instrumentFeed.pressureLogColumns(windowParams),
+    queryFn: () => columnsFn({ data: windowParams }),
+    refetchInterval: 5 * 60_000,
+  });
+  // A column picked earlier may not exist in a narrower window: fall back to all.
+  const effectiveColumn = columns.some((c) => c.column_name === column) ? column : ALL;
+
+  const hplcFn = useServerFn(listHplcColumns);
+  const { data: hplcColumns = [] } = useQuery({
+    queryKey: qk.hplcColumns.list(),
+    queryFn: () => hplcFn(),
+  });
+  const ratedMax =
+    effectiveColumn === ALL
+      ? null
+      : (hplcColumns.find((c) => c.name === effectiveColumn)?.rated_max_pressure_bar ?? null);
+
+  const params = {
+    ...windowParams,
     tz,
-    instrument_id: instrumentId === "__all__" ? null : instrumentId,
     pump_on_only: true,
+    column: effectiveColumn === ALL ? null : effectiveColumn,
   };
   const fn = useServerFn(getInstrumentPressureDailyBookends);
   const { data: rows = [], isLoading } = useQuery({
@@ -179,20 +208,35 @@ export function PressureBookendsChart() {
             <CardTitle className="text-base">Backpressure · Daily First / Last</CardTitle>
             <div className="text-xs text-muted-foreground mt-0.5">
               First and last logged pressure each day while the pump was delivering · last {days}{" "}
-              days
+              days{effectiveColumn !== ALL ? ` · ${effectiveColumn}` : ""}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {overview.length > 1 && (
               <Select value={instrumentId} onValueChange={setInstrumentId}>
                 <SelectTrigger className="w-[200px] h-9">
                   <SelectValue placeholder="All instruments" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All instruments</SelectItem>
+                  <SelectItem value={ALL}>All instruments</SelectItem>
                   {overview.map((o) => (
                     <SelectItem key={o.instrument.id} value={o.instrument.id}>
                       {o.instrument.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {columns.length > 0 && (
+              <Select value={effectiveColumn} onValueChange={setColumn}>
+                <SelectTrigger className="w-[220px] h-9">
+                  <SelectValue placeholder="All columns" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>All columns</SelectItem>
+                  {columns.map((c) => (
+                    <SelectItem key={c.column_name} value={c.column_name}>
+                      {c.column_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -223,8 +267,9 @@ export function PressureBookendsChart() {
           <Skeleton className="h-[240px] w-full" />
         ) : points.length === 0 ? (
           <div className="h-[240px] flex items-center justify-center text-sm text-muted-foreground text-center px-4">
-            No live pressure entries in the last {days} days. The agent logs one entry per minute
-            while the instrument is on.
+            No live pressure entries in the last {days} days
+            {effectiveColumn !== ALL ? ` for ${effectiveColumn}` : ""}. The agent logs one entry per
+            minute while the instrument is on.
           </div>
         ) : (
           <div className="h-[240px] w-full">
@@ -258,6 +303,19 @@ export function PressureBookendsChart() {
                   isAnimationActive={false}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
+                {ratedMax != null && (
+                  <ReferenceLine
+                    y={ratedMax}
+                    stroke="var(--destructive)"
+                    strokeDasharray="4 4"
+                    label={{
+                      value: `Rated max (${ratedMax} bar)`,
+                      position: "insideTopRight",
+                      fontSize: 10,
+                      fill: "var(--destructive)",
+                    }}
+                  />
+                )}
                 {instruments.map(([id, name], i) => {
                   const color = SERIES_COLORS[i % SERIES_COLORS.length];
                   return [
