@@ -28,9 +28,13 @@ export function StandardSetLevelsTable({
 }) {
   if (levels.length === 0) return null;
   const compounds: string[] = [];
+  const stockOf = new Map<string, number>();
   for (const l of levels)
-    for (const c of l.components)
+    for (const c of l.components) {
       if (!compounds.includes(c.compound_name)) compounds.push(c.compound_name);
+      if (c.stock_concentration_mg_per_ml != null && !stockOf.has(c.compound_name))
+        stockOf.set(c.compound_name, c.stock_concentration_mg_per_ml);
+    }
 
   return (
     <Card className="p-5 mb-6">
@@ -53,6 +57,11 @@ export function StandardSetLevelsTable({
               {compounds.map((name) => (
                 <TableHead key={name} className="text-right whitespace-nowrap">
                   {name}
+                  {stockOf.has(name) && (
+                    <div className="text-[10px] font-normal text-muted-foreground">
+                      stock {stockOf.get(name)} mg/mL
+                    </div>
+                  )}
                 </TableHead>
               ))}
               <TableHead className="text-right whitespace-nowrap">Diluent (µL)</TableHead>

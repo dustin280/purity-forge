@@ -27,6 +27,8 @@ export interface CutSheetComponent {
   sourceLabel?: string | null;
   /** How much weaker that stock is than the primary: 10, 100. Null = primary. */
   sourceFactor?: number | null;
+  /** Concentration of the primary stock, mg/mL; printed under the compound in the µL header. */
+  stockConcMgPerMl?: number | null;
 }
 
 /** A weaker stock made up before the levels, so the low ones are pipettable. */
@@ -253,10 +255,22 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     if (c?.stockUl == null) return "—";
     return c.sourceFactor ? `${c.stockUl} (1:${c.sourceFactor})` : `${c.stockUl}`;
   };
+  // The stock each compound's aliquots are drawn from, under its µL header
+  // (Dustin, 2026-09-04). Older records without it just print the name.
+  const stockConcOf = (n: string): number | null => {
+    for (const l of data.levels) {
+      const c = l.components.find((x) => x.abbrev === n);
+      if (c?.stockConcMgPerMl != null) return c.stockConcMgPerMl;
+    }
+    return null;
+  };
   const head = [
     "Level",
     ...compoundNames.map((n) => `${n} mg/mL`),
-    ...compoundNames.map((n) => `${n} µL`),
+    ...compoundNames.map((n) => {
+      const stock = stockConcOf(n);
+      return stock != null ? `${n} µL\nstock ${stock} mg/mL` : `${n} µL`;
+    }),
     ...compoundNames.map((n) => `${n} DF`),
     "Diluent µL",
     "Expected",

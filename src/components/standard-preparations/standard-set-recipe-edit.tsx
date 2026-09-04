@@ -78,7 +78,12 @@ export interface RecipeEditPayload {
   levels: Array<{
     row_no: number;
     label: string;
-    components: Array<Omit<EditComponent, "stock_mg_ml"> & { abbrev: string }>;
+    components: Array<
+      Omit<EditComponent, "stock_mg_ml"> & {
+        abbrev: string;
+        stock_concentration_mg_per_ml: number | null;
+      }
+    >;
     diluent_volume_ul: number | null;
     expected_note: string | null;
   }>;
@@ -93,32 +98,53 @@ function numOrNull(v: string): number | null {
 /** What this component actually draws from -- an intermediate's own
  * recorded concentration if it's sourced from one, otherwise the exact
  * concentration algebra backs out of the recorded target and volume. */
-function deriveStockConc(c: EditComponent, intermediates: EditIntermediate[], flaskUl: number): number | null {
+function deriveStockConc(
+  c: EditComponent,
+  intermediates: EditIntermediate[],
+  flaskUl: number,
+): number | null {
   if (c.source_label) {
-    const inter = intermediates.find(it => it.label === c.source_label);
-    if (inter?.concentration_mg_per_ml != null && inter.concentration_mg_per_ml > 0) return inter.concentration_mg_per_ml;
+    const inter = intermediates.find((it) => it.label === c.source_label);
+    if (inter?.concentration_mg_per_ml != null && inter.concentration_mg_per_ml > 0)
+      return inter.concentration_mg_per_ml;
   }
-  if (c.concentration_mg_per_ml != null && c.concentration_mg_per_ml > 0
-    && c.stock_volume_ul != null && c.stock_volume_ul > 0 && flaskUl > 0) {
+  if (
+    c.concentration_mg_per_ml != null &&
+    c.concentration_mg_per_ml > 0 &&
+    c.stock_volume_ul != null &&
+    c.stock_volume_ul > 0 &&
+    flaskUl > 0
+  ) {
     return (c.concentration_mg_per_ml * flaskUl) / c.stock_volume_ul;
   }
   return null;
 }
 /** target_conc * flask_ul / stock_conc, grid-rounded -- the volume that
  * actually gets pipetted, same 5 uL grid as everything else in this app. */
-function volumeFromConc(concMgMl: number | null, stockMgMl: number | null, flaskUl: number): number | null {
+function volumeFromConc(
+  concMgMl: number | null,
+  stockMgMl: number | null,
+  flaskUl: number,
+): number | null {
   if (!(concMgMl! > 0) || !(stockMgMl! > 0) || !(flaskUl > 0)) return null;
   return roundToVolumeGrid((concMgMl! * flaskUl) / stockMgMl!);
 }
 /** The inverse -- what a given draw actually delivers. 6 significant
  * figures strips float noise without erasing a real small value. */
-function concFromVolume(volumeUl: number | null, stockMgMl: number | null, flaskUl: number): number | null {
+function concFromVolume(
+  volumeUl: number | null,
+  stockMgMl: number | null,
+  flaskUl: number,
+): number | null {
   if (!(volumeUl! >= 0) || !(stockMgMl! > 0) || !(flaskUl > 0)) return null;
   return Number(((stockMgMl! * volumeUl!) / flaskUl).toPrecision(6));
 }
 
 export function StandardSetRecipeEdit({
-  detail, saving, onSave, onCancel,
+  detail,
+  saving,
+  onSave,
+  onCancel,
 }: {
   detail: StandardSetDetail;
   saving: boolean;
@@ -130,14 +156,21 @@ export function StandardSetRecipeEdit({
   const [batchVolumeMl, setBatchVolumeMl] = useState(String(detail.final_volume_ml ?? 1));
   const [rangeReasoning, setRangeReasoning] = useState(detail.notes ?? "");
   const [intermediates, setIntermediates] = useState<EditIntermediate[]>(
-    detail.intermediateSteps.map(it => ({ ...it })),
+    detail.intermediateSteps.map((it) => ({ ...it })),
   );
   const [levels, setLevels] = useState<EditLevel[]>(() => {
     const initialFlaskUl = (detail.final_volume_ml ?? 1) * 1000;
-    return detail.levels.map(l => ({
-      row_no: l.row_no, label: l.label, expected_note: l.expected_note,
-      components: l.components.map(c => ({
-        ...c, stock_mg_ml: deriveStockConc({ ...c, stock_mg_ml: null }, detail.intermediateSteps, initialFlaskUl),
+    return detail.levels.map((l) => ({
+      row_no: l.row_no,
+      label: l.label,
+      expected_note: l.expected_note,
+      components: l.components.map((c) => ({
+        ...c,
+        // The recorded stock concentration when the record has one; otherwise
+        // back-derived from target and volume as before.
+        stock_mg_ml:
+          c.stock_concentration_mg_per_ml ??
+          deriveStockConc({ ...c, stock_mg_ml: null }, detail.intermediateSteps, initialFlaskUl),
       })),
     }));
   });
@@ -151,80 +184,112 @@ export function StandardSetRecipeEdit({
   function changeBatchVolumeMl(v: string) {
     setBatchVolumeMl(v);
     const newFlaskUl = (Number(v) || 0) * 1000;
-    setLevels(prev => prev.map(l => ({
-      ...l,
-      components: l.components.map(c => {
-        const vol = volumeFromConc(c.concentration_mg_per_ml, c.stock_mg_ml, newFlaskUl);
-        return vol != null ? { ...c, stock_volume_ul: vol } : c;
-      }),
-    })));
+    setLevels((prev) =>
+      prev.map((l) => ({
+        ...l,
+        components: l.components.map((c) => {
+          const vol = volumeFromConc(c.concentration_mg_per_ml, c.stock_mg_ml, newFlaskUl);
+          return vol != null ? { ...c, stock_volume_ul: vol } : c;
+        }),
+      })),
+    );
   }
 
   /** Target concentration is the thing being corrected -- recompute the
    * draw that reproduces it from this component's (unchanged) stock. */
   function changeComponentConc(li: number, ci: number, v: string) {
-    setLevels(prev => prev.map((l, idx) => {
-      if (idx !== li) return l;
-      return {
-        ...l, components: l.components.map((c, cidx) => {
-          if (cidx !== ci) return c;
-          const conc = numOrNull(v);
-          const vol = volumeFromConc(conc, c.stock_mg_ml, batchUl);
-          return { ...c, concentration_mg_per_ml: conc, stock_volume_ul: vol ?? c.stock_volume_ul };
-        }),
-      };
-    }));
+    setLevels((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== li) return l;
+        return {
+          ...l,
+          components: l.components.map((c, cidx) => {
+            if (cidx !== ci) return c;
+            const conc = numOrNull(v);
+            const vol = volumeFromConc(conc, c.stock_mg_ml, batchUl);
+            return {
+              ...c,
+              concentration_mg_per_ml: conc,
+              stock_volume_ul: vol ?? c.stock_volume_ul,
+            };
+          }),
+        };
+      }),
+    );
   }
   /** The draw itself is the correction (e.g. "I actually pipetted 55, not
    * 50") -- recompute what that draw achieves, not the other way around. */
   function changeComponentVolume(li: number, ci: number, v: string) {
-    setLevels(prev => prev.map((l, idx) => {
-      if (idx !== li) return l;
-      return {
-        ...l, components: l.components.map((c, cidx) => {
-          if (cidx !== ci) return c;
-          const vol = numOrNull(v);
-          const conc = concFromVolume(vol, c.stock_mg_ml, batchUl);
-          return { ...c, stock_volume_ul: vol, concentration_mg_per_ml: conc ?? c.concentration_mg_per_ml };
-        }),
-      };
-    }));
+    setLevels((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== li) return l;
+        return {
+          ...l,
+          components: l.components.map((c, cidx) => {
+            if (cidx !== ci) return c;
+            const vol = numOrNull(v);
+            const conc = concFromVolume(vol, c.stock_mg_ml, batchUl);
+            return {
+              ...c,
+              stock_volume_ul: vol,
+              concentration_mg_per_ml: conc ?? c.concentration_mg_per_ml,
+            };
+          }),
+        };
+      }),
+    );
   }
   /** The reference stock concentration was wrong -- target stays the
    * intent, the draw needed to hit it changes. */
   function changeComponentStockConc(li: number, ci: number, v: string) {
-    setLevels(prev => prev.map((l, idx) => {
-      if (idx !== li) return l;
-      return {
-        ...l, components: l.components.map((c, cidx) => {
-          if (cidx !== ci) return c;
-          const stockConc = numOrNull(v);
-          const vol = volumeFromConc(c.concentration_mg_per_ml, stockConc, batchUl);
-          return { ...c, stock_mg_ml: stockConc, stock_volume_ul: vol ?? c.stock_volume_ul };
-        }),
-      };
-    }));
+    setLevels((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== li) return l;
+        return {
+          ...l,
+          components: l.components.map((c, cidx) => {
+            if (cidx !== ci) return c;
+            const stockConc = numOrNull(v);
+            const vol = volumeFromConc(c.concentration_mg_per_ml, stockConc, batchUl);
+            return { ...c, stock_mg_ml: stockConc, stock_volume_ul: vol ?? c.stock_volume_ul };
+          }),
+        };
+      }),
+    );
   }
   function changeComponentSourceLabel(li: number, ci: number, v: string) {
-    setLevels(prev => prev.map((l, idx) => {
-      if (idx !== li) return l;
-      return { ...l, components: l.components.map((c, cidx) => (cidx === ci ? { ...c, source_label: v || null } : c)) };
-    }));
+    setLevels((prev) =>
+      prev.map((l, idx) => {
+        if (idx !== li) return l;
+        return {
+          ...l,
+          components: l.components.map((c, cidx) =>
+            cidx === ci ? { ...c, source_label: v || null } : c,
+          ),
+        };
+      }),
+    );
   }
   function updateLevel(i: number, patch: Partial<EditLevel>) {
-    setLevels(prev => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+    setLevels((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
   }
   function removeComponent(li: number, ci: number) {
-    setLevels(prev => prev.map((l, idx) => (idx === li ? { ...l, components: l.components.filter((_c, cidx) => cidx !== ci) } : l)));
+    setLevels((prev) =>
+      prev.map((l, idx) =>
+        idx === li ? { ...l, components: l.components.filter((_c, cidx) => cidx !== ci) } : l,
+      ),
+    );
   }
   function removeLevel(li: number) {
-    setLevels(prev => prev.filter((_l, idx) => idx !== li).map((l, idx) => ({ ...l, row_no: idx + 1 })));
+    setLevels((prev) =>
+      prev.filter((_l, idx) => idx !== li).map((l, idx) => ({ ...l, row_no: idx + 1 })),
+    );
   }
   function updateIntermediate(i: number, patch: Partial<EditIntermediate>) {
-    setIntermediates(prev => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+    setIntermediates((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
   }
   function removeIntermediate(i: number) {
-    setIntermediates(prev => prev.filter((_it, idx) => idx !== i));
+    setIntermediates((prev) => prev.filter((_it, idx) => idx !== i));
   }
 
   function levelComponentsSumUl(l: EditLevel): number {
@@ -236,9 +301,13 @@ export function StandardSetRecipeEdit({
     return batchUl - levelComponentsSumUl(l);
   }
 
-  const overflowing = levels.some(l => levelDiluentUl(l) < -0.5);
-  const canSubmit = summary.trim().length > 0 && standardName.trim().length > 0
-    && levels.length > 0 && !overflowing && !saving;
+  const overflowing = levels.some((l) => levelDiluentUl(l) < -0.5);
+  const canSubmit =
+    summary.trim().length > 0 &&
+    standardName.trim().length > 0 &&
+    levels.length > 0 &&
+    !overflowing &&
+    !saving;
 
   return (
     <div className="space-y-4">
@@ -246,15 +315,20 @@ export function StandardSetRecipeEdit({
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="space-y-1">
             <Label className="text-xs">Standard name</Label>
-            <Input value={standardName} onChange={e => setStandardName(e.target.value)} />
+            <Input value={standardName} onChange={(e) => setStandardName(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Diluent</Label>
-            <Input value={diluentName} onChange={e => setDiluentName(e.target.value)} />
+            <Input value={diluentName} onChange={(e) => setDiluentName(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Batch volume (mL, per level)</Label>
-            <Input type="number" step="0.1" value={batchVolumeMl} onChange={e => setBatchVolumeMl(e.target.value)} />
+            <Input
+              type="number"
+              step="0.1"
+              value={batchVolumeMl}
+              onChange={(e) => setBatchVolumeMl(e.target.value)}
+            />
           </div>
         </div>
       </Card>
@@ -278,13 +352,73 @@ export function StandardSetRecipeEdit({
               <tbody>
                 {intermediates.map((it, i) => (
                   <tr key={i} className="border-t border-border">
-                    <td className="py-1 pr-2"><Input className="h-7 w-28 text-xs" value={it.label} onChange={e => updateIntermediate(i, { label: e.target.value })} /></td>
-                    <td className="py-1 pr-2"><Input className="h-7 w-28 text-xs" value={it.source_label} onChange={e => updateIntermediate(i, { source_label: e.target.value })} /></td>
-                    <td className="py-1 pr-2"><Input className="h-7 w-20 text-xs text-right" type="number" value={it.aliquot_ul ?? ""} onChange={e => updateIntermediate(i, { aliquot_ul: numOrNull(e.target.value) })} /></td>
-                    <td className="py-1 pr-2"><Input className="h-7 w-20 text-xs text-right" type="number" value={it.diluent_ul ?? ""} onChange={e => updateIntermediate(i, { diluent_ul: numOrNull(e.target.value) })} /></td>
-                    <td className="py-1 pr-2"><Input className="h-7 w-20 text-xs text-right" type="number" value={it.volume_ul ?? ""} onChange={e => updateIntermediate(i, { volume_ul: numOrNull(e.target.value) })} /></td>
-                    <td className="py-1 pr-2"><Input className="h-7 w-20 text-xs text-right" type="number" step="0.001" value={it.concentration_mg_per_ml ?? ""} onChange={e => updateIntermediate(i, { concentration_mg_per_ml: numOrNull(e.target.value) })} /></td>
-                    <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeIntermediate(i)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-28 text-xs"
+                        value={it.label}
+                        onChange={(e) => updateIntermediate(i, { label: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-28 text-xs"
+                        value={it.source_label}
+                        onChange={(e) => updateIntermediate(i, { source_label: e.target.value })}
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-20 text-xs text-right"
+                        type="number"
+                        value={it.aliquot_ul ?? ""}
+                        onChange={(e) =>
+                          updateIntermediate(i, { aliquot_ul: numOrNull(e.target.value) })
+                        }
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-20 text-xs text-right"
+                        type="number"
+                        value={it.diluent_ul ?? ""}
+                        onChange={(e) =>
+                          updateIntermediate(i, { diluent_ul: numOrNull(e.target.value) })
+                        }
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-20 text-xs text-right"
+                        type="number"
+                        value={it.volume_ul ?? ""}
+                        onChange={(e) =>
+                          updateIntermediate(i, { volume_ul: numOrNull(e.target.value) })
+                        }
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        className="h-7 w-20 text-xs text-right"
+                        type="number"
+                        step="0.001"
+                        value={it.concentration_mg_per_ml ?? ""}
+                        onChange={(e) =>
+                          updateIntermediate(i, {
+                            concentration_mg_per_ml: numOrNull(e.target.value),
+                          })
+                        }
+                      />
+                    </td>
+                    <td>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-6"
+                        onClick={() => removeIntermediate(i)}
+                      >
+                        <Trash2 className="size-3.5 text-destructive" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -302,14 +436,25 @@ export function StandardSetRecipeEdit({
           return (
             <div key={li} className="border rounded-md p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Input className="h-7 w-20 text-xs font-medium" value={level.label}
-                  onChange={e => updateLevel(li, { label: e.target.value })} />
+                <Input
+                  className="h-7 w-20 text-xs font-medium"
+                  value={level.label}
+                  onChange={(e) => updateLevel(li, { label: e.target.value })}
+                />
                 <div className="flex items-center gap-3">
-                  <span className={`text-[11px] tabular-nums ${overflow ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}>
-                    {sum} + {overflow ? 0 : diluent} diluent = {overflow ? sum : batchUl} / {batchUl || "?"} µL
+                  <span
+                    className={`text-[11px] tabular-nums ${overflow ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground"}`}
+                  >
+                    {sum} + {overflow ? 0 : diluent} diluent = {overflow ? sum : batchUl} /{" "}
+                    {batchUl || "?"} µL
                     {overflow && ` -- overflows by ${Math.round(-diluent)} µL`}
                   </span>
-                  <Button size="icon" variant="ghost" className="size-6" onClick={() => removeLevel(li)}>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-6"
+                    onClick={() => removeLevel(li)}
+                  >
                     <Trash2 className="size-3.5 text-destructive" />
                   </Button>
                 </div>
@@ -330,25 +475,49 @@ export function StandardSetRecipeEdit({
                     <tr key={ci} className="border-t border-border">
                       <td className="py-1 pr-2">{c.compound_name}</td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-20 text-xs" type="number" step="0.001"
+                        <Input
+                          className="h-7 w-20 text-xs"
+                          type="number"
+                          step="0.001"
                           value={c.concentration_mg_per_ml ?? ""}
-                          onChange={e => changeComponentConc(li, ci, e.target.value)} />
+                          onChange={(e) => changeComponentConc(li, ci, e.target.value)}
+                        />
                       </td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-20 text-xs" type="number" step="0.001"
-                          value={c.stock_mg_ml ?? ""} placeholder="?"
-                          onChange={e => changeComponentStockConc(li, ci, e.target.value)} />
+                        <Input
+                          className="h-7 w-20 text-xs"
+                          type="number"
+                          step="0.001"
+                          value={c.stock_mg_ml ?? ""}
+                          placeholder="?"
+                          onChange={(e) => changeComponentStockConc(li, ci, e.target.value)}
+                        />
                       </td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-28 text-xs" value={c.source_label ?? ""}
-                          onChange={e => changeComponentSourceLabel(li, ci, e.target.value)} />
+                        <Input
+                          className="h-7 w-28 text-xs"
+                          value={c.source_label ?? ""}
+                          onChange={(e) => changeComponentSourceLabel(li, ci, e.target.value)}
+                        />
                       </td>
                       <td className="py-1 pr-2">
-                        <Input className="h-7 w-20 text-xs" type="number"
+                        <Input
+                          className="h-7 w-20 text-xs"
+                          type="number"
                           value={c.stock_volume_ul ?? ""}
-                          onChange={e => changeComponentVolume(li, ci, e.target.value)} />
+                          onChange={(e) => changeComponentVolume(li, ci, e.target.value)}
+                        />
                       </td>
-                      <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeComponent(li, ci)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
+                      <td>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-6"
+                          onClick={() => removeComponent(li, ci)}
+                        >
+                          <Trash2 className="size-3.5 text-destructive" />
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                   <tr className="border-t border-border">
@@ -356,7 +525,9 @@ export function StandardSetRecipeEdit({
                     <td></td>
                     <td></td>
                     <td></td>
-                    <td className="py-1 pr-2 tabular-nums text-muted-foreground">{overflow ? "—" : diluent}</td>
+                    <td className="py-1 pr-2 tabular-nums text-muted-foreground">
+                      {overflow ? "—" : diluent}
+                    </td>
                     <td></td>
                   </tr>
                 </tbody>
@@ -365,55 +536,72 @@ export function StandardSetRecipeEdit({
           );
         })}
         <p className="text-[11px] text-muted-foreground">
-          Type a new Target mg/mL and its draw recomputes from Stock mg/mL, grid-rounded to 5 µL -- or type a
-          corrected draw directly and the concentration it actually achieves recomputes instead. Stock mg/mL
-          starts back-derived from what was recorded (an intermediate's own concentration, or the primary math);
-          correcting it also recomputes the draw. Diluent is never typed -- always flask minus what's drawn.
-          Changing an intermediate's own concentration below does NOT cascade to components sourced from it.
-          Adding a new compound or level isn't supported here -- that needs a stock concentration this record
-          never captured. Existing values can be corrected or a level struck entirely.
+          Type a new Target mg/mL and its draw recomputes from Stock mg/mL, grid-rounded to 5 µL --
+          or type a corrected draw directly and the concentration it actually achieves recomputes
+          instead. Stock mg/mL starts back-derived from what was recorded (an intermediate's own
+          concentration, or the primary math); correcting it also recomputes the draw. Diluent is
+          never typed -- always flask minus what's drawn. Changing an intermediate's own
+          concentration below does NOT cascade to components sourced from it. Adding a new compound
+          or level isn't supported here -- that needs a stock concentration this record never
+          captured. Existing values can be corrected or a level struck entirely.
         </p>
       </Card>
 
       <Card className="p-4 space-y-2">
         <Label className="text-xs">Why this range (goes on the printed cut sheet)</Label>
-        <Textarea rows={3} value={rangeReasoning} onChange={e => setRangeReasoning(e.target.value)} />
+        <Textarea
+          rows={3}
+          value={rangeReasoning}
+          onChange={(e) => setRangeReasoning(e.target.value)}
+        />
       </Card>
 
       <Card className="p-4 space-y-2 border-amber-500/40">
         <Label className="text-xs">What changed and why (required)</Label>
-        <Textarea rows={2} value={summary} onChange={e => setSummary(e.target.value)}
-          placeholder="e.g. L2 BPC/Cartalax were 0.35000000000000003 (float-noise bug), corrected to 0.35" />
+        <Textarea
+          rows={2}
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="e.g. L2 BPC/Cartalax were 0.35000000000000003 (float-noise bug), corrected to 0.35"
+        />
         <p className="text-[11px] text-muted-foreground">
-          Saving creates a new record (a new SYN-STDP number), linked back to {detail.log_number} -- this one
-          stays exactly as it was prepared, and the correction is its own document, not a silent rewrite of it.
+          Saving creates a new record (a new SYN-STDP number), linked back to {detail.log_number} --
+          this one stays exactly as it was prepared, and the correction is its own document, not a
+          silent rewrite of it.
         </p>
       </Card>
 
       <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button
           disabled={!canSubmit}
-          onClick={() => onSave({
-            revised_from_id: detail.id,
-            standard_name: standardName, diluent_name: diluentName,
-            batch_volume_ml: Number(batchVolumeMl) || 1,
-            range_reasoning: rangeReasoning || null,
-            levels: levels.map(l => ({
-              row_no: l.row_no, label: l.label, expected_note: l.expected_note,
-              diluent_volume_ul: Math.max(0, roundToVolumeGrid(Math.max(0, levelDiluentUl(l)))),
-              // abbrev and stock_mg_ml aren't persisted anywhere (create-time
-              // scratch values only) -- abbrev re-derived from source_label,
-              // same source of truth the run-list export already uses;
-              // stock_mg_ml dropped, it was only ever this form's own
-              // back-derived starting point for the recompute above.
-              components: l.components.map(({ stock_mg_ml: _stock_mg_ml, ...c }) => ({
-                ...c, abbrev: abbrevFor(c.compound_name, c.source_label),
+          onClick={() =>
+            onSave({
+              revised_from_id: detail.id,
+              standard_name: standardName,
+              diluent_name: diluentName,
+              batch_volume_ml: Number(batchVolumeMl) || 1,
+              range_reasoning: rangeReasoning || null,
+              levels: levels.map((l) => ({
+                row_no: l.row_no,
+                label: l.label,
+                expected_note: l.expected_note,
+                diluent_volume_ul: Math.max(0, roundToVolumeGrid(Math.max(0, levelDiluentUl(l)))),
+                // abbrev isn't persisted (re-derived from source_label, the same
+                // source of truth the run-list export uses); the stock
+                // concentration now is, so the cut sheet can print it.
+                components: l.components.map(({ stock_mg_ml, ...c }) => ({
+                  ...c,
+                  abbrev: abbrevFor(c.compound_name, c.source_label),
+                  stock_concentration_mg_per_ml: stock_mg_ml,
+                })),
               })),
-            })),
-            intermediate_steps: intermediates,
-            summary: summary.trim(),
-          })}
+              intermediate_steps: intermediates,
+              summary: summary.trim(),
+            })
+          }
         >
           {saving ? "Saving..." : "Save as New Revision"}
         </Button>

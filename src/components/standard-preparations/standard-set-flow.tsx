@@ -9,17 +9,33 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { listCompounds } from "@/lib/compounds.functions";
-import { createStandardSet, getStandardSet } from "@/lib/standard-preparations/standard-set.functions";
+import {
+  createStandardSet,
+  getStandardSet,
+} from "@/lib/standard-preparations/standard-set.functions";
 import { generateStandardSetCutSheetPdf } from "@/lib/standard-preparations/cutsheet-pdf";
 import {
-  MULTI_COMPOUND_STANDARDS, POLAR_UNGROUPED, RUN_ALONE, MIN_RT_GAP_MIN,
-  standardSpread, resolveMember, type MultiCompoundStandard,
+  MULTI_COMPOUND_STANDARDS,
+  POLAR_UNGROUPED,
+  RUN_ALONE,
+  MIN_RT_GAP_MIN,
+  standardSpread,
+  resolveMember,
+  type MultiCompoundStandard,
 } from "@/lib/standard-preparations/multi-compound-standards";
 import {
-  planCompoundStocks, primaryLabel,
-  type CompoundPlan, type LevelDraw,
+  planCompoundStocks,
+  primaryLabel,
+  type CompoundPlan,
+  type LevelDraw,
 } from "@/lib/standard-preparations/intermediate-stocks";
 import { benchGrid, snapLadder, worstShift } from "@/lib/standard-preparations/level-grid";
 import { getPrepSettings } from "@/lib/sample-prep/master-data.functions";
@@ -70,13 +86,21 @@ function defaultAbbrev(name: string): string {
  * and diluent volumes compute live from batch volume + each compound's
  * stock strength -- the same math used for SUMMIT/TESA-IPA/CJC-IPA.
  */
-export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnalystName: string; userToken: string }) {
+export function StandardSetFlow({
+  defaultAnalystName,
+  userToken,
+}: {
+  defaultAnalystName: string;
+  userToken: string;
+}) {
   const navigate = useNavigate();
   const listCompoundsFn = useServerFn(listCompounds);
   const createFn = useServerFn(createStandardSet);
   const getSetFn = useServerFn(getStandardSet);
-  const { data: allCompounds = [], isPending: compoundsLoading } =
-    useQuery({ queryKey: qk.compounds.list(), queryFn: () => listCompoundsFn() });
+  const { data: allCompounds = [], isPending: compoundsLoading } = useQuery({
+    queryKey: qk.compounds.list(),
+    queryFn: () => listCompoundsFn(),
+  });
   const settingsQ = useQuery({ queryKey: ["sp-settings"], queryFn: () => getPrepSettings() });
   const signalWorkflowEvent = useWorkflowSignal();
 
@@ -91,7 +115,9 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     Array.from({ length: 6 }, (_, i) => ({ label: `L${i + 1}`, conc: {} })),
   );
 
-  const availableToAdd = allCompounds.filter(c => !compounds.some(gc => gc.compoundId === c.id));
+  const availableToAdd = allCompounds.filter(
+    (c) => !compounds.some((gc) => gc.compoundId === c.id),
+  );
 
   /**
    * Adding a compound seeds its column from the compound's own recommended
@@ -110,17 +136,22 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   }
 
   function addCompound(id: string) {
-    const c = allCompounds.find(x => x.id === id);
+    const c = allCompounds.find((x) => x.id === id);
     if (!c) return;
-    setCompounds(prev => [...prev, {
-      compoundId: c.id, name: c.name, abbrev: defaultAbbrev(c.name),
-      stockConcMgPerMl: 1,
-    }]);
+    setCompounds((prev) => [
+      ...prev,
+      {
+        compoundId: c.id,
+        name: c.name,
+        abbrev: defaultAbbrev(c.name),
+        stockConcMgPerMl: 1,
+      },
+    ]);
     const rec = recommendedLevels(c as unknown as { [k: string]: unknown });
-    if (rec.some(v => v != null)) {
-      setLevels(prev => prev.map((l, i) => (
-        rec[i] == null ? l : { ...l, conc: { ...l.conc, [c.id]: rec[i] } }
-      )));
+    if (rec.some((v) => v != null)) {
+      setLevels((prev) =>
+        prev.map((l, i) => (rec[i] == null ? l : { ...l, conc: { ...l.conc, [c.id]: rec[i] } })),
+      );
     }
   }
   /**
@@ -132,7 +163,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
    */
   function applyPreset(std: MultiCompoundStandard) {
     const resolved = std.members
-      .map(m => ({ m, c: resolveMember(m, allCompounds) }))
+      .map((m) => ({ m, c: resolveMember(m, allCompounds) }))
       .flatMap(({ m, c }) => (c ? [{ m, c }] : []));
     if (!resolved.length) {
       toast.error(`None of ${std.name}'s compounds are in the library yet.`);
@@ -143,35 +174,46 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     // to 3.7 mg/mL across the six recommended standards -- and no batch
     // volume changes it, since required stock and batch scale together.
     // 5 clears every one of them with room for a level revised upward.
-    setCompounds(resolved.map(({ m, c }) => ({
-      compoundId: c.id, name: c.name, abbrev: m.abbrev,
-      stockConcMgPerMl: MULTI_COMPOUND_STOCK_MG_PER_ML,
-    })));
-    setLevels(prev => prev.map((level, i) => {
-      const conc: Record<string, number | null> = {};
-      for (const { c } of resolved) {
-        const rec = recommendedLevels(c as unknown as { [k: string]: unknown })[i];
-        if (rec != null) conc[c.id] = rec;
-      }
-      return { ...level, conc };
-    }));
+    setCompounds(
+      resolved.map(({ m, c }) => ({
+        compoundId: c.id,
+        name: c.name,
+        abbrev: m.abbrev,
+        stockConcMgPerMl: MULTI_COMPOUND_STOCK_MG_PER_ML,
+      })),
+    );
+    setLevels((prev) =>
+      prev.map((level, i) => {
+        const conc: Record<string, number | null> = {};
+        for (const { c } of resolved) {
+          const rec = recommendedLevels(c as unknown as { [k: string]: unknown })[i];
+          if (rec != null) conc[c.id] = rec;
+        }
+        return { ...level, conc };
+      }),
+    );
     if (!standardName.trim()) setStandardName(std.name);
     const missing = std.members.length - resolved.length;
     toast.success(
-      `Loaded ${std.name} — ${resolved.length} compound${resolved.length === 1 ? "" : "s"}`
-      + (missing ? `, ${missing} not in the library` : ""),
+      `Loaded ${std.name} — ${resolved.length} compound${resolved.length === 1 ? "" : "s"}` +
+        (missing ? `, ${missing} not in the library` : ""),
     );
   }
 
   function removeCompound(id: string) {
-    setCompounds(prev => prev.filter(c => c.compoundId !== id));
-    setLevels(prev => prev.map(l => { const { [id]: _drop, ...rest } = l.conc; return { ...l, conc: rest }; }));
+    setCompounds((prev) => prev.filter((c) => c.compoundId !== id));
+    setLevels((prev) =>
+      prev.map((l) => {
+        const { [id]: _drop, ...rest } = l.conc;
+        return { ...l, conc: rest };
+      }),
+    );
   }
   function addLevel() {
-    setLevels(prev => [...prev, { label: `L${prev.length + 1}`, conc: {} }]);
+    setLevels((prev) => [...prev, { label: `L${prev.length + 1}`, conc: {} }]);
   }
   function removeLevel(idx: number) {
-    setLevels(prev => prev.filter((_, i) => i !== idx));
+    setLevels((prev) => prev.filter((_, i) => i !== idx));
   }
 
   const batchUl = (Number(batchVolumeMl) || 0) * 1000;
@@ -185,14 +227,17 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   const plans = useMemo(() => {
     const map = new Map<string, CompoundPlan>();
     for (const c of compounds) {
-      map.set(c.compoundId, planCompoundStocks({
-        compoundId: c.compoundId,
-        abbrev: c.abbrev,
-        stockConcMgPerMl: c.stockConcMgPerMl,
-        batchUl,
-        floorUl,
-        concByLevel: levels.map(l => l.conc[c.compoundId] ?? null),
-      }));
+      map.set(
+        c.compoundId,
+        planCompoundStocks({
+          compoundId: c.compoundId,
+          abbrev: c.abbrev,
+          stockConcMgPerMl: c.stockConcMgPerMl,
+          batchUl,
+          floorUl,
+          concByLevel: levels.map((l) => l.conc[c.compoundId] ?? null),
+        }),
+      );
     }
     return map;
   }, [compounds, levels, batchUl, floorUl]);
@@ -216,14 +261,20 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     const map = new Map<string, ReturnType<typeof snapLadder>>();
     for (const c of compounds) {
       const grid = benchGrid(c.stockConcMgPerMl, batchUl, floorUl);
-      map.set(c.compoundId, snapLadder(levels.map(l => l.conc[c.compoundId] ?? null), grid));
+      map.set(
+        c.compoundId,
+        snapLadder(
+          levels.map((l) => l.conc[c.compoundId] ?? null),
+          grid,
+        ),
+      );
     }
     return map;
   }, [compounds, levels, batchUl, floorUl]);
 
-  const snapIsUseful = compounds.some(c => {
+  const snapIsUseful = compounds.some((c) => {
     const s = snapPreview.get(c.compoundId);
-    return s != null && s.some(x => Math.abs(x.shift) > 1e-9);
+    return s != null && s.some((x) => Math.abs(x.shift) > 1e-9);
   });
 
   /**
@@ -231,7 +282,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
    * actually exist move; a blank cell stays blank.
    */
   function snapAllToGrid() {
-    const next = levels.map(l => ({ ...l, conc: { ...l.conc } }));
+    const next = levels.map((l) => ({ ...l, conc: { ...l.conc } }));
     let moved = 0;
     for (const c of compounds) {
       const snapped = snapPreview.get(c.compoundId);
@@ -246,7 +297,11 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       }
     }
     setLevels(next);
-    toast.success(moved ? `Moved ${moved} level${moved === 1 ? "" : "s"} onto the bench grid` : "Every level was already on the grid");
+    toast.success(
+      moved
+        ? `Moved ${moved} level${moved === 1 ? "" : "s"} onto the bench grid`
+        : "Every level was already on the grid",
+    );
   }
 
   /**
@@ -278,8 +333,8 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
   }
 
   /** Every intermediate that has to exist before the levels can be made. */
-  const allIntermediates = compounds.flatMap(c =>
-    (plans.get(c.compoundId)?.intermediates ?? []).map(it => ({ compound: c, it })),
+  const allIntermediates = compounds.flatMap((c) =>
+    (plans.get(c.compoundId)?.intermediates ?? []).map((it) => ({ compound: c, it })),
   );
 
   /**
@@ -296,7 +351,7 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     const issues: string[] = [];
     if (!batchUl) return issues;
     const level = levels[levelIdx];
-    const anyConc = compounds.some(c => level.conc[c.compoundId] != null);
+    const anyConc = compounds.some((c) => level.conc[c.compoundId] != null);
     if (!anyConc) return issues;
     const used = stockUsedUl(levelIdx);
 
@@ -314,13 +369,13 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
       // primary draw fell under the pipette floor. A bigger batch lifts it
       // back over, the intermediate disappears, and the volume can drop by
       // the whole factor. Here a bigger batch is exactly the fix.
-      const viaIntermediate = compounds.filter(c => drawFor(levelIdx, c.compoundId)?.fromFactor);
+      const viaIntermediate = compounds.filter((c) => drawFor(levelIdx, c.compoundId)?.fromFactor);
       if (viaIntermediate.length) {
         issues.push(
-          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch —`
-          + ` ${viaIntermediate.map(c => c.abbrev).join(", ")} draw${viaIntermediate.length === 1 ? "s" : ""}`
-          + ` from an intermediate, which multiplies the volume. Raise the batch volume so they can`
-          + ` come straight from the primary.`,
+          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch —` +
+            ` ${viaIntermediate.map((c) => c.abbrev).join(", ")} draw${viaIntermediate.length === 1 ? "s" : ""}` +
+            ` from an intermediate, which multiplies the volume. Raise the batch volume so they can` +
+            ` come straight from the primary.`,
         );
       } else {
         const ratio = compounds.reduce((sum, c) => {
@@ -328,18 +383,22 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
           return sum + (v != null && c.stockConcMgPerMl > 0 ? v / c.stockConcMgPerMl : 0);
         }, 0);
         issues.push(
-          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch`
-          + ` — a bigger batch won't help, both scale together. Use primaries at least`
-          + ` ${(Math.ceil(ratio * 100) / 100).toFixed(2)}× their current strength, or lower this level.`,
+          `needs ${Math.round(used)} µL of stock for a ${Math.round(batchUl)} µL batch` +
+            ` — a bigger batch won't help, both scale together. Use primaries at least` +
+            ` ${(Math.ceil(ratio * 100) / 100).toFixed(2)}× their current strength, or lower this level.`,
         );
       }
     } else if (used > batchUl * 0.9) {
-      issues.push(`${Math.round((used / batchUl) * 100)}% of this level is stock — barely a dilution; a stronger primary stock would give more room`);
+      issues.push(
+        `${Math.round((used / batchUl) * 100)}% of this level is stock — barely a dilution; a stronger primary stock would give more room`,
+      );
     }
     for (const c of compounds) {
       const d = drawFor(levelIdx, c.compoundId);
       if (d && !d.ok) {
-        issues.push(`${c.abbrev} would need ${Math.round(d.volumeUl)} µL of ${d.sourceLabel}, more than the ${Math.round(batchUl)} µL batch — raise the batch volume or use a weaker primary stock`);
+        issues.push(
+          `${c.abbrev} would need ${Math.round(d.volumeUl)} µL of ${d.sourceLabel}, more than the ${Math.round(batchUl)} µL batch — raise the batch volume or use a weaker primary stock`,
+        );
       }
     }
     return issues;
@@ -368,32 +427,35 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
           diluent_ul: round2(it.diluentUl),
           volume_ul: round2(it.volumeUl),
         })),
-        levels: levels.map((l, i) => ({
-          row_no: i + 1,
-          label: l.label,
-          components: compounds
-            .filter(c => l.conc[c.compoundId] != null)
-            .map(c => {
-              const d = drawFor(i, c.compoundId);
-              return {
-                compound_id: c.compoundId,
-                compound_name: c.name,
-                abbrev: c.abbrev,
-                concentration_mg_per_ml: l.conc[c.compoundId],
-                stock_volume_ul: d ? round2(d.volumeUl) : null,
-                source_label: d?.sourceLabel ?? primaryLabel(c.abbrev),
-              };
-            }),
-          diluent_volume_ul: round2(diluentUl(i)),
-          expected_note: null,
-        })).filter(l => l.components.length > 0),
+        levels: levels
+          .map((l, i) => ({
+            row_no: i + 1,
+            label: l.label,
+            components: compounds
+              .filter((c) => l.conc[c.compoundId] != null)
+              .map((c) => {
+                const d = drawFor(i, c.compoundId);
+                return {
+                  compound_id: c.compoundId,
+                  compound_name: c.name,
+                  abbrev: c.abbrev,
+                  concentration_mg_per_ml: l.conc[c.compoundId],
+                  stock_volume_ul: d ? round2(d.volumeUl) : null,
+                  source_label: d?.sourceLabel ?? primaryLabel(c.abbrev),
+                  stock_concentration_mg_per_ml: c.stockConcMgPerMl,
+                };
+              }),
+            diluent_volume_ul: round2(diluentUl(i)),
+            expected_note: null,
+          }))
+          .filter((l) => l.components.length > 0),
       };
       const created = await createFn({ data: payload });
       const detail = await getSetFn({ data: { id: created.id } });
       // The stored label is the bench-facing name; the factor behind it is
       // what restates the dilution relative to the primary. Look it up rather
       // than parsing the label back apart.
-      const factorByLabel = new Map(detail.intermediateSteps.map(it => [it.label, it.factor]));
+      const factorByLabel = new Map(detail.intermediateSteps.map((it) => [it.label, it.factor]));
       const doc = generateStandardSetCutSheetPdf({
         standardName: detail.standard_name,
         logNumber: detail.log_number,
@@ -401,19 +463,22 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
         analystName: detail.analyst_name,
         diluentName: detail.final_diluent ?? diluentName,
         batchVolumeMl: detail.final_volume_ml ?? Number(batchVolumeMl),
-        levels: detail.levels.map(l => ({
+        levels: detail.levels.map((l) => ({
           label: l.label,
-          components: l.components.map(c => ({
-            abbrev: compounds.find(gc => gc.name === c.compound_name)?.abbrev ?? defaultAbbrev(c.compound_name),
+          components: l.components.map((c) => ({
+            abbrev:
+              compounds.find((gc) => gc.name === c.compound_name)?.abbrev ??
+              defaultAbbrev(c.compound_name),
             concMgPerMl: c.concentration_mg_per_ml,
             stockUl: c.stock_volume_ul,
             sourceLabel: c.source_label,
-            sourceFactor: c.source_label ? factorByLabel.get(c.source_label) ?? null : null,
+            sourceFactor: c.source_label ? (factorByLabel.get(c.source_label) ?? null) : null,
+            stockConcMgPerMl: c.stock_concentration_mg_per_ml,
           })),
           diluentUl: l.diluent_volume_ul,
           expectedNote: l.expected_note,
         })),
-        intermediates: detail.intermediateSteps.map(it => ({
+        intermediates: detail.intermediateSteps.map((it) => ({
           compoundName: it.compound_name,
           label: it.label,
           sourceLabel: it.source_label,
@@ -437,7 +502,10 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const canSubmit = standardName.trim() && compounds.length > 0 && levels.some(l => compounds.some(c => l.conc[c.compoundId] != null));
+  const canSubmit =
+    standardName.trim() &&
+    compounds.length > 0 &&
+    levels.some((l) => compounds.some((c) => l.conc[c.compoundId] != null));
 
   return (
     <div className="space-y-4">
@@ -445,19 +513,28 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="space-y-1">
             <Label className="text-xs">Standard name</Label>
-            <Input value={standardName} onChange={e => setStandardName(e.target.value)} placeholder="e.g. SUMMIT Calibration Set" />
+            <Input
+              value={standardName}
+              onChange={(e) => setStandardName(e.target.value)}
+              placeholder="e.g. SUMMIT Calibration Set"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Analyst</Label>
-            <Input value={analystName} onChange={e => setAnalystName(e.target.value)} />
+            <Input value={analystName} onChange={(e) => setAnalystName(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Diluent</Label>
-            <Input value={diluentName} onChange={e => setDiluentName(e.target.value)} />
+            <Input value={diluentName} onChange={(e) => setDiluentName(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Batch volume (mL, per level)</Label>
-            <Input type="number" step="0.1" value={batchVolumeMl} onChange={e => setBatchVolumeMl(e.target.value)} />
+            <Input
+              type="number"
+              step="0.1"
+              value={batchVolumeMl}
+              onChange={(e) => setBatchVolumeMl(e.target.value)}
+            />
           </div>
         </div>
       </Card>
@@ -466,50 +543,59 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
         <div className="flex items-center justify-between">
           <div className="text-sm font-medium">Compounds</div>
           <Select value="" onValueChange={addCompound}>
-            <SelectTrigger className="h-8 w-56 text-xs"><SelectValue placeholder="Add a compound…" /></SelectTrigger>
+            <SelectTrigger className="h-8 w-56 text-xs">
+              <SelectValue placeholder="Add a compound…" />
+            </SelectTrigger>
             <SelectContent>
-              {availableToAdd.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.is_blend ? " (blend)" : ""}</SelectItem>)}
+              {availableToAdd.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                  {c.is_blend ? " (blend)" : ""}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
         {compounds.length > 0 && (
           <div className="text-[11px] text-muted-foreground">
             One stock per compound, made fresh for this set and covering all{" "}
-            {levels.filter(l => compounds.some(c => l.conc[c.compoundId] != null)).length} levels at{" "}
-            {batchVolumeMl} mL each. The figure on each chip includes the aliquot spent making its
-            first intermediate — a single-use stock gets no credit for what it leaves behind — plus
-            15% for dead volume.
+            {levels.filter((l) => compounds.some((c) => l.conc[c.compoundId] != null)).length}{" "}
+            levels at {batchVolumeMl} mL each. The figure on each chip includes the aliquot spent
+            making its first intermediate — a single-use stock gets no credit for what it leaves
+            behind — plus 15% for dead volume.
           </div>
         )}
         {compounds.length === 0 && (
           <div className="space-y-2.5">
             <div className="text-xs text-muted-foreground">
               Add a compound above, or start from a recommended grouping. These pack every
-              calibrated compound on the main gradient into as few standards as possible,
-              keeping at least {MIN_RT_GAP_MIN.toFixed(2)} min between any two peaks sharing a vial.
-              Everything stays editable once loaded.
+              calibrated compound on the main gradient into as few standards as possible, keeping at
+              least {MIN_RT_GAP_MIN.toFixed(2)} min between any two peaks sharing a vial. Everything
+              stays editable once loaded.
             </div>
             <div className="grid gap-2 lg:grid-cols-2">
-              {MULTI_COMPOUND_STANDARDS.map(std => {
+              {MULTI_COMPOUND_STANDARDS.map((std) => {
                 const { firstRt, lastRt, closestGapMin } = standardSpread(std);
-                const rows = std.members.map(m => ({ m, c: resolveMember(m, allCompounds) }));
+                const rows = std.members.map((m) => ({ m, c: resolveMember(m, allCompounds) }));
                 // While the library is still loading nothing resolves, and
                 // saying "not in library" then is a claim about the library
                 // rather than about the fetch -- it reads as "you don't own
                 // any of these", which is the opposite of true.
-                const missing = compoundsLoading ? 0 : rows.filter(r => !r.c).length;
+                const missing = compoundsLoading ? 0 : rows.filter((r) => !r.c).length;
                 return (
                   <div key={std.id} className="border rounded-md p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <div className="text-sm font-medium">{std.name}</div>
                         <div className="text-[11px] text-muted-foreground tabular-nums">
-                          {std.members.length} compounds · {firstRt.toFixed(2)}–{lastRt.toFixed(2)} min ·
-                          {" "}closest pair {closestGapMin.toFixed(2)} min
+                          {std.members.length} compounds · {firstRt.toFixed(2)}–{lastRt.toFixed(2)}{" "}
+                          min · closest pair {closestGapMin.toFixed(2)} min
                         </div>
                       </div>
                       <Button
-                        size="sm" variant="secondary" className="h-7 text-xs shrink-0"
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 text-xs shrink-0"
                         disabled={compoundsLoading || missing === std.members.length}
                         onClick={() => applyPreset(std)}
                       >
@@ -524,45 +610,76 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                         >
                           <span className="truncate">
                             {m.name}
-                            {!c && !compoundsLoading && <span className="ml-1 italic">— not in library</span>}
+                            {!c && !compoundsLoading && (
+                              <span className="ml-1 italic">— not in library</span>
+                            )}
                           </span>
-                          <span className="tabular-nums text-muted-foreground shrink-0">{m.rtMin.toFixed(3)}</span>
+                          <span className="tabular-nums text-muted-foreground shrink-0">
+                            {m.rtMin.toFixed(3)}
+                          </span>
                         </div>
                       ))}
                     </div>
-                    {std.note && <div className="text-[11px] text-muted-foreground">{std.note}</div>}
+                    {std.note && (
+                      <div className="text-[11px] text-muted-foreground">{std.note}</div>
+                    )}
                     {std.caution && (
-                      <div className="text-[11px] text-amber-700 dark:text-amber-500">{std.caution}</div>
+                      <div className="text-[11px] text-amber-700 dark:text-amber-500">
+                        {std.caution}
+                      </div>
                     )}
                   </div>
                 );
               })}
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {POLAR_UNGROUPED.length} calibrated compounds eluting before 2 min aren't grouped: on this
-              method they stack up in the void volume — seven of them inside a single{" "}
-              {MIN_RT_GAP_MIN.toFixed(2)} min window — so any grouping built from these retention times
-              would put peaks in one vial that can't be told apart. They need retention times from the
-              aqueous method first.
+              {POLAR_UNGROUPED.length} calibrated compounds eluting before 2 min aren't grouped: on
+              this method they stack up in the void volume — seven of them inside a single{" "}
+              {MIN_RT_GAP_MIN.toFixed(2)} min window — so any grouping built from these retention
+              times would put peaks in one vial that can't be told apart. They need retention times
+              from the aqueous method first.
             </div>
             <div className="text-[11px] text-muted-foreground">
-              {RUN_ALONE.join(", ")} {RUN_ALONE.length === 1 ? "is" : "are"} calibrated but deliberately
-              left out — still under development, run alone.
+              {RUN_ALONE.join(", ")} {RUN_ALONE.length === 1 ? "is" : "are"} calibrated but
+              deliberately left out — still under development, run alone.
             </div>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          {compounds.map(c => (
-            <div key={c.compoundId} className="flex items-center gap-1.5 border rounded-md px-2 py-1 text-xs">
+          {compounds.map((c) => (
+            <div
+              key={c.compoundId}
+              className="flex items-center gap-1.5 border rounded-md px-2 py-1 text-xs"
+            >
               <span className="font-medium">{c.name}</span>
               <Input
-                className="h-6 w-12 text-[11px] px-1" value={c.abbrev}
-                onChange={e => setCompounds(prev => prev.map(x => x.compoundId === c.compoundId ? { ...x, abbrev: e.target.value.toUpperCase() } : x))}
+                className="h-6 w-12 text-[11px] px-1"
+                value={c.abbrev}
+                onChange={(e) =>
+                  setCompounds((prev) =>
+                    prev.map((x) =>
+                      x.compoundId === c.compoundId
+                        ? { ...x, abbrev: e.target.value.toUpperCase() }
+                        : x,
+                    ),
+                  )
+                }
               />
               <span className="text-muted-foreground">stock</span>
               <Input
-                className="h-6 w-16 text-[11px] px-1" type="number" step="0.1" value={c.stockConcMgPerMl}
-                onChange={e => setCompounds(prev => prev.map(x => x.compoundId === c.compoundId ? { ...x, stockConcMgPerMl: Number(e.target.value) || 1 } : x))}
+                className="h-6 w-16 text-[11px] px-1"
+                type="number"
+                step="0.1"
+                value={c.stockConcMgPerMl}
+                onChange={(e) =>
+                  setCompounds((prev) =>
+                    prev.map((x) =>
+                      x.compoundId === c.compoundId
+                        ? { ...x, stockConcMgPerMl: Number(e.target.value) || 1 }
+                        : x,
+                    ),
+                  )
+                }
               />
               <span className="text-muted-foreground">mg/mL</span>
               {stockToMakeUl(c.compoundId) > 0 && (
@@ -572,11 +689,17 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                 >
                   make {stockToMakeUl(c.compoundId)} µL
                   <span className="text-muted-foreground">
-                    {" "}= {((stockToMakeUl(c.compoundId) * c.stockConcMgPerMl) / 1000).toFixed(2)} mg
+                    {" "}
+                    = {((stockToMakeUl(c.compoundId) * c.stockConcMgPerMl) / 1000).toFixed(2)} mg
                   </span>
                 </span>
               )}
-              <Button size="icon" variant="ghost" className="size-5" onClick={() => removeCompound(c.compoundId)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-5"
+                onClick={() => removeCompound(c.compoundId)}
+              >
                 <Trash2 className="size-3 text-destructive" />
               </Button>
             </div>
@@ -588,9 +711,9 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
         <Card className="p-4 space-y-2">
           <div className="text-sm font-medium">Make these first — intermediate stocks</div>
           <p className="text-[11px] text-muted-foreground">
-            These levels need less of the primary stock than the {floorUl}&nbsp;µL pipette floor allows,
-            so they're drawn from a weaker stock instead. Each one is a dilution of the line above it,
-            so make them in this order.
+            These levels need less of the primary stock than the {floorUl}&nbsp;µL pipette floor
+            allows, so they're drawn from a weaker stock instead. Each one is a dilution of the line
+            above it, so make them in this order.
           </p>
           <div className="overflow-x-auto">
             <table className="text-xs w-full min-w-[520px]">
@@ -615,8 +738,12 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                     </td>
                     <td className="py-1 pr-3 text-muted-foreground">{it.sourceLabel}</td>
                     <td className="py-1 pr-3 text-right">{Math.round(it.aliquotUl)} µL</td>
-                    <td className="py-1 pr-3 text-right text-muted-foreground">{Math.round(it.diluentUl)} µL</td>
-                    <td className="py-1 pr-3 text-right text-muted-foreground">{Math.round(it.volumeUl)} µL</td>
+                    <td className="py-1 pr-3 text-right text-muted-foreground">
+                      {Math.round(it.diluentUl)} µL
+                    </td>
+                    <td className="py-1 pr-3 text-right text-muted-foreground">
+                      {Math.round(it.volumeUl)} µL
+                    </td>
                     <td className="py-1 text-right">{it.concMgPerMl} mg/mL</td>
                   </tr>
                 ))}
@@ -630,7 +757,10 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
         <Card className="p-4 space-y-2 overflow-x-auto">
           <div className="flex items-center justify-between">
             <div className="text-sm font-medium">Levels — concentration (mg/mL) per compound</div>
-            <Button size="sm" variant="outline" onClick={addLevel}><Plus className="size-3.5 mr-1" />Add level</Button>
+            <Button size="sm" variant="outline" onClick={addLevel}>
+              <Plus className="size-3.5 mr-1" />
+              Add level
+            </Button>
           </div>
 
           {/* States what the pre-filled numbers are and where they came from,
@@ -642,14 +772,18 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
             <table className="text-[11px] w-full">
               <tbody>
                 {compounds.map((c) => {
-                  const src = allCompounds.find(x => x.id === c.compoundId);
-                  const rec = src ? recommendedLevels(src as unknown as { [k: string]: unknown }) : [];
+                  const src = allCompounds.find((x) => x.id === c.compoundId);
+                  const rec = src
+                    ? recommendedLevels(src as unknown as { [k: string]: unknown })
+                    : [];
                   const shown = rec.filter((v): v is number => v != null);
                   return (
                     <tr key={c.compoundId}>
                       <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
                       <td className="py-0.5 font-mono text-muted-foreground">
-                        {shown.length ? shown.map(v => v.toFixed(3)).join(" · ") + " mg/mL" : "no recommended range on file"}
+                        {shown.length
+                          ? shown.map((v) => v.toFixed(3)).join(" · ") + " mg/mL"
+                          : "no recommended range on file"}
                       </td>
                     </tr>
                   );
@@ -657,24 +791,30 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
               </tbody>
             </table>
             <div className="text-[10px] text-muted-foreground mt-1">
-              Pre-filled below and fully editable. Derived from measured peak height targeting 100–1800&nbsp;mAU;
-              each level is a whole 5&nbsp;µL of 1&nbsp;mg/mL stock per 1&nbsp;mL.
+              Pre-filled below and fully editable. Derived from measured peak height targeting
+              100–1800&nbsp;mAU; each level is a whole 5&nbsp;µL of 1&nbsp;mg/mL stock per
+              1&nbsp;mL.
             </div>
             {snapIsUseful && (
               <div className="mt-2 pt-2 border-t border-border space-y-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="text-[11px] text-muted-foreground">
-                    These levels can be moved onto the <strong>bench grid</strong> — the concentrations the
-                    fixed-volume pipettors make without changing a setting. Nothing else about the set changes,
-                    and no extra standard is consumed.
+                    These levels can be moved onto the <strong>bench grid</strong> — the
+                    concentrations the fixed-volume pipettors make without changing a setting.
+                    Nothing else about the set changes, and no extra standard is consumed.
                   </div>
-                  <Button size="sm" variant="secondary" className="h-7 text-xs shrink-0" onClick={snapAllToGrid}>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-7 text-xs shrink-0"
+                    onClick={snapAllToGrid}
+                  >
                     Snap to bench grid
                   </Button>
                 </div>
                 <table className="text-[11px] w-full">
                   <tbody>
-                    {compounds.map(c => {
+                    {compounds.map((c) => {
                       const snapped = snapPreview.get(c.compoundId);
                       if (!snapped) {
                         return (
@@ -691,10 +831,16 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                         <tr key={c.compoundId}>
                           <td className="pr-3 py-0.5 whitespace-nowrap">{c.name}</td>
                           <td className="py-0.5 font-mono text-muted-foreground tabular-nums">
-                            {snapped.map(x => x.point.concMgPerMl.toPrecision(3)).join(" · ")}
+                            {snapped.map((x) => x.point.concMgPerMl.toPrecision(3)).join(" · ")}
                           </td>
                           <td className="py-0.5 pl-3 text-right tabular-nums whitespace-nowrap">
-                            <span className={w > 0.06 ? "text-amber-700 dark:text-amber-500" : "text-muted-foreground"}>
+                            <span
+                              className={
+                                w > 0.06
+                                  ? "text-amber-700 dark:text-amber-500"
+                                  : "text-muted-foreground"
+                              }
+                            >
                               worst {(w * 100).toFixed(1)}%
                             </span>
                           </td>
@@ -710,8 +856,16 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
             <thead>
               <tr className="text-left text-muted-foreground">
                 <th className="pb-1 pr-2">Level</th>
-                {compounds.map(c => <th key={c.compoundId} className="pb-1 pr-2">{c.abbrev} mg/mL</th>)}
-                {compounds.map(c => <th key={c.compoundId + "-ul"} className="pb-1 pr-2 text-muted-foreground/70">{c.abbrev} µL</th>)}
+                {compounds.map((c) => (
+                  <th key={c.compoundId} className="pb-1 pr-2">
+                    {c.abbrev} mg/mL
+                  </th>
+                ))}
+                {compounds.map((c) => (
+                  <th key={c.compoundId + "-ul"} className="pb-1 pr-2 text-muted-foreground/70">
+                    {c.abbrev} µL
+                  </th>
+                ))}
                 <th className="pb-1 pr-2 text-muted-foreground/70">Diluent µL</th>
                 <th className="w-8"></th>
               </tr>
@@ -720,22 +874,35 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
               {levels.map((level, li) => (
                 <tr key={li} className="border-t border-border">
                   <td className="py-1 pr-2 font-medium">
-                    <Input className="h-7 w-14 text-xs" value={level.label}
-                      onChange={e => setLevels(prev => prev.map((l, i) => i === li ? { ...l, label: e.target.value } : l))} />
+                    <Input
+                      className="h-7 w-14 text-xs"
+                      value={level.label}
+                      onChange={(e) =>
+                        setLevels((prev) =>
+                          prev.map((l, i) => (i === li ? { ...l, label: e.target.value } : l)),
+                        )
+                      }
+                    />
                   </td>
-                  {compounds.map(c => (
+                  {compounds.map((c) => (
                     <td key={c.compoundId} className="py-1 pr-2">
                       <Input
-                        className="h-7 w-20 text-xs" type="number" step="0.005"
+                        className="h-7 w-20 text-xs"
+                        type="number"
+                        step="0.005"
                         value={level.conc[c.compoundId] ?? ""}
-                        onChange={e => {
+                        onChange={(e) => {
                           const v = e.target.value === "" ? null : Number(e.target.value);
-                          setLevels(prev => prev.map((l, i) => i === li ? { ...l, conc: { ...l.conc, [c.compoundId]: v } } : l));
+                          setLevels((prev) =>
+                            prev.map((l, i) =>
+                              i === li ? { ...l, conc: { ...l.conc, [c.compoundId]: v } } : l,
+                            ),
+                          );
                         }}
                       />
                     </td>
                   ))}
-                  {compounds.map(c => {
+                  {compounds.map((c) => {
                     const d = drawFor(li, c.compoundId);
                     return (
                       <td key={c.compoundId + "-ul"} className="py-1 pr-2 tabular-nums">
@@ -748,12 +915,25 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
                               </span>
                             )}
                           </span>
-                        ) : <span className="text-muted-foreground">—</span>}
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
                       </td>
                     );
                   })}
-                  <td className="py-1 pr-2 text-muted-foreground tabular-nums">{Math.round(diluentUl(li))}</td>
-                  <td><Button size="icon" variant="ghost" className="size-6" onClick={() => removeLevel(li)}><Trash2 className="size-3.5 text-destructive" /></Button></td>
+                  <td className="py-1 pr-2 text-muted-foreground tabular-nums">
+                    {Math.round(diluentUl(li))}
+                  </td>
+                  <td>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-6"
+                      onClick={() => removeLevel(li)}
+                    >
+                      <Trash2 className="size-3.5 text-destructive" />
+                    </Button>
+                  </td>
                 </tr>
               ))}
               {levels.some((_l, li) => levelIssues(li).length > 0) && (
@@ -781,12 +961,22 @@ export function StandardSetFlow({ defaultAnalystName, userToken }: { defaultAnal
 
       <Card className="p-4 space-y-2">
         <Label className="text-xs">Why this range (goes on the printed cut sheet)</Label>
-        <Textarea rows={3} value={rangeReasoning} onChange={e => setRangeReasoning(e.target.value)} placeholder="Floor/ceiling reasoning, budget checks, anything the next analyst should know." />
+        <Textarea
+          rows={3}
+          value={rangeReasoning}
+          onChange={(e) => setRangeReasoning(e.target.value)}
+          placeholder="Floor/ceiling reasoning, budget checks, anything the next analyst should know."
+        />
       </Card>
 
       <div className="flex justify-end">
-        <Button disabled={!canSubmit || createMut.isPending} onClick={() => createMut.mutate()} data-guide="standard-set-submit">
-          <Download className="size-4 mr-1" /> {createMut.isPending ? "Saving…" : "Save & Download Cut Sheet"}
+        <Button
+          disabled={!canSubmit || createMut.isPending}
+          onClick={() => createMut.mutate()}
+          data-guide="standard-set-submit"
+        >
+          <Download className="size-4 mr-1" />{" "}
+          {createMut.isPending ? "Saving…" : "Save & Download Cut Sheet"}
         </Button>
       </div>
     </div>

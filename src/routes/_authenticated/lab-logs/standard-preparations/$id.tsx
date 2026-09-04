@@ -101,6 +101,7 @@ function PrepDetail() {
             abbrev: abbrevFor(c.compound_name, c.source_label),
             concMgPerMl: c.concentration_mg_per_ml,
             stockUl: c.stock_volume_ul,
+            stockConcMgPerMl: c.stock_concentration_mg_per_ml,
           })),
           diluentUl: l.diluent_volume_ul,
           expectedNote: l.expected_note,

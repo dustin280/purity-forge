@@ -16,6 +16,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import { addDaysISO } from "./prep-shared.server";
 
 const componentSchema = z.object({
@@ -26,6 +27,8 @@ const componentSchema = z.object({
   stock_volume_ul: z.number().nullable().optional(),
   /** Which stock the aliquot comes from. Absent/null means the primary. */
   source_label: z.string().max(60).nullable().optional(),
+  /** Concentration of the primary stock (mg/mL); shown on the cut sheet. */
+  stock_concentration_mg_per_ml: z.number().nullable().optional(),
 });
 
 /**
@@ -75,15 +78,22 @@ export const createStandardSet = createServerFn({ method: "POST" })
     const preparedDate = new Date(data.prepared_at).toISOString().slice(0, 10);
 
     const rowId = crypto.randomUUID();
-    const { data: docNumber, error: docErr } = await context.supabase
-      .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+    const { data: docNumber, error: docErr } = await context.supabase.rpc("register_document", {
+      p_code: "STDP",
+      p_source_table: "standard_preparation_logs",
+      p_source_id: rowId,
+      p_date: preparedDate,
+      p_created_by: context.userId,
+    });
     if (docErr) throw docErr;
     const log_number = docNumber as unknown as string;
 
     const days = data.expiration_period_days ?? null;
     const expirationDate = days ? addDaysISO(data.prepared_at, days) : null;
 
-    const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.compound_name))));
+    const compoundNames = Array.from(
+      new Set(data.levels.flatMap((l) => l.components.map((c) => c.compound_name))),
+    );
     const levelCount = data.levels.length;
 
     const logPayload: Record<string, unknown> = {
@@ -140,9 +150,10 @@ export const createStandardSet = createServerFn({ method: "POST" })
           target_concentration_unit: "mg/mL",
           target_volume_ml: data.batch_volume_ml,
           calculated_mass_mg: null,
-          calculated_volume_ml: primary?.stock_volume_ul != null ? primary.stock_volume_ul / 1000 : null,
+          calculated_volume_ml:
+            primary?.stock_volume_ul != null ? primary.stock_volume_ul / 1000 : null,
           notes: level.expected_note ?? "",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
         .select("id")
         .single();
@@ -155,6 +166,7 @@ export const createStandardSet = createServerFn({ method: "POST" })
         concentration_mg_per_ml: c.concentration_mg_per_ml ?? null,
         stock_volume_ul: c.stock_volume_ul ?? null,
         source_label: c.source_label ?? null,
+        stock_concentration_mg_per_ml: c.stock_concentration_mg_per_ml ?? null,
         sort_order: i,
       }));
       if (level.diluent_volume_ul != null) {
@@ -165,10 +177,12 @@ export const createStandardSet = createServerFn({ method: "POST" })
           concentration_mg_per_ml: null,
           stock_volume_ul: level.diluent_volume_ul,
           source_label: null,
+          stock_concentration_mg_per_ml: null,
           sort_order: level.components.length,
         });
       }
-      const { error: cErr } = await context.supabase
+      // Cast: stock_concentration_mg_per_ml is newer than the generated types.
+      const { error: cErr } = await (context.supabase as AnySupabase)
         .from("standard_preparation_target_components")
         .insert(componentRows);
       if (cErr) throw cErr;
@@ -215,12 +229,19 @@ export const createStandardSetRevision = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const preparedDate = new Date().toISOString().slice(0, 10);
     const rowId = crypto.randomUUID();
-    const { data: docNumber, error: docErr } = await context.supabase
-      .rpc("register_document", { p_code: "STDP", p_source_table: "standard_preparation_logs", p_source_id: rowId, p_date: preparedDate, p_created_by: context.userId });
+    const { data: docNumber, error: docErr } = await context.supabase.rpc("register_document", {
+      p_code: "STDP",
+      p_source_table: "standard_preparation_logs",
+      p_source_id: rowId,
+      p_date: preparedDate,
+      p_created_by: context.userId,
+    });
     if (docErr) throw docErr;
     const log_number = docNumber as unknown as string;
 
-    const compoundNames = Array.from(new Set(data.levels.flatMap(l => l.components.map(c => c.compound_name))));
+    const compoundNames = Array.from(
+      new Set(data.levels.flatMap((l) => l.components.map((c) => c.compound_name))),
+    );
     const levelCount = data.levels.length;
 
     const logPayload: Record<string, unknown> = {
@@ -251,7 +272,9 @@ export const createStandardSetRevision = createServerFn({ method: "POST" })
       prep_type: "standard_set",
       final_volume_ml: data.batch_volume_ml,
       revised_from_id: data.revised_from_id,
-      edit_history: [{ at: new Date().toISOString(), by: data.analyst_name, summary: data.summary }],
+      edit_history: [
+        { at: new Date().toISOString(), by: data.analyst_name, summary: data.summary },
+      ],
     };
 
     const { data: row, error: insErr } = await context.supabase
@@ -274,9 +297,10 @@ export const createStandardSetRevision = createServerFn({ method: "POST" })
           target_concentration_unit: "mg/mL",
           target_volume_ml: data.batch_volume_ml,
           calculated_mass_mg: null,
-          calculated_volume_ml: primary?.stock_volume_ul != null ? primary.stock_volume_ul / 1000 : null,
+          calculated_volume_ml:
+            primary?.stock_volume_ul != null ? primary.stock_volume_ul / 1000 : null,
           notes: level.expected_note ?? "",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
         .select("id")
         .single();
@@ -289,6 +313,7 @@ export const createStandardSetRevision = createServerFn({ method: "POST" })
         concentration_mg_per_ml: c.concentration_mg_per_ml ?? null,
         stock_volume_ul: c.stock_volume_ul ?? null,
         source_label: c.source_label ?? null,
+        stock_concentration_mg_per_ml: c.stock_concentration_mg_per_ml ?? null,
         sort_order: i,
       }));
       if (level.diluent_volume_ul != null) {
@@ -299,10 +324,12 @@ export const createStandardSetRevision = createServerFn({ method: "POST" })
           concentration_mg_per_ml: null,
           stock_volume_ul: level.diluent_volume_ul,
           source_label: null,
+          stock_concentration_mg_per_ml: null,
           sort_order: level.components.length,
         });
       }
-      const { error: cErr } = await context.supabase
+      // Cast: stock_concentration_mg_per_ml is newer than the generated types.
+      const { error: cErr } = await (context.supabase as AnySupabase)
         .from("standard_preparation_target_components")
         .insert(componentRows);
       if (cErr) throw cErr;
@@ -324,7 +351,12 @@ export const listStandardSetRevisions = createServerFn({ method: "GET" })
       .eq("revised_from_id", data.id)
       .order("prepared_at", { ascending: false });
     if (error) throw error;
-    return (rows ?? []) as Array<{ id: string; log_number: string; standard_name: string; prepared_at: string }>;
+    return (rows ?? []) as Array<{
+      id: string;
+      log_number: string;
+      standard_name: string;
+      prepared_at: string;
+    }>;
   });
 
 export interface StandardSetLevel {
@@ -338,6 +370,8 @@ export interface StandardSetLevel {
     stock_volume_ul: number | null;
     /** Which stock this aliquot came from. Null means the primary. */
     source_label: string | null;
+    /** Concentration of the primary stock (mg/mL); null on older records. */
+    stock_concentration_mg_per_ml: number | null;
   }>;
   diluent_volume_ul: number | null;
   expected_note: string | null;
@@ -386,7 +420,9 @@ export const getStandardSet = createServerFn({ method: "GET" })
   .handler(async ({ context, data }): Promise<StandardSetDetail> => {
     const { data: log, error: logErr } = await context.supabase
       .from("standard_preparation_logs")
-      .select("id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps, edit_history, revised_from_id")
+      .select(
+        "id, log_number, standard_name, analyst_name, prepared_at, final_diluent, final_volume_ml, notes, reviewer_name, approved_at, preparation_steps, edit_history, revised_from_id",
+      )
       .eq("id", data.id)
       .single();
     if (logErr) throw logErr;
@@ -412,30 +448,43 @@ export const getStandardSet = createServerFn({ method: "GET" })
       .order("row_no", { ascending: true });
     if (tErr) throw tErr;
 
-    const targetIds = (targets ?? []).map(t => t.id);
+    const targetIds = (targets ?? []).map((t) => t.id);
     const { data: components, error: cErr } = targetIds.length
-      ? await context.supabase
-        .from("standard_preparation_target_components")
-        .select("target_id, compound_id, compound_name, concentration_mg_per_ml, stock_volume_ul, source_label, sort_order")
-        .in("target_id", targetIds)
-        .order("sort_order", { ascending: true })
+      ? await (context.supabase as AnySupabase)
+          .from("standard_preparation_target_components")
+          .select(
+            "target_id, compound_id, compound_name, concentration_mg_per_ml, stock_volume_ul, source_label, stock_concentration_mg_per_ml, sort_order",
+          )
+          .in("target_id", targetIds)
+          .order("sort_order", { ascending: true })
       : { data: [], error: null };
     if (cErr) throw cErr;
 
-    const levels: StandardSetLevel[] = (targets ?? []).map(t => {
-      const rows = (components ?? []).filter(c => c.target_id === t.id);
-      const diluentRow = rows.find(c => c.compound_name.endsWith("(diluent)"));
-      const compoundRows = rows.filter(c => c !== diluentRow);
+    type ComponentRow = {
+      target_id: string;
+      compound_id: string | null;
+      compound_name: string;
+      concentration_mg_per_ml: number | null;
+      stock_volume_ul: number | null;
+      source_label: string | null;
+      stock_concentration_mg_per_ml: number | null;
+      sort_order: number;
+    };
+    const levels: StandardSetLevel[] = (targets ?? []).map((t) => {
+      const rows = ((components ?? []) as ComponentRow[]).filter((c) => c.target_id === t.id);
+      const diluentRow = rows.find((c) => c.compound_name.endsWith("(diluent)"));
+      const compoundRows = rows.filter((c) => c !== diluentRow);
       return {
         target_id: t.id,
         row_no: t.row_no,
         label: t.name ?? `L${t.row_no}`,
-        components: compoundRows.map(c => ({
+        components: compoundRows.map((c) => ({
           compound_id: c.compound_id ?? null,
           compound_name: c.compound_name,
           concentration_mg_per_ml: c.concentration_mg_per_ml,
           stock_volume_ul: c.stock_volume_ul,
           source_label: c.source_label ?? null,
+          stock_concentration_mg_per_ml: c.stock_concentration_mg_per_ml ?? null,
         })),
         diluent_volume_ul: diluentRow?.stock_volume_ul ?? null,
         expected_note: t.notes || null,
@@ -450,7 +499,10 @@ export const getStandardSet = createServerFn({ method: "GET" })
     const editHistory = (Array.isArray(editHistoryRaw) ? editHistoryRaw : []) as EditHistoryEntry[];
 
     return {
-      ...(log as Omit<StandardSetDetail, "levels" | "intermediateSteps" | "editHistory" | "revisedFrom">),
+      ...(log as Omit<
+        StandardSetDetail,
+        "levels" | "intermediateSteps" | "editHistory" | "revisedFrom"
+      >),
       levels,
       editHistory: [...editHistory].reverse(),
       intermediateSteps,
