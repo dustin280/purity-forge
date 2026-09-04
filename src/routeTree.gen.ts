@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LiveRouteImport } from './routes/live'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiChatTroubleshootingRouteImport } from './routes/api/chat-troubleshooting'
@@ -112,6 +113,8 @@ import { Route as AuthenticatedLabLogsBenchSheetsIndexRouteImport } from './rout
 import { Route as AuthenticatedLabLogsAnalysisBatchesIndexRouteImport } from './routes/_authenticated/lab-logs/analysis-batches/index'
 import { Route as ApiPublicStatusBatchIdRouteImport } from './routes/api/public/status/$batchId'
 import { Route as ApiPublicOrdersIntakeRouteImport } from './routes/api/public/orders/intake'
+import { Route as ApiPublicLiveSnapshotRouteImport } from './routes/api/public/live/snapshot'
+import { Route as ApiPublicLiveRedeemRouteImport } from './routes/api/public/live/redeem'
 import { Route as ApiPublicExportsBatchIdRouteImport } from './routes/api/public/exports/$batchId'
 import { Route as ApiPublicColumnsDataVendorRouteImport } from './routes/api/public/columns-data/$vendor'
 import { Route as AuthenticatedSamplePrepRecordsIdRouteImport } from './routes/_authenticated/sample-prep/records.$id'
@@ -139,6 +142,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -723,6 +731,16 @@ const ApiPublicOrdersIntakeRoute = ApiPublicOrdersIntakeRouteImport.update({
   path: '/api/public/orders/intake',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLiveSnapshotRoute = ApiPublicLiveSnapshotRouteImport.update({
+  id: '/api/public/live/snapshot',
+  path: '/api/public/live/snapshot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicLiveRedeemRoute = ApiPublicLiveRedeemRouteImport.update({
+  id: '/api/public/live/redeem',
+  path: '/api/public/live/redeem',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicExportsBatchIdRoute = ApiPublicExportsBatchIdRouteImport.update({
   id: '/api/public/exports/$batchId',
   path: '/api/public/exports/$batchId',
@@ -833,6 +851,7 @@ const AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
@@ -935,6 +954,8 @@ export interface FileRoutesByFullPath {
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/live/redeem': typeof ApiPublicLiveRedeemRoute
+  '/api/public/live/snapshot': typeof ApiPublicLiveSnapshotRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/lab-logs/analysis-batches/': typeof AuthenticatedLabLogsAnalysisBatchesIndexRoute
@@ -954,6 +975,7 @@ export interface FileRoutesByFullPath {
   '/lab-logs/standard-preparations/batch/$groupId': typeof AuthenticatedLabLogsStandardPreparationsBatchGroupIdRoute
 }
 export interface FileRoutesByTo {
+  '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
@@ -1057,6 +1079,8 @@ export interface FileRoutesByTo {
   '/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/live/redeem': typeof ApiPublicLiveRedeemRoute
+  '/api/public/live/snapshot': typeof ApiPublicLiveSnapshotRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/lab-logs/analysis-batches': typeof AuthenticatedLabLogsAnalysisBatchesIndexRoute
@@ -1078,6 +1102,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/live': typeof LiveRoute
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/chain-of-custody': typeof AuthenticatedChainOfCustodyRoute
@@ -1181,6 +1206,8 @@ export interface FileRoutesById {
   '/_authenticated/sample-prep/records/$id': typeof AuthenticatedSamplePrepRecordsIdRoute
   '/api/public/columns-data/$vendor': typeof ApiPublicColumnsDataVendorRoute
   '/api/public/exports/$batchId': typeof ApiPublicExportsBatchIdRoute
+  '/api/public/live/redeem': typeof ApiPublicLiveRedeemRoute
+  '/api/public/live/snapshot': typeof ApiPublicLiveSnapshotRoute
   '/api/public/orders/intake': typeof ApiPublicOrdersIntakeRoute
   '/api/public/status/$batchId': typeof ApiPublicStatusBatchIdRoute
   '/_authenticated/lab-logs/analysis-batches/': typeof AuthenticatedLabLogsAnalysisBatchesIndexRoute
@@ -1203,6 +1230,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/live'
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
@@ -1305,6 +1333,8 @@ export interface FileRouteTypes {
     | '/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/live/redeem'
+    | '/api/public/live/snapshot'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
     | '/lab-logs/analysis-batches/'
@@ -1324,6 +1354,7 @@ export interface FileRouteTypes {
     | '/lab-logs/standard-preparations/batch/$groupId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/live'
     | '/login'
     | '/reset-password'
     | '/chain-of-custody'
@@ -1427,6 +1458,8 @@ export interface FileRouteTypes {
     | '/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/live/redeem'
+    | '/api/public/live/snapshot'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
     | '/lab-logs/analysis-batches'
@@ -1447,6 +1480,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/live'
     | '/login'
     | '/reset-password'
     | '/_authenticated/chain-of-custody'
@@ -1550,6 +1584,8 @@ export interface FileRouteTypes {
     | '/_authenticated/sample-prep/records/$id'
     | '/api/public/columns-data/$vendor'
     | '/api/public/exports/$batchId'
+    | '/api/public/live/redeem'
+    | '/api/public/live/snapshot'
     | '/api/public/orders/intake'
     | '/api/public/status/$batchId'
     | '/_authenticated/lab-logs/analysis-batches/'
@@ -1571,6 +1607,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  LiveRoute: typeof LiveRoute
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiChatColumnAdvisorRoute: typeof ApiChatColumnAdvisorRoute
@@ -1584,6 +1621,8 @@ export interface RootRouteChildren {
   ApiInstrumentFeedRoute: typeof ApiInstrumentFeedRoute
   ApiPublicColumnsDataVendorRoute: typeof ApiPublicColumnsDataVendorRoute
   ApiPublicExportsBatchIdRoute: typeof ApiPublicExportsBatchIdRoute
+  ApiPublicLiveRedeemRoute: typeof ApiPublicLiveRedeemRoute
+  ApiPublicLiveSnapshotRoute: typeof ApiPublicLiveSnapshotRoute
   ApiPublicOrdersIntakeRoute: typeof ApiPublicOrdersIntakeRoute
   ApiPublicStatusBatchIdRoute: typeof ApiPublicStatusBatchIdRoute
   ApiPublicCompoundsIndexRoute: typeof ApiPublicCompoundsIndexRoute
@@ -1604,6 +1643,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -2313,6 +2359,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOrdersIntakeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/live/snapshot': {
+      id: '/api/public/live/snapshot'
+      path: '/api/public/live/snapshot'
+      fullPath: '/api/public/live/snapshot'
+      preLoaderRoute: typeof ApiPublicLiveSnapshotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/live/redeem': {
+      id: '/api/public/live/redeem'
+      path: '/api/public/live/redeem'
+      fullPath: '/api/public/live/redeem'
+      preLoaderRoute: typeof ApiPublicLiveRedeemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/exports/$batchId': {
       id: '/api/public/exports/$batchId'
       path: '/api/public/exports/$batchId'
@@ -2731,6 +2791,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  LiveRoute: LiveRoute,
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiChatColumnAdvisorRoute: ApiChatColumnAdvisorRoute,
@@ -2744,6 +2805,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInstrumentFeedRoute: ApiInstrumentFeedRoute,
   ApiPublicColumnsDataVendorRoute: ApiPublicColumnsDataVendorRoute,
   ApiPublicExportsBatchIdRoute: ApiPublicExportsBatchIdRoute,
+  ApiPublicLiveRedeemRoute: ApiPublicLiveRedeemRoute,
+  ApiPublicLiveSnapshotRoute: ApiPublicLiveSnapshotRoute,
   ApiPublicOrdersIntakeRoute: ApiPublicOrdersIntakeRoute,
   ApiPublicStatusBatchIdRoute: ApiPublicStatusBatchIdRoute,
   ApiPublicCompoundsIndexRoute: ApiPublicCompoundsIndexRoute,

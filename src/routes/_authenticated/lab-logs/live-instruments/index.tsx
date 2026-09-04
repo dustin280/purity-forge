@@ -1,19 +1,11 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Radio, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Wifi, WifiOff } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { listInstrumentLiveOverview, listInstrumentRuns } from "@/lib/instrument-feed.functions";
 import { qk } from "@/lib/query-keys";
 import {
@@ -37,14 +29,12 @@ import {
   type TraceSeries,
 } from "@/components/live-instruments/trace-chart";
 import { RecentRunsTable } from "@/components/live-instruments/recent-runs-table";
+import { LiveWindowControls, useLiveWindow } from "@/components/live-instruments/live-window";
+import { PublicAccessPanel } from "@/components/live-instruments/public-access-panel";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/live-instruments/")({
   component: LiveInstrumentsPage,
 });
-
-/** Viewable window lengths in minutes; the cache holds LIVE_HISTORY_MINUTES. */
-const WINDOW_OPTIONS = [5, 15, 30, 60].filter((m) => m <= LIVE_HISTORY_MINUTES);
-const DEFAULT_WINDOW_MIN = 15;
 
 function fmtDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -54,10 +44,6 @@ function fmtDateTime(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function fmtClock(epochSeconds: number): string {
-  return format(epochSeconds * 1000, "HH:mm:ss");
 }
 
 interface RunHeader {
@@ -83,6 +69,7 @@ function runHeader(
 }
 
 function LiveInstrumentsPage() {
+  const { role } = useAuth();
   const overviewFn = useServerFn(listInstrumentLiveOverview);
   const { data: overview = [], isLoading } = useQuery({
     queryKey: qk.instrumentFeed.overview(),
@@ -99,13 +86,6 @@ function LiveInstrumentsPage() {
 
   const [selectedStreams, setSelectedStreams] = useState<string[]>(DEFAULT_STREAMS);
   const feed = useInstrumentLiveFeed(effectiveId, selectedStreams);
-
-  // Shared viewing window: length + where its right edge sits. While
-  // "following" the edge rides on the newest sample; dragging the slider
-  // parks it, "Live" snaps back.
-  const [windowMin, setWindowMin] = useState(DEFAULT_WINDOW_MIN);
-  const [follow, setFollow] = useState(true);
-  const [viewEnd, setViewEnd] = useState<number | null>(null);
 
   const runsFn = useServerFn(listInstrumentRuns);
   const runsQuery = useQuery({
@@ -161,13 +141,8 @@ function LiveInstrumentsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feed.batchSeq, feed.historyLoading, feed.streams, selectedStreams]);
 
-  const windowS = windowMin * 60;
-  const domain = useMemo<[number, number] | null>(() => {
-    if (!extent) return null;
-    const end =
-      follow || viewEnd === null ? extent.hi : Math.min(Math.max(viewEnd, extent.lo), extent.hi);
-    return [end - windowS, end];
-  }, [extent, follow, viewEnd, windowS]);
+  const win = useLiveWindow(extent);
+  const domain = win.domain;
 
   const runMarkers = useMemo<RunMarker[]>(
     () =>
@@ -279,62 +254,17 @@ function LiveInstrumentsPage() {
 
           <Card>
             <CardContent className="pt-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Window</span>
-                  <Select value={String(windowMin)} onValueChange={(v) => setWindowMin(Number(v))}>
-                    <SelectTrigger className="w-[100px] h-8">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {WINDOW_OPTIONS.map((m) => (
-                        <SelectItem key={m} value={String(m)}>
-                          {m} min
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1 min-w-[200px] px-1">
-                  {extent && domain ? (
-                    <Slider
-                      min={extent.lo}
-                      max={extent.hi}
-                      step={1}
-                      value={[domain[1]]}
-                      onValueChange={([v]) => {
-                        setViewEnd(v);
-                        setFollow(v >= extent.hi - 1);
-                      }}
-                      aria-label="Window position"
-                    />
-                  ) : (
-                    <div className="h-1.5 rounded-full bg-primary/10" />
-                  )}
-                </div>
-                <div className="text-xs tabular-nums text-muted-foreground min-w-[9.5rem] text-right">
-                  {domain ? `${fmtClock(domain[0])} – ${fmtClock(domain[1])}` : "—"}
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={follow ? "default" : "outline"}
-                  className="h-8"
-                  onClick={() => {
-                    setFollow(true);
-                    setViewEnd(null);
-                  }}
-                >
-                  <Radio className="size-3.5" /> Live
-                </Button>
-              </div>
-              <div className="mt-1.5 text-[11px] text-muted-foreground">
-                {extent
-                  ? `Data available ${fmtClock(extent.lo)} – ${fmtClock(extent.hi)}`
-                  : "No data yet"}
-                {feed.historyLoading ? " · loading history…" : ""}
-                {feed.historyError ? ` · history unavailable: ${feed.historyError}` : ""}
-              </div>
+              <LiveWindowControls
+                extent={extent}
+                win={win}
+                note={
+                  feed.historyLoading
+                    ? "loading history…"
+                    : feed.historyError
+                      ? `history unavailable: ${feed.historyError}`
+                      : null
+                }
+              />
             </CardContent>
           </Card>
 
@@ -379,6 +309,10 @@ function LiveInstrumentsPage() {
             sequences={runsQuery.data?.sequences ?? []}
             isLoading={runsQuery.isLoading}
           />
+
+          {role === "admin" && (
+            <PublicAccessPanel instruments={overview.map((o) => o.instrument)} />
+          )}
         </div>
       </div>
     </div>

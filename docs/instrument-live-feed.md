@@ -168,6 +168,29 @@ uses the method name for the live Daily Backpressure row's
 above the chromatogram (the current injection while running, otherwise the
 last run's).
 
+## Public viewer (/live)
+
+A read-only page outside the login for people who should see a run as it
+happens: the sample name and the chromatogram (primary detector signal),
+with the same window/slider and run markers as the private page, nothing
+else. Access is by one-time passcode:
+
+- An admin generates a passcode on Live Instruments → *Public viewer
+  passcodes* (`createPublicLiveCode`; optional label and instrument). It is
+  shown once; only its hash is stored (`public_live_access_codes`).
+- The viewer opens `/live`, enters the code; `POST /api/public/live/redeem`
+  turns it into a 64-hex session token (the code is spent) valid for 12 h,
+  kept in that browser's localStorage. Unredeemed codes lapse after 24 h.
+- The page polls `GET /api/public/live/snapshot` (bearer token, every 2 s:
+  the cached hour first, then only rows newer than its cursor). The route
+  verifies the token, reads `instrument_live_batches` with the service
+  role, and serves detector signals only — no pressure, method, column or
+  anything beyond instrument name, state and sample name. Guests never touch
+  Supabase auth or the Realtime channel, and the token opens no other route.
+- Admins see each code's state (unused / viewing until / used / lapsed /
+  revoked) and can revoke one at any time, which ends its session at the
+  next poll.
+
 ## The installed column
 
 OpenLab asks the column compartment for its column record (`COL:DATAX? 7`)

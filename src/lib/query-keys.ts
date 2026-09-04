@@ -174,6 +174,11 @@ export const qk = {
       ["instrument-feed", "pressure-log-columns", filters] as const,
   },
 
+  publicLive: {
+    all: ["public-live"] as const,
+    codes: () => ["public-live", "codes"] as const,
+  },
+
   instrumentBookings: {
     all: ["instrument-bookings"] as const,
     list: (fromISO: string, toISO: string, instrumentId: string | null) =>
