@@ -69,7 +69,7 @@ export function PrepAttachments({
         // No MIME allowlist — this bucket may receive raw instrument-export
         // formats; only the size cap (mirrors the storage.buckets migration) applies.
         assertUploadable(f);
-        const safeName = (f.name || `photo-${Date.now()}.jpg`).replace(/[^\w.\-]+/g, "_");
+        const safeName = (f.name || `photo-${Date.now()}.jpg`).replace(/[^\w.-]+/g, "_");
         const path = `${logId}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage
           .from("standard-preparations")
