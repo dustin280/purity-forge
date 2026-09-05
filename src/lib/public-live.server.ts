@@ -14,11 +14,16 @@ import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import { LIVE_HISTORY_MINUTES } from "@/lib/instrument-feed.server";
 
 /**
- * A watch session is a fixed 12-hour window starting when the code is
- * generated: the invite can say exactly when it expires, and redeeming late
- * only shortens the viewing, never extends it.
+ * A watch session is a fixed window chosen when the code is generated: a
+ * start (default: now) and a length in hours. The invite can say exactly when
+ * it goes live and when it expires; redeeming late only shortens the viewing.
+ * The code can be redeemed before the start — the page then waits — but the
+ * feed is served only inside the window.
  */
-export const PUBLIC_LIVE_SESSION_HOURS = 12;
+export const PUBLIC_LIVE_DEFAULT_HOURS = 12;
+export const PUBLIC_LIVE_MAX_HOURS = 24 * 7;
+/** How far ahead a session may be scheduled. */
+export const PUBLIC_LIVE_MAX_LEAD_DAYS = 60;
 /** Unambiguous: no 0/O, 1/I. */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
@@ -52,6 +57,7 @@ export interface PublicLiveSession {
   label: string | null;
   /** null = any active instrument */
   instrument_id: string | null;
+  session_starts_at: string;
   session_expires_at: string;
 }
 
@@ -71,7 +77,7 @@ export async function redeemPublicLiveCode(
   const hash = await sha256Hex(code);
   const { data: row } = await db
     .from("public_live_access_codes")
-    .select("id, label, instrument_id, code_expires_at, redeemed_at, revoked_at")
+    .select("id, label, instrument_id, starts_at, code_expires_at, redeemed_at, revoked_at")
     .eq("code_hash", hash)
     .maybeSingle();
   if (!row) return { ok: false, status: 404, error: "Unknown passcode." };
@@ -113,6 +119,7 @@ export async function redeemPublicLiveCode(
       id: row.id,
       label: row.label ?? null,
       instrument_id: row.instrument_id ?? null,
+      session_starts_at: new Date(row.starts_at).toISOString(),
       session_expires_at: expires.toISOString(),
     },
   };
@@ -127,7 +134,7 @@ export async function verifyPublicLiveToken(
   const hash = await sha256Hex(token);
   const { data: row } = await db
     .from("public_live_access_codes")
-    .select("id, label, instrument_id, session_expires_at, revoked_at, last_seen_at")
+    .select("id, label, instrument_id, starts_at, session_expires_at, revoked_at, last_seen_at")
     .eq("session_token_hash", hash)
     .maybeSingle();
   if (!row || row.revoked_at || !row.session_expires_at) return null;
@@ -142,6 +149,7 @@ export async function verifyPublicLiveToken(
     id: row.id,
     label: row.label ?? null,
     instrument_id: row.instrument_id ?? null,
+    session_starts_at: new Date(row.starts_at).toISOString(),
     session_expires_at: row.session_expires_at,
   };
 }
@@ -175,6 +183,7 @@ export interface PublicLiveInstrument {
 
 export interface PublicLiveSnapshot {
   server_time: string;
+  session_starts_at: string;
   session_expires_at: string;
   instruments: PublicLiveInstrument[];
   /** the instrument the rows belong to */
@@ -291,6 +300,7 @@ export async function buildPublicLiveSnapshot(
 
   return {
     server_time: new Date().toISOString(),
+    session_starts_at: session.session_starts_at,
     session_expires_at: session.session_expires_at,
     instruments: out,
     instrument_id: wanted,

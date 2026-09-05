@@ -12,6 +12,8 @@ import { LIVE_HISTORY_MINUTES } from "@/components/live-instruments/use-instrume
  */
 
 const POLL_MS = 2000;
+/** before the session's start time the route answers 425; ask again slowly */
+const NOT_STARTED_POLL_MS = 30_000;
 const MAX_POINTS_PER_STREAM = 300_000;
 
 export interface PublicLiveState {
@@ -162,6 +164,8 @@ export function usePublicLiveFeed(
         cache: "no-store",
       });
       if (res.status === 401) throw Object.assign(new Error("expired"), { expired: true });
+      if (res.status === 425)
+        throw Object.assign(new Error("Your session hasn't started yet"), { notStarted: true });
       if (!res.ok) throw new Error(`Live feed unavailable (${res.status})`);
       return (await res.json()) as PublicLiveSnapshot;
     }
@@ -169,6 +173,7 @@ export function usePublicLiveFeed(
     async function tick() {
       if (stopped || inFlight.current) return;
       inFlight.current = true;
+      let delay = POLL_MS;
       try {
         const names = wantedKey.split(",").filter(Boolean);
         const fresh = names.filter((n) => !loaded.current.has(n));
@@ -206,10 +211,11 @@ export function usePublicLiveFeed(
           stopped = true;
           return;
         }
+        if ((e as { notStarted?: boolean }).notStarted) delay = NOT_STARTED_POLL_MS;
         setState((prev) => ({ ...prev, loading: false, error: (e as Error).message }));
       } finally {
         inFlight.current = false;
-        if (!stopped) timer = window.setTimeout(tick, POLL_MS);
+        if (!stopped) timer = window.setTimeout(tick, delay);
       }
     }
 

@@ -76,6 +76,8 @@ const agentSchema = z
 const sequenceRefSchema = z.object({
   key: z.string().min(1).max(64),
   started_at: z.string().max(40),
+  /** OpenLab's sequence name (agent >= 1.4.0), once announced */
+  name: z.string().max(255).nullable().optional(),
 });
 
 const runRefSchema = z.object({
@@ -369,11 +371,21 @@ async function ensureSequence(
 }> {
   const { data: existing } = await db
     .from("instrument_sequences")
-    .select("id, started_at, injections_count, backpressure_log_id")
+    .select("id, started_at, injections_count, backpressure_log_id, meta")
     .eq("instrument_id", instrumentId)
     .eq("agent_sequence_key", ref.key)
     .maybeSingle();
-  if (existing) return existing;
+  if (existing) {
+    // The name is often announced after the sequence opened; keep it once known.
+    const existingMeta = (existing.meta ?? {}) as Record<string, unknown>;
+    if (ref.name && existingMeta.sequence_name !== ref.name) {
+      await db
+        .from("instrument_sequences")
+        .update({ meta: { ...existingMeta, sequence_name: ref.name } })
+        .eq("id", existing.id);
+    }
+    return existing;
+  }
   const { data, error } = await db
     .from("instrument_sequences")
     .insert({
@@ -381,7 +393,7 @@ async function ensureSequence(
       agent_sequence_key: ref.key,
       started_at: toIso(ref.started_at) ?? new Date().toISOString(),
       status: "running",
-      meta: meta ?? {},
+      meta: { ...(ref.name ? { sequence_name: ref.name } : {}), ...(meta ?? {}) },
     })
     .select("id, started_at, injections_count, backpressure_log_id")
     .single();

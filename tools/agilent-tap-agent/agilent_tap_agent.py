@@ -24,7 +24,13 @@ Manager:
   WebSocket on port 80 — sample name, sample type, method name, sequence name,
   vial, operator, project — which the agent attaches to the next run
   (run_info on run_started / run_completed / batches, method into the
-  Daily-Backpressure summary).
+  Daily-Backpressure summary). Its sequence name is also what delimits
+  sequences: OpenLab's AnalysisState goes idle between the injections of one
+  sequence, so the agent keeps a sequence open across those gaps and closes
+  it when a run announces another name (or after SEQUENCE_IDLE_S of nothing).
+  Run information and the open sequence are kept on disk
+  (spool/session_<instrument>.state), so the agent can be restarted between
+  injections without losing the next sample's name or splitting the sequence.
   Every run / pressure_log event and every feed batch also carries the column
   record the column compartment reports (COL:DATAX reply to OpenLab's query
   before and after each run: description, part number, geometry, injection
@@ -70,7 +76,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.3.0"
+AGENT_VERSION = "1.4.0"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -105,6 +111,18 @@ TRACE_STREAMS = {
 # Monitor streams folded into the continuous pressure log (one entry per
 # pressure_log_interval_s, default 60 s, whenever the instrument is on).
 PRESSURE_LOG_STREAMS = ("PMP1B_Pressure", "PMP1C_Flow", "THM1A_LeftTemp", "THM1B_RightTemp")
+
+# A SetRunInformation older than this no longer describes a run about to start.
+RUN_INFO_MAX_AGE_S = 3600.0
+# A SetRunInformation landing this soon after a run started still belongs to
+# it (back-to-back sequences: the next sequence's first injection starts the
+# instant the previous run ends, and OpenLab announces it a few seconds later).
+LATE_RUN_INFO_S = 60.0
+# OpenLab's AnalysisState drops to idle between the injections of one
+# sequence (~2 min). The agent's sequence stays open across those gaps and
+# closes when a run announces a different sequence name, or when nothing has
+# happened for this long.
+SEQUENCE_IDLE_S = 15 * 60.0
 
 
 def utc_iso(epoch: float) -> str:
@@ -589,6 +607,10 @@ class SequenceState:
     key: str
     started_at: float
     injections: int = 0
+    # OpenLab's sequence name (from SetRunInformation); None until announced.
+    name: Optional[str] = None
+    # When AnalysisState last went idle with this sequence open; None while active.
+    idle_since: Optional[float] = None
 
 
 @dataclass
@@ -637,9 +659,15 @@ class Instrument:
 
         # Latest SetRunInformation from OpenLab; attached to the next run to start.
         self.run_info: Optional[dict] = None
+        self.run_info_at: float = 0.0
 
         self.sequence: Optional[SequenceState] = None
         self.run: Optional[RunState] = None
+        # Run information and the open sequence survive a restart (see
+        # _save_session), so the agent can be restarted between injections
+        # without losing the next sample's name or splitting the sequence.
+        self.session_path = client.spool_dir / f"session_{self.id}.state"
+        self._load_session()
         # A run whose RunState has ended but whose last acquisition batches may
         # still be in flight (the instrument flushes its final partial batch a
         # couple of seconds after OpenLab flips RunState).
@@ -714,9 +742,9 @@ class Instrument:
             prev = self.analysis_state
             self.analysis_state = analysis_state
             if analysis_state == ANALYSIS_ACTIVE:
-                self.start_sequence(self.now)
+                self.on_analysis_active(self.now)
             elif prev == ANALYSIS_ACTIVE and analysis_state == ANALYSIS_IDLE:
-                self.end_sequence(self.now)
+                self.on_analysis_idle(self.now)
         if run_state != self.run_state:
             prev = self.run_state
             self.run_state = run_state
@@ -733,11 +761,18 @@ class Instrument:
         if info is None:
             return
         info["received_at"] = utc_iso(self.now)
-        self.run_info = info
-        if self.run and self.run.info is None:
-            self.run.info = info  # the call came after RunState flipped; still this run's
-        LOG.info("[%s] run information: sample %r (%s), method %r, vial %s", self.name,
-                 info["sample_name"], info["sample_type"], info["method_name"], info["vial"])
+        self.run_info, self.run_info_at = info, self.now
+        LOG.info("[%s] run information: sample %r (%s), method %r, vial %s, sequence %r", self.name,
+                 info["sample_name"], info["sample_type"], info["method_name"], info["vial"],
+                 info["sequence_name"])
+        run = self.run
+        if run and self.now - run.started_at <= LATE_RUN_INFO_S and self._info_supersedes(run.info, info):
+            # The call came after acquisition began (see LATE_RUN_INFO_S): it is
+            # this run's. Re-send the run; the server upserts it by key.
+            run.info = info
+            LOG.info("[%s] run information attached late to %s", self.name, run.key)
+            self._send_run_started(run, self.now)
+        self._save_session()
 
     # ---- text frames (module status, query replies) ----
     def on_text(self, conn_key: tuple[int, int], channel: int, text: str) -> None:
@@ -792,6 +827,59 @@ class Instrument:
             self.column_path.write_text(json.dumps(self.column, indent=1), "utf-8")
         except Exception as e:  # noqa: BLE001
             LOG.warning("[%s] could not write %s: %s", self.name, self.column_path, e)
+
+    # ---- session state (survives restarts) ----
+    def _save_session(self) -> None:
+        seq = self.sequence
+        data = {
+            "saved_at": self.now,
+            "run_info": self.run_info, "run_info_at": self.run_info_at,
+            "sequence": {"key": seq.key, "started_at": seq.started_at, "name": seq.name,
+                         "injections": seq.injections, "idle_since": seq.idle_since} if seq else None,
+        }
+        tmp = self.session_path.with_suffix(".tmp")
+        try:
+            tmp.write_text(json.dumps(data, indent=1), "utf-8")
+            os.replace(tmp, self.session_path)
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("[%s] could not write %s: %s", self.name, self.session_path, e)
+
+    def _load_session(self) -> None:
+        if not self.session_path.exists():
+            return
+        try:
+            data = json.loads(self.session_path.read_text("utf-8"))
+        except Exception as e:  # noqa: BLE001
+            LOG.warning("[%s] could not read %s: %s", self.name, self.session_path, e)
+            return
+        if not isinstance(data, dict):
+            return
+        wall = time.time()
+        saved_at = float(data.get("saved_at") or 0)
+        info, info_at = data.get("run_info"), float(data.get("run_info_at") or 0)
+        if isinstance(info, dict) and wall - info_at <= RUN_INFO_MAX_AGE_S:
+            self.run_info, self.run_info_at = info, info_at
+            LOG.info("[%s] restored run information: sample %r", self.name, info.get("sample_name"))
+        seq = data.get("sequence")
+        if not isinstance(seq, dict) or not seq.get("key"):
+            return
+        last = float(seq.get("idle_since") or saved_at)
+        if wall - last <= SEQUENCE_IDLE_S:
+            self.sequence = SequenceState(seq["key"], float(seq["started_at"]), int(seq.get("injections") or 0),
+                                          name=seq.get("name"), idle_since=last)
+            LOG.info("[%s] resumed sequence %s (%s, %d injections so far)", self.name,
+                     seq["key"], seq.get("name") or "unnamed", self.sequence.injections)
+        else:
+            # Nothing has happened since the previous agent stopped: close the
+            # sequence on the server rather than leave it 'running' forever.
+            LOG.info("[%s] closing sequence %s left open by the previous agent", self.name, seq["key"])
+            ref = {"key": seq["key"], "started_at": utc_iso(float(seq["started_at"]))}
+            if seq.get("name"):
+                ref["name"] = seq["name"]
+            self.client.send_event(self.id, self.secret, {
+                "type": "sequence_completed", "sent_at": utc_iso(wall), "agent": self.agent_dict(),
+                "sequence": ref, "ended_at": utc_iso(last),
+            })
 
     # ---- telemetry ----
     def on_message(self, conn_key: tuple[int, int], m: dict) -> None:
@@ -916,17 +1004,56 @@ class Instrument:
     def agent_dict(self) -> dict:
         return {"host": self.client.host, "version": AGENT_VERSION}
 
+    # ---- sequences ----
+    # OpenLab's AnalysisState goes idle between the injections of one sequence
+    # (a ~2 min gap in which the next SetRunInformation arrives), so on its
+    # own it would split every sequence into one-injection pieces. A sequence
+    # therefore stays open across those gaps and ends when a run announces a
+    # different sequence name, when nothing happens for SEQUENCE_IDLE_S, or —
+    # after a restart — when the saved one turns out to be stale.
+    def on_analysis_active(self, ts: float) -> None:
+        if self._names_other_sequence(self._fresh_run_info()):
+            self.end_sequence(ts)
+        if self.sequence:
+            self.sequence.idle_since = None
+        else:
+            self.start_sequence(ts)
+
+    def on_analysis_idle(self, ts: float) -> None:
+        if self.sequence:
+            self.sequence.idle_since = ts
+            self._save_session()
+
+    def _fresh_run_info(self) -> Optional[dict]:
+        """The latest SetRunInformation, unless too old to describe a new run."""
+        if self.run_info and self.now - self.run_info_at <= RUN_INFO_MAX_AGE_S:
+            return self.run_info
+        return None
+
+    def _names_other_sequence(self, info: Optional[dict]) -> bool:
+        name = (info or {}).get("sequence_name")
+        return bool(self.sequence and self.sequence.name and name and name != self.sequence.name)
+
+    @staticmethod
+    def _info_supersedes(old: Optional[dict], new: dict) -> bool:
+        """A late SetRunInformation replaces a run's information only when it
+        brings the sample: OpenLab also announces a queued sequence without one
+        (method and sequence name only), and that must not override a named run."""
+        return bool(new.get("sample_name")) and not (old or {}).get("sample_name")
+
     def start_sequence(self, ts: float) -> None:
         if self.sequence:
             return
         key = f"seq-{utc_iso(ts).replace(':', '').replace('-', '')}"
-        self.sequence = SequenceState(key, ts)
-        LOG.info("[%s] sequence started %s", self.name, key)
+        info = self._fresh_run_info()
+        self.sequence = SequenceState(key, ts, name=(info or {}).get("sequence_name"))
+        LOG.info("[%s] sequence started %s (%s)", self.name, key, self.sequence.name or "name not announced yet")
         self.client.send_event(self.id, self.secret, {
             "type": "sequence_started", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
-            "sequence": {"key": key, "started_at": utc_iso(ts)},
+            "sequence": self._sequence_ref(),
             "modules": list(self.modules.values()),
         })
+        self._save_session()
 
     def end_sequence(self, ts: float) -> None:
         if not self.sequence:
@@ -934,38 +1061,54 @@ class Instrument:
         if self.run:
             self.begin_run_end(ts)
         self.finalize_ending()
-        LOG.info("[%s] sequence completed %s (%d injections)", self.name, self.sequence.key, self.sequence.injections)
+        seq = self.sequence
+        LOG.info("[%s] sequence completed %s (%s, %d injections)", self.name, seq.key, seq.name or "unnamed", seq.injections)
         self.client.send_event(self.id, self.secret, {
             "type": "sequence_completed", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
-            "sequence": {"key": self.sequence.key, "started_at": utc_iso(self.sequence.started_at)},
+            "sequence": self._sequence_ref(),
             "ended_at": utc_iso(ts),
         })
         self.sequence = None
+        self._save_session()
 
     def start_run(self, ts: float, inferred: bool = False) -> None:
         if self.run:
             return
         self.finalize_ending()  # a new run supersedes any tail we were still waiting on
-        if self.sequence is None and inferred:
-            self.start_sequence(ts)  # no SignalR seen: treat the burst of runs as one sequence
-        idx = (self.sequence.injections + 1) if self.sequence else 1
-        if self.sequence:
-            self.sequence.injections = idx
+        info = self._fresh_run_info()
+        if self._names_other_sequence(info):
+            # Back-to-back sequences: no idle gap between them, the name is the boundary.
+            self.end_sequence(ts)
+        if self.sequence is None:
+            self.start_sequence(ts)
+        seq = self.sequence
+        assert seq is not None
+        if seq.name is None and info and info.get("sequence_name"):
+            seq.name = info["sequence_name"]
+        seq.injections += 1
+        seq.idle_since = None
+        idx = seq.injections
         key = f"run-{utc_iso(ts).replace(':', '').replace('-', '')}"
         # An inferred start with no RunState transition behind it means we are
         # seeing a run that was already under way (agent just started, or the
         # capture restarted): treat it as partial.
         partial = inferred and self.run_state != RUN_STATE_ACQUIRING
-        self.run = RunState(key, idx, ts, partial=partial, info=self.run_info)
+        self.run = RunState(key, idx, ts, partial=partial, info=info)
         for s in self.monitor.values():  # re-anchor the live streams on run time zero
             s.anchor_tick, s.pending = None, []
         LOG.info("[%s] run started %s (injection %d%s)", self.name, key, idx,
                  ", inferred, partial" if partial else ", inferred" if inferred else "")
+        self._send_run_started(self.run, ts)
+        self._save_session()
+
+    def _send_run_started(self, run: RunState, ts: float) -> None:
+        # Idempotent on the server (upsert by run key), so it also re-sends a
+        # run whose information arrived late.
         self.client.send_event(self.id, self.secret, {
             "type": "run_started", "sent_at": utc_iso(ts), "agent": self.agent_dict(),
             "sequence": self._sequence_ref(),
-            "run": self._run_ref(self.run),
-            "run_info": self.run.info,
+            "run": self._run_ref(run),
+            "run_info": run.info,
             "column": self.column,
         })
 
@@ -977,7 +1120,13 @@ class Instrument:
         return ref
 
     def _sequence_ref(self) -> Optional[dict]:
-        return {"key": self.sequence.key, "started_at": utc_iso(self.sequence.started_at)} if self.sequence else None
+        seq = self.sequence
+        if seq is None:
+            return None
+        ref = {"key": seq.key, "started_at": utc_iso(seq.started_at)}
+        if seq.name:
+            ref["name"] = seq.name
+        return ref
 
     def begin_run_end(self, ts: float) -> None:
         """RunState left 'acquiring': stop treating the instrument as running,
@@ -1067,6 +1216,10 @@ class Instrument:
         # Close out an ended run once its trailing batches have stopped (or after 30 s regardless).
         if self.ending and ((now - self.last_acq_at > 3.0 and now - self.ending[1] >= 3.0) or now - self.ending[1] > 30.0):
             self.finalize_ending()
+        seq = self.sequence
+        if seq and not self.run and not self.ending and seq.idle_since is not None and now - seq.idle_since > SEQUENCE_IDLE_S:
+            LOG.info("[%s] no injection for %.0f min; closing the sequence", self.name, (now - seq.idle_since) / 60)
+            self.end_sequence(seq.idle_since)
         if now - self.last_batch_at >= self.batch_interval:
             self.last_batch_at = now
             self._send_batch(now)

@@ -24,6 +24,13 @@ export const Route = createFileRoute("/api/public/live/snapshot")({
             { status: 401, headers: { "Cache-Control": "no-store" } },
           );
         }
+        if (new Date(session.session_starts_at).getTime() > Date.now()) {
+          // Redeemed early: the page waits and shows when the session goes live.
+          return Response.json(
+            { ok: false, error: "not_started", starts_at: session.session_starts_at },
+            { status: 425, headers: { "Cache-Control": "no-store" } },
+          );
+        }
         const url = new URL(request.url);
         const instrumentId = url.searchParams.get("instrument");
         const streams = (url.searchParams.get("streams") ?? "")

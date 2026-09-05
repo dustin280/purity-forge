@@ -24,14 +24,18 @@ import { qk } from "@/lib/query-keys";
 /**
  * Admin card on the Live Instruments page: mint one-time passcodes for the
  * public /live viewer, hand out a ready-to-paste invite, see which codes are
- * unused / viewing / spent, revoke any. A code and the session it unlocks
- * both end 12 hours after the code was generated.
+ * unused / viewing / spent, revoke any. A watch session is a window chosen
+ * here — a start (default now) and a length in hours (default 12) — and the
+ * code and the viewing both end when that window does.
  */
 
 const ANY = "__any__";
+const DEFAULT_HOURS = 12;
+const MAX_HOURS = 24 * 7;
 
 function fmtWhen(iso: string): string {
   return new Date(iso).toLocaleString([], {
+    weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
@@ -40,27 +44,48 @@ function fmtWhen(iso: string): string {
   });
 }
 
+/** `datetime-local` value (local time, no zone) for `t` — for the input's min. */
+function toLocalInput(t: number): string {
+  const d = new Date(t - new Date(t).getTimezoneOffset() * 60_000);
+  return d.toISOString().slice(0, 16);
+}
+
+interface FreshCode {
+  code: string;
+  starts_at: string;
+  expires_at: string;
+  hours: number;
+}
+
 /** The text an invitee gets — pasteable into an email or a social post. */
-function inviteText(code: string, expiresAt: string, url: string): string {
+function inviteText(fresh: FreshCode, url: string): string {
+  const scheduled = new Date(fresh.starts_at).getTime() > Date.now() + 60_000;
+  const when = scheduled
+    ? `it goes live at ${fmtWhen(fresh.starts_at)} and expires at ${fmtWhen(fresh.expires_at)}`
+    : `it expires at ${fmtWhen(fresh.expires_at)}`;
   return [
-    `You have been invited to a 12hr live chromatogram watch session, it expires at ${fmtWhen(expiresAt)}.`,
+    `You have been invited to a ${fresh.hours}hr live chromatogram watch session, ${when}.`,
     "",
     `Watch here: ${url}`,
-    `Your code: ${code}`,
+    `Your code: ${fresh.code}`,
   ].join("\n");
 }
 
 function codeState(r: PublicLiveCodeRow): { text: string; tone: "muted" | "ok" | "warn" } {
   const now = Date.now();
   if (r.revoked_at) return { text: "revoked", tone: "muted" };
-  const ended = new Date(r.session_expires_at ?? r.code_expires_at).getTime() < now;
+  const end = r.session_expires_at ?? r.code_expires_at;
+  const ended = new Date(end).getTime() < now;
+  const pending = new Date(r.starts_at).getTime() > now;
   if (r.redeemed_at) {
-    return ended
-      ? { text: "used, session ended", tone: "muted" }
-      : { text: `viewing until ${fmtWhen(r.session_expires_at ?? r.code_expires_at)}`, tone: "ok" };
+    if (ended) return { text: "used, session ended", tone: "muted" };
+    return pending
+      ? { text: `redeemed, goes live ${fmtWhen(r.starts_at)}`, tone: "ok" }
+      : { text: `viewing until ${fmtWhen(end)}`, tone: "ok" };
   }
-  return ended
-    ? { text: "unused, expired", tone: "muted" }
+  if (ended) return { text: "unused, expired", tone: "muted" };
+  return pending
+    ? { text: `unused, goes live ${fmtWhen(r.starts_at)}`, tone: "warn" }
     : { text: `unused, expires ${fmtWhen(r.code_expires_at)}`, tone: "warn" };
 }
 
@@ -75,7 +100,10 @@ export function PublicAccessPanel({
   const revokeFn = useServerFn(revokePublicLiveCode);
   const [label, setLabel] = useState("");
   const [instrumentId, setInstrumentId] = useState(ANY);
-  const [fresh, setFresh] = useState<{ code: string; expires_at: string } | null>(null);
+  const [hours, setHours] = useState(String(DEFAULT_HOURS));
+  /** `datetime-local` value; empty = goes live now */
+  const [startsAt, setStartsAt] = useState("");
+  const [fresh, setFresh] = useState<FreshCode | null>(null);
 
   const { data: codes = [] } = useQuery({
     queryKey: qk.publicLive.codes(),
@@ -83,17 +111,30 @@ export function PublicAccessPanel({
     refetchInterval: 60_000,
   });
 
+  const hoursNum = Math.round(Number(hours));
+  const hoursValid = Number.isFinite(hoursNum) && hoursNum >= 1 && hoursNum <= MAX_HOURS;
+  const startMs = startsAt ? new Date(startsAt).getTime() : NaN;
+  const startValid = !startsAt || !Number.isNaN(startMs);
+
   const createMut = useMutation({
     mutationFn: () =>
       createFn({
         data: {
           label: label.trim() || undefined,
           instrument_id: instrumentId === ANY ? null : instrumentId,
+          hours: hoursNum,
+          starts_at: startsAt && !Number.isNaN(startMs) ? new Date(startMs).toISOString() : null,
         },
       }),
     onSuccess: (res) => {
-      setFresh({ code: res.code, expires_at: res.expires_at });
+      setFresh({
+        code: res.code,
+        starts_at: res.starts_at,
+        expires_at: res.expires_at,
+        hours: res.hours,
+      });
       setLabel("");
+      setStartsAt("");
       qc.invalidateQueries({ queryKey: qk.publicLive.codes() });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -108,7 +149,7 @@ export function PublicAccessPanel({
   });
 
   const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/live` : "/live";
-  const invite = fresh ? inviteText(fresh.code, fresh.expires_at, shareUrl) : "";
+  const invite = fresh ? inviteText(fresh, shareUrl) : "";
 
   async function copy(text: string, what: string) {
     try {
@@ -126,9 +167,10 @@ export function PublicAccessPanel({
           <KeyRound className="size-4" /> Public viewer passcodes
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Generate a passcode and paste the invite wherever you like. The code works once and the
-          watch session ends 12 hours after it was generated. Viewers see the sample name and the
-          chromatogram, nothing else.
+          Generate a passcode and paste the invite wherever you like. Pick how long the watch
+          session runs and when it goes live (now, unless you set a time); the code works once and
+          everything ends when the session does. Viewers see the sample name and the chromatogram,
+          nothing else.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,7 +181,7 @@ export function PublicAccessPanel({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="e.g. Client visit — Dr. Lee"
-              className="h-9 w-[240px]"
+              className="h-9 w-[220px]"
               maxLength={80}
             />
           </div>
@@ -147,7 +189,7 @@ export function PublicAccessPanel({
             <div className="space-y-1">
               <div className="text-xs text-muted-foreground">Instrument</div>
               <Select value={instrumentId} onValueChange={setInstrumentId}>
-                <SelectTrigger className="h-9 w-[220px]">
+                <SelectTrigger className="h-9 w-[200px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -161,23 +203,63 @@ export function PublicAccessPanel({
               </Select>
             </div>
           )}
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Length (hours)</div>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={MAX_HOURS}
+              step={1}
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              className="h-9 w-[100px]"
+            />
+          </div>
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground">Goes live (blank = now)</div>
+            <div className="flex items-center gap-1">
+              <Input
+                type="datetime-local"
+                value={startsAt}
+                min={toLocalInput(Date.now())}
+                onChange={(e) => setStartsAt(e.target.value)}
+                className="h-9 w-[210px]"
+              />
+              {startsAt && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-2"
+                  onClick={() => setStartsAt("")}
+                >
+                  Now
+                </Button>
+              )}
+            </div>
+          </div>
           <Button
             size="sm"
             className="h-9"
-            disabled={createMut.isPending}
+            disabled={createMut.isPending || !hoursValid || !startValid}
             onClick={() => createMut.mutate()}
           >
             <KeyRound className="size-4" />{" "}
             {createMut.isPending ? "Generating…" : "Generate passcode"}
           </Button>
         </div>
+        {!hoursValid && (
+          <div className="text-xs text-destructive">
+            Length must be between 1 and {MAX_HOURS} hours.
+          </div>
+        )}
 
         {fresh && (
           <div className="rounded-md border border-primary/40 bg-primary/5 p-3 space-y-3">
             <div className="text-xs text-muted-foreground">
               Shown once — copy the invite now. The code is{" "}
-              <span className="font-mono text-foreground">{fresh.code}</span>, valid until{" "}
-              {fmtWhen(fresh.expires_at)}.
+              <span className="font-mono text-foreground">{fresh.code}</span>; the session runs{" "}
+              {fmtWhen(fresh.starts_at)} to {fmtWhen(fresh.expires_at)}.
             </div>
             <pre className="whitespace-pre-wrap rounded-md border border-border bg-background px-3 py-2 text-sm leading-relaxed font-sans select-all">
               {invite}
@@ -204,7 +286,7 @@ export function PublicAccessPanel({
                   <th className="text-left font-medium py-1 pr-3">Label</th>
                   <th className="text-left font-medium py-1 pr-3">Code</th>
                   <th className="text-left font-medium py-1 pr-3">Instrument</th>
-                  <th className="text-left font-medium py-1 pr-3">Created</th>
+                  <th className="text-left font-medium py-1 pr-3">Session</th>
                   <th className="text-left font-medium py-1 pr-3">Status</th>
                   <th className="w-20" />
                 </tr>
@@ -225,7 +307,9 @@ export function PublicAccessPanel({
                             "one instrument")
                           : "any"}
                       </td>
-                      <td className="py-1.5 pr-3 whitespace-nowrap">{fmtWhen(r.created_at)}</td>
+                      <td className="py-1.5 pr-3 whitespace-nowrap">
+                        {fmtWhen(r.starts_at)} to {fmtWhen(r.code_expires_at)}
+                      </td>
                       <td
                         className={
                           "py-1.5 pr-3 " +

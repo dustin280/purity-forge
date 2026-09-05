@@ -4,7 +4,8 @@ import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
 import { redeemPublicLiveCode } from "@/lib/public-live.server";
 
 /**
- * Public: exchange a one-time passcode for a 12-hour viewer token. No user
+ * Public: exchange a one-time passcode for a viewer token that lasts for
+ * the invite's window (start time + length chosen by the admin). No user
  * session exists here; the code itself is the credential (see
  * public-live.server.ts). Answers 400/404/410 with a plain message the page
  * can show, 200 with { token, session } once.

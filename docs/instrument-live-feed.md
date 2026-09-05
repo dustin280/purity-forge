@@ -176,14 +176,18 @@ with the same window/slider and run markers as the private page, nothing
 else. Access is by one-time passcode:
 
 - An admin generates a passcode on Live Instruments → _Public viewer
-  passcodes_ (`createPublicLiveCode`; optional label and instrument) and
-  copies the ready-made invite ("You have been invited to a 12hr live
-  chromatogram watch session, it expires at …", the link and the code). The
-  code is shown once; only its hash is stored (`public_live_access_codes`).
-- A watch session is a fixed 12-hour window from generation. The viewer
-  opens `/live`, enters the code; `POST /api/public/live/redeem` turns it
-  into a 64-hex session token (the code is spent) that lasts until that same
-  end time, kept in the browser's localStorage.
+  passcodes_ (`createPublicLiveCode`; optional label, instrument, session
+  length in hours — default 12, max 7 days — and a start time, default now)
+  and copies the ready-made invite ("You have been invited to a 12hr live
+  chromatogram watch session, it expires at …" — or "it goes live at … and
+  expires at …" when scheduled — then the link and the code). The code is
+  shown once; only its hash is stored (`public_live_access_codes`).
+- A watch session is the fixed window `[starts_at, code_expires_at]`. The
+  viewer opens `/live`, enters the code; `POST /api/public/live/redeem` turns
+  it into a 64-hex session token (the code is spent) for that window, kept in
+  the browser's localStorage. Redeemed early, the page shows when the session
+  goes live and switches over by itself (the snapshot route answers 425
+  until then).
 - The page polls `GET /api/public/live/snapshot` (bearer token, every 2 s:
   the cached hour first, then only rows newer than its cursor). The route
   verifies the token, reads `instrument_live_batches` with the service
@@ -224,9 +228,9 @@ column.
 
 Done 2026-09-03 after the first live row was checked against a real sequence:
 migration `20260903235000_retire_drive_pressure_importer.sql` unscheduled the
-hourly pg_cron job and dropped its trigger function, the importer's code and
+hourly pg*cron job and dropped its trigger function, the importer's code and
 cron route moved to `archive/drive-pressure-importer/` (with restore notes),
-and the _Run watcher now_ button was removed from the Daily Backpressure page.
+and the \_Run watcher now* button was removed from the Daily Backpressure page.
 Rows it wrote (`source = 'auto'`) remain; new rows are `source = 'live'`.
 
 ## Realtime payloads

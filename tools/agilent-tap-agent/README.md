@@ -79,7 +79,10 @@ page should show the run, and when it finishes a Daily Backpressure row
   `SetRunInformation` on its port-80 WebSocket (masked client frames — the agent
   unmasks them): sample name, sample type, method name, sequence name, vial,
   operator, project. Attached to the next run (`run_info` on run events and
-  batches, `sample_position` = vial, method into the run summary).
+  batches, `sample_position` = vial, method into the run summary). When
+  sequences run back to back the first injection of the next one can start
+  the instant the previous run ends and its call lands a few seconds *after*
+  acquisition began; it still goes to that run, which is re-sent.
 - The installed column: the column compartment answers OpenLab's `COL:DATAX?`
   query before and after every run with a JSON record (description, part
   number, dimensions, particle size, pressure limit, injection count, first /
@@ -91,9 +94,17 @@ page should show the run, and when it finishes a Daily Backpressure row
 
 ## Notes
 
-- Sequence and run boundaries come from OpenLab's own status pushes
-  (`AnalysisState` / `RunState`); if those are not visible on the wire the
-  agent falls back to inferring runs from the acquisition streams.
+- Runs come from OpenLab's own `RunState` pushes (inferred from the
+  acquisition streams if those are not visible). Sequences are delimited by
+  the sequence *name* in `SetRunInformation`: OpenLab's `AnalysisState` goes
+  idle between the injections of one sequence, so the agent keeps a sequence
+  open across those gaps and closes it when a run announces a different name,
+  when nothing has happened for 15 min, or — after a restart — when the saved
+  sequence is that stale. Injections are numbered within the sequence.
+- Run information and the open sequence are kept in
+  `spool/session_<instrument>.state`, so the agent can be restarted between
+  injections without losing the next sample's name or splitting the
+  sequence (`restart-agent-when-idle.ps1` waits for a gap with no run).
 - Daily Backpressure rows are one per sequence, and `backpressure` / flow /
   column temperature are the mean over the first 15 s of the first injection —
   the same definition the Drive `.dx` importer used, so the trend chart is
