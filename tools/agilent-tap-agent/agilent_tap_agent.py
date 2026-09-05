@@ -31,6 +31,11 @@ Manager:
   Run information and the open sequence are kept on disk
   (spool/session_<instrument>.state), so the agent can be restarted between
   injections without losing the next sample's name or splitting the sequence.
+  Solvent bottle levels ride along too: the binary pump's status text carries
+  its bottle counters (ACT:CNT "BOTA",v1,v2,v3 ... in µL, kept in sync with the
+  LS-1 level-sensing module by the stack itself; remaining = v3 - v2, v3 = bottle
+  size), which the agent turns into A1/A2/B1/B2 levels on every feed batch,
+  heartbeat and pressure_log entry (solvents).
   Every run / pressure_log event and every feed batch also carries the column
   record the column compartment reports (COL:DATAX reply to OpenLab's query
   before and after each run: description, part number, geometry, injection
@@ -76,7 +81,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import agilent1290_parser as proto  # noqa: E402
 from stream_defs import CLOCK_HZ, ChannelClassifier, looks_like_text, lookup_stream  # noqa: E402
 
-AGENT_VERSION = "1.4.0"
+AGENT_VERSION = "1.5.0"
 LOG = logging.getLogger("agilent-tap-agent")
 
 DEFAULT_TSHARK = r"C:\Program Files\Wireshark\tshark.exe"
@@ -569,6 +574,41 @@ def run_info_from_invocation(args: list) -> Optional[dict]:
     }
 
 
+# The binary pump's bottle counters, in its periodic status text:
+#   ACT:CNT "BOTA",v1,v2,v3;ACT:CNT "BOTA1",...;"BOTB";"BOTB1";"WSTE"
+# in µL. v3 is the configured bottle size (0 = no bottle), v2 counts what was
+# drawn since the bottle was set (a refill subtracts, so it can be negative),
+# v1 is the same counter with another zero. The stack keeps them in step with
+# the LS-1 level-sensing module, so v3 - v2 is what OpenLab's dashboard shows
+# (confirmed to the mL on all four bottles, 2026-09-05).
+SOLVENT_CNT_RE = re.compile(r'ACT:CNT "(BOTA1?|BOTB1?|WSTE)",(-?\d+),(-?\d+),(-?\d+)')
+SOLVENT_NAMES = {"BOTA": "A1", "BOTA1": "A2", "BOTB": "B1", "BOTB1": "B2"}
+
+
+def solvent_levels(text: str, seen_at: str) -> Optional[dict]:
+    """Bottle levels from a pump status text, or None if it carries none."""
+    found = {k: (int(a), int(b), int(c)) for k, a, b, c in SOLVENT_CNT_RE.findall(text)}
+    if not any(k in found for k in SOLVENT_NAMES):
+        return None
+    bottles = []
+    for key, name in SOLVENT_NAMES.items():
+        v = found.get(key)
+        if v is None:
+            continue
+        v1, v2, v3 = v
+        configured = v3 > 0
+        bottles.append({
+            "key": key, "name": name, "configured": configured,
+            "remaining_ml": round((v3 - v2) / 1000.0, 1) if configured else None,
+            "capacity_ml": round(v3 / 1000.0, 1) if configured else None,
+            "pct": round(100.0 * (v3 - v2) / v3, 1) if configured else None,
+            "counter_ul": v2, "total_ul": v1,
+        })
+    waste = found.get("WSTE")
+    return {"seen_at": seen_at, "bottles": bottles,
+            "waste_ml": round(waste[1] / 1000.0, 1) if waste else None}
+
+
 # ----------------------------------------------------------------------------
 # Per-instrument state machine
 # ----------------------------------------------------------------------------
@@ -656,6 +696,8 @@ class Instrument:
         # Not *.json: that glob is the event spool, which is drained at start-up.
         self.column_path = client.spool_dir / f"column_{self.id}.state"
         self.column: Optional[dict] = self._load_column()
+        # Latest bottle levels from the pump status (see solvent_levels).
+        self.solvents: Optional[dict] = None
 
         # Latest SetRunInformation from OpenLab; attached to the next run to start.
         self.run_info: Optional[dict] = None
@@ -778,6 +820,14 @@ class Instrument:
     def on_text(self, conn_key: tuple[int, int], channel: int, text: str) -> None:
         for n, wl in re.findall(r"ACT:SIG(\d) ([\d.]+),", text):
             self.wavelengths["ABCDEFGH"[int(n) - 1]] = float(wl)
+        sol = solvent_levels(text, utc_iso(self.now))
+        if sol is not None:
+            if self.solvents is None:
+                LOG.info("[%s] solvent levels: %s; waste %s mL", self.name,
+                         ", ".join(f"{b['name']} {b['remaining_ml']}/{b['capacity_ml']} mL"
+                                   for b in sol["bottles"] if b["configured"]) or "no bottles configured",
+                         sol["waste_ml"])
+            self.solvents = sol
         m = COL_DATAX_RE.search(text)
         if m:
             try:
@@ -990,6 +1040,7 @@ class Instrument:
             "run": {"key": self.run.key, "injection_index": self.run.injection_index,
                     "started_at": utc_iso(self.run.started_at)} if self.run else None,
             "column": self.column,
+            "solvents": self.solvents,
         })
 
     # ---- lifecycle ----
@@ -1228,6 +1279,7 @@ class Instrument:
             self.client.send_event(self.id, self.secret, {
                 "type": "heartbeat", "sent_at": utc_iso(now), "agent": self.agent_dict(),
                 "status": self.state_dict(), "modules": list(self.modules.values()),
+                "solvents": self.solvents,
             })
 
     # The feed route accepts at most 2000 values per stream per batch (live
@@ -1255,6 +1307,7 @@ class Instrument:
             "streams": streams,
             "labels": {f"DAD1{k}": f"{v:g} nm" for k, v in self.wavelengths.items()},
             "column": self.column,
+            "solvents": self.solvents,
         }
         if self.modules:
             body["modules"] = list(self.modules.values())

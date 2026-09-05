@@ -32,6 +32,8 @@ import {
 import { RecentRunsTable } from "@/components/live-instruments/recent-runs-table";
 import { LiveWindowControls, useLiveWindow } from "@/components/live-instruments/live-window";
 import { PublicAccessPanel } from "@/components/live-instruments/public-access-panel";
+import { SolventLevelsCard } from "@/components/live-instruments/solvent-levels-card";
+import { SolventAlertsPanel } from "@/components/live-instruments/solvent-alerts-panel";
 
 export const Route = createFileRoute("/_authenticated/lab-logs/live-instruments/")({
   component: LiveInstrumentsPage,
@@ -253,6 +255,12 @@ function LiveInstrumentsPage() {
             </CardContent>
           </Card>
 
+          <SolventLevelsCard
+            instrumentId={effectiveId}
+            solvents={selectedOverview?.status?.solvents}
+            agentVersion={selectedOverview?.status?.agent_version}
+          />
+
           <Card>
             <CardContent className="pt-4">
               <LiveWindowControls
@@ -313,7 +321,10 @@ function LiveInstrumentsPage() {
           />
 
           {role === "admin" && (
-            <PublicAccessPanel instruments={overview.map((o) => o.instrument)} />
+            <>
+              <SolventAlertsPanel instrumentId={effectiveId} />
+              <PublicAccessPanel instruments={overview.map((o) => o.instrument)} />
+            </>
           )}
         </div>
       </div>

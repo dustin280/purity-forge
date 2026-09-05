@@ -83,6 +83,13 @@ page should show the run, and when it finishes a Daily Backpressure row
   sequences run back to back the first injection of the next one can start
   the instant the previous run ends and its call lands a few seconds *after*
   acquisition began; it still goes to that run, which is re-sent.
+- Solvent bottle levels: the binary pump's status text carries its bottle
+  counters (`ACT:CNT "BOTA",v1,v2,v3` ... in µL; `v3` = bottle size, remaining
+  = `v3 - v2`), which the stack keeps in step with the LS-1 level-sensing
+  module — so they match OpenLab's dashboard to the mL, refills included. The
+  agent sends them as `solvents` (A1/A2/B1/B2 remaining / size / %, waste
+  counter) with every feed batch, heartbeat and `pressure_log` entry; the app
+  shows them on Live Instruments and raises low-solvent alerts.
 - The installed column: the column compartment answers OpenLab's `COL:DATAX?`
   query before and after every run with a JSON record (description, part
   number, dimensions, particle size, pressure limit, injection count, first /

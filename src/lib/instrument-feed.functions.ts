@@ -9,7 +9,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
-import { LIVE_HISTORY_MINUTES, type RunSummary, type RunTrace } from "@/lib/instrument-feed.server";
+import {
+  LIVE_HISTORY_MINUTES,
+  type InstrumentSolvents,
+  type RunSummary,
+  type RunTrace,
+} from "@/lib/instrument-feed.server";
+export type { InstrumentSolvents };
 
 /** Column record the instrument reported (see columnSchema in instrument-feed.server.ts). */
 export interface InstrumentColumnInfo {
@@ -63,6 +69,8 @@ export interface InstrumentLiveStatusRow {
   streams: Array<{ name: string; units: string; dt: number }>;
   modules: Array<{ type: string; serial: string; name: string }>;
   column_info: InstrumentColumnInfo | null;
+  /** bottle levels from the pump (agent >= 1.5.0) */
+  solvents: InstrumentSolvents | null;
   agent_host: string | null;
   agent_version: string | null;
   updated_at: string;

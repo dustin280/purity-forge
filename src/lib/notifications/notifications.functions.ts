@@ -26,7 +26,9 @@ export const listNotificationRecipients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
-      .from("notification_recipients").select("*").order("name", { ascending: true });
+      .from("notification_recipients")
+      .select("*")
+      .order("name", { ascending: true });
     if (error) throw error;
     return data ?? [];
   });
@@ -34,22 +36,29 @@ export const listNotificationRecipients = createServerFn({ method: "GET" })
 export const createNotificationRecipient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      name: z.string().min(1).max(128).trim(),
-      email: z.string().email().max(255).optional().nullable(),
-      phone: z.string().min(7).max(32).optional().nullable(),
-      notify_email: z.boolean().optional().default(true),
-      notify_sms: z.boolean().optional().default(true),
-    }).refine(d => d.email || d.phone, { message: "Provide an email, a phone number, or both" }).parse(d)
+    z
+      .object({
+        name: z.string().min(1).max(128).trim(),
+        email: z.string().email().max(255).optional().nullable(),
+        phone: z.string().min(7).max(32).optional().nullable(),
+        notify_email: z.boolean().optional().default(true),
+        notify_sms: z.boolean().optional().default(true),
+      })
+      .refine((d) => d.email || d.phone, { message: "Provide an email, a phone number, or both" })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { data: row, error } = await context.supabase
       .from("notification_recipients")
       .insert({
-        name: data.name, email: data.email ?? null, phone: data.phone ?? null,
-        notify_email: data.notify_email, notify_sms: data.notify_sms,
+        name: data.name,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        notify_email: data.notify_email,
+        notify_sms: data.notify_sms,
       })
-      .select().single();
+      .select()
+      .single();
     if (error) throw error;
     return row;
   });
@@ -57,25 +66,30 @@ export const createNotificationRecipient = createServerFn({ method: "POST" })
 export const updateNotificationRecipient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({
-      id: z.string().uuid(),
-      name: z.string().min(1).max(128).trim().optional(),
-      email: z.string().email().max(255).optional().nullable(),
-      phone: z.string().min(7).max(32).optional().nullable(),
-      notify_email: z.boolean().optional(),
-      notify_sms: z.boolean().optional(),
-      is_active: z.boolean().optional(),
-      digest_samples_received: z.boolean().optional(),
-      digest_samples_due: z.boolean().optional(),
-      digest_due_today: z.boolean().optional(),
-      digest_sterility_readout: z.boolean().optional(),
-      digest_endotoxin_due: z.boolean().optional(),
-      digest_heavy_metals: z.boolean().optional(),
-    }).parse(d)
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(128).trim().optional(),
+        email: z.string().email().max(255).optional().nullable(),
+        phone: z.string().min(7).max(32).optional().nullable(),
+        notify_email: z.boolean().optional(),
+        notify_sms: z.boolean().optional(),
+        is_active: z.boolean().optional(),
+        digest_samples_received: z.boolean().optional(),
+        digest_samples_due: z.boolean().optional(),
+        digest_due_today: z.boolean().optional(),
+        digest_sterility_readout: z.boolean().optional(),
+        digest_endotoxin_due: z.boolean().optional(),
+        digest_heavy_metals: z.boolean().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ context, data }) => {
     const { id, ...patch } = data;
-    const { error } = await context.supabase.from("notification_recipients").update(patch).eq("id", id);
+    const { error } = await context.supabase
+      .from("notification_recipients")
+      .update(patch)
+      .eq("id", id);
     if (error) throw error;
     return { ok: true };
   });
@@ -84,7 +98,10 @@ export const deleteNotificationRecipient = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    const { error } = await context.supabase.from("notification_recipients").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("notification_recipients")
+      .delete()
+      .eq("id", data.id);
     if (error) throw error;
     return { ok: true };
   });
@@ -109,12 +126,22 @@ function resendHeaders(): Record<string, string> {
 function twilioHeaders(): Record<string, string> {
   const lk = process.env.LOVABLE_API_KEY;
   const tk = process.env.TWILIO_API_KEY;
-  if (!lk || !tk) throw new Error("Twilio is not connected. Link the Twilio connector in Project Settings.");
-  return { Authorization: `Bearer ${lk}`, "X-Connection-Api-Key": tk, "Content-Type": "application/x-www-form-urlencoded" };
+  if (!lk || !tk)
+    throw new Error("Twilio is not connected. Link the Twilio connector in Project Settings.");
+  return {
+    Authorization: `Bearer ${lk}`,
+    "X-Connection-Api-Key": tk,
+    "Content-Type": "application/x-www-form-urlencoded",
+  };
 }
 
 /** html is optional — plain-text-only callers (e.g. the existing intake/incubation alerts) can omit it. */
-export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<void> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  text: string,
+  html?: string,
+): Promise<void> {
   const r = await fetch(RESEND_API_URL, {
     method: "POST",
     headers: resendHeaders(),
@@ -212,7 +239,12 @@ export async function notifyIncubationReady(
     if (error) throw error;
     if (!recipients || recipients.length === 0) return;
 
-    const label = summary.kind === "day3_check" ? "Day 3 check" : summary.kind === "day7_check" ? "Day 7 check" : "readout";
+    const label =
+      summary.kind === "day3_check"
+        ? "Day 3 check"
+        : summary.kind === "day7_check"
+          ? "Day 7 check"
+          : "readout";
     const subject = `${summary.testType} ${label} ready — ${summary.batchNumber}`;
     const emailBody = [
       `Batch ${summary.batchNumber} (${summary.sampleCount} sample${summary.sampleCount === 1 ? "" : "s"}) is ready for its ${label} (day ${summary.dayCount} of incubation).`,
@@ -228,9 +260,90 @@ export async function notifyIncubationReady(
     });
     const results = await Promise.allSettled(sends);
     for (const res of results) {
-      if (res.status === "rejected") console.error("notifyIncubationReady: send failed", res.reason);
+      if (res.status === "rejected")
+        console.error("notifyIncubationReady: send failed", res.reason);
     }
   } catch (e) {
     console.error("notifyIncubationReady failed", e);
   }
+}
+
+export type SolventLowSummary = {
+  instrumentName: string;
+  bottle: string;
+  pct: number;
+  remainingMl: number | null;
+  capacityMl: number | null;
+  thresholdPct: number;
+  clearPct: number;
+  /** marks the message as a test send from the Live Instruments page */
+  test: boolean;
+};
+
+export type SolventNotifyResult = { emails: number; sms: number; failures: string[] };
+
+/**
+ * Low-solvent alert from the live instrument feed
+ * (src/lib/instrument-solvent-alerts.server.ts): one email and/or SMS per
+ * active recipient subscribed with alert_solvent_low. Never throws; the
+ * counts and failure messages come back so the alert row can record them.
+ */
+export async function notifySolventLow(
+  supabase: import("@supabase/supabase-js").SupabaseClient,
+  s: SolventLowSummary,
+): Promise<SolventNotifyResult> {
+  const result: SolventNotifyResult = { emails: 0, sms: 0, failures: [] };
+  try {
+    const { data: recipients, error } = await supabase
+      .from("notification_recipients")
+      .select("name, email, phone, notify_email, notify_sms")
+      .eq("is_active", true)
+      .eq("alert_solvent_low", true);
+    if (error) throw error;
+    if (!recipients || recipients.length === 0) return result;
+
+    const tag = s.test ? "[TEST] " : "";
+    const amount =
+      s.remainingMl != null && s.capacityMl != null
+        ? ` (${Math.round(s.remainingMl)} mL of ${Math.round(s.capacityMl)} mL)`
+        : "";
+    const subject = `${tag}Low solvent — ${s.instrumentName} bottle ${s.bottle} at ${Math.round(s.pct)}%`;
+    const emailBody = [
+      s.test ? "This is a test of the low-solvent alert from the Live Instruments page." : null,
+      `Bottle ${s.bottle} on ${s.instrumentName} is down to ${Math.round(s.pct)}%${amount}, below the ${s.thresholdPct}% alert level.`,
+      `Refill it; the alert clears itself once the level is back above ${s.clearPct}%.`,
+      `Live feed: https://syxlab.org/lab-logs/live-instruments`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const smsBody = `${tag}Low solvent: ${s.instrumentName} ${s.bottle} at ${Math.round(s.pct)}%${amount}. syxlab.org/lab-logs/live-instruments`;
+
+    const jobs: Array<Promise<void>> = [];
+    const kinds: Array<"email" | "sms"> = [];
+    for (const r of recipients) {
+      if (r.notify_email && r.email) {
+        jobs.push(sendEmail(r.email, subject, emailBody));
+        kinds.push("email");
+      }
+      if (r.notify_sms && r.phone) {
+        jobs.push(sendSms(r.phone, smsBody));
+        kinds.push("sms");
+      }
+    }
+    const settled = await Promise.allSettled(jobs);
+    settled.forEach((res, i) => {
+      if (res.status === "fulfilled") {
+        if (kinds[i] === "email") result.emails += 1;
+        else result.sms += 1;
+      } else {
+        const msg = res.reason instanceof Error ? res.reason.message : String(res.reason);
+        result.failures.push(`${kinds[i]}: ${msg.slice(0, 200)}`);
+        console.error("notifySolventLow: send failed", res.reason);
+      }
+    });
+  } catch (e) {
+    console.error("notifySolventLow failed", e);
+    result.failures.push(e instanceof Error ? e.message : String(e));
+  }
+  return result;
 }

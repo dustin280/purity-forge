@@ -42,6 +42,7 @@
  */
 import { z } from "zod";
 import type { AnySupabase } from "@/lib/non-conformity/supabase-any";
+import { checkSolventAlerts } from "@/lib/instrument-solvent-alerts.server";
 
 /* ---------------- payload schemas (shared with the agent) ---------------- */
 
@@ -72,6 +73,27 @@ const agentSchema = z
     version: z.string().max(32).nullable().optional(),
   })
   .optional();
+
+/**
+ * Solvent bottle levels from the pump's bottle counters (agent >= 1.5.0):
+ * A1/A2/B1/B2 remaining / size / %, plus the waste counter.
+ */
+const solventBottleSchema = z.object({
+  key: z.string().max(16),
+  name: z.string().max(16),
+  configured: z.boolean(),
+  remaining_ml: z.number().finite().nullable(),
+  capacity_ml: z.number().finite().nullable(),
+  pct: z.number().finite().nullable(),
+  counter_ul: z.number().int().optional(),
+  total_ul: z.number().int().optional(),
+});
+export const solventsSchema = z.object({
+  seen_at: z.string().max(40),
+  bottles: z.array(solventBottleSchema).max(8),
+  waste_ml: z.number().finite().nullable().optional(),
+});
+export type InstrumentSolvents = z.infer<typeof solventsSchema>;
 
 const sequenceRefSchema = z.object({
   key: z.string().min(1).max(64),
@@ -172,6 +194,7 @@ export const feedBatchSchema = z.object({
   modules: z.array(moduleSchema).max(16).optional(),
   column: columnSchema.nullable().optional(),
   run_info: runInfoSchema.nullable().optional(),
+  solvents: solventsSchema.nullable().optional(),
 });
 export type FeedBatch = z.infer<typeof feedBatchSchema>;
 
@@ -205,6 +228,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     ...eventBase,
     status: statusSchema,
     modules: z.array(moduleSchema).max(16).optional(),
+    solvents: solventsSchema.nullable().optional(),
   }),
   z.object({
     type: z.literal("sequence_started"),
@@ -256,6 +280,7 @@ export const feedEventSchema = z.discriminatedUnion("type", [
     sequence: sequenceRefSchema.nullable().optional(),
     run: runRefSchema.nullable().optional(),
     column: columnSchema.nullable().optional(),
+    solvents: solventsSchema.nullable().optional(),
   }),
 ]);
 export type FeedEvent = z.infer<typeof feedEventSchema>;
@@ -574,6 +599,7 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
   };
   if (batch.modules?.length) patch.modules = batch.modules;
   if (batch.column) patch.column_info = batch.column;
+  if (batch.solvents) patch.solvents = batch.solvents;
   await upsertLiveStatus(db, instrumentId, patch);
 
   // Rolling history cache (see LIVE_HISTORY_MINUTES). Wall-clock time per
@@ -625,6 +651,7 @@ export async function processFeedBatch(instrumentId: string, batch: FeedBatch): 
     labels: batch.labels ?? null,
     column: batch.column ?? null,
     run_info: batch.run_info ?? null,
+    solvents: batch.solvents ?? null,
   });
 }
 
@@ -736,7 +763,9 @@ export async function processFeedEvent(
         last_event_at: now,
       };
       if (event.modules?.length) patch.modules = event.modules;
+      if (event.solvents) patch.solvents = event.solvents;
       await upsertLiveStatus(db, instrumentId, patch);
+      if (event.solvents) await checkSolventAlerts(db, instrumentId, event.solvents);
       return { ok: true };
     }
 
@@ -944,10 +973,15 @@ export async function processFeedEvent(
           state: event.state,
           sequence_id: seq.data?.id ?? null,
           run_id: run.data?.id ?? null,
+          solvents: event.solvents ?? null,
         },
         { onConflict: "instrument_id,logged_at" },
       );
       if (error) throw new Error(`instrument_pressure_log upsert failed: ${error.message}`);
+      if (event.solvents) {
+        await upsertLiveStatus(db, instrumentId, { solvents: event.solvents, updated_at: now });
+        await checkSolventAlerts(db, instrumentId, event.solvents);
+      }
       return { ok: true };
     }
   }

@@ -174,6 +174,12 @@ export const qk = {
       ["instrument-feed", "pressure-log-columns", filters] as const,
   },
 
+  solventAlerts: {
+    all: ["solvent-alerts"] as const,
+    settings: (instrumentId: string | null) =>
+      ["solvent-alerts", "settings", instrumentId ?? "none"] as const,
+  },
+
   publicLive: {
     all: ["public-live"] as const,
     codes: () => ["public-live", "codes"] as const,
