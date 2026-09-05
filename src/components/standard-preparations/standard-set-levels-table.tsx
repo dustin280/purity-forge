@@ -29,12 +29,31 @@ export function StandardSetLevelsTable({
   if (levels.length === 0) return null;
   const compounds: string[] = [];
   const stockOf = new Map<string, number>();
+  // Records made before the stock was stored still imply it: primary stock =
+  // final concentration × batch volume / aliquot, from the largest primary
+  // aliquot (least grid rounding). Aliquots from an intermediate are skipped.
+  const derived = new Map<string, { ul: number; conc: number }>();
   for (const l of levels)
     for (const c of l.components) {
       if (!compounds.includes(c.compound_name)) compounds.push(c.compound_name);
       if (c.stock_concentration_mg_per_ml != null && !stockOf.has(c.compound_name))
         stockOf.set(c.compound_name, c.stock_concentration_mg_per_ml);
+      const ul = c.stock_volume_ul;
+      if (
+        batchVolumeMl != null &&
+        c.concentration_mg_per_ml != null &&
+        ul != null &&
+        ul > 0 &&
+        !c.source_label &&
+        (derived.get(c.compound_name)?.ul ?? 0) < ul
+      )
+        derived.set(c.compound_name, {
+          ul,
+          conc: (c.concentration_mg_per_ml * batchVolumeMl * 1000) / ul,
+        });
     }
+  for (const [name, d] of derived)
+    if (!stockOf.has(name)) stockOf.set(name, Number(d.conc.toPrecision(3)));
 
   return (
     <Card className="p-5 mb-6">

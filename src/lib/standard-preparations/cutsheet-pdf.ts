@@ -17,6 +17,7 @@ const LABEL_COLS = 8;
 const CELL_W = 1; // inches, matches the physical label sheet
 const CELL_H = 0.5;
 const MARGIN_LR = 0.25;
+const PAGE_W = 8.5; // letter
 const MARGIN_TOP = 0.5;
 
 export interface CutSheetComponent {
@@ -251,25 +252,42 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     const df = (batchUl / c.stockUl) * (c.sourceFactor ?? 1);
     return `${Number.isInteger(df) ? df : df.toFixed(1)}×`;
   };
+  // Numbers straight from arithmetic can carry float noise (110.00000000001);
+  // print at most two decimals, without trailing zeros.
+  const num = (v: number): string => Number(v.toFixed(2)).toString();
   const volText = (c: CutSheetComponent | undefined): string => {
     if (c?.stockUl == null) return "—";
-    return c.sourceFactor ? `${c.stockUl} (1:${c.sourceFactor})` : `${c.stockUl}`;
+    return c.sourceFactor ? `${num(c.stockUl)} (1:${c.sourceFactor})` : num(c.stockUl);
   };
   // The stock each compound's aliquots are drawn from, under its µL header
-  // (Dustin, 2026-09-04). Older records without it just print the name.
+  // (Dustin, 2026-09-04). Records made before the stock was stored still
+  // imply it: primary stock = final concentration × dilution factor, taken
+  // from the level with the largest aliquot (least grid rounding).
   const stockConcOf = (n: string): number | null => {
+    let best: { ul: number; conc: number } | null = null;
     for (const l of data.levels) {
       const c = l.components.find((x) => x.abbrev === n);
       if (c?.stockConcMgPerMl != null) return c.stockConcMgPerMl;
+      if (c?.concMgPerMl != null && c.stockUl && (!best || c.stockUl > best.ul)) {
+        best = {
+          ul: c.stockUl,
+          conc: c.concMgPerMl * (batchUl / c.stockUl) * (c.sourceFactor ?? 1),
+        };
+      }
     }
-    return null;
+    return best ? Number(best.conc.toPrecision(3)) : null;
   };
   const head = [
     "Level",
     ...compoundNames.map((n) => `${n} mg/mL`),
     ...compoundNames.map((n) => {
       const stock = stockConcOf(n);
-      return stock != null ? `${n} µL\nstock ${stock} mg/mL` : `${n} µL`;
+      // Three short lines: the columns are narrow when five compounds share a page.
+      return stock != null
+        ? `${n} µL
+stock
+${stock} mg/mL`
+        : `${n} µL`;
     }),
     ...compoundNames.map((n) => `${n} DF`),
     "Diluent µL",
@@ -279,10 +297,13 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
     const byAbbrev = new Map(l.components.map((c) => [c.abbrev, c] as const));
     return [
       l.label,
-      ...compoundNames.map((n) => byAbbrev.get(n)?.concMgPerMl?.toString() ?? "—"),
+      ...compoundNames.map((n) => {
+        const v = byAbbrev.get(n)?.concMgPerMl;
+        return v != null ? num(v) : "—";
+      }),
       ...compoundNames.map((n) => volText(byAbbrev.get(n))),
       ...compoundNames.map((n) => dfText(byAbbrev.get(n))),
-      l.diluentUl?.toString() ?? "—",
+      l.diluentUl != null ? num(l.diluentUl) : "—",
       l.expectedNote ?? "",
     ];
   });
@@ -290,14 +311,31 @@ export function generateStandardSetCutSheetPdf(data: StandardSetCutSheetInput): 
   const ulColStart = 1 + compoundNames.length;
   const dfColStart = 1 + compoundNames.length * 2;
   const diluentCol = 1 + compoundNames.length * 3;
-  const columnStyles: Record<number, { fontStyle?: "bold"; cellPadding?: typeof CHECK_PAD }> = {};
+  // Fixed widths: auto-sizing hands the columns with the longest header text
+  // (the stock line) most of the page and squeezes the others into wrapping
+  // digits. Every compound column gets the same share of what is left after
+  // the level, diluent and expected columns.
+  const LEVEL_W = 0.38;
+  const DILUENT_W = 0.55;
+  const EXPECTED_W = 0.75;
+  const usableW = PAGE_W - 2 * MARGIN_LR;
+  const compoundW = Math.max(
+    0.3,
+    (usableW - LEVEL_W - DILUENT_W - EXPECTED_W) / (compoundNames.length * 3),
+  );
+  const columnStyles: Record<
+    number,
+    { fontStyle?: "bold"; cellPadding?: typeof CHECK_PAD; cellWidth?: number }
+  > = { 0: { cellWidth: LEVEL_W } };
   const checkCols = new Set<number>([diluentCol]);
   for (let i = 0; i < compoundNames.length; i++) {
-    columnStyles[dfColStart + i] = { fontStyle: "bold" };
-    columnStyles[ulColStart + i] = { cellPadding: CHECK_PAD };
+    columnStyles[1 + i] = { cellWidth: compoundW };
+    columnStyles[dfColStart + i] = { fontStyle: "bold", cellWidth: compoundW };
+    columnStyles[ulColStart + i] = { cellPadding: CHECK_PAD, cellWidth: compoundW };
     checkCols.add(ulColStart + i);
   }
-  columnStyles[diluentCol] = { cellPadding: CHECK_PAD };
+  columnStyles[diluentCol] = { cellPadding: CHECK_PAD, cellWidth: DILUENT_W };
+  columnStyles[diluentCol + 1] = { cellWidth: EXPECTED_W };
   autoTable(doc, {
     startY: y,
     head: [head],
