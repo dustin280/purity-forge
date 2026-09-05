@@ -23,6 +23,7 @@ import {
   streamDisplayName,
 } from "@/components/live-instruments/stream-picker";
 import {
+  CHROMATOGRAM_Y_FLOOR_MAU,
   TraceChart,
   colorForStream,
   type RunMarker,
@@ -288,6 +289,7 @@ function LiveInstrumentsPage() {
               xMode="wall"
               xDomain={domain}
               runs={runMarkers}
+              yFloor={CHROMATOGRAM_Y_FLOOR_MAU}
             />
           )}
           {scalarCharts.map((c) => (

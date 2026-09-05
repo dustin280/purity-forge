@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import synthesyxLogo from "@/assets/synthesyx-logo.svg";
 import {
+  CHROMATOGRAM_Y_FLOOR_MAU,
   TraceChart,
   colorForStream,
   type RunMarker,
@@ -368,6 +369,7 @@ function Viewer({ token, onExpired }: { token: string; onExpired: () => void }) 
         xMode="wall"
         xDomain={win.domain}
         runs={runMarkers}
+        yFloor={CHROMATOGRAM_Y_FLOOR_MAU}
       />
 
       <Card>

@@ -22,6 +22,12 @@ import { LIVE_HISTORY_MINUTES } from "@/components/live-instruments/use-instrume
 
 export const WINDOW_OPTIONS = [5, 15, 30, 60].filter((m) => m <= LIVE_HISTORY_MINUTES);
 export const DEFAULT_WINDOW_MIN = 15;
+/**
+ * While following, the right edge sits this far ahead of the newest sample so
+ * the trace has room to grow into: at 10 min into a run the axis shows 13
+ * (Dustin, 2026-09-05). Parked views end at the parked time.
+ */
+export const LIVE_LEAD_S = 3 * 60;
 
 export interface Extent {
   /** epoch seconds */
@@ -36,8 +42,8 @@ export function useLiveWindow(extent: Extent | null) {
   const windowS = windowMin * 60;
   const domain = useMemo<[number, number] | null>(() => {
     if (!extent) return null;
-    const end =
-      follow || viewEnd === null ? extent.hi : Math.min(Math.max(viewEnd, extent.lo), extent.hi);
+    if (follow || viewEnd === null) return [extent.hi - windowS, extent.hi + LIVE_LEAD_S];
+    const end = Math.min(Math.max(viewEnd, extent.lo), extent.hi);
     return [end - windowS, end];
   }, [extent, follow, viewEnd, windowS]);
   return { windowMin, setWindowMin, follow, setFollow, viewEnd, setViewEnd, domain };
@@ -82,7 +88,7 @@ export function LiveWindowControls({
               min={extent.lo}
               max={extent.hi}
               step={1}
-              value={[domain[1]]}
+              value={[follow ? extent.hi : domain[1]]}
               onValueChange={([v]) => {
                 setViewEnd(v);
                 setFollow(v >= extent.hi - 1);

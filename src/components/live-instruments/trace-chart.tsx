@@ -125,6 +125,12 @@ function fmtMin(seconds: number): string {
   return (seconds / 60).toFixed(2);
 }
 
+/**
+ * The chromatogram's Y axis keeps its lower limit here whenever a maximum is
+ * typed: "Y to 500" scales -10..500 mAU (Dustin, 2026-09-05).
+ */
+export const CHROMATOGRAM_Y_FLOOR_MAU = -10;
+
 /* ---------------- axis scale controls ---------------- */
 
 interface AxisInputs {
@@ -141,6 +147,11 @@ function parseLimit(s: string): number | null {
   if (s.trim() === "") return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
+}
+
+/** A fixed floor under a typed ceiling; a ceiling at or below the floor falls back to auto. */
+function flooredPair(floor: number, max: number | null): [number | null, number | null] {
+  return max !== null && max > floor ? [floor, max] : [null, null];
 }
 
 /** A pair set the wrong way round (min ≥ max) falls back to auto, so a half-typed value never blanks the chart. */
@@ -175,12 +186,15 @@ function AxisControls({
   inputs,
   unit,
   showX,
+  yFloor,
   onChange,
 }: {
   inputs: AxisInputs;
   unit: string;
   /** the X inputs only make sense on a run-relative axis; wall-clock charts are panned by the page */
   showX: boolean;
+  /** fixed lower Y limit shown in place of the "from" field */
+  yFloor: number | null;
   onChange: (next: AxisInputs) => void;
 }) {
   const manual = (showX ? Object.values(inputs) : [inputs.yMin, inputs.yMax]).some(
@@ -200,7 +214,13 @@ function AxisControls({
       )}
       <span className="flex items-center gap-1">
         <span className="font-medium">Y</span>
-        <AxisField label={`Y axis from (${unit})`} value={inputs.yMin} onChange={set("yMin")} />
+        {yFloor != null ? (
+          <span className="tabular-nums" title="fixed lower limit">
+            {yFloor}
+          </span>
+        ) : (
+          <AxisField label={`Y axis from (${unit})`} value={inputs.yMin} onChange={set("yMin")} />
+        )}
         <span>–</span>
         <AxisField label={`Y axis to (${unit})`} value={inputs.yMax} onChange={set("yMax")} />
         <span>{unit}</span>
@@ -231,6 +251,7 @@ export function TraceChart({
   xMode = "relative",
   xDomain = null,
   runs = [],
+  yFloor = null,
 }: {
   title: string;
   unit: string;
@@ -244,12 +265,17 @@ export function TraceChart({
   xDomain?: [number, number] | null;
   /** run starts to mark (wall mode) */
   runs?: RunMarker[];
+  /** fixed lower Y limit whenever a Y maximum is typed (chromatogram: CHROMATOGRAM_Y_FLOOR_MAU) */
+  yFloor?: number | null;
 }) {
   const wall = xMode === "wall";
   // Manual axis limits; empty = auto. X is entered in minutes, plotted in seconds.
   const [axes, setAxes] = useState<AxisInputs>(AUTO_AXES);
   const [xMinMin, xMaxMin] = orderedPair(parseLimit(axes.xMin), parseLimit(axes.xMax));
-  const [yMin, yMax] = orderedPair(parseLimit(axes.yMin), parseLimit(axes.yMax));
+  const [yMin, yMax] =
+    yFloor != null
+      ? flooredPair(yFloor, parseLimit(axes.yMax))
+      : orderedPair(parseLimit(axes.yMin), parseLimit(axes.yMax));
   const xMin = wall ? (xDomain?.[0] ?? null) : xMinMin === null ? null : xMinMin * 60;
   const xMax = wall ? (xDomain?.[1] ?? null) : xMaxMin === null ? null : xMaxMin * 60;
   const manualX = xMin !== null || xMax !== null;
@@ -309,7 +335,13 @@ export function TraceChart({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <CardTitle className="text-sm">{title}</CardTitle>
-          <AxisControls inputs={axes} unit={unit} showX={!wall} onChange={setAxes} />
+          <AxisControls
+            inputs={axes}
+            unit={unit}
+            showX={!wall}
+            yFloor={yFloor}
+            onChange={setAxes}
+          />
         </div>
       </CardHeader>
       <CardContent>
