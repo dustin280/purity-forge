@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { RotateCcw, ZoomIn } from "lucide-react";
 import { format } from "date-fns";
 import {
   CartesianGrid,
@@ -187,7 +187,11 @@ function AxisControls({
   unit,
   showX,
   yFloor,
+  freeZoom,
+  zoomed,
   onChange,
+  onFreeZoom,
+  onResetZoom,
 }: {
   inputs: AxisInputs;
   unit: string;
@@ -195,11 +199,15 @@ function AxisControls({
   showX: boolean;
   /** fixed lower Y limit shown in place of the "from" field */
   yFloor: number | null;
+  freeZoom: boolean;
+  zoomed: boolean;
   onChange: (next: AxisInputs) => void;
+  onFreeZoom: (on: boolean) => void;
+  onResetZoom: () => void;
 }) {
-  const manual = (showX ? Object.values(inputs) : [inputs.yMin, inputs.yMax]).some(
-    (s) => s.trim() !== "",
-  );
+  const manual =
+    zoomed ||
+    (showX ? Object.values(inputs) : [inputs.yMin, inputs.yMax]).some((s) => s.trim() !== "");
   const set = (key: keyof AxisInputs) => (v: string) => onChange({ ...inputs, [key]: v });
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
@@ -207,7 +215,7 @@ function AxisControls({
         <span className="flex items-center gap-1">
           <span className="font-medium">X</span>
           <AxisField label="X axis from (min)" value={inputs.xMin} onChange={set("xMin")} />
-          <span>–</span>
+          <span>&ndash;</span>
           <AxisField label="X axis to (min)" value={inputs.xMax} onChange={set("xMax")} />
           <span>min</span>
         </span>
@@ -221,22 +229,205 @@ function AxisControls({
         ) : (
           <AxisField label={`Y axis from (${unit})`} value={inputs.yMin} onChange={set("yMin")} />
         )}
-        <span>–</span>
+        <span>&ndash;</span>
         <AxisField label={`Y axis to (${unit})`} value={inputs.yMax} onChange={set("yMax")} />
         <span>{unit}</span>
       </span>
+      <Button
+        type="button"
+        variant={freeZoom ? "default" : "outline"}
+        size="sm"
+        className="h-7 px-2 text-[11px]"
+        aria-pressed={freeZoom}
+        title="Scroll or pinch to zoom, drag to pan"
+        onClick={() => onFreeZoom(!freeZoom)}
+      >
+        <ZoomIn className="size-3" /> Free zoom
+      </Button>
+      {freeZoom && <span>scroll or pinch to zoom, drag to pan</span>}
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className="h-7 px-2 text-[11px]"
         disabled={!manual}
-        onClick={() => onChange(AUTO_AXES)}
+        onClick={() => {
+          onChange(AUTO_AXES);
+          onResetZoom();
+        }}
       >
         <RotateCcw className="size-3" /> Auto
       </Button>
     </div>
   );
+}
+
+/* ---------------- free zoom: wheel, pinch, drag-pan ---------------- */
+
+type Range = [number, number];
+interface ZoomState {
+  x: Range | null;
+  y: Range | null;
+}
+const NO_ZOOM: ZoomState = { x: null, y: null };
+/** one wheel notch */
+const WHEEL_STEP = 1.2;
+/** Plot-area insets, matching the LineChart margins and axis sizes below. */
+const PLOT_LEFT = 56;
+const PLOT_RIGHT = 12;
+const PLOT_TOP = 8;
+const X_AXIS_H = 30;
+const RUN_AXIS_H = 20;
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+/** `range` scaled by `factor` about the point at fraction `f` of it. */
+function scaled(range: Range, f: number, factor: number): Range {
+  const c = range[0] + f * (range[1] - range[0]);
+  return [c - (c - range[0]) * factor, c + (range[1] - c) * factor];
+}
+
+/**
+ * While enabled, the chart's wrapper takes wheel (zoom about the pointer),
+ * two-finger pinch (zoom about the midpoint) and drag / one-finger pan, and
+ * the resulting X/Y ranges override the axes until reset. `baseRef` holds
+ * what the axes span right now when nothing is zoomed, so the first gesture
+ * has something to scale. Native listeners: React's wheel/touch handlers are
+ * passive, and the page must not scroll or pinch-zoom underneath.
+ */
+function useFreeZoom(
+  enabled: boolean,
+  baseRef: { current: ZoomState },
+  bottomInset: number,
+): { ref: React.RefObject<HTMLDivElement | null>; zoom: ZoomState; reset: () => void } {
+  const ref = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState<ZoomState>(NO_ZOOM);
+  const zoomRef = useRef(zoom);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+  useEffect(() => {
+    if (!enabled) setZoom(NO_ZOOM);
+  }, [enabled]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled) return;
+    const current = (): { x: Range; y: Range } | null => {
+      const x = zoomRef.current.x ?? baseRef.current.x;
+      const y = zoomRef.current.y ?? baseRef.current.y;
+      return x && y ? { x, y } : null;
+    };
+    const plot = () => {
+      const r = el.getBoundingClientRect();
+      return {
+        left: r.left + PLOT_LEFT,
+        top: r.top + PLOT_TOP,
+        w: Math.max(1, r.width - PLOT_LEFT - PLOT_RIGHT),
+        h: Math.max(1, r.height - PLOT_TOP - bottomInset),
+      };
+    };
+    /** pointer -> fraction of the plot area, y from the bottom */
+    const frac = (clientX: number, clientY: number) => {
+      const p = plot();
+      return {
+        fx: clamp((clientX - p.left) / p.w, 0, 1),
+        fy: clamp(1 - (clientY - p.top) / p.h, 0, 1),
+      };
+    };
+    const apply = (x: Range, y: Range) => {
+      if (x[1] - x[0] < 0.5 || y[1] - y[0] < 1e-3) return; // tight enough
+      setZoom({ x, y });
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      const cur = current();
+      if (!cur) return;
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? WHEEL_STEP : 1 / WHEEL_STEP;
+      const { fx, fy } = frac(e.clientX, e.clientY);
+      apply(scaled(cur.x, fx, factor), scaled(cur.y, fy, factor));
+    };
+
+    let drag: { x: number; y: number; start: { x: Range; y: Range } } | null = null;
+    let pinch: { d: number; fx: number; fy: number; start: { x: Range; y: Range } } | null = null;
+    const pan = (clientX: number, clientY: number) => {
+      if (!drag) return;
+      const p = plot();
+      const dx = ((clientX - drag.x) / p.w) * (drag.start.x[1] - drag.start.x[0]);
+      const dy = ((clientY - drag.y) / p.h) * (drag.start.y[1] - drag.start.y[0]);
+      setZoom({
+        x: [drag.start.x[0] - dx, drag.start.x[1] - dx],
+        y: [drag.start.y[0] + dy, drag.start.y[1] + dy],
+      });
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      const cur = current();
+      if (!cur || e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, start: cur };
+      e.preventDefault();
+    };
+    const onMouseMove = (e: MouseEvent) => {
+      if (drag) pan(e.clientX, e.clientY);
+    };
+    const onMouseUp = () => {
+      drag = null;
+    };
+    const dist = (t: TouchList) =>
+      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const onTouchStart = (e: TouchEvent) => {
+      const cur = current();
+      if (!cur) return;
+      if (e.touches.length === 2) {
+        const { fx, fy } = frac(
+          (e.touches[0].clientX + e.touches[1].clientX) / 2,
+          (e.touches[0].clientY + e.touches[1].clientY) / 2,
+        );
+        pinch = { d: dist(e.touches), fx, fy, start: cur };
+        drag = null;
+        e.preventDefault();
+      } else if (e.touches.length === 1) {
+        drag = { x: e.touches[0].clientX, y: e.touches[0].clientY, start: cur };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (pinch && e.touches.length === 2) {
+        e.preventDefault();
+        const factor = pinch.d / Math.max(1, dist(e.touches));
+        apply(scaled(pinch.start.x, pinch.fx, factor), scaled(pinch.start.y, pinch.fy, factor));
+      } else if (drag && e.touches.length === 1) {
+        e.preventDefault();
+        pan(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+    const onTouchEnd = () => {
+      pinch = null;
+      drag = null;
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [enabled, baseRef, bottomInset]);
+
+  return { ref, zoom, reset: () => setZoom(NO_ZOOM) };
 }
 
 /* ---------------- chart ---------------- */
@@ -272,12 +463,22 @@ export function TraceChart({
   // Manual axis limits; empty = auto. X is entered in minutes, plotted in seconds.
   const [axes, setAxes] = useState<AxisInputs>(AUTO_AXES);
   const [xMinMin, xMaxMin] = orderedPair(parseLimit(axes.xMin), parseLimit(axes.xMax));
-  const [yMin, yMax] =
+  const [yLimMin, yLimMax] =
     yFloor != null
       ? flooredPair(yFloor, parseLimit(axes.yMax))
       : orderedPair(parseLimit(axes.yMin), parseLimit(axes.yMax));
-  const xMin = wall ? (xDomain?.[0] ?? null) : xMinMin === null ? null : xMinMin * 60;
-  const xMax = wall ? (xDomain?.[1] ?? null) : xMaxMin === null ? null : xMaxMin * 60;
+  const xLimMin = wall ? (xDomain?.[0] ?? null) : xMinMin === null ? null : xMinMin * 60;
+  const xLimMax = wall ? (xDomain?.[1] ?? null) : xMaxMin === null ? null : xMaxMin * 60;
+
+  // Free zoom (wheel / pinch / drag) overrides both axes until Auto or the
+  // toggle clears it; a live window keeps moving underneath, unseen.
+  const [freeZoom, setFreeZoom] = useState(false);
+  const baseRef = useRef<ZoomState>(NO_ZOOM);
+  const fz = useFreeZoom(freeZoom, baseRef, X_AXIS_H + (wall ? RUN_AXIS_H : 0));
+  const xMin = fz.zoom.x?.[0] ?? xLimMin;
+  const xMax = fz.zoom.x?.[1] ?? xLimMax;
+  const yMin = fz.zoom.y?.[0] ?? yLimMin;
+  const yMax = fz.zoom.y?.[1] ?? yLimMax;
   const manualX = xMin !== null || xMax !== null;
   const manualY = yMin !== null || yMax !== null;
 
@@ -291,6 +492,37 @@ export function TraceChart({
         }),
     [series, maxPoints, xMin, xMax],
   );
+  // What the axes span right now, for the first zoom gesture: the limits in
+  // force, else the extent of the visible data (close to recharts' auto).
+  const extent = useMemo(() => {
+    let t0 = Infinity;
+    let t1 = -Infinity;
+    let v0 = Infinity;
+    let v1 = -Infinity;
+    for (const s of drawn)
+      for (const p of s.points) {
+        if (p.t < t0) t0 = p.t;
+        if (p.t > t1) t1 = p.t;
+        if (p.v < v0) v0 = p.v;
+        if (p.v > v1) v1 = p.v;
+      }
+    return t0 <= t1 ? { t0, t1, v0, v1 } : null;
+  }, [drawn]);
+  useEffect(() => {
+    const xBase: Range | null =
+      xMin !== null && xMax !== null
+        ? [xMin, xMax]
+        : extent
+          ? [xMin ?? (wall ? extent.t0 : 0), xMax ?? extent.t1]
+          : null;
+    const yBase: Range | null =
+      yMin !== null && yMax !== null
+        ? [yMin, yMax]
+        : extent
+          ? [yMin ?? extent.v0, yMax ?? extent.v1]
+          : null;
+    baseRef.current = { x: xBase, y: yBase };
+  }, [xMin, xMax, yMin, yMax, extent, wall]);
   const decimals = unit === "mAU" || unit === "bar" ? 1 : 2;
 
   const span = xMin !== null && xMax !== null ? xMax - xMin : 0;
@@ -340,7 +572,11 @@ export function TraceChart({
             unit={unit}
             showX={!wall}
             yFloor={yFloor}
+            freeZoom={freeZoom}
+            zoomed={fz.zoom.x !== null || fz.zoom.y !== null}
             onChange={setAxes}
+            onFreeZoom={setFreeZoom}
+            onResetZoom={fz.reset}
           />
         </div>
       </CardHeader>
@@ -353,7 +589,15 @@ export function TraceChart({
             {emptyText}
           </div>
         ) : (
-          <div style={{ height }} className="w-full">
+          <div
+            ref={fz.ref}
+            style={{
+              height,
+              touchAction: freeZoom ? "none" : undefined,
+              cursor: freeZoom ? "grab" : undefined,
+            }}
+            className={"w-full" + (freeZoom ? " select-none" : "")}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <LineChart margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -405,6 +649,8 @@ export function TraceChart({
                   tick={{ fontSize: 11 }}
                   stroke="var(--muted-foreground)"
                   domain={[yMin ?? "auto", yMax ?? "auto"]}
+                  // zoomed domains produce unrounded ticks (88.666…)
+                  tickFormatter={(v) => String(Number(Number(v).toFixed(decimals)))}
                   allowDataOverflow={manualY}
                   width={56}
                   label={{
